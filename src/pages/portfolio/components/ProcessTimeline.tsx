@@ -1,6 +1,5 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useInView, useMotionValueEvent } from 'framer-motion';
-import { useState } from 'react';
 
 const steps = [
   {
@@ -39,77 +38,132 @@ const steps = [
 
 function StepNode({ step, index }: { step: typeof steps[0]; index: number }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-100px' });
+  const isInView = useInView(ref, { once: true, margin: '-80px' });
   const isEven = index % 2 === 0;
 
   return (
-    <div ref={ref} className="relative grid grid-cols-[1fr_auto_1fr] gap-0 items-center min-h-[280px]">
-      {/* Left content (even steps) or empty */}
-      <div className={`${isEven ? 'pr-10 lg:pr-16' : ''}`}>
-        {isEven && (
+    <div ref={ref}>
+      {/* ── MOBILE layout: single column ── */}
+      <div className="flex md:hidden items-start gap-4 py-4">
+        {/* Left: node */}
+        <div className="flex flex-col items-center flex-shrink-0 pt-1">
           <motion.div
-            initial={{ opacity: 0, x: -60 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="text-right"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={isInView ? { scale: 1, opacity: 1 } : {}}
+            transition={{ duration: 0.5, delay: 0.1, type: 'spring', stiffness: 200 }}
+            className="relative"
           >
-            <StepContent step={step} align="right" />
+            <div
+              className="relative w-10 h-10 rounded-full flex items-center justify-center"
+              style={{
+                background: `linear-gradient(135deg, ${step.accent}25, ${step.accent}10)`,
+                border: `2px solid ${step.accent}60`,
+                boxShadow: `0 0 16px ${step.accent}30`,
+              }}
+            >
+              <i className={`${step.icon} text-base`} style={{ color: step.accent }} />
+            </div>
           </motion.div>
-        )}
-      </div>
+        </div>
 
-      {/* Center line + node */}
-      <div className="relative flex flex-col items-center z-10">
-        {/* Glowing orb */}
+        {/* Right: content */}
         <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={isInView ? { scale: 1, opacity: 1 } : {}}
-          transition={{ duration: 0.6, delay: 0.1, type: 'spring', stiffness: 200 }}
-          className="relative"
+          initial={{ opacity: 0, x: 20 }}
+          animate={isInView ? { opacity: 1, x: 0 } : {}}
+          transition={{ duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="flex-1 min-w-0 pb-2"
         >
-          {/* Outer glow ring */}
-          <div
-            className="absolute -inset-4 rounded-full opacity-0 animate-pulse"
-            style={{
-              background: `radial-gradient(circle, ${step.accent}30 0%, transparent 70%)`,
-              animation: isInView ? 'pulseGlow 3s ease-in-out infinite' : 'none',
-              animationDelay: `${index * 0.5}s`,
-            }}
-          />
-          {/* Middle glow */}
-          <div
-            className="absolute -inset-2 rounded-full"
-            style={{
-              background: `radial-gradient(circle, ${step.accent}20 0%, transparent 70%)`,
-              filter: 'blur(6px)',
-            }}
-          />
-          {/* Node circle */}
-          <div
-            className="relative w-14 h-14 rounded-full flex items-center justify-center"
-            style={{
-              background: `linear-gradient(135deg, ${step.accent}25, ${step.accent}10)`,
-              border: `2px solid ${step.accent}60`,
-              boxShadow: `0 0 20px ${step.accent}30, 0 0 40px ${step.accent}15, inset 0 0 15px ${step.accent}10`,
-            }}
-          >
-            <i className={`${step.icon} text-xl`} style={{ color: step.accent }} />
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[9px] font-bold tracking-[0.3em] uppercase font-display" style={{ color: `${step.accent}80` }}>
+              Step {step.num}
+            </span>
+          </div>
+          <h3 className="font-display text-lg font-bold mb-2 leading-tight" style={{ color: step.accent }}>
+            {step.title}
+          </h3>
+          <p className="text-white/40 text-xs leading-relaxed mb-3">{step.desc}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {step.details.map((detail) => (
+              <span
+                key={detail}
+                className="px-2.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wider uppercase"
+                style={{
+                  background: `${step.accent}10`,
+                  color: `${step.accent}90`,
+                  border: `1px solid ${step.accent}20`,
+                }}
+              >
+                {detail}
+              </span>
+            ))}
           </div>
         </motion.div>
       </div>
 
-      {/* Right content (odd steps) or empty */}
-      <div className={`${!isEven ? 'pl-10 lg:pl-16' : ''}`}>
-        {!isEven && (
+      {/* ── DESKTOP layout: alternating ── */}
+      <div className="hidden md:grid relative grid-cols-[1fr_auto_1fr] gap-0 items-center min-h-[280px]">
+        {/* Left content (even steps) or empty */}
+        <div className={`${isEven ? 'pr-10 lg:pr-16' : ''}`}>
+          {isEven && (
+            <motion.div
+              initial={{ opacity: 0, x: -60 }}
+              animate={isInView ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="text-right"
+            >
+              <StepContent step={step} align="right" />
+            </motion.div>
+          )}
+        </div>
+
+        {/* Center node */}
+        <div className="relative flex flex-col items-center z-10">
           <motion.div
-            initial={{ opacity: 0, x: 60 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="text-left"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={isInView ? { scale: 1, opacity: 1 } : {}}
+            transition={{ duration: 0.6, delay: 0.1, type: 'spring', stiffness: 200 }}
+            className="relative"
           >
-            <StepContent step={step} align="left" />
+            <div
+              className="absolute -inset-4 rounded-full"
+              style={{
+                background: `radial-gradient(circle, ${step.accent}30 0%, transparent 70%)`,
+                animation: isInView ? `pulseGlow 3s ease-in-out infinite ${index * 0.5}s` : 'none',
+              }}
+            />
+            <div
+              className="absolute -inset-2 rounded-full"
+              style={{
+                background: `radial-gradient(circle, ${step.accent}20 0%, transparent 70%)`,
+                filter: 'blur(6px)',
+              }}
+            />
+            <div
+              className="relative w-14 h-14 rounded-full flex items-center justify-center"
+              style={{
+                background: `linear-gradient(135deg, ${step.accent}25, ${step.accent}10)`,
+                border: `2px solid ${step.accent}60`,
+                boxShadow: `0 0 20px ${step.accent}30, 0 0 40px ${step.accent}15, inset 0 0 15px ${step.accent}10`,
+              }}
+            >
+              <i className={`${step.icon} text-xl`} style={{ color: step.accent }} />
+            </div>
           </motion.div>
-        )}
+        </div>
+
+        {/* Right content (odd steps) or empty */}
+        <div className={`${!isEven ? 'pl-10 lg:pl-16' : ''}`}>
+          {!isEven && (
+            <motion.div
+              initial={{ opacity: 0, x: 60 }}
+              animate={isInView ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="text-left"
+            >
+              <StepContent step={step} align="left" />
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -167,14 +221,12 @@ export default function ProcessTimeline() {
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
-    offset: ['start center', 'end 90%'],
+    offset: ['start 80%', 'end 90%'],
   });
 
-  const lineHeight = useTransform(scrollYProgress, [0, 1], ['0%', '100%']);
+  const lineScaleY = useTransform(scrollYProgress, [0, 1], [0, 1]);
 
-  // Drive the finale box glow based on scroll progress
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
-    // Start glowing when line is ~85% through (approaching the box)
     const glow = Math.max(0, Math.min(1, (v - 0.82) / 0.18));
     setFinaleGlow(glow);
   });
@@ -224,27 +276,36 @@ export default function ProcessTimeline() {
 
         {/* Timeline container */}
         <div className="relative">
-          {/* Static background line — extends into finale box */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-0 w-px bg-white/[0.06]" style={{ bottom: '-96px' }} />
+          {/* Static background line — desktop only */}
+          <div
+            className="hidden md:block absolute left-1/2 -translate-x-1/2 top-0 w-px bg-white/[0.06]"
+            style={{ bottom: '-96px' }}
+          />
 
-          {/* Animated glowing line */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-0 w-px" style={{ bottom: '-96px' }}>
+          {/* Animated glowing line — desktop only, grows from top */}
+          <div
+            className="hidden md:block absolute left-1/2 -translate-x-1/2 top-0 w-px overflow-hidden"
+            style={{ bottom: '-96px' }}
+          >
             <motion.div
-              className="w-full origin-top"
+              className="w-full h-full origin-top"
               style={{
-                height: lineHeight,
+                scaleY: lineScaleY,
                 background: 'linear-gradient(to bottom, #ef4444, #f97316, #fb7185, #fbbf24)',
-                boxShadow: '0 0 8px rgba(249,115,22,0.6), 0 0 20px rgba(249,115,22,0.3), 0 0 40px rgba(249,115,22,0.15)',
+                boxShadow: '0 0 8px rgba(249,115,22,0.6), 0 0 20px rgba(249,115,22,0.3)',
               }}
             />
           </div>
 
-          {/* Animated glow dot that travels down the line */}
-          <div className="absolute left-1/2 -translate-x-1/2 top-0 pointer-events-none" style={{ bottom: '-96px' }}>
+          {/* Animated glow dot — desktop only, travels with line tip */}
+          <div
+            className="hidden md:block absolute left-1/2 -translate-x-1/2 top-0 pointer-events-none"
+            style={{ bottom: '-96px' }}
+          >
             <motion.div
               className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full"
               style={{
-                top: lineHeight,
+                top: useTransform(scrollYProgress, [0, 1], ['0%', '100%']),
                 background: 'radial-gradient(circle, #f97316 0%, transparent 70%)',
                 boxShadow: '0 0 12px #f97316, 0 0 30px rgba(249,115,22,0.5)',
                 filter: 'blur(1px)',
@@ -253,8 +314,11 @@ export default function ProcessTimeline() {
             />
           </div>
 
+          {/* Mobile: vertical connector line */}
+          <div className="md:hidden absolute left-[19px] top-0 bottom-0 w-px bg-white/[0.06]" />
+
           {/* Steps */}
-          <div className="relative z-10 flex flex-col gap-8 md:gap-4">
+          <div className="relative z-10 flex flex-col gap-0 md:gap-4">
             {steps.map((step, i) => (
               <StepNode key={step.num} step={step} index={i} />
             ))}
@@ -307,7 +371,7 @@ export default function ProcessTimeline() {
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="mt-24 md:mt-32 relative"
         >
-          {/* Glow backdrop — intensifies as line arrives */}
+          {/* Glow backdrop */}
           <div
             className="absolute inset-0 rounded-3xl pointer-events-none transition-all duration-300"
             style={{
@@ -321,20 +385,17 @@ export default function ProcessTimeline() {
             style={{
               background: 'linear-gradient(135deg, #141414 0%, #0f0f0f 100%)',
               border: `1px solid rgba(249,115,22,${0.15 + finaleGlow * 0.55})`,
-              boxShadow: `0 0 ${60 + finaleGlow * 80}px rgba(249,115,22,${0.06 + finaleGlow * 0.18}), 0 0 ${finaleGlow * 120}px rgba(249,115,22,${finaleGlow * 0.1}), inset 0 1px 0 rgba(255,255,255,0.04)`,
+              boxShadow: `0 0 ${60 + finaleGlow * 80}px rgba(249,115,22,${0.06 + finaleGlow * 0.18}), inset 0 1px 0 rgba(255,255,255,0.04)`,
             }}
           >
-            {/* Top accent line — brightens on arrival */}
             <div
               className="absolute top-0 left-1/2 -translate-x-1/2 h-px transition-all duration-300"
               style={{
                 width: `${32 + finaleGlow * 68}%`,
                 background: `linear-gradient(to right, transparent, rgba(249,115,22,${0.6 + finaleGlow * 0.4}), transparent)`,
-                boxShadow: finaleGlow > 0.3 ? `0 0 ${finaleGlow * 20}px rgba(249,115,22,0.8)` : 'none',
               }}
             />
 
-            {/* Corner sparks */}
             <div className="absolute top-6 left-8 text-orange-500/20 text-xs font-display tracking-widest uppercase">✦</div>
             <div className="absolute top-6 right-8 text-orange-500/20 text-xs font-display tracking-widest uppercase">✦</div>
 
@@ -411,13 +472,11 @@ export default function ProcessTimeline() {
               ))}
             </div>
 
-            {/* Divider */}
             <div
               className="w-full h-px mb-10"
               style={{ background: 'linear-gradient(to right, transparent, rgba(249,115,22,0.15), transparent)' }}
             />
 
-            {/* Client logos / names strip */}
             <motion.div
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -433,7 +492,6 @@ export default function ProcessTimeline() {
               ))}
             </motion.div>
 
-            {/* Bottom accent line */}
             <div
               className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-px"
               style={{ background: 'linear-gradient(to right, transparent, #f97316, transparent)' }}

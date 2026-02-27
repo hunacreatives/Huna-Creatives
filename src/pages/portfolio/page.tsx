@@ -105,7 +105,7 @@ export default function PortfolioPage() {
 
   return (
     <div
-      className="min-h-screen bg-[#0a0a0a] font-body"
+      className="min-h-screen bg-[#0a0a0a] font-body overflow-x-hidden"
       onMouseMove={handlePageMouseMove}
       onMouseEnter={() => setIsHoveringPage(true)}
       onMouseLeave={() => setIsHoveringPage(false)}
@@ -192,19 +192,19 @@ export default function PortfolioPage() {
                 Explore the brands we&apos;ve helped grow across Cebu and beyond.
               </p>
 
-              <div className="flex items-center gap-4 md:gap-8 lg:gap-10 border border-white/8 rounded-xl px-5 py-3 bg-white/[0.03] backdrop-blur-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-0 sm:flex sm:items-center sm:gap-8 lg:gap-10 border border-white/8 rounded-xl px-4 py-3 bg-white/[0.03] backdrop-blur-sm">
                 {[
                   { value: '33+', label: 'Brands Built' },
                   { value: '100+', label: 'Projects' },
                   { value: '5.0★', label: 'Avg. Rating' },
                   { value: '3×', label: 'Engagement Lift' },
                 ].map((stat, i, arr) => (
-                  <div key={stat.label} className="flex items-center gap-4 md:gap-8 lg:gap-10">
-                    <div className="text-center">
+                  <div key={stat.label} className="flex items-center gap-3 sm:gap-8 lg:gap-10">
+                    <div className="text-center w-full">
                       <div className="text-sm md:text-base lg:text-lg font-bold text-white font-display">{stat.value}</div>
-                      <div className="text-[9px] md:text-[10px] text-white/30 tracking-widest uppercase mt-0.5 whitespace-nowrap">{stat.label}</div>
+                      <div className="text-[9px] md:text-[10px] text-white/30 tracking-wide uppercase mt-0.5 whitespace-nowrap">{stat.label}</div>
                     </div>
-                    {i < arr.length - 1 && <div className="w-px h-6 bg-white/10" />}
+                    {i < arr.length - 1 && <div className="hidden sm:block w-px h-6 bg-white/10 flex-shrink-0" />}
                   </div>
                 ))}
               </div>
