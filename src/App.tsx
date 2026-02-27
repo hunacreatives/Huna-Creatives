@@ -1,9 +1,9 @@
-
 import { BrowserRouter, useLocation } from "react-router-dom";
 import { AppRoutes } from "./router";
 import { I18nextProvider } from "react-i18next";
 import i18n from "./i18n";
 import { useEffect, useRef } from "react";
+import ScrollToTop from "./components/feature/ScrollToTop";
 
 function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -31,6 +31,7 @@ function App() {
         <PageTransitionWrapper>
           <AppRoutes />
         </PageTransitionWrapper>
+        <ScrollToTop />
       </BrowserRouter>
     </I18nextProvider>
   );

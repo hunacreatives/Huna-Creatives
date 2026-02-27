@@ -133,38 +133,12 @@ export default function Hero() {
     <section
       ref={sectionRef}
       data-hero-section
-      className="relative h-screen flex items-center justify-center overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
       style={{ background: 'linear-gradient(160deg, #0a0a0a 0%, #111111 50%, #0d0d0d 100%)' }}
     >
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }} />
 
-      {/* Stats — bottom left */}
-      <div className="hero-animate absolute bottom-10 left-10 z-10 flex flex-col gap-4">
-        {[
-          { value: '100+', label: 'Projects Delivered' },
-          { value: '5.0★', label: 'Client Rating' },
-          { value: '100%', label: 'Satisfaction Rate' },
-        ].map((stat) => (
-          <div key={stat.label} className="text-left">
-            <div
-              className="text-xl md:text-2xl font-bold font-display"
-              style={{
-                background: 'linear-gradient(135deg, #f97316, #fb7185)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              {stat.value}
-            </div>
-            <div className="text-[9px] md:text-[10px] tracking-widest uppercase text-white/35 mt-0.5 font-body">
-              {stat.label}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-0 text-center">
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 pb-16 sm:pb-28 text-center">
 
         <div
           className="hero-animate inline-flex items-center gap-2 sm:gap-2.5 mb-6 sm:mb-8 px-3 sm:px-4 md:px-5 py-1.5 rounded-full"
@@ -226,7 +200,7 @@ export default function Hero() {
           </p>
         </div>
 
-        <div className="hero-animate flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-md sm:max-w-none mx-auto px-4 sm:px-0">
+        <div className="hero-animate flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 max-w-md sm:max-w-none mx-auto px-4 sm:px-0 mb-10 sm:mb-12">
           <a
             href="/portfolio"
             className="w-full sm:w-auto px-6 sm:px-7 md:px-9 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-[11px] md:text-xs font-semibold tracking-widest uppercase text-white transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer text-center"
@@ -256,6 +230,37 @@ export default function Hero() {
           >
             Get In Touch
           </a>
+        </div>
+
+        {/* Stats row — inline below buttons */}
+        <div className="hero-animate flex items-center justify-center gap-3 sm:gap-10 md:gap-14 w-full px-2">
+          {[
+            { value: '100+', label: 'Projects Delivered' },
+            { value: '5.0★', label: 'Client Rating' },
+            { value: '100%', label: 'Satisfaction Rate' },
+          ].map((stat, i, arr) => (
+            <>
+              <div key={stat.label} className="text-center flex-1 min-w-0">
+                <div
+                  className="text-sm sm:text-xl md:text-2xl font-bold font-display"
+                  style={{
+                    background: 'linear-gradient(135deg, #f97316, #fb7185)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  {stat.value}
+                </div>
+                <div className="text-[7px] sm:text-[9px] md:text-[10px] tracking-wide sm:tracking-widest uppercase text-white/35 mt-0.5 font-body leading-tight">
+                  {stat.label}
+                </div>
+              </div>
+              {i < arr.length - 1 && (
+                <div key={`divider-${i}`} className="w-px h-5 sm:h-6 bg-white/10 flex-shrink-0" />
+              )}
+            </>
+          ))}
         </div>
 
       </div>
