@@ -137,13 +137,16 @@ export default function Footer({ isDark = false }: FooterProps) {
             {/* Social */}
             <div className="flex items-center gap-3 mt-4">
               {[
-                { icon: 'ri-facebook-fill', href: '#' },
-                { icon: 'ri-instagram-line', href: '#' },
-                { icon: 'ri-linkedin-fill', href: '#' },
+                { icon: 'ri-facebook-fill', href: 'http://facebook.com/hunacreatives/', label: 'Facebook' },
+                { icon: 'ri-instagram-line', href: 'http://instagram.com/hunacreatives/', label: 'Instagram' },
+                { icon: 'ri-linkedin-fill', href: 'https://www.linkedin.com/company/huna-creatives/', label: 'LinkedIn' },
               ].map((social) => (
                 <a
                   key={social.icon}
                   href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={social.label}
                   className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer hover:scale-110"
                   style={{
                     background: shouldBeDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',

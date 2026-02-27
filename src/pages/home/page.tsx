@@ -12,6 +12,28 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://readdy.ai/api/public/assistant/widget?projectId=badb1e13-363f-42c7-bea3-385fe56b5540';
+    script.setAttribute('mode', 'hybrid');
+    script.setAttribute('voice-show-transcript', 'true');
+    script.setAttribute('theme', 'light');
+    script.setAttribute('size', 'compact');
+    script.setAttribute('accent-color', '#F97316');
+    script.setAttribute('button-base-color', '#000000');
+    script.setAttribute('button-accent-color', '#FFFFFF');
+    script.defer = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+      const widget = document.querySelector('readdy-widget') as HTMLElement | null;
+      if (widget) widget.remove();
+      const btn = document.querySelector('#vapi-widget-floating-button') as HTMLElement | null;
+      if (btn) btn.remove();
+    };
+  }, []);
+
   const navLinks = [
     { label: 'Home', href: '/' },
     { label: 'About Us', href: '/about' },
