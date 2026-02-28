@@ -10,6 +10,7 @@ const ServicesPage = lazy(() => import('../pages/services/page'));
 const ContactPage = lazy(() => import('../pages/contact/page'));
 const BlogPage = lazy(() => import('../pages/blog/page'));
 const ArticlePage = lazy(() => import('../pages/blog/article/page'));
+const CareersPage = lazy(() => import('../pages/careers/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 const routes: RouteObject[] = [
@@ -48,6 +49,10 @@ const routes: RouteObject[] = [
   {
     path: '/blog/:slug',
     element: <ArticlePage />,
+  },
+  {
+    path: '/careers',
+    element: <CareersPage />,
   },
   {
     path: '*',

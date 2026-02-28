@@ -39,16 +39,17 @@ const teamMembers = [
     hasPhoto: true,
   },
   {
-    name: 'Dan',
-    role: 'Web Designer',
-    bio: 'Dan brings digital experiences to life through thoughtful web design that balances aesthetics with functionality.',
-    image: '',
-    hasPhoto: false,
-  },
-  {
     name: 'Claudette Tahil',
     role: 'Admin/Account Specialist',
     bio: 'Claudette keeps client relationships strong and operations seamless, ensuring every account is handled with care and precision.',
+    image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/6785570f89c09728ca73acf4660742b6.png',
+    hasPhoto: true,
+    objectPosition: 'center 15%',
+  },
+  {
+    name: 'Dan',
+    role: 'Web Designer',
+    bio: 'Dan brings digital experiences to life through thoughtful web design that balances aesthetics with functionality.',
     image: '',
     hasPhoto: false,
   },
@@ -276,7 +277,8 @@ export default function AboutPage() {
                       <img
                         src={member.image}
                         alt={member.name}
-                        className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        style={{ objectPosition: (member as any).objectPosition || 'top center' }}
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
@@ -306,37 +308,46 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="py-12 sm:py-14 md:py-20 relative z-10 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl p-6 sm:p-8 md:p-14 lg:p-20 relative overflow-hidden border border-gray-100 shadow-xl">
-            {/* Glow orbs */}
-            <div className="absolute -top-16 -right-16 w-56 h-56 bg-red-100/60 rounded-full blur-3xl" />
-            <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-orange-100/50 rounded-full blur-3xl" />
+      {/* ── CAREERS TEASER ── */}
+      <section className="py-12 sm:py-16 md:py-20 relative z-10 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-gray-100 shadow-xl">
+            {/* Background gradient blobs */}
+            <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-orange-50/60 to-rose-50" />
+            <div className="absolute -top-20 -right-20 w-72 h-72 bg-orange-200/40 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-red-200/30 rounded-full blur-3xl" />
 
-            <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold font-display text-gray-900 mb-3 sm:mb-4 relative z-10">
-              Ready to bring your brand{' '}
-              <span className="gradient-text-animated">to life?</span>
-            </h2>
-            <p className="text-gray-500 text-xs sm:text-sm mb-6 sm:mb-8 max-w-lg mx-auto relative z-10 px-2">
-              Let&apos;s create something meaningful together.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 relative z-10">
-              <a
-                href="/contact"
-                className="w-full sm:w-auto inline-block px-6 sm:px-8 md:px-10 py-2.5 sm:py-3 md:py-3.5 bg-gradient-brand text-white font-semibold rounded-full transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 whitespace-nowrap cursor-pointer font-display text-xs sm:text-sm"
-              >
-                Get In Touch
-              </a>
-              <a
-                href="https://calendly.com/hunacreatives/30min"
-                target="_blank"
-                rel="nofollow noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-8 md:px-10 py-2.5 sm:py-3 md:py-3.5 rounded-full border border-orange-400/50 text-orange-500 font-semibold transition-all duration-300 hover:bg-orange-50 hover:scale-105 whitespace-nowrap cursor-pointer font-display text-xs sm:text-sm"
-              >
-                <i className="ri-calendar-line text-sm" />
-                Book a Free Call
-              </a>
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 md:gap-12 p-8 sm:p-10 md:p-14">
+              {/* Left icon */}
+              <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-orange-200/50">
+                <i className="ri-team-line text-2xl sm:text-3xl text-white" />
+              </div>
+
+              {/* Text */}
+              <div className="flex-1 text-center md:text-left">
+                <span className="inline-flex items-center gap-2 text-[10px] font-semibold tracking-widest uppercase gradient-text mb-2 sm:mb-3">
+                  <span className="w-5 h-px bg-gradient-to-r from-red-500 to-orange-400 block" />
+                  We're Growing
+                </span>
+                <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 leading-tight">
+                  Want to join the{' '}
+                  <span className="gradient-text-animated">Huna team?</span>
+                </h2>
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed max-w-xl">
+                  Huna is built by passionate creatives who love what they do. If that sounds like you, we'd love to have you in our corner — drop your details and be part of something worth building.
+                </p>
+              </div>
+
+              {/* CTA */}
+              <div className="shrink-0">
+                <a
+                  href="/careers"
+                  className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-brand text-white font-semibold rounded-full text-xs sm:text-sm transition-all duration-300 hover:shadow-lg hover:shadow-orange-400/30 hover:scale-105 whitespace-nowrap cursor-pointer font-display"
+                >
+                  Join Our Talent Pool
+                  <i className="ri-arrow-right-line text-sm" />
+                </a>
+              </div>
             </div>
           </div>
         </div>

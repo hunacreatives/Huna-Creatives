@@ -69,6 +69,7 @@ export default function Footer({ isDark = false }: FooterProps) {
                 { label: 'Portfolio', href: '/portfolio' },
                 { label: 'Services', href: '/services' },
                 { label: 'Blog', href: '/blog' },
+                { label: 'Careers', href: '/careers' },
               ].map((link) => (
                 <li key={link.href}>
                   <a

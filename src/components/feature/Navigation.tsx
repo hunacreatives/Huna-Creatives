@@ -63,6 +63,7 @@ export default function Navigation() {
               { label: 'Portfolio', href: '/portfolio' },
               { label: 'Services', href: '/services' },
               { label: 'Blog', href: '/blog' },
+              { label: 'Careers', href: '/careers' },
             ].map((link) => (
               <a
                 key={link.href}
@@ -127,6 +128,7 @@ export default function Navigation() {
               { label: 'Portfolio', href: '/portfolio' },
               { label: 'Services', href: '/services' },
               { label: 'Blog', href: '/blog' },
+              { label: 'Careers', href: '/careers' },
             ].map((link) => (
               <button
                 key={link.href}

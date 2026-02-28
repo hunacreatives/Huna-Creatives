@@ -1,4 +1,3 @@
-
 export interface BlogArticle {
   slug: string;
   category: string;
@@ -548,6 +547,391 @@ export const blogArticles: BlogArticle[] = [
     relatedSlugs: [
       'why-brand-identity-is-your-most-valuable-asset',
       'the-power-of-consistent-visual-branding',
+    ],
+  },
+  {
+    slug: 'website-design-for-small-businesses',
+    category: 'Web Design',
+    title: 'Why Every Small Business Needs a Professional Website in 2025',
+    excerpt:
+      'A Facebook page is not a website. In 2025, your business website is your most powerful sales tool — and small businesses that invest in professional web design are pulling ahead of those that do not.',
+    readTime: '7 min read',
+    date: 'July 2, 2025',
+    heroImage:
+      'https://readdy.ai/api/search-image?query=small%20business%20owner%20reviewing%20professional%20website%20design%20on%20laptop%20in%20modern%20minimalist%20office%20warm%20natural%20lighting%20clean%20desk%20setup%20editorial%20photography&width=1200&height=600&seq=blog-smb-web-hero-001&orientation=landscape',
+    author: {
+      name: 'Huna Creatives',
+      role: 'Web Design Team',
+      avatar:
+        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-007&orientation=squarish',
+    },
+    seo: {
+      description:
+        'Discover why professional website design is essential for small businesses in Cebu and the Philippines in 2025. Huna Creatives builds fast, mobile-first websites that help local businesses attract more customers and grow online.',
+      keywords: [
+        'website design for small business Cebu',
+        'small business website Philippines',
+        'affordable web design Cebu City',
+        'professional website Philippines',
+        'web design agency Cebu',
+        'Huna Creatives website',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'If your business does not have a professional website in 2025, you are invisible to a massive portion of your potential customers. Studies show that over 80% of consumers research a business online before making a purchase decision. If they cannot find you — or worse, if they find a poorly designed site — you have already lost them to a competitor who invested in their digital presence.',
+      },
+      {
+        type: 'heading',
+        content: 'Your Website Is Your 24/7 Salesperson',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Unlike a physical store or a social media post, your website works around the clock. It answers questions, showcases your work, builds trust, and converts visitors into leads — even while you sleep. For small businesses in Cebu and across the Philippines, a well-designed website levels the playing field against larger competitors and opens doors to clients you would never reach otherwise.',
+      },
+      {
+        type: 'quote',
+        content:
+          'Your website is often the first real impression a potential client has of your business. Make it count — because in the digital age, a weak website is the same as a closed door.',
+      },
+      {
+        type: 'heading',
+        content: 'What Makes a Small Business Website Actually Work',
+      },
+      {
+        type: 'list',
+        content: 'The essentials every small business website needs:',
+        items: [
+          'A clear headline that tells visitors exactly what you do and who you serve',
+          'Fast load times — every second of delay costs you conversions',
+          'Mobile-optimized design, since most Filipino users browse on their phones',
+          'Easy-to-find contact information and a clear call-to-action',
+          'Testimonials and social proof that build immediate trust',
+          'A portfolio or gallery that shows your work in its best light',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'The Hidden Cost of a Bad Website',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Many small business owners hesitate to invest in professional web design because of the upfront cost. But the real cost is the business you are losing every single day to competitors with better websites. A professional website is not an expense — it is an investment that pays dividends for years. At Huna Creatives, we build websites that are designed to grow with your business and deliver measurable results.',
+      },
+      {
+        type: 'heading',
+        content: 'Local SEO: Getting Found in Cebu and Beyond',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A beautiful website that nobody can find is still a missed opportunity. That is why every website we build at Huna Creatives is optimized for local search — so when someone in Cebu searches for your type of business, you show up. From proper meta tags to fast hosting and structured data, we make sure Google knows exactly who you are and where you are.',
+      },
+    ],
+    cta: {
+      heading: 'Ready to give your business the website it deserves?',
+      body: "Huna Creatives builds professional, high-converting websites for small businesses across Cebu and the Philippines. Let's build yours.",
+    },
+    relatedSlugs: [
+      'web-design-that-converts-not-just-impresses',
+      'startup-branding-identity-guide',
+      'the-power-of-consistent-visual-branding',
+    ],
+  },
+  {
+    slug: 'startup-branding-identity-guide',
+    category: 'Brand Identity',
+    title: 'The Startup Founder\'s Guide to Building a Brand Identity From Scratch',
+    excerpt:
+      'You have the idea, the product, and the drive. Now you need a brand that makes people take you seriously from day one. Here is how startups build brand identities that punch above their weight.',
+    readTime: '8 min read',
+    date: 'June 25, 2025',
+    heroImage:
+      'https://readdy.ai/api/search-image?query=startup%20founder%20working%20on%20brand%20identity%20moodboard%20with%20logo%20sketches%20color%20palettes%20and%20typography%20samples%20pinned%20on%20wall%20modern%20creative%20workspace%20warm%20lighting%20editorial%20photography&width=1200&height=600&seq=blog-startup-brand-hero-001&orientation=landscape',
+    author: {
+      name: 'Huna Creatives',
+      role: 'Brand Strategy Team',
+      avatar:
+        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-008&orientation=squarish',
+    },
+    seo: {
+      description:
+        'A complete guide to building a startup brand identity from scratch in the Philippines. Huna Creatives helps new businesses and startups in Cebu create strategic, professional brand identities that attract investors, customers, and top talent from day one.',
+      keywords: [
+        'startup branding Philippines',
+        'brand identity for startups Cebu',
+        'new business branding Cebu City',
+        'startup logo design Philippines',
+        'brand identity agency Cebu',
+        'Huna Creatives startup branding',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Starting a business is one of the most exciting things you can do. But in the rush to launch, many founders make a critical mistake: they treat branding as something they will figure out later. The problem is that your brand is being formed whether you are intentional about it or not. Every interaction, every post, every pitch deck is shaping how people perceive your startup. The question is whether you are in control of that perception.',
+      },
+      {
+        type: 'heading',
+        content: 'Why Startups Cannot Afford to Skip Branding',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'In a crowded market, a strong brand identity is what makes investors take you seriously, customers choose you over established competitors, and top talent want to join your team. A professional brand signals that you are serious, credible, and here to stay. It is the difference between looking like a side project and looking like a company worth betting on.',
+      },
+      {
+        type: 'quote',
+        content:
+          'Your brand is your first pitch. Before you say a single word, your logo, your colors, and your visual identity are already telling a story. Make sure it is the right one.',
+      },
+      {
+        type: 'heading',
+        content: 'Step 1: Define Your Brand Before You Design It',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Before you think about logos or colors, you need to answer the foundational questions: What problem does your startup solve? Who is your ideal customer? What values drive your business? What feeling do you want people to associate with your brand? These answers are the strategic foundation that every design decision should be built on.',
+      },
+      {
+        type: 'heading',
+        content: 'Step 2: Build a Visual Identity That Scales',
+      },
+      {
+        type: 'list',
+        content: 'Your startup brand identity should include:',
+        items: [
+          'A versatile logo that works at any size — from app icon to billboard',
+          'A color palette that reflects your brand personality and stands out in your category',
+          'Typography that is both distinctive and highly readable',
+          'A photography and imagery style that is consistent across all platforms',
+          'Brand guidelines that keep everything consistent as your team grows',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'Step 3: Apply It Everywhere, Consistently',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A brand identity is only as powerful as its application. Once you have your visual system, apply it consistently across every touchpoint — your website, your social media, your pitch deck, your packaging, your email signature. Consistency builds recognition, and recognition builds trust. For startups trying to establish themselves quickly, this consistency is a competitive superpower.',
+      },
+      {
+        type: 'heading',
+        content: 'The Huna Approach for Startups',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'We have worked with startups across Cebu and the Philippines to build brand identities that help them compete from day one. We understand the unique challenges founders face — tight timelines, limited budgets, and the need to make a big impression fast. Our startup branding packages are designed to give you everything you need to launch with confidence.',
+      },
+    ],
+    cta: {
+      heading: 'Launch your startup with a brand that means business.',
+      body: "Huna Creatives builds startup brand identities that attract customers, investors, and talent. Let's build yours before your launch.",
+    },
+    relatedSlugs: [
+      'why-brand-identity-is-your-most-valuable-asset',
+      'brand-strategy-before-design',
+      'website-design-for-small-businesses',
+    ],
+  },
+  {
+    slug: 'social-media-content-strategy-2025',
+    category: 'Digital Marketing',
+    title: 'The Social Media Content Strategy That Actually Grows Your Business in 2025',
+    excerpt:
+      'The rules of social media have changed. Reach is harder to earn, attention spans are shorter, and audiences are more discerning than ever. Here is the content strategy that works in 2025.',
+    readTime: '7 min read',
+    date: 'June 18, 2025',
+    heroImage:
+      'https://readdy.ai/api/search-image?query=social%20media%20content%20strategy%20planning%20session%20with%20phone%20showing%20analytics%20dashboard%20content%20calendar%20and%20creative%20assets%20on%20modern%20desk%20warm%20studio%20lighting%20editorial%20photography%20minimal&width=1200&height=600&seq=blog-social-strategy-hero-001&orientation=landscape',
+    author: {
+      name: 'Huna Creatives',
+      role: 'Digital Marketing Team',
+      avatar:
+        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-009&orientation=squarish',
+    },
+    seo: {
+      description:
+        'Learn the social media content strategy that grows businesses in Cebu and the Philippines in 2025. Huna Creatives creates data-driven social media strategies for Instagram, Facebook, and TikTok that build real audiences and drive measurable business results.',
+      keywords: [
+        'social media strategy Cebu 2025',
+        'social media content Philippines',
+        'Instagram strategy Cebu City',
+        'TikTok marketing Philippines',
+        'social media agency Cebu',
+        'content strategy Philippines 2025',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'In 2025, social media is more competitive than it has ever been. Organic reach on most platforms has declined significantly, short-form video dominates every feed, and audiences have become experts at scrolling past content that does not immediately grab their attention. The brands that are winning are not the ones posting the most — they are the ones posting the most strategically.',
+      },
+      {
+        type: 'heading',
+        content: 'The Content Pillars Framework',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The most effective social media strategies are built around content pillars — three to five core themes that define what your brand talks about. For a creative agency, those pillars might be: behind-the-scenes process, client results, industry education, brand inspiration, and team culture. Every piece of content you create should fit into one of these pillars, ensuring your feed is varied but always on-brand.',
+      },
+      {
+        type: 'quote',
+        content:
+          'The brands winning on social media in 2025 are not the ones with the biggest budgets — they are the ones with the clearest strategy and the most consistent execution. Show up with purpose, every single time.',
+      },
+      {
+        type: 'heading',
+        content: 'Short-Form Video Is Non-Negotiable',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Reels, TikToks, and YouTube Shorts are the highest-reach content formats available to brands right now. The algorithm rewards short-form video with organic distribution that static posts simply cannot match. If your brand is not creating short-form video content in 2025, you are leaving enormous reach on the table. The good news is that you do not need a big production budget — authenticity and value matter far more than production quality.',
+      },
+      {
+        type: 'list',
+        content: 'Short-form video content ideas that perform:',
+        items: [
+          'Before-and-after transformations of your work',
+          'Quick tips and educational content your audience can use immediately',
+          'Behind-the-scenes of your process or team',
+          'Client testimonials and reaction videos',
+          'Trending audio with on-brand visuals and messaging',
+          'Day-in-the-life content that humanizes your brand',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'Engagement Is a Two-Way Street',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Too many brands treat social media as a broadcast channel — they post content and then disappear. The brands that build genuine communities are the ones that show up in the comments, respond to DMs, engage with their followers\' content, and make their audience feel seen. This kind of authentic engagement is what turns followers into fans and fans into paying clients.',
+      },
+      {
+        type: 'heading',
+        content: 'Measuring What Actually Matters',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Vanity metrics like follower count and likes are less important than ever. The metrics that matter in 2025 are saves, shares, profile visits, link clicks, and direct messages — because these indicate genuine interest and intent. At Huna Creatives, we build social media strategies around the metrics that actually move your business forward.',
+      },
+    ],
+    cta: {
+      heading: 'Build a social media presence that actually grows your business.',
+      body: "Huna Creatives creates social media strategies and content that build real audiences and drive real results. Let's talk about your brand.",
+    },
+    relatedSlugs: [
+      'social-media-marketing-that-actually-builds-your-brand',
+      'content-creation-that-builds-authority',
+      'website-design-for-small-businesses',
+    ],
+  },
+  {
+    slug: 'print-design-still-matters',
+    category: 'Print Design',
+    title: 'Why Print Design Still Matters — And How to Make It Work for Your Brand',
+    excerpt:
+      'In a world obsessed with digital, print design has become a powerful differentiator. A beautifully designed business card, brochure, or packaging creates a tangible brand experience that no screen can replicate.',
+    readTime: '6 min read',
+    date: 'June 10, 2025',
+    heroImage:
+      'https://readdy.ai/api/search-image?query=premium%20print%20design%20collection%20showing%20business%20cards%20brochures%20and%20brand%20collateral%20on%20dark%20matte%20surface%20with%20warm%20orange%20accent%20lighting%20editorial%20photography%20flat%20lay%20minimal%20studio%20professional&width=1200&height=600&seq=blog-print-design-hero-001&orientation=landscape',
+    author: {
+      name: 'Huna Creatives',
+      role: 'Brand Design Team',
+      avatar:
+        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-010&orientation=squarish',
+    },
+    seo: {
+      description:
+        'Find out why print design is still a powerful brand tool for businesses in Cebu and the Philippines. Huna Creatives designs premium business cards, brochures, packaging, and brand collateral that create unforgettable physical brand experiences.',
+      keywords: [
+        'print design Cebu',
+        'graphic design Philippines',
+        'business card design Cebu City',
+        'brochure design Philippines',
+        'brand collateral Cebu',
+        'print design agency Philippines',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Every marketing expert will tell you to go digital. And they are right — digital marketing is essential. But here is what they often miss: because everyone has gone digital, print has become rare. And rare things get noticed. A beautifully designed business card handed to someone at a networking event, a premium brochure left on a client\'s desk, or packaging that makes unboxing feel like an event — these physical touchpoints create brand impressions that digital simply cannot match.',
+      },
+      {
+        type: 'heading',
+        content: 'The Psychology of Physical Brand Materials',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Research in neuroscience shows that physical materials engage more of the brain than digital content. When someone holds your business card, they are experiencing your brand through touch, sight, and even smell. This multi-sensory engagement creates stronger memory encoding — meaning they are more likely to remember you and your brand long after the interaction.',
+      },
+      {
+        type: 'quote',
+        content:
+          'In a digital world, print is the luxury. A beautifully crafted physical piece says something that a digital ad never can: that you care enough to invest in the real thing.',
+      },
+      {
+        type: 'heading',
+        content: 'Print Design That Elevates Your Brand',
+      },
+      {
+        type: 'list',
+        content: 'Print materials that make a lasting impression:',
+        items: [
+          'Business cards — your most personal brand touchpoint, make them unforgettable',
+          'Brochures and lookbooks — tell your brand story in a format people keep',
+          'Packaging design — turn every delivery into a brand experience',
+          'Event materials — banners, programs, and signage that command attention',
+          'Stationery — letterheads, envelopes, and notepads that signal professionalism',
+          'Posters and print advertising — bold, eye-catching design for physical spaces',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'The Bridge Between Print and Digital',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The most effective brand strategies use print and digital together. A QR code on a beautifully designed flyer bridges the physical and digital worlds. Packaging that is designed to be photographed and shared on social media turns your print materials into digital content. At Huna Creatives, we design print materials that are not just beautiful on their own — they are designed to work as part of your complete brand ecosystem.',
+      },
+      {
+        type: 'heading',
+        content: 'Getting Print Right: What Most Businesses Miss',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Great print design requires understanding the technical requirements of print production — color modes, bleed areas, resolution, paper stocks, and finishing options like foiling, embossing, and spot UV. These details make the difference between a print piece that looks amateur and one that looks premium. Our team at Huna Creatives handles every aspect of print design from concept to print-ready files, ensuring your materials look as good in hand as they do on screen.',
+      },
+    ],
+    cta: {
+      heading: 'Make your brand impossible to forget — in print.',
+      body: "Huna Creatives designs premium print materials that create real-world brand experiences. From business cards to full brand collateral, let's make something worth holding.",
+    },
+    relatedSlugs: [
+      'the-power-of-consistent-visual-branding',
+      'why-brand-identity-is-your-most-valuable-asset',
+      'startup-branding-identity-guide',
     ],
   },
 ];

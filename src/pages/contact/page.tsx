@@ -51,19 +51,25 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (formData.message.length > 500) return;
+    
     setStatus('sending');
+    
     try {
-      const response = await fetch('https://readdy.ai/api/form/d6gg7u5fdug2dekq5dhg', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(formData as Record<string, string>).toString(),
-      });
-      if (response.ok) {
-        setStatus('success');
-        setFormData({ name: '', email: '', service: '', budget: '', message: '' });
-      } else {
-        setStatus('error');
-      }
+      const subject = 'New Contact Form Submission';
+      const body = `
+Name: ${formData.name}
+Email: ${formData.email}
+Service: ${formData.service}
+Budget: ${formData.budget || 'Not specified'}
+
+Message:
+${formData.message}
+      `.trim();
+
+      window.location.href = `mailto:contact@hunacreatives.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      setStatus('success');
+      setFormData({ name: '', email: '', service: '', budget: '', message: '' });
     } catch {
       setStatus('error');
     }
@@ -238,17 +244,17 @@ export default function ContactPage() {
                     boxShadow: '0 0 30px rgba(239,68,68,0.3)',
                   }}
                 >
-                  {status === 'sending' ? 'Sending...' : 'Send Message →'}
+                  {status === 'sending' ? 'Opening Email...' : 'Send Message →'}
                 </button>
 
                 {status === 'success' && (
                   <div className="p-5 bg-green-900/30 border border-green-500/30 rounded-2xl text-green-400 text-sm font-medium text-center">
-                    ✓ Thank you! Your message has been sent successfully.
+                    ✓ Your email client should open. Please send the email to complete your message!
                   </div>
                 )}
                 {status === 'error' && (
                   <div className="p-5 bg-red-900/30 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium text-center">
-                    ✗ Something went wrong. Please try again.
+                    ✗ Something went wrong. Please try again or email us directly at contact@hunacreatives.com
                   </div>
                 )}
               </form>
