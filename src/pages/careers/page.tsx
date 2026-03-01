@@ -22,31 +22,39 @@ export default function CareersPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (formData.message.length > 500) {
-      setStatus('error');
-      return;
-    }
+    if (formData.message.length > 500) return;
 
     setStatus('sending');
 
     try {
-      const subject = `Talent Pool Interest: ${formData.name}`;
-      const body = `
-Name: ${formData.name}
-Email: ${formData.email}
-Role / Skill Set: ${formData.role || 'Not specified'}
-Portfolio / Website: ${formData.portfolio || 'Not provided'}
-Attached File: ${resumeFile ? resumeFile.name : 'None'}
+      const body = new URLSearchParams();
+      body.append('name', formData.name);
+      body.append('email', formData.email);
+      body.append('role', formData.role);
+      body.append('portfolio', formData.portfolio);
+      body.append('message', formData.message);
+      if (resumeFile) {
+        body.append('resume_filename', `[File attached: ${resumeFile.name}]`);
+      }
 
-Message:
-${formData.message}
-      `.trim();
+      const res = await fetch('https://formspree.io/f/mbdaedkb', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: body.toString(),
+      });
 
-      window.location.href = `mailto:contact@hunacreatives.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      const json = await res.json();
 
-      setStatus('success');
-      setFormData({ name: '', email: '', role: '', portfolio: '', message: '' });
-      setResumeFile(null);
+      if (res.ok && !json.errors) {
+        setStatus('success');
+        setFormData({ name: '', email: '', role: '', portfolio: '', message: '' });
+        setResumeFile(null);
+      } else {
+        setStatus('error');
+      }
     } catch {
       setStatus('error');
     }
@@ -144,7 +152,7 @@ ${formData.message}
                 Join Our Talent Pool
               </h2>
               <p className="text-white/40 text-xs md:text-sm leading-relaxed">
-                We're not hiring right now, but we'd love to keep you in mind. Drop your details below and you'll be the first we reach out to when a spot opens up.
+                Huna is built by passionate creatives who love what they do. If that sounds like you, we'd love to have you in our corner — drop your details and be part of something worth building.
               </p>
             </div>
 
@@ -222,7 +230,7 @@ ${formData.message}
                 </label>
                 <label
                   htmlFor="resumeFile"
-                  className="flex items-center gap-4 w-full px-5 py-4 bg-white/5 border border-white/10 border-dashed rounded-xl cursor-pointer hover:border-orange-500/40 hover:bg-white/8 transition-all group"
+                  className="flex items-center gap-4 w-full px-5 py-4 bg-white/5 border border-white/10 border-dashed rounded-xl cursor-pointer hover:border-orange-500/40 hover:bg-white/[0.08] transition-all group"
                 >
                   <div className="w-8 h-8 flex items-center justify-center rounded-lg shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
                     <i className="ri-upload-2-line text-orange-400 text-sm" />
@@ -286,17 +294,17 @@ ${formData.message}
                   boxShadow: '0 0 30px rgba(239,68,68,0.3)',
                 }}
               >
-                {status === 'sending' ? 'Opening Email...' : 'Add Me to the Pool →'}
+                {status === 'sending' ? 'Submitting...' : 'Add Me to the Pool →'}
               </button>
 
               {status === 'success' && (
                 <div className="p-5 bg-green-900/30 border border-green-500/30 rounded-2xl text-green-400 text-sm font-medium text-center">
-                  ✓ Your email client should open — please attach your file and hit send to complete your submission!
+                  ✓ You're in! We'll reach out when the right opportunity comes up.
                 </div>
               )}
               {status === 'error' && (
                 <div className="p-5 bg-red-900/30 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium text-center">
-                  ✗ Something went wrong. Please email us directly at contact@hunacreatives.com
+                  ✗ Something went wrong. Please try again or email us at contact@hunacreatives.com
                 </div>
               )}
             </form>

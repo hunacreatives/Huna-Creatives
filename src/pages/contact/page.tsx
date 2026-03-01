@@ -55,21 +55,27 @@ export default function ContactPage() {
     setStatus('sending');
     
     try {
-      const subject = 'New Contact Form Submission';
-      const body = `
-Name: ${formData.name}
-Email: ${formData.email}
-Service: ${formData.service}
-Budget: ${formData.budget || 'Not specified'}
+      const params = new URLSearchParams();
+      params.append('name', formData.name);
+      params.append('email', formData.email);
+      params.append('service', formData.service);
+      params.append('budget', formData.budget || 'Not specified');
+      params.append('message', formData.message);
 
-Message:
-${formData.message}
-      `.trim();
+      const res = await fetch('https://formspree.io/f/mjgedgoq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+        body: params.toString(),
+      });
 
-      window.location.href = `mailto:contact@hunacreatives.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      
-      setStatus('success');
-      setFormData({ name: '', email: '', service: '', budget: '', message: '' });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok || data?.ok === true || (!data?.errors)) {
+        setStatus('success');
+        setFormData({ name: '', email: '', service: '', budget: '', message: '' });
+      } else {
+        setStatus('error');
+      }
     } catch {
       setStatus('error');
     }
@@ -137,7 +143,7 @@ ${formData.message}
               <h2 className="font-display text-xl md:text-2xl font-bold text-white mb-2">Send us a message</h2>
               <p className="text-white/35 text-xs md:text-sm mb-6 md:mb-8">Fill out the form below and we&apos;ll get back to you within 24 hours.</p>
 
-              <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
+              <form onSubmit={handleSubmit} data-readdy-form className="space-y-4 md:space-y-5">
                 {/* Name */}
                 <div>
                   <label htmlFor="name" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">
@@ -244,12 +250,12 @@ ${formData.message}
                     boxShadow: '0 0 30px rgba(239,68,68,0.3)',
                   }}
                 >
-                  {status === 'sending' ? 'Opening Email...' : 'Send Message →'}
+                  {status === 'sending' ? 'Sending...' : 'Send Message →'}
                 </button>
 
                 {status === 'success' && (
                   <div className="p-5 bg-green-900/30 border border-green-500/30 rounded-2xl text-green-400 text-sm font-medium text-center">
-                    ✓ Your email client should open. Please send the email to complete your message!
+                    ✓ Message sent! We&apos;ll get back to you within 24 hours.
                   </div>
                 )}
                 {status === 'error' && (
