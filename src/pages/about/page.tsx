@@ -11,6 +11,13 @@ const teamMembers = [
     hasPhoto: true,
   },
   {
+    name: 'Thamara Ong',
+    role: 'Partner & Senior Brand Strategist',
+    bio: 'Thamara is the strategic force behind every brand story. She turns insights into direction and ideas into impact.',
+    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/c2dcdf7b-60dc-456d-9a36-2b105fab1551/Thamara+Ong',
+    hasPhoto: true,
+  },
+  {
     name: 'Ma. Reeva Jumawan',
     role: 'Partner & Senior Visual Director',
     bio: 'Reeva brings visual worlds to life. Her eye for detail and aesthetic direction keeps every project looking sharp and intentional.',
@@ -45,6 +52,13 @@ const teamMembers = [
     image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/6785570f89c09728ca73acf4660742b6.png',
     hasPhoto: true,
     objectPosition: 'center 15%',
+  },
+  {
+    name: 'Reese Jumawan',
+    role: 'Junior Graphic Designer',
+    bio: 'Reese is a passionate creative who thrives on turning concepts into compelling visuals that resonate with audiences.',
+    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/bf9d33e6-e10b-4f2d-9f05-2312e1695007/Reese+Jumawan',
+    hasPhoto: true,
   },
   {
     name: 'Dan',
