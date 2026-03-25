@@ -40,6 +40,7 @@ export default function HomePage() {
     { label: 'Portfolio', href: '/portfolio' },
     { label: 'Services', href: '/services' },
     { label: 'Blog', href: '/blog' },
+    { label: 'Careers', href: '/careers' },
   ];
 
   return (

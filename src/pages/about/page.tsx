@@ -129,30 +129,22 @@ export default function AboutPage() {
 
       {/* ── HERO ── */}
       <section ref={heroRef} className="relative pt-24 sm:pt-28 pb-0 overflow-hidden z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* Label */}
-          <div className="reveal-item scroll-reveal mb-4 sm:mb-5">
-            <span className="inline-flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] font-medium tracking-widest uppercase gradient-text">
-              <span className="w-5 sm:w-6 md:w-8 h-px bg-gradient-to-r from-red-500 to-orange-400 block" />
-              About Us
-              <span className="w-5 sm:w-6 md:w-8 h-px bg-gradient-to-r from-orange-400 to-rose-400 block" />
-            </span>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="reveal-item scroll-reveal flex items-center gap-3 mb-5">
+            <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
+            <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">About Us</span>
           </div>
 
-          {/* Headline */}
-          <div className="reveal-item scroll-reveal mb-6 sm:mb-8 max-w-5xl">
+          <div className="reveal-item scroll-reveal mb-7 max-w-4xl">
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-[1.08] tracking-tight text-gray-900">
               We design with{' '}
               <span className="gradient-text-animated">purpose</span>
-              <br />
-              and move brands
-              <br />
+              <br />and move brands{' '}
               <span className="gradient-text-animated">to action.</span>
             </h1>
           </div>
 
-          {/* Stats row */}
-          <div className="reveal-item scroll-reveal grid grid-cols-2 sm:flex sm:flex-wrap gap-4 sm:gap-6 md:gap-10 mb-8 sm:mb-10">
+          <div className="reveal-item scroll-reveal flex flex-wrap gap-8 sm:gap-12 mb-10">
             {[
               { value: '100+', label: 'Projects Delivered' },
               { value: '5.0★', label: 'Client Rating' },
@@ -161,15 +153,15 @@ export default function AboutPage() {
             ].map((stat) => (
               <div key={stat.label}>
                 <p className="text-lg sm:text-xl md:text-2xl font-bold font-display gradient-text">{stat.value}</p>
-                <p className="text-[10px] sm:text-[11px] md:text-xs text-gray-500 mt-0.5">{stat.label}</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Full-width team photo */}
-        <div className="reveal-item scroll-reveal max-w-7xl mx-auto px-4 sm:px-6 mt-2">
-          <div className="relative rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-xl">
+        <div className="reveal-item scroll-reveal max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="relative rounded-2xl md:rounded-3xl overflow-hidden">
             <div className="w-full h-[220px] sm:h-[340px] md:h-[440px] lg:h-[520px]">
               <img
                 src="https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/f4405f8d-bb2d-4158-8112-4d2c495073e8/Screenshot+2025-08-05+at+12.46.35%E2%80%AFPM.png"
@@ -177,23 +169,31 @@ export default function AboutPage() {
                 className="w-full h-full object-cover object-top"
               />
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-white/30 via-transparent to-transparent" />
-            <div className="absolute inset-0 rounded-xl sm:rounded-2xl md:rounded-3xl ring-1 ring-gray-200" />
+            <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent" />
+            <div className="absolute inset-0 rounded-2xl md:rounded-3xl ring-1 ring-gray-200" />
           </div>
         </div>
       </section>
 
+      {/* ── separator ── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20">
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+      </div>
+
       {/* ── STORY ── */}
-      <section ref={storyRef} className="py-12 sm:py-16 md:py-20 lg:py-28 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section ref={storyRef} className="py-16 sm:py-20 md:py-24 relative z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-20 items-start">
             {/* Left heading */}
             <div className="lg:col-span-4 lg:sticky lg:top-32">
               <div className="reveal-item scroll-reveal">
-                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight mb-3 sm:mb-4 text-gray-900">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
+                  <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">Our Story</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-gray-900">
                   Who We <span className="gradient-text">Are</span>
                 </h2>
-                <div className="h-1 w-12 sm:w-16 bg-gradient-brand rounded-full" />
               </div>
             </div>
 
@@ -212,10 +212,8 @@ export default function AboutPage() {
                     It&apos;s about designing with purpose, thinking forward, and moving brands to action.
                   </strong>
                 </p>
-
-                {/* Decorative quote block */}
-                <div className="bg-gray-50 border border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border-l-4 border-l-orange-400 mt-5 sm:mt-6">
-                  <p className="text-gray-600 italic text-xs sm:text-sm leading-relaxed">
+                <div className="bg-gray-50 border border-gray-100 border-l-4 border-l-orange-400 rounded-xl p-5 sm:p-6 mt-2">
+                  <p className="text-gray-500 italic text-xs sm:text-sm leading-relaxed">
                     &ldquo;Design is not just what it looks like and feels like. Design is how it works — and how it moves people.&rdquo;
                   </p>
                   <p className="text-brand-orange text-xs font-semibold mt-2 sm:mt-3">— Huna Creatives</p>
@@ -226,33 +224,35 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* ── separator ── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+      </div>
+
       {/* ── VALUES ── */}
-      <section ref={valuesRef} className="py-12 sm:py-14 md:py-20 relative z-10 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="reveal-item scroll-reveal text-center mb-10 sm:mb-12">
-            <span className="inline-flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] font-medium tracking-widest uppercase gradient-text mb-3 sm:mb-4">
-              <span className="w-5 sm:w-6 md:w-8 h-px bg-gradient-to-r from-red-500 to-orange-400 block" />
-              Our Approach
-              <span className="w-5 sm:w-6 md:w-8 h-px bg-gradient-to-r from-orange-400 to-rose-400 block" />
-            </span>
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display mt-2 sm:mt-3 text-gray-900">
-              What <span className="gradient-text-animated">Drives Us</span>
-            </h2>
+      <section ref={valuesRef} className="py-16 sm:py-20 md:py-24 relative z-10 bg-gray-50/60">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-12">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
+                <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">Our Approach</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-gray-900">
+                What <span className="gradient-text-animated">Drives Us</span>
+              </h2>
+            </div>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {values.map((item, i) => (
-              <div
-                key={item.title}
-                className="reveal-item scroll-reveal group"
-                style={{ transitionDelay: `${i * 120}ms` }}
-              >
-                <div className="h-full bg-white rounded-xl sm:rounded-2xl p-5 sm:p-7 md:p-9 hover:shadow-xl transition-all duration-500 hover:-translate-y-1 border border-gray-100 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-50/0 to-orange-50/0 group-hover:from-red-50 group-hover:to-orange-50/60 transition-all duration-500 rounded-xl sm:rounded-2xl" />
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 flex items-center justify-center rounded-lg bg-gradient-brand mb-4 sm:mb-5 group-hover:scale-110 transition-transform duration-300 relative z-10">
-                    <i className={`${item.icon} text-base sm:text-lg md:text-xl text-white`} />
+              <div key={item.title} className="reveal-item scroll-reveal group" style={{ transitionDelay: `${i * 120}ms` }}>
+                <div className="h-full bg-white rounded-2xl p-6 sm:p-7 md:p-8 hover:-translate-y-1 transition-all duration-500 border border-gray-100 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-red-50/0 to-orange-50/0 group-hover:from-red-50 group-hover:to-orange-50/60 transition-all duration-500 rounded-2xl" />
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-brand mb-5 group-hover:scale-110 transition-transform duration-300 relative z-10">
+                    <i className={`${item.icon} text-lg text-white`} />
                   </div>
-                  <h3 className="text-sm sm:text-base md:text-[17px] font-semibold text-gray-900 mb-2 font-display relative z-10">{item.title}</h3>
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-2 font-display relative z-10">{item.title}</h3>
                   <p className="text-gray-500 leading-relaxed text-xs sm:text-[13px] relative z-10">{item.desc}</p>
                 </div>
               </div>
@@ -261,31 +261,33 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* ── separator ── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+      </div>
+
       {/* ── TEAM ── */}
-      <section ref={teamRef} id="team" className="py-12 sm:py-16 md:py-24 relative z-10 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="reveal-item scroll-reveal text-center mb-10 sm:mb-12">
-            <span className="inline-flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] font-medium tracking-widest uppercase gradient-text mb-3 sm:mb-4">
-              <span className="w-5 sm:w-6 md:w-8 h-px bg-gradient-to-r from-red-500 to-orange-400 block" />
-              The People
-              <span className="w-5 sm:w-6 md:w-8 h-px bg-gradient-to-r from-orange-400 to-rose-400 block" />
-            </span>
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display mt-2 sm:mt-3 mb-3 sm:mb-4 text-gray-900">
-              Meet The <span className="gradient-text-animated">Team</span>
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500 max-w-xl mx-auto px-4">
+      <section ref={teamRef} id="team" className="py-16 sm:py-20 md:py-24 relative z-10 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-12">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
+                <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">The People</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-gray-900">
+                Meet The <span className="gradient-text-animated">Team</span>
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-400 max-w-[200px] leading-relaxed">
               The creative minds behind every Huna project.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-7">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
             {teamMembers.map((member, i) => (
-              <div
-                key={member.name}
-                className="reveal-item scroll-reveal group cursor-pointer"
-                style={{ transitionDelay: `${i * 80}ms` }}
-              >
-                <div className="relative overflow-hidden rounded-lg sm:rounded-xl md:rounded-2xl mb-2 sm:mb-3 border border-gray-100 group-hover:border-brand-orange/50 group-hover:shadow-lg transition-all duration-500">
+              <div key={member.name} className="reveal-item scroll-reveal group cursor-pointer" style={{ transitionDelay: `${i * 80}ms` }}>
+                <div className="relative overflow-hidden rounded-xl md:rounded-2xl mb-2 sm:mb-3 border border-gray-100 group-hover:border-brand-orange/40 group-hover:shadow-lg transition-all duration-500">
                   <div className="w-full h-40 sm:h-48 md:h-64 lg:h-72 xl:h-80 bg-gray-100 flex items-center justify-center">
                     {member.hasPhoto ? (
                       <img
@@ -303,12 +305,9 @@ export default function AboutPage() {
                       </div>
                     )}
                   </div>
-                  {/* Hover overlay — shows personal bio */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-3 sm:p-4">
                     <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                      <p className="text-white/90 text-[9px] sm:text-[11px] leading-relaxed">
-                        {member.bio}
-                      </p>
+                      <p className="text-white/90 text-[9px] sm:text-[11px] leading-relaxed">{member.bio}</p>
                     </div>
                   </div>
                 </div>
@@ -322,46 +321,36 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* ── separator ── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+      </div>
+
       {/* ── CAREERS TEASER ── */}
-      <section className="py-12 sm:py-16 md:py-20 relative z-10 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border border-gray-100 shadow-xl">
-            {/* Background gradient blobs */}
-            <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-orange-50/60 to-rose-50" />
-            <div className="absolute -top-20 -right-20 w-72 h-72 bg-orange-200/40 rounded-full blur-3xl" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-red-200/30 rounded-full blur-3xl" />
-
-            <div className="relative z-10 flex flex-col md:flex-row items-center gap-8 md:gap-12 p-8 sm:p-10 md:p-14">
-              {/* Left icon */}
-              <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-2xl bg-gradient-brand shadow-lg shadow-orange-200/50">
-                <i className="ri-team-line text-2xl sm:text-3xl text-white" />
+      <section className="py-16 sm:py-20 md:py-24 relative z-10 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-16">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
+                <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">We&apos;re Growing</span>
               </div>
-
-              {/* Text */}
-              <div className="flex-1 text-center md:text-left">
-                <span className="inline-flex items-center gap-2 text-[10px] font-semibold tracking-widest uppercase gradient-text mb-2 sm:mb-3">
-                  <span className="w-5 h-px bg-gradient-to-r from-red-500 to-orange-400 block" />
-                  We're Growing
-                </span>
-                <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 leading-tight">
-                  Want to join the{' '}
-                  <span className="gradient-text-animated">Huna team?</span>
-                </h2>
-                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed max-w-xl">
-                  Huna is built by passionate creatives who love what they do. If that sounds like you, we'd love to have you in our corner — drop your details and be part of something worth building.
-                </p>
-              </div>
-
-              {/* CTA */}
-              <div className="shrink-0">
-                <a
-                  href="/careers"
-                  className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-brand text-white font-semibold rounded-full text-xs sm:text-sm transition-all duration-300 hover:shadow-lg hover:shadow-orange-400/30 hover:scale-105 whitespace-nowrap cursor-pointer font-display"
-                >
-                  Join Our Talent Pool
-                  <i className="ri-arrow-right-line text-sm" />
-                </a>
-              </div>
+              <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 leading-tight">
+                Want to join the{' '}
+                <span className="gradient-text-animated">Huna team?</span>
+              </h2>
+              <p className="text-gray-500 text-xs sm:text-sm leading-relaxed max-w-md">
+                Huna is built by passionate creatives who love what they do. If that sounds like you, we&apos;d love to have you — drop your details and be part of something worth building.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <a
+                href="/careers"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-brand text-white font-semibold rounded-full text-sm transition-all duration-300 hover:shadow-lg hover:shadow-orange-400/30 hover:scale-105 whitespace-nowrap cursor-pointer font-display"
+              >
+                Join Our Talent Pool
+                <i className="ri-arrow-right-line text-sm" />
+              </a>
             </div>
           </div>
         </div>

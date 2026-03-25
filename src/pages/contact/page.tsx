@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Footer from '../home/components/Footer';
 import Navigation from '../../components/feature/Navigation';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'react-router-dom';
 
 const SERVICE_OPTIONS = [
   'Brand Identity & Logo Design',
@@ -24,10 +25,12 @@ const BUDGET_OPTIONS = [
 ];
 
 export default function ContactPage() {
+  const [searchParams] = useSearchParams();
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    service: '',
+    service: searchParams.get('service') ?? '',
     budget: '',
     message: '',
   });
@@ -40,6 +43,13 @@ export default function ContactPage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const serviceParam = searchParams.get('service');
+    if (serviceParam && SERVICE_OPTIONS.includes(serviceParam)) {
+      setFormData((prev) => ({ ...prev, service: serviceParam }));
+    }
+  }, [searchParams]);
 
   const navLinks = [
     { label: 'Home', href: '/' },

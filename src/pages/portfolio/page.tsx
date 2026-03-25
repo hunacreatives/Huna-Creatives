@@ -194,7 +194,7 @@ export default function PortfolioPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-0 sm:flex sm:items-center sm:gap-8 lg:gap-10 border border-white/8 rounded-xl px-4 py-3 bg-white/[0.03] backdrop-blur-sm">
                 {[
-                  { value: '33+', label: 'Brands Built' },
+                  { value: '38+', label: 'Brands Built' },
                   { value: '100+', label: 'Projects' },
                   { value: '5.0★', label: 'Avg. Rating' },
                   { value: '3×', label: 'Engagement Lift' },
@@ -238,17 +238,13 @@ export default function PortfolioPage() {
       </section>
 
       {/* ═══════════════════ CATEGORIES ═══════════════════ */}
-      <section className="relative py-20 md:py-32 lg:py-40 px-4 md:px-6 bg-[#0a0a0a]">
-        {/* Ambient glow */}
+      <section className="relative py-20 md:py-28 px-4 md:px-6 bg-[#0a0a0a]">
         <div
           className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full pointer-events-none opacity-30"
-          style={{
-            background: 'radial-gradient(circle, rgba(249,115,22,0.08) 0%, transparent 70%)',
-            filter: 'blur(100px)',
-          }}
+          style={{ background: 'radial-gradient(circle, rgba(249,115,22,0.08) 0%, transparent 70%)', filter: 'blur(100px)' }}
         />
 
-        <div className="max-w-7xl mx-auto relative z-10">
+        <div className="max-w-6xl mx-auto relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -257,10 +253,10 @@ export default function PortfolioPage() {
             className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6 mb-12 md:mb-16"
           >
             <div>
-              <span className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.3em] uppercase text-orange-500 mb-3 font-display">
-                <span className="w-6 h-px bg-orange-500" />
-                Expertise
-              </span>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-8 h-px bg-orange-500/50" />
+                <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Expertise</span>
+              </div>
               <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">
                 What we <span className="gradient-text-animated">specialize</span> in.
               </h2>
@@ -282,32 +278,18 @@ export default function PortfolioPage() {
                 <Link
                   to={`/portfolio/${cat.id}`}
                   className="group relative block overflow-hidden rounded-xl transition-all duration-500 hover:-translate-y-1 cursor-pointer"
-                  style={{
-                    background: '#141414',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
-                  }}
+                  style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
                 >
                   <div className="relative h-32 md:h-40 lg:h-48 overflow-hidden">
-                    <img
-                      src={cat.image}
-                      alt={cat.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
+                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent transition-all duration-500 group-hover:from-orange-900/70 group-hover:via-orange-900/20" />
-
-                    <div
-                      className="absolute top-2 md:top-3 right-2 md:right-3 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold text-white"
-                      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
-                    >
+                    <div className="absolute top-2 md:top-3 right-2 md:right-3 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold text-white" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
                       {cat.count}
                     </div>
-
                     <div className="absolute bottom-2 md:bottom-3 right-2 md:right-3 w-6 md:w-7 h-6 md:h-7 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
                       <i className="ri-arrow-right-up-line text-xs md:text-sm text-white" />
                     </div>
                   </div>
-
                   <div className="p-3 md:p-4 lg:p-5 transition-all duration-500 group-hover:bg-orange-950/20">
                     <div className="flex items-center gap-2 mb-1.5 md:mb-2">
                       <div className="w-5 md:w-6 h-5 md:h-6 flex items-center justify-center rounded-md transition-all duration-300 group-hover:bg-orange-500/20" style={{ background: `${cat.accent}18` }}>
@@ -317,7 +299,6 @@ export default function PortfolioPage() {
                     </div>
                     <p className="text-[10px] md:text-[11px] text-white/30 leading-relaxed transition-colors duration-300 group-hover:text-orange-200/40">{cat.description}</p>
                   </div>
-
                   <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(249,115,22,0.35), 0 8px 30px rgba(249,115,22,0.12)' }} />
                 </Link>
               </motion.div>
@@ -326,83 +307,63 @@ export default function PortfolioPage() {
         </div>
       </section>
 
+      {/* ── thin separator ── */}
+      <div className="max-w-6xl mx-auto px-4 md:px-6">
+        <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+      </div>
+
       {/* ═══════════════════ HOW WE WORK — GRAND TIMELINE ═══════════════════ */}
       <ProcessTimeline />
 
-      {/* ═══════════════════ CTA ═══════════════════ */}
-      <section className="relative py-20 md:py-28 px-4 md:px-6 bg-[#0a0a0a]">
-        {/* Ambient glow */}
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full pointer-events-none opacity-20"
-          style={{
-            background: 'radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%)',
-            filter: 'blur(100px)',
-          }}
-        />
+      {/* ── thin separator ── */}
+      <div className="max-w-6xl mx-auto px-4 md:px-6">
+        <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+      </div>
 
-        <div className="max-w-5xl mx-auto relative z-10">
+      {/* ═══════════════════ CTA ═══════════════════ */}
+      <section className="relative py-16 md:py-24 px-4 md:px-6 bg-[#0a0a0a]">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full pointer-events-none opacity-25" style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.18) 0%, transparent 70%)', filter: 'blur(100px)' }} />
+
+        <div className="max-w-6xl mx-auto relative z-10">
           <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            whileInView={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.7 }}
-            className="relative rounded-2xl overflow-hidden"
-            style={{
-              background: '#141414',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}
+            transition={{ duration: 0.8 }}
+            className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-16"
           >
-            <div className="absolute inset-0">
-              <img
-                src="https://readdy.ai/api/search-image?query=abstract%20dark%20moody%20creative%20studio%20environment%20with%20warm%20amber%20lighting%20dramatic%20shadows%20and%20scattered%20design%20tools%20on%20dark%20surface%20cinematic%20editorial%20photography%20artistic%20atmosphere&width=1200&height=500&seq=portfolio-cta-bg-001&orientation=landscape"
-                alt="Creative studio"
-                className="w-full h-full object-cover object-top opacity-25"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#141414] via-[#141414]/80 to-[#141414]/60" />
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-8 h-px bg-orange-500/50" />
+                <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Let&apos;s Create</span>
+              </div>
+              <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 leading-tight">
+                Ready to bring your<br />
+                <span className="gradient-text-animated">vision to life?</span>
+              </h2>
+              <p className="text-white/35 text-sm leading-relaxed max-w-sm">
+                Let&apos;s create something amazing together. Get in touch to discuss your project.
+              </p>
             </div>
 
-            {/* Top accent line */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-500/60 to-transparent" />
-
-            <div className="relative z-10 p-8 md:p-12 lg:p-16 flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-12">
-              <div className="max-w-lg">
-                <span className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.3em] uppercase text-orange-400 mb-4 font-display">
-                  <span className="w-5 h-px bg-orange-400" />
-                  Let&apos;s Create
-                </span>
-                <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4 leading-tight">
-                  Ready to bring your
-                  <br />
-                  <span className="gradient-text-animated">vision to life?</span>
-                </h2>
-                <p className="text-white/35 text-sm leading-relaxed">
-                  Let&apos;s create something amazing together. Get in touch to discuss your project.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 shrink-0">
-                <Link
-                  to="/contact"
-                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 font-semibold rounded-full shadow-lg hover:scale-105 transition-all duration-300 whitespace-nowrap text-white text-sm cursor-pointer"
-                  style={{
-                    background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)',
-                    backgroundSize: '200% 200%',
-                    boxShadow: '0 8px 30px rgba(239,68,68,0.35)',
-                  }}
-                >
-                  <span>Get Started</span>
-                  <i className="ri-arrow-right-line text-base" />
-                </Link>
-                <a
-                  href="https://calendly.com/hunacreatives/30min"
-                  target="_blank"
-                  rel="nofollow noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full text-sm font-semibold border border-orange-400/50 text-orange-400 hover:bg-orange-500/10 transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer"
-                >
-                  <i className="ri-calendar-line text-base" />
-                  Book a Free Call
-                </a>
-              </div>
+            <div className="flex flex-col gap-3 shrink-0">
+              <Link
+                to="/contact"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 font-semibold rounded-full hover:scale-105 transition-all duration-300 whitespace-nowrap text-white text-sm cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)', boxShadow: '0 8px 30px rgba(239,68,68,0.35)' }}
+              >
+                <span>Get Started</span>
+                <i className="ri-arrow-right-line text-base" />
+              </Link>
+              <a
+                href="https://calendly.com/hunacreatives/30min"
+                target="_blank"
+                rel="nofollow noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full text-sm font-semibold border border-orange-400/50 text-orange-400 hover:bg-orange-500/10 transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer"
+              >
+                <i className="ri-calendar-line text-base" />
+                Book a Free Call
+              </a>
             </div>
           </motion.div>
         </div>
