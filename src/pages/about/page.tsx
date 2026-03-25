@@ -119,12 +119,12 @@ export default function AboutPage() {
     <div className="min-h-screen bg-white text-gray-900 font-body">
       <Navigation />
 
-      {/* Subtle ambient blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-100/60 rounded-full blur-[140px]" />
-        <div className="absolute top-1/3 right-0 w-80 h-80 bg-orange-100/60 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 left-0 w-72 h-72 bg-rose-100/50 rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 right-1/3 w-64 h-64 bg-orange-50/60 rounded-full blur-[80px]" />
+      {/* Subtle ambient blobs — absolute, not fixed, so GPU doesn't composite on every scroll frame */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-100/50 rounded-full blur-[80px]" />
+        <div className="absolute top-1/3 right-0 w-80 h-80 bg-orange-100/50 rounded-full blur-[60px]" />
+        <div className="absolute bottom-1/4 left-0 w-72 h-72 bg-rose-100/40 rounded-full blur-[60px]" />
+        <div className="absolute bottom-0 right-1/3 w-64 h-64 bg-orange-50/50 rounded-full blur-[50px]" />
       </div>
 
       {/* ── HERO ── */}
@@ -293,6 +293,7 @@ export default function AboutPage() {
                       <img
                         src={member.image}
                         alt={member.name}
+                        loading="lazy"
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         style={{ objectPosition: (member as any).objectPosition || 'top center' }}
                       />

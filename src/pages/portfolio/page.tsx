@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 
 import Navigation from '../../components/feature/Navigation';
@@ -65,9 +65,7 @@ const clients = [
 export default function PortfolioPage() {
   const heroRef = useRef<HTMLElement>(null);
   const marqueeRef = useRef<HTMLElement>(null);
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
-  const [isHoveringPage, setIsHoveringPage] = useState(false);
-  const [marqueeBottom, setMarqueeBottom] = useState(0);
+  const cursorGlowRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -81,50 +79,41 @@ export default function PortfolioPage() {
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => {
-    const updateMarqueeBottom = () => {
-      if (marqueeRef.current) {
-        const rect = marqueeRef.current.getBoundingClientRect();
-        setMarqueeBottom(rect.bottom + window.scrollY);
-      }
-    };
-    updateMarqueeBottom();
-    window.addEventListener('resize', updateMarqueeBottom);
-    window.addEventListener('scroll', updateMarqueeBottom);
-    return () => {
-      window.removeEventListener('resize', updateMarqueeBottom);
-      window.removeEventListener('scroll', updateMarqueeBottom);
-    };
-  }, []);
-
+  // Direct DOM cursor glow — no setState, zero re-renders
   const handlePageMouseMove = (e: React.MouseEvent) => {
-    setCursorPos({ x: e.clientX, y: e.clientY });
+    const glow = cursorGlowRef.current;
+    const marquee = marqueeRef.current;
+    if (!glow) return;
+    glow.style.left = `${e.clientX - 250}px`;
+    glow.style.top = `${e.clientY - 250}px`;
+    if (marquee) {
+      const rect = marquee.getBoundingClientRect();
+      glow.style.opacity = e.clientY > rect.bottom ? '1' : '0';
+    }
   };
-
-  const isBelowMarquee = cursorPos.y + window.scrollY > marqueeBottom;
 
   return (
     <div
       className="min-h-screen bg-[#0a0a0a] font-body overflow-x-hidden"
       onMouseMove={handlePageMouseMove}
-      onMouseEnter={() => setIsHoveringPage(true)}
-      onMouseLeave={() => setIsHoveringPage(false)}
+      onMouseLeave={() => {
+        if (cursorGlowRef.current) cursorGlowRef.current.style.opacity = '0';
+      }}
     >
-      {/* Cursor glow — only visible below the marquee banner */}
-      {isHoveringPage && isBelowMarquee && (
-        <div
-          className="fixed rounded-full pointer-events-none z-[999]"
-          style={{
-            width: '500px',
-            height: '500px',
-            left: cursorPos.x - 250,
-            top: cursorPos.y - 250,
-            background: 'radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 70%)',
-            filter: 'blur(50px)',
-            transition: 'left 0.08s ease-out, top 0.08s ease-out',
-          }}
-        />
-      )}
+      {/* Cursor glow — controlled via ref, never triggers re-render */}
+      <div
+        ref={cursorGlowRef}
+        className="fixed rounded-full pointer-events-none z-[999]"
+        style={{
+          width: '500px',
+          height: '500px',
+          opacity: 0,
+          background: 'radial-gradient(circle, rgba(249,115,22,0.07) 0%, transparent 70%)',
+          filter: 'blur(50px)',
+          transition: 'opacity 0.2s ease',
+          willChange: 'left, top',
+        }}
+      />
 
       <Navigation />
 

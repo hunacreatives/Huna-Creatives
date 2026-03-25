@@ -1,15 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Hero from './components/Hero';
 import Footer from './components/Footer';
 
 export default function HomePage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const rafRef = useRef<number>();
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 60);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const handleScroll = () => {
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        setIsScrolled(window.scrollY > 60);
+        rafRef.current = undefined;
+      });
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -43,27 +53,30 @@ export default function HomePage() {
     { label: 'Careers', href: '/careers' },
   ];
 
+  const navScrolledStyle: React.CSSProperties = {
+    background: 'rgba(10,10,10,0.92)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    borderBottom: '1px solid rgba(234,88,12,0.15)',
+    boxShadow: '0 4px 30px rgba(0,0,0,0.4)',
+  };
+
+  const navTopStyle: React.CSSProperties = {
+    background: 'rgba(0,0,0,0.15)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Navigation */}
       <nav
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
-        style={
-          isScrolled
-            ? {
-                background: 'rgba(10,10,10,0.92)',
-                backdropFilter: 'blur(24px)',
-                WebkitBackdropFilter: 'blur(24px)',
-                borderBottom: '1px solid rgba(234,88,12,0.15)',
-                boxShadow: '0 4px 30px rgba(0,0,0,0.4)',
-              }
-            : {
-                background: 'rgba(0,0,0,0.15)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-              }
-        }
+        className="fixed top-0 left-0 right-0 z-50"
+        style={{
+          ...(isScrolled ? navScrolledStyle : navTopStyle),
+          transition: 'background 250ms ease, box-shadow 250ms ease, border-color 250ms ease',
+        }}
       >
         <div className="px-6 lg:px-12 py-4">
           <div className="flex items-center justify-between">

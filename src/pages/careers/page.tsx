@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import Footer from '../home/components/Footer';
 import Navigation from '../../components/feature/Navigation';
-import { motion } from 'framer-motion';
 
 export default function CareersPage() {
   const [formData, setFormData] = useState({
@@ -66,42 +65,36 @@ export default function CareersPage() {
 
       {/* HERO */}
       <section className="relative pt-24 pb-12 md:pt-32 md:pb-16 px-4 md:px-6 bg-[#0a0a0a] overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full bg-red-900/20 blur-[120px] pointer-events-none" />
-        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full bg-orange-900/20 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[350px] h-[350px] rounded-full bg-red-900/15 blur-[100px] pointer-events-none" />
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full bg-red-900/20 blur-[80px] pointer-events-none" />
+        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full bg-orange-900/20 blur-[60px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[350px] h-[350px] rounded-full bg-red-900/15 blur-[60px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center max-w-3xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-            >
-              <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.3em] uppercase text-orange-500 mb-4 md:mb-5 font-display">
-                <span className="w-6 h-px bg-orange-500" />
-                Join Our Team
-                <span className="w-6 h-px bg-orange-500" />
+          <div className="text-center max-w-3xl mx-auto fade-up fade-up-1">
+            <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.3em] uppercase text-orange-500 mb-4 md:mb-5 font-display">
+              <span className="w-6 h-px bg-orange-500" />
+              Join Our Team
+              <span className="w-6 h-px bg-orange-500" />
+            </span>
+            <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4 md:mb-6">
+              Build your career with
+              <br />
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #ef4444 0%, #f97316 40%, #fb7185 80%, #fbbf24 100%)',
+                  backgroundSize: '200% 200%',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  animation: 'gradient-shift 6s ease infinite',
+                }}
+              >
+                Huna Creatives.
               </span>
-              <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4 md:mb-6">
-                Build your career with
-                <br />
-                <span
-                  style={{
-                    background: 'linear-gradient(135deg, #ef4444 0%, #f97316 40%, #fb7185 80%, #fbbf24 100%)',
-                    backgroundSize: '200% 200%',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    animation: 'gradient-shift 6s ease infinite',
-                  }}
-                >
-                  Huna Creatives.
-                </span>
-              </h1>
-              <p className="text-white/40 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
-                At Huna Creatives, we build brands that mean something. If you're a creative who thinks boldly, works with intention, and wants to be part of something worth building — you're in the right place.
-              </p>
-            </motion.div>
+            </h1>
+            <p className="text-white/40 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+              At Huna Creatives, we build brands that mean something. If you&apos;re a creative who thinks boldly, works with intention, and wants to be part of something worth building — you&apos;re in the right place.
+            </p>
           </div>
         </div>
       </section>
@@ -109,12 +102,8 @@ export default function CareersPage() {
       {/* NO OPENINGS NOTICE */}
       <section className="relative py-10 md:py-14 px-4 md:px-6 bg-[#0a0a0a]">
         <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="rounded-2xl md:rounded-3xl p-8 md:p-10 border border-white/8 flex flex-col md:flex-row items-center gap-6 md:gap-10"
+          <div
+            className="rounded-2xl md:rounded-3xl p-8 md:p-10 border border-white/8 flex flex-col md:flex-row items-center gap-6 md:gap-10 fade-up fade-up-2"
             style={{ background: '#141414', boxShadow: '0 8px 40px rgba(0,0,0,0.4)' }}
           >
             <div className="w-14 h-14 flex items-center justify-center rounded-2xl shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
@@ -125,22 +114,18 @@ export default function CareersPage() {
                 No Open Positions Right Now
               </h2>
               <p className="text-white/40 text-sm leading-relaxed">
-                We're not actively hiring at the moment, but we're always growing. Check back soon — new opportunities will be posted here when they open up.
+                We&apos;re not actively hiring at the moment, but we&apos;re always growing. Check back soon — new opportunities will be posted here when they open up.
               </p>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* TALENT POOL FORM */}
       <section className="relative py-12 md:py-16 lg:py-20 px-4 md:px-6 bg-[#0a0a0a]">
         <div className="max-w-3xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
-            className="relative rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10"
+          <div
+            className="relative rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10 fade-up fade-up-3"
             style={{
               background: '#141414',
               border: '1px solid rgba(255,255,255,0.08)',
@@ -308,7 +293,7 @@ export default function CareersPage() {
                 </div>
               )}
             </form>
-          </motion.div>
+          </div>
         </div>
       </section>
 

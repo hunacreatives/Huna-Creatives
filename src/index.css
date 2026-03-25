@@ -11,11 +11,11 @@
 
   html {
     overflow-x: hidden;
+    scroll-behavior: smooth;
   }
 
   body {
     @apply font-body antialiased;
-    background: var(--brand-darker);
     overflow-x: hidden;
   }
 }

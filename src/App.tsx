@@ -5,9 +5,20 @@ import i18n from "./i18n";
 import { useEffect, useRef } from "react";
 import ScrollToTop from "./components/feature/ScrollToTop";
 
+// Pages that use a light/white background
+const LIGHT_BG_ROUTES = ['/about'];
+
 function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Sync html + body background with the page so overscroll never flickers
+    const isLight = LIGHT_BG_ROUTES.some((r) => location.pathname.startsWith(r));
+    const bg = isLight ? '#ffffff' : '#0a0a0a';
+    document.documentElement.style.background = bg;
+    document.body.style.background = bg;
+  }, [location.pathname]);
 
   useEffect(() => {
     const el = wrapperRef.current;
