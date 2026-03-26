@@ -384,6 +384,249 @@ const EmailMarketingLayout = ({ category }) => {
   );
 };
 
+/* ── Web Design dedicated layout ──────────────────────────────────────────── */
+const webDesignSites = [
+  {
+    id: 'hulma-cebu',
+    name: 'Hulma Cebu',
+    url: 'https://hulmacebu.com',
+    displayUrl: 'hulmacebu.com',
+    category: 'Web Design & UI/UX',
+    description:
+      'A premium fiberglass materials brand built from the ground up — product catalog, project galleries, material look-books, and a lead capture flow tuned for B2B hospitality and architecture clients.',
+    tags: ['Web Design', 'UI/UX', 'Product Catalog', 'Lead Generation'],
+    year: '2024',
+    accentColor: '#c4a882',
+    accentBg: 'rgba(196,168,130,0.1)',
+    image: 'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png?v=2f58c0d54407a354ae8e1afb547e2749',
+    comingSoon: false,
+  },
+  {
+    id: 'palm-barge',
+    name: 'Palm Island Barge Co.',
+    url: 'https://palmbarge.com.au',
+    displayUrl: 'palmbarge.com.au',
+    category: 'Web Design & Development',
+    description:
+      'Maritime services website for an Australian barge operator connecting Lucinda to Palm Island. Timetables, service listings, and an online enquiry system built for reliability.',
+    tags: ['Web Design', 'Services', 'Australia', 'Transport'],
+    year: '2024',
+    accentColor: '#f9a825',
+    accentBg: 'rgba(249,168,37,0.1)',
+    image: 'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/968636a3-15e7-48ef-8452-b827dbfc706a_Screenshot-2026-03-27-at-12.53.00AM.png?v=ddbf8291c1f9b01c3ac82b2519ccd99e',
+    comingSoon: false,
+  },
+  {
+    id: 'wjd-management',
+    name: 'WJD Management',
+    url: 'https://wjdpm.com',
+    displayUrl: 'wjdpm.com',
+    category: 'Web Design & Development',
+    description:
+      'A professional property management company serving Northern Virginia since 1983. Full-service site with rental listings, owner resources, tenant portals, and local market insights.',
+    tags: ['Web Design', 'Property Management', 'Real Estate', 'Virginia'],
+    year: '2024',
+    accentColor: '#6b9fb8',
+    accentBg: 'rgba(107,159,184,0.1)',
+    image: 'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/d755c44c-3c91-4bc2-b4a0-52e262066e1c_Screenshot-2026-03-27-at-12.53.13AM.png?v=147f99625f693c99cd0801cb479d0306',
+    comingSoon: false,
+  },
+  {
+    id: 'fs-architects',
+    name: 'FS Architects',
+    url: 'https://bzmywq.readdy.co',
+    displayUrl: 'fsarchitects.com',
+    category: 'Web Design & Branding',
+    description:
+      'A new project currently in progress. Full case study and live preview dropping soon.',
+    tags: ['Web Design', 'Architecture', 'Branding'],
+    year: '2025',
+    accentColor: '#7a8fa0',
+    accentBg: 'rgba(122,143,160,0.1)',
+    image: 'https://image.thum.io/get/width/1200/crop/800/https://bzmywq.readdy.co',
+    comingSoon: true,
+  },
+];
+
+const WebDesignLayout = () => (
+  <section className="relative py-12 md:py-16 px-4 md:px-6" style={{ background: '#0d0d0d' }}>
+    <div
+      className="absolute top-0 left-0 right-0 h-px"
+      style={{ background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.2), transparent)' }}
+    />
+    <div className="max-w-7xl mx-auto space-y-5 md:space-y-6">
+      {webDesignSites.map((site) => {
+        const cardInner = (
+          <>
+            {/* Browser mockup */}
+            <div className="relative w-full lg:w-[58%] flex-shrink-0 overflow-hidden">
+              <div
+                className="flex items-center gap-2 px-4 py-2.5 border-b"
+                style={{ background: '#1a1a1a', borderColor: 'rgba(255,255,255,0.07)' }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
+                </div>
+                <div
+                  className="flex-1 mx-3 px-3 py-1 rounded-md flex items-center gap-2"
+                  style={{ background: 'rgba(255,255,255,0.05)' }}
+                >
+                  <i className="ri-lock-line text-[9px] text-white/25" />
+                  <span className="text-[10px] text-white/30 tracking-wide truncate">{site.displayUrl}</span>
+                </div>
+                {!site.comingSoon && (
+                  <i className="ri-external-link-line text-[11px] text-white/20 group-hover:text-white/50 transition-colors duration-300" />
+                )}
+              </div>
+              <div className="relative overflow-hidden" style={{ height: '240px', background: '#1a1a1a' }}>
+                <img
+                  src={site.image}
+                  alt={site.name}
+                  className={`w-full h-full object-cover object-top transition-transform duration-700 ${site.comingSoon ? 'opacity-20 blur-sm' : 'group-hover:scale-105'}`}
+                />
+                {site.comingSoon ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                    <div
+                      className="w-10 h-10 flex items-center justify-center rounded-full"
+                      style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
+                    >
+                      <i className="ri-time-line text-white/50 text-base" />
+                    </div>
+                    <span className="text-[11px] font-semibold tracking-widest uppercase text-white/40">
+                      Coming Soon
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                      style={{ background: `linear-gradient(135deg, ${site.accentColor}18 0%, transparent 60%)` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div
+                        className="flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold text-white backdrop-blur-sm"
+                        style={{ background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.15)' }}
+                      >
+                        <i className="ri-external-link-line" />
+                        Visit Site
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Info panel */}
+            <div className="flex flex-col justify-between p-6 md:p-8 flex-1">
+              <div>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span
+                        className="inline-block text-[9px] font-semibold tracking-[0.2em] uppercase px-2.5 py-1 rounded-full"
+                        style={{
+                          background: site.accentBg,
+                          color: site.accentColor,
+                          border: `1px solid ${site.accentColor}30`,
+                        }}
+                      >
+                        {site.category}
+                      </span>
+                      {site.comingSoon && (
+                        <span
+                          className="inline-block text-[9px] font-semibold tracking-[0.15em] uppercase px-2.5 py-1 rounded-full"
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            color: 'rgba(255,255,255,0.3)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                          }}
+                        >
+                          Coming Soon
+                        </span>
+                      )}
+                    </div>
+                    <h3
+                      className={`font-display text-base md:text-lg lg:text-xl font-bold leading-tight transition-colors duration-300 ${site.comingSoon ? 'text-white/40' : 'text-white group-hover:text-orange-50'}`}
+                    >
+                      {site.name}
+                    </h3>
+                  </div>
+                  {!site.comingSoon && (
+                    <div
+                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300"
+                      style={{ background: `${site.accentColor}20` }}
+                    >
+                      <i className="ri-arrow-right-up-line text-sm" style={{ color: site.accentColor }} />
+                    </div>
+                  )}
+                </div>
+                <p
+                  className={`text-xs leading-relaxed mb-5 transition-colors duration-300 ${site.comingSoon ? 'text-white/20' : 'text-white/35 group-hover:text-white/50'}`}
+                >
+                  {site.description}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {site.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[10px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      color: site.comingSoon ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.4)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+                <span className="ml-auto text-[10px] text-white/20 font-medium">{site.year}</span>
+              </div>
+            </div>
+          </>
+        );
+
+        return site.comingSoon ? (
+          <div
+            key={site.id}
+            className="relative flex flex-col lg:flex-row overflow-hidden rounded-2xl"
+            style={{
+              background: '#111111',
+              border: '1px solid rgba(255,255,255,0.05)',
+              opacity: 0.6,
+            }}
+          >
+            {cardInner}
+          </div>
+        ) : (
+          <a
+            key={site.id}
+            href={site.url}
+            target="_blank"
+            rel="nofollow noreferrer"
+            className="group relative flex flex-col lg:flex-row overflow-hidden rounded-2xl cursor-pointer block"
+            style={{
+              background: '#111111',
+              border: '1px solid rgba(255,255,255,0.07)',
+              transition: 'border-color 400ms ease',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.borderColor = `${site.accentColor}50`;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.07)';
+            }}
+          >
+            {cardInner}
+          </a>
+        );
+      })}
+    </div>
+  </section>
+);
+
 const categoryDataMap = {
   branding: {
     id: 'branding',
@@ -430,6 +673,15 @@ const categoryDataMap = {
       'Beautifully designed email campaigns that convert. From newsletters to automated sequences, we craft emails that get opened, read, and clicked — every single time.',
     iconClass: 'ri-mail-send-line',
     stats: { projects: '9+', satisfaction: '100%', rating: '5.0★' },
+    projects: [],
+  },
+  'web-design': {
+    id: 'web-design',
+    name: 'Web Design',
+    description:
+      'Full websites designed and built from scratch — strategy, UI/UX, development, and launch. Every site is crafted to look great, load fast, and convert.',
+    iconClass: 'ri-global-line',
+    stats: { projects: '8+', satisfaction: '100%', rating: '5.0★' },
     projects: [],
   },
 };
@@ -581,7 +833,8 @@ const PortfolioCategoryPage = () => {
   const isSocialMedia = category.id === 'social-media';
   const isGraphicDesign = category.id === 'graphic-design';
   const isEmailMarketing = category.id === 'email-marketing';
-  // Dark theme for branding, graphic design, social media
+  const isWebDesign = category.id === 'web-design';
+  // Dark theme for branding, graphic design, social media, web design
   const isDarkTheme = !isEmailMarketing;
 
   return (
@@ -733,6 +986,8 @@ const PortfolioCategoryPage = () => {
           <GraphicDesignLayout category={category} />
         ) : isEmailMarketing ? (
           <EmailMarketingLayout category={category} />
+        ) : isWebDesign ? (
+          <WebDesignLayout />
         ) : (
           /* ── GENERIC PROJECTS GALLERY (Branding — dark) ── */
           <section className="py-12 md:py-16 lg:py-24 px-4 md:px-6 relative">
@@ -885,70 +1140,91 @@ const PortfolioCategoryPage = () => {
           className="py-12 md:py-16 lg:py-24 px-4 md:px-6 relative"
           style={{ background: isDarkTheme ? '#0a0a0a' : (isEmailMarketing ? '#dad9d9' : '#f0efed') }}
         >
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px]"
-            style={{ background: isDarkTheme ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' : 'linear-gradient(90deg, transparent, rgba(0,0,0,0.08), transparent)' }}
-          />
-
-          <div className="max-w-4xl mx-auto relative z-10">
+          {isDarkTheme ? (
             <div
-              className="relative rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-16 text-center overflow-hidden"
-              style={isDarkTheme ? {
-                background: '#141414',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 4px 40px rgba(0,0,0,0.4)',
-              } : {
-                background: isEmailMarketing ? '#f0ece8' : '#ffffff',
-                border: '1px solid rgba(0,0,0,0.07)',
-                boxShadow: isEmailMarketing ? '0 8px 24px rgba(210,87,42,0.3)' : '0 4px 40px rgba(0,0,0,0.06)',
-              }}
-            >
-              <div
-                className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 pointer-events-none"
-                style={{ background: isEmailMarketing ? 'radial-gradient(circle, rgba(196,87,42,0.5) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(239,68,68,0.6) 0%, transparent 70%)' }}
-              />
-              <div
-                className="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-10 pointer-events-none"
-                style={{ background: isEmailMarketing ? 'radial-gradient(circle, rgba(196,87,42,0.4) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(249,115,22,0.5) 0%, transparent 70%)' }}
-              />
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full pointer-events-none opacity-25"
+              style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.18) 0%, transparent 70%)', filter: 'blur(100px)' }}
+            />
+          ) : (
+            <div
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px]"
+              style={{ background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.08), transparent)' }}
+            />
+          )}
 
-              <div className="relative z-10">
-                <span
-                  className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest uppercase mb-4 md:mb-5"
-                  style={{ color: isEmailMarketing ? '#c4572a' : '#f97316' }}
-                >
-                  <span className="w-5 h-px inline-block" style={{ background: isEmailMarketing ? '#c4572a' : '#f97316' }} />
-                  Let&apos;s Work Together
-                  <span className="w-5 h-px inline-block" style={{ background: isEmailMarketing ? '#c4572a' : '#f97316' }} />
-                </span>
-                <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-3 md:mb-4 leading-tight" style={{ color: isDarkTheme ? '#ffffff' : '#1a1a1a' }}>
-                  Ready to start your
-                  <br />
-                  {isEmailMarketing ? (
-                    <span style={{ color: '#c4572a' }}>next project?</span>
-                  ) : (
-                    <span className="gradient-text-animated">next project?</span>
-                  )}
-                </h2>
-                <p className="text-xs md:text-sm mb-6 md:mb-8 lg:mb-10 max-w-md mx-auto" style={{ color: isDarkTheme ? 'rgba(255,255,255,0.35)' : 'rgba(26,26,26,0.45)' }}>
-                  Let&apos;s create something amazing together. Get in touch to discuss your vision and bring it to life.
-                </p>
-                <Link
-                  to="/contact"
-                  className="inline-flex items-center justify-center gap-2 px-6 md:px-8 lg:px-10 py-2.5 md:py-3 lg:py-3.5 font-semibold rounded-full shadow-lg hover:scale-105 transition-all duration-300 whitespace-nowrap text-white text-xs md:text-sm"
+          <div className="max-w-6xl mx-auto relative z-10">
+            {isDarkTheme ? (
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-16">
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="w-8 h-px bg-orange-500/50" />
+                    <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Let&apos;s Create</span>
+                  </div>
+                  <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 leading-tight">
+                    Ready to bring your<br />
+                    <span className="gradient-text-animated">vision to life?</span>
+                  </h2>
+                  <p className="text-white/35 text-sm leading-relaxed max-w-sm">
+                    Let&apos;s create something amazing together. Get in touch to discuss your project.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 shrink-0">
+                  <Link
+                    to="/contact"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 font-semibold rounded-full hover:scale-105 transition-all duration-300 whitespace-nowrap text-white text-sm cursor-pointer"
+                    style={{ background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)', boxShadow: '0 8px 30px rgba(239,68,68,0.35)' }}
+                  >
+                    <span>Get Started</span>
+                    <i className="ri-arrow-right-line text-base" />
+                  </Link>
+                  <a
+                    href="https://calendly.com/hunacreatives/30min"
+                    target="_blank"
+                    rel="nofollow noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full text-sm font-semibold border border-orange-400/50 text-orange-400 hover:bg-orange-500/10 transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer"
+                  >
+                    <i className="ri-calendar-line text-base" />
+                    Book a Free Call
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-4xl mx-auto">
+                <div
+                  className="relative rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-16 text-center overflow-hidden"
                   style={{
-                    background: isEmailMarketing
-                      ? 'linear-gradient(135deg, #c4572a, #d2965a)'
-                      : 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)',
-                    backgroundSize: '200% 200%',
-                    boxShadow: isEmailMarketing ? '0 8px 24px rgba(210,87,42,0.3)' : '0 8px 24px rgba(239,68,68,0.3)',
+                    background: isEmailMarketing ? '#f0ece8' : '#ffffff',
+                    border: '1px solid rgba(0,0,0,0.07)',
+                    boxShadow: isEmailMarketing ? '0 8px 24px rgba(210,87,42,0.3)' : '0 4px 40px rgba(0,0,0,0.06)',
                   }}
                 >
-                  <span>Get Started</span>
-                  <i className="ri-arrow-right-line text-lg" />
-                </Link>
+                  <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(196,87,42,0.5) 0%, transparent 70%)' }} />
+                  <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-10 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(196,87,42,0.4) 0%, transparent 70%)' }} />
+                  <div className="relative z-10">
+                    <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest uppercase mb-4 md:mb-5" style={{ color: '#c4572a' }}>
+                      <span className="w-5 h-px inline-block" style={{ background: '#c4572a' }} />
+                      Let&apos;s Work Together
+                      <span className="w-5 h-px inline-block" style={{ background: '#c4572a' }} />
+                    </span>
+                    <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-3 md:mb-4 leading-tight" style={{ color: '#1a1a1a' }}>
+                      Ready to start your<br />
+                      <span style={{ color: '#c4572a' }}>next project?</span>
+                    </h2>
+                    <p className="text-xs md:text-sm mb-6 md:mb-8 lg:mb-10 max-w-md mx-auto" style={{ color: 'rgba(26,26,26,0.45)' }}>
+                      Let&apos;s create something amazing together. Get in touch to discuss your vision and bring it to life.
+                    </p>
+                    <Link
+                      to="/contact"
+                      className="inline-flex items-center justify-center gap-2 px-6 md:px-8 lg:px-10 py-2.5 md:py-3 lg:py-3.5 font-semibold rounded-full shadow-lg hover:scale-105 transition-all duration-300 whitespace-nowrap text-white text-xs md:text-sm"
+                      style={{ background: 'linear-gradient(135deg, #c4572a, #d2965a)', boxShadow: '0 8px 24px rgba(210,87,42,0.3)' }}
+                    >
+                      <span>Get Started</span>
+                      <i className="ri-arrow-right-line text-lg" />
+                    </Link>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </section>
       </main>

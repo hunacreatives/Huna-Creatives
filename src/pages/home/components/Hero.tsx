@@ -119,12 +119,17 @@ export default function Hero() {
     <section
       ref={sectionRef}
       data-hero-section
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
-      style={{ background: 'linear-gradient(160deg, #0a0a0a 0%, #111111 50%, #0d0d0d 100%)' }}
+      className="relative flex items-center justify-center overflow-hidden"
+      style={{
+        height: 'calc(100vh - 52px)',
+        minHeight: '560px',
+        paddingTop: '84px',
+        background: 'linear-gradient(160deg, #0a0a0a 0%, #111111 50%, #0d0d0d 100%)',
+      }}
     >
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }} />
 
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-32 sm:py-40 text-center flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 text-center flex flex-col items-center">
 
         {/* Badge */}
         <div

@@ -14,8 +14,7 @@ const categories = [
     description: 'Complete brand systems that tell your story.',
     icon: 'ri-fingerprint-line',
     count: '25+',
-    image:
-      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/b7ef19cd-8059-4958-9ef6-29b1fe3f6e2c/EQ-Brand+Slides.png',
+    image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/686a4b13770b0b212e743808c854259d.png',
     accent: '#ef4444',
   },
   {
@@ -25,8 +24,7 @@ const categories = [
     description: 'Bold visuals that capture attention.',
     icon: 'ri-pen-nib-line',
     count: '18+',
-    image:
-      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/d8a9d944-4f06-46ce-ae78-22290ef04387/Flyer+mockup+2.png',
+    image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/203f7572a12f03a6a55d3a97977e399c.png',
     accent: '#f97316',
   },
   {
@@ -36,8 +34,7 @@ const categories = [
     description: 'Strategic content that builds community.',
     icon: 'ri-bar-chart-grouped-line',
     count: '24+',
-    image:
-      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/6bbee6ae-b7ff-442a-ad56-37e7b932165f/3+%286%29.png',
+    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/ccd16ed1-02ba-4ad6-be83-377096c7027f/1+BCN+-+Social+Media+Contents.png',
     accent: '#fb7185',
   },
   {
@@ -47,19 +44,33 @@ const categories = [
     description: 'Campaigns that convert subscribers.',
     icon: 'ri-mail-send-line',
     count: '9+',
-    image:
-      'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/0786ff49839456d59f84f19d66a7f551.png',
+    image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/0786ff49839456d59f84f19d66a7f551.png',
     accent: '#fbbf24',
+  },
+  {
+    id: 'web-design',
+    name: 'Web Design',
+    shortName: 'Web',
+    description: 'Sites we designed & built.',
+    icon: 'ri-global-line',
+    count: '8+',
+    image: 'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png?v=2f58c0d54407a354ae8e1afb547e2749',
+    accent: '#c4a882',
   },
 ];
 
 const clients = [
-  'Equestrian International',
-  'The Second Haus',
-  'Blue Collar Nutrition',
-  'Everyone by One',
-  'The Cowart Team',
-  'Vox Kitchen',
+  'The Cowart Team', 'Mile One', 'Cyberbacker', 'Arlington Abodes',
+  'WJD Management', 'MMK Realty', 'The Real Estate Store',
+  'Urbana Pediatric Dentistry', 'Traditions Dental', 'Everyone By One',
+  'Once Upon a Tooth', 'Hello Kids Dentistry', 'Agape Pediatric Dentistry',
+  'Tooth Patrol PD', 'Dirty Soul', 'Capital Energy Training',
+  'Randy Huntley Home Selling Team', 'NEP', 'Kei Coffee House',
+  'ROL', 'VOX', 'Kei Concepts', 'KIN', 'Blue Collar Nutrition',
+  'INI', 'QUA', 'SUP', 'Nalu Boutique', 'Lakeview Enterprise Campus',
+  'KEY Groups', 'Sperry Key Groups', 'Equestrian International',
+  'The Second Haus', 'Uji-Matcha Cafe', 'Whisk Up Matcha',
+  'FS Architects', 'Peak Coffee Roasters', 'Hulma Cebu',
 ];
 
 export default function PortfolioPage() {
@@ -215,7 +226,7 @@ export default function PortfolioPage() {
       {/* ═══════════════════ CLIENT MARQUEE ═══════════════════ */}
       <section ref={marqueeRef} className="relative py-8 overflow-hidden bg-[#0a0a0a] border-y border-white/5">
         <div className="flex whitespace-nowrap animate-marquee">
-          {[...clients, ...clients, ...clients].map((client, i) => (
+          {[...clients, ...clients].map((client, i) => (
             <span key={i} className="inline-flex items-center gap-4 mx-6 md:mx-10">
               <span className="text-[11px] font-semibold tracking-widest uppercase text-white/50 font-display">
                 {client}
@@ -250,48 +261,54 @@ export default function PortfolioPage() {
                 What we <span className="gradient-text-animated">specialize</span> in.
               </h2>
             </div>
-            <p className="text-white/30 text-xs md:text-sm max-w-sm leading-relaxed">
-              Four core disciplines, one unified creative vision. Click any category to explore.
+            <p className="text-white/30 text-xs md:text-sm max-w-sm leading-relaxed text-right">
+              Five core disciplines, one unified creative vision. Click any category to explore.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {categories.map((cat, index) => (
-              <motion.div
-                key={cat.id}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-60px' }}
-                transition={{ duration: 0.5, delay: index * 0.08 }}
-              >
-                <Link
-                  to={`/portfolio/${cat.id}`}
-                  className="group relative block overflow-hidden rounded-xl transition-all duration-500 hover:-translate-y-1 cursor-pointer"
-                  style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+          <div className="grid grid-cols-6 gap-3 md:gap-4">
+            {categories.map((cat, index) => {
+              let colClass = 'col-span-3 sm:col-span-2';
+              if (index === 3) colClass = 'col-span-3 sm:col-span-2 sm:col-start-2';
+              if (index === 4) colClass = 'col-span-3 sm:col-span-2 sm:col-start-4';
+              return (
+                <motion.div
+                  key={cat.id}
+                  className={colClass}
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-60px' }}
+                  transition={{ duration: 0.5, delay: index * 0.08 }}
                 >
-                  <div className="relative h-32 md:h-40 lg:h-48 overflow-hidden">
-                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent transition-all duration-500 group-hover:from-orange-900/70 group-hover:via-orange-900/20" />
-                    <div className="absolute top-2 md:top-3 right-2 md:right-3 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold text-white" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                      {cat.count}
-                    </div>
-                    <div className="absolute bottom-2 md:bottom-3 right-2 md:right-3 w-6 md:w-7 h-6 md:h-7 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                      <i className="ri-arrow-right-up-line text-xs md:text-sm text-white" />
-                    </div>
-                  </div>
-                  <div className="p-3 md:p-4 lg:p-5 transition-all duration-500 group-hover:bg-orange-950/20">
-                    <div className="flex items-center gap-2 mb-1.5 md:mb-2">
-                      <div className="w-5 md:w-6 h-5 md:h-6 flex items-center justify-center rounded-md transition-all duration-300 group-hover:bg-orange-500/20" style={{ background: `${cat.accent}18` }}>
-                        <i className={`${cat.icon} text-[10px] md:text-xs transition-colors duration-300 group-hover:text-orange-400`} style={{ color: cat.accent }} />
+                  <Link
+                    to={`/portfolio/${cat.id}`}
+                    className="group relative block overflow-hidden rounded-xl transition-all duration-500 hover:-translate-y-1 cursor-pointer"
+                    style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+                  >
+                    <div className="relative h-36 md:h-44 lg:h-52 overflow-hidden">
+                      <img src={cat.image} alt={cat.name} className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent transition-all duration-500 group-hover:from-orange-900/70 group-hover:via-orange-900/20" />
+                      <div className="absolute top-2 md:top-3 right-2 md:right-3 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold text-white" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
+                        {cat.count}
                       </div>
-                      <h3 className="font-display text-[11px] md:text-xs lg:text-sm font-bold text-white leading-tight transition-colors duration-300 group-hover:text-orange-100">{cat.name}</h3>
+                      <div className="absolute bottom-2 md:bottom-3 right-2 md:right-3 w-6 md:w-7 h-6 md:h-7 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                        <i className="ri-arrow-right-up-line text-xs md:text-sm text-white" />
+                      </div>
                     </div>
-                    <p className="text-[10px] md:text-[11px] text-white/30 leading-relaxed transition-colors duration-300 group-hover:text-orange-200/40">{cat.description}</p>
-                  </div>
-                  <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(249,115,22,0.35), 0 8px 30px rgba(249,115,22,0.12)' }} />
-                </Link>
-              </motion.div>
-            ))}
+                    <div className="p-3 md:p-4 lg:p-5 transition-all duration-500 group-hover:bg-orange-950/20">
+                      <div className="flex items-center gap-2 mb-1.5 md:mb-2">
+                        <div className="w-5 md:w-6 h-5 md:h-6 flex items-center justify-center rounded-md transition-all duration-300 group-hover:bg-orange-500/20" style={{ background: `${cat.accent}18` }}>
+                          <i className={`${cat.icon} text-[10px] md:text-xs transition-colors duration-300 group-hover:text-orange-400`} style={{ color: cat.accent }} />
+                        </div>
+                        <h3 className="font-display text-[11px] md:text-xs lg:text-sm font-bold text-white leading-tight transition-colors duration-300 group-hover:text-orange-100">{cat.name}</h3>
+                      </div>
+                      <p className="text-[10px] md:text-[11px] text-white/30 leading-relaxed transition-colors duration-300 group-hover:text-orange-200/40">{cat.description}</p>
+                    </div>
+                    <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(249,115,22,0.35), 0 8px 30px rgba(249,115,22,0.12)' }} />
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -363,10 +380,10 @@ export default function PortfolioPage() {
       <style>{`
         @keyframes marquee {
           0% { transform: translateX(0); }
-          100% { transform: translateX(-33.333%); }
+          100% { transform: translateX(-50%); }
         }
         .animate-marquee {
-          animation: marquee 15s linear infinite;
+          animation: marquee 28s linear infinite;
         }
       `}</style>
     </div>

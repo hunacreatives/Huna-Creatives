@@ -484,7 +484,7 @@ export default function ProcessTimeline() {
               transition={{ duration: 0.8, delay: 0.5 }}
               className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3"
             >
-              <span className="text-[9px] tracking-[0.3em] uppercase text-white/15 font-display mr-2">Trusted by</span>
+              <span className="text-[9px] tracking-[0.3em] uppercase text-white/15 font-display mr-2">Worked with</span>
               {['Equestrian International', 'The Second Haus', 'Blue Collar Nutrition', 'Everyone by One', 'The Cowart Team', 'Vox Kitchen'].map((name) => (
                 <span key={name} className="text-[11px] font-semibold text-white/20 font-display tracking-wide whitespace-nowrap">
                   {name}

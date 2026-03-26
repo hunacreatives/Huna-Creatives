@@ -366,33 +366,33 @@ export default function ServicesPage() {
         {/* ══ HUNA COLLECTIVE ══ */}
         <div ref={collectiveRef} className="py-16 sm:py-20 md:py-24">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-12">
+            <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="w-8 h-px bg-orange-500/50" />
                   <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">
-                    Our Clients
+                    Past Experience
                   </span>
                 </div>
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white leading-tight">
                   The Huna <span className="gradient-text-animated">Collective.</span>
                 </h2>
               </div>
-              <p className="text-white/30 text-xs max-w-[200px] leading-relaxed">
-                Trusted by <strong className="text-white/55">38+ brands</strong> across industries.
+              <p className="text-white/30 text-xs max-w-[420px] leading-relaxed sm:text-right" style={{ textWrap: 'balance' } as React.CSSProperties}>
+                A curated collection of brands our team members have contributed to through freelance, in-house, and independent work.
               </p>
             </div>
           </div>
 
-          {/* 3-row marquee — full bleed */}
+          {/* 2-row marquee — full bleed */}
           <div className="relative overflow-hidden space-y-4">
             <div className="absolute inset-y-0 left-0 w-32 z-10 pointer-events-none" style={{ background: 'linear-gradient(to right, #0a0a0a 40%, transparent)' }} />
             <div className="absolute inset-y-0 right-0 w-32 z-10 pointer-events-none" style={{ background: 'linear-gradient(to left, #0a0a0a 40%, transparent)' }} />
 
             <div className="overflow-hidden">
               <div className="marquee-left">
-                {[...clientLogos.slice(0, 13), ...clientLogos.slice(0, 13)].map((src, i) => (
-                  <div key={i} className="flex items-center justify-center mx-5 flex-shrink-0 w-20 h-14 cursor-pointer">
+                {[...clientLogos.slice(0, 19), ...clientLogos.slice(0, 19)].map((src, i) => (
+                  <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
                     <img src={src} alt={`Client logo ${i + 1}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
                   </div>
                 ))}
@@ -401,24 +401,16 @@ export default function ServicesPage() {
 
             <div className="overflow-hidden">
               <div className="marquee-right">
-                {[...clientLogos.slice(13, 26), ...clientLogos.slice(13, 26)].map((src, i) => (
-                  <div key={i} className="flex items-center justify-center mx-5 flex-shrink-0 w-20 h-14 cursor-pointer">
-                    <img src={src} alt={`Client logo ${i + 14}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="overflow-hidden">
-              <div className="marquee-left" style={{ animationDuration: '35s' }}>
-                {[...clientLogos.slice(26), ...clientLogos.slice(26)].map((src, i) => (
-                  <div key={i} className="flex items-center justify-center mx-5 flex-shrink-0 w-20 h-14 cursor-pointer">
-                    <img src={src} alt={`Client logo ${i + 27}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
+                {[...clientLogos.slice(19), ...clientLogos.slice(19)].map((src, i) => (
+                  <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
+                    <img src={src} alt={`Client logo ${i + 20}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
                   </div>
                 ))}
               </div>
             </div>
           </div>
+
+
         </div>
 
         {/* ── thin separator ── */}

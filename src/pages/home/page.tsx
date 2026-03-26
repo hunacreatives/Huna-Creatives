@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Hero from './components/Hero';
+import ClientsBanner from './components/ClientsBanner';
 import Footer from './components/Footer';
 
 export default function HomePage() {
@@ -160,6 +161,9 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <Hero />
+
+      {/* Clients Banner */}
+      <ClientsBanner />
 
       {/* Footer */}
       <Footer isDark />
