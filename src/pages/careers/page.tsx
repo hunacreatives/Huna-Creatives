@@ -12,6 +12,7 @@ export default function CareersPage() {
   });
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -24,37 +25,35 @@ export default function CareersPage() {
     if (formData.message.length > 500) return;
 
     setStatus('sending');
+    setErrorMsg('');
 
     try {
-      const body = new URLSearchParams();
-      body.append('name', formData.name);
-      body.append('email', formData.email);
-      body.append('role', formData.role);
-      body.append('portfolio', formData.portfolio);
-      body.append('message', formData.message);
-      if (resumeFile) {
-        body.append('resume_filename', `[File attached: ${resumeFile.name}]`);
-      }
+      const payload = new FormData();
+      payload.append('name', formData.name);
+      payload.append('email', formData.email);
+      if (formData.role) payload.append('role', formData.role);
+      if (formData.portfolio) payload.append('portfolio', formData.portfolio);
+      payload.append('message', formData.message);
+      if (resumeFile) payload.append('attachment', resumeFile);
+      // Honeypot anti-spam
+      payload.append('_gotcha', '');
 
-      const res = await fetch('https://formspree.io/f/mbdaedkb', {
+      const res = await fetch('https://www.snapform.cc/api/f/cmng4ai4h0002l704s3r8yv77', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
-        body: body.toString(),
+        body: payload,
       });
 
-      const json = await res.json();
-
-      if (res.ok && !json.errors) {
+      if (res.ok) {
         setStatus('success');
         setFormData({ name: '', email: '', role: '', portfolio: '', message: '' });
         setResumeFile(null);
       } else {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data?.message ?? `Submission failed (${res.status}). Please try again.`);
         setStatus('error');
       }
     } catch {
+      setErrorMsg('Network error. Please check your connection and try again.');
       setStatus('error');
     }
   };
@@ -198,7 +197,7 @@ export default function CareersPage() {
                   Portfolio / Website URL
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   id="portfolio"
                   name="portfolio"
                   value={formData.portfolio}
@@ -289,7 +288,7 @@ export default function CareersPage() {
               )}
               {status === 'error' && (
                 <div className="p-5 bg-red-900/30 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium text-center">
-                  ✗ Something went wrong. Please try again or email us at contact@hunacreatives.com
+                  ✗ {errorMsg || 'Something went wrong. Please try again or email us at contact@hunacreatives.com'}
                 </div>
               )}
             </form>

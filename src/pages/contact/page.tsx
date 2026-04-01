@@ -65,22 +65,22 @@ export default function ContactPage() {
     setStatus('sending');
     
     try {
-      const params = new URLSearchParams();
-      params.append('name', formData.name);
-      params.append('email', formData.email);
-      params.append('service', formData.service);
-      params.append('budget', formData.budget || 'Not specified');
-      params.append('message', formData.message);
+      const formPayload = new FormData();
+      formPayload.append('access_key', '4c9aac92-b34b-466d-937a-f75704660413');
+      formPayload.append('name', formData.name);
+      formPayload.append('email', formData.email);
+      formPayload.append('service', formData.service);
+      formPayload.append('budget', formData.budget || 'Not specified');
+      formPayload.append('message', formData.message);
 
-      const res = await fetch('https://formspree.io/f/mjgedgoq', {
+      const res = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
-        body: params.toString(),
+        body: formPayload,
       });
 
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok || data?.ok === true || (!data?.errors)) {
+      if (res.ok && data?.success === true) {
         setStatus('success');
         setFormData({ name: '', email: '', service: '', budget: '', message: '' });
       } else {
@@ -294,7 +294,6 @@ export default function ContactPage() {
               >
                 <h3 className="font-display text-lg md:text-xl font-bold text-white mb-5 md:mb-6">Reach us directly</h3>
                 <div className="space-y-4 md:space-y-5">
-                  <p className="text-gray-500 text-xs mb-6">Or reach us directly at</p>
                   <div className="inline-flex flex-col gap-4 text-left">
                     <a
                       href="mailto:contact@hunacreatives.com"
