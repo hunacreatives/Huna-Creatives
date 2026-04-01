@@ -1,44 +1,61 @@
-import type { RouteObject } from "react-router-dom";
-import NotFound from "../pages/NotFound";
-import Home from "../pages/home/page";
-import Projects from "../pages/projects/page";
-import ProjectDetail from "../pages/project-detail/page";
-import Studio from "../pages/studio/page";
-import Contact from "../pages/contact/page";
-import Process from "../pages/process/page";
-import Careers from "../pages/careers/page";
+import { lazy } from 'react';
+import { RouteObject } from 'react-router-dom';
+
+const HomePage = lazy(() => import('../pages/home/page'));
+const AboutPage = lazy(() => import('../pages/about/page'));
+const PortfolioPage = lazy(() => import('../pages/portfolio/page'));
+const PortfolioCategoryPage = lazy(() => import('../pages/portfolio/category/page'));
+const ProjectPage = lazy(() => import('../pages/portfolio/project/page'));
+const ServicesPage = lazy(() => import('../pages/services/page'));
+const ContactPage = lazy(() => import('../pages/contact/page'));
+const BlogPage = lazy(() => import('../pages/blog/page'));
+const ArticlePage = lazy(() => import('../pages/blog/article/page'));
+const CareersPage = lazy(() => import('../pages/careers/page'));
+const NotFound = lazy(() => import('../pages/NotFound'));
 
 const routes: RouteObject[] = [
   {
-    path: "/",
-    element: <Home />,
+    path: '/',
+    element: <HomePage />,
   },
   {
-    path: "/projects",
-    element: <Projects />,
+    path: '/about',
+    element: <AboutPage />,
   },
   {
-    path: "/projects/:slug",
-    element: <ProjectDetail />,
+    path: '/portfolio',
+    element: <PortfolioPage />,
   },
   {
-    path: "/studio",
-    element: <Studio />,
+    path: '/portfolio/:categoryId',
+    element: <PortfolioCategoryPage />,
   },
   {
-    path: "/process",
-    element: <Process />,
+    path: '/portfolio/project/:projectSlug',
+    element: <ProjectPage />,
   },
   {
-    path: "/contact",
-    element: <Contact />,
+    path: '/services',
+    element: <ServicesPage />,
   },
   {
-    path: "/careers",
-    element: <Careers />,
+    path: '/contact',
+    element: <ContactPage />,
   },
   {
-    path: "*",
+    path: '/blog',
+    element: <BlogPage />,
+  },
+  {
+    path: '/blog/:slug',
+    element: <ArticlePage />,
+  },
+  {
+    path: '/careers',
+    element: <CareersPage />,
+  },
+  {
+    path: '*',
     element: <NotFound />,
   },
 ];
