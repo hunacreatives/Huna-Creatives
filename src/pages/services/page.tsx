@@ -66,7 +66,7 @@ const services = [
   },
 ];
 
-const clientLogos = [
+const brandLogos = [
   'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/a29bed02-0b74-403f-938c-9b3029194bd3/6.png',
   'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/eb98b17e-55c3-452d-ac2e-a38640a9e0b5/5.png',
   'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/5452c9cf-1d70-44b0-a818-05352d028bb1/13.png',
@@ -391,9 +391,9 @@ export default function ServicesPage() {
 
             <div className="overflow-hidden">
               <div className="marquee-left">
-                {[...clientLogos.slice(0, 19), ...clientLogos.slice(0, 19)].map((src, i) => (
+                {[...brandLogos.slice(0, 19), ...brandLogos.slice(0, 19)].map((src, i) => (
                   <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
-                    <img src={src} alt={`Client logo ${i + 1}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
+                    <img src={src} alt={`Brand logo ${i + 1}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
                   </div>
                 ))}
               </div>
@@ -401,9 +401,9 @@ export default function ServicesPage() {
 
             <div className="overflow-hidden">
               <div className="marquee-right">
-                {[...clientLogos.slice(19), ...clientLogos.slice(19)].map((src, i) => (
+                {[...brandLogos.slice(19), ...brandLogos.slice(19)].map((src, i) => (
                   <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
-                    <img src={src} alt={`Client logo ${i + 20}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
+                    <img src={src} alt={`Brand logo ${i + 20}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
                   </div>
                 ))}
               </div>

@@ -727,7 +727,7 @@ const SocialMediaLayout = ({ category }) => {
                     className="text-[11px] font-semibold tracking-widest uppercase mb-3 block"
                     style={{ color: isDark ? 'rgba(249,115,22,0.8)' : 'rgba(180,100,40,0.9)' }}
                   >
-                    {idx + 1 < 10 ? `0${idx + 1}` : idx + 1} — Client
+                    {idx + 1 < 10 ? `0${idx + 1}` : idx + 1} — Brand
                   </span>
                   <h2
                     className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-5 leading-tight"

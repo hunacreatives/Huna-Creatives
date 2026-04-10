@@ -41,14 +41,14 @@ const teamMembers = [
   {
     name: 'Angela Louise Ando',
     role: 'Admin/Account Specialist',
-    bio: 'Angela is the bridge between clients and the team. She ensures every project runs on time and every client feels heard.',
+    bio: 'Angela is the bridge between partners and the team. She ensures every project runs on time and every brand feels heard.',
     image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/567bc5cd-ef1c-4efa-9fca-25c37e13ff02/Angela+Ando',
     hasPhoto: true,
   },
   {
     name: 'Claudette Tahil',
     role: 'Admin/Account Specialist',
-    bio: 'Claudette keeps client relationships strong and operations seamless, ensuring every account is handled with care and precision.',
+    bio: 'Claudette keeps brand relationships strong and operations seamless, ensuring every account is handled with care and precision.',
     image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/6785570f89c09728ca73acf4660742b6.png',
     hasPhoto: true,
     objectPosition: 'center 15%',
@@ -147,7 +147,7 @@ export default function AboutPage() {
           <div className="reveal-item scroll-reveal flex flex-wrap gap-8 sm:gap-12 mb-10">
             {[
               { value: '100+', label: 'Projects Delivered' },
-              { value: '5.0★', label: 'Client Rating' },
+              { value: '5.0★', label: 'Partner Rating' },
               { value: '100%', label: 'Satisfaction Rate' },
               { value: '3+', label: 'Years of Excellence' },
             ].map((stat) => (

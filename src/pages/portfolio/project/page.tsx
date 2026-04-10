@@ -91,7 +91,7 @@ const ProjectPage = () => {
 
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 {[
-                  { label: 'Client', value: project.client, icon: 'ri-user-line' },
+                  { label: 'Brand', value: project.client, icon: 'ri-user-line' },
                   { label: 'Timeline', value: project.timeline, icon: 'ri-time-line' },
                   { label: 'Industry', value: project.industry, icon: 'ri-building-line' },
                   { label: 'Scope', value: project.scope, icon: 'ri-stack-line' },

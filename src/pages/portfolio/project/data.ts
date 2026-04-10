@@ -158,7 +158,7 @@ export const projectDataMap: Record<string, ProjectData> = {
         },
         {
           value: '100%',
-          label: 'Client Satisfaction',
+          label: 'Brand Satisfaction',
           detail: 'Exceeded expectations on every deliverable',
         },
       ],

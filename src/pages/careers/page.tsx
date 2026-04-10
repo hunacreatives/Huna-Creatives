@@ -50,7 +50,7 @@ const JOB_LISTINGS: JobListing[] = [
       'Experience with social media scheduling tools (e.g., HootSuite or similar)',
       'Familiarity with website platforms (WordPress or similar)',
       'Basic understanding of design workflows or marketing processes',
-      'Experience working with US-based teams or clients',
+      'Experience working with US-based teams or remote setups',
     ],
     workSetup: [
       'Remote (Philippines-based)',
@@ -97,7 +97,7 @@ const JOB_LISTINGS: JobListing[] = [
     niceToHave: [
       'Basic understanding of website design (WordPress or similar)',
       'Familiarity with digital marketing or content design for campaigns',
-      'Experience working with US-based clients or multi-brand companies',
+      'Experience working with US-based teams or multi-brand companies',
     ],
     workSetup: [
       'Remote (Philippines-based)',
@@ -112,7 +112,7 @@ const JOB_LISTINGS: JobListing[] = [
     growth: [
       'Opportunity to work across multiple brands and expand your design range',
       'Exposure to higher-level projects and increasing creative responsibility',
-      'Room to grow with the team as we take on more clients and larger-scale work',
+      'Room to grow with the team as we take on more projects and larger-scale work',
     ],
   },
 ];
