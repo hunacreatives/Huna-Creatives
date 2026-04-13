@@ -30,12 +30,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '6 min read',
     date: 'June 12, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=elegant%20brand%20identity%20design%20flat%20lay%20with%20logo%20sketches%20color%20swatches%20typography%20samples%20and%20brand%20guidelines%20book%20on%20dark%20matte%20black%20surface%20with%20warm%20orange%20accent%20lighting%20minimal%20editorial%20photography%20studio&width=1200&height=600&seq=blog-brand-identity-hero-001&orientation=landscape',
+      '/images/blog-brand-identity-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Brand Strategy Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-001&orientation=squarish',
+        '/images/blog-author-huna-001.jpg',
     },
     seo: {
       description:
@@ -117,12 +117,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '7 min read',
     date: 'June 5, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=modern%20web%20design%20workspace%20with%20dark%20laptop%20screen%20showing%20sleek%20website%20UI%20design%20dark%20desk%20setup%20with%20orange%20accent%20lamp%20minimal%20editorial%20photography%20professional%20studio&width=1200&height=600&seq=blog-web-design-hero-001&orientation=landscape',
+      '/images/blog-web-design-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Web Design Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-002&orientation=squarish',
+        '/images/blog-author-huna-002.jpg',
     },
     seo: {
       description:
@@ -205,12 +205,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '5 min read',
     date: 'May 28, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=social%20media%20content%20creation%20flat%20lay%20dark%20background%20with%20phone%20showing%20instagram%20feed%20orange%20and%20black%20color%20palette%20creative%20agency%20aesthetic%20editorial%20photography%20minimal%20studio&width=1200&height=600&seq=blog-social-media-hero-001&orientation=landscape',
+      '/images/blog-social-media-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Digital Marketing Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-003&orientation=squarish',
+        '/images/blog-author-huna-003.jpg',
     },
     seo: {
       description:
@@ -292,12 +292,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '6 min read',
     date: 'May 20, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=content%20creation%20workspace%20dark%20aesthetic%20with%20camera%20notebook%20and%20creative%20tools%20on%20black%20desk%20warm%20orange%20lighting%20editorial%20photography%20professional%20studio%20minimal&width=1200&height=600&seq=blog-content-hero-001&orientation=landscape',
+      '/images/blog-content-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Content Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-004&orientation=squarish',
+        '/images/blog-author-huna-004.jpg',
     },
     seo: {
       description:
@@ -379,12 +379,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '5 min read',
     date: 'May 12, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=brand%20consistency%20mockup%20showing%20logo%20on%20business%20card%20phone%20screen%20and%20packaging%20all%20matching%20dark%20background%20orange%20accent%20colors%20editorial%20photography%20flat%20lay%20minimal%20studio&width=1200&height=600&seq=blog-visual-branding-hero-001&orientation=landscape',
+      '/images/blog-visual-branding-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Brand Design Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-005&orientation=squarish',
+        '/images/blog-author-huna-005.jpg',
     },
     seo: {
       description:
@@ -467,12 +467,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '8 min read',
     date: 'May 5, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=brand%20strategy%20planning%20session%20dark%20aesthetic%20with%20notebooks%20mood%20boards%20and%20strategy%20documents%20on%20black%20table%20orange%20accent%20lighting%20editorial%20photography%20minimal%20studio%20professional&width=1200&height=600&seq=blog-brand-strategy-hero-001&orientation=landscape',
+      '/images/blog-brand-strategy-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Brand Strategy Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-006&orientation=squarish',
+        '/images/blog-author-huna-006.jpg',
     },
     seo: {
       description:
@@ -558,12 +558,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '7 min read',
     date: 'July 2, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=small%20business%20owner%20reviewing%20professional%20website%20design%20on%20laptop%20in%20modern%20minimalist%20office%20warm%20natural%20lighting%20clean%20desk%20setup%20editorial%20photography&width=1200&height=600&seq=blog-smb-web-hero-001&orientation=landscape',
+      '/images/blog-smb-web-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Web Design Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-007&orientation=squarish',
+        '/images/blog-author-huna-007.jpg',
     },
     seo: {
       description:
@@ -651,12 +651,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '8 min read',
     date: 'June 25, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=startup%20founder%20working%20on%20brand%20identity%20moodboard%20with%20logo%20sketches%20color%20palettes%20and%20typography%20samples%20pinned%20on%20wall%20modern%20creative%20workspace%20warm%20lighting%20editorial%20photography&width=1200&height=600&seq=blog-startup-brand-hero-001&orientation=landscape',
+      '/images/blog-startup-brand-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Brand Strategy Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-008&orientation=squarish',
+        '/images/blog-author-huna-008.jpg',
     },
     seo: {
       description:
@@ -752,12 +752,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '7 min read',
     date: 'June 18, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=social%20media%20content%20strategy%20planning%20session%20with%20phone%20showing%20analytics%20dashboard%20content%20calendar%20and%20creative%20assets%20on%20modern%20desk%20warm%20studio%20lighting%20editorial%20photography%20minimal&width=1200&height=600&seq=blog-social-strategy-hero-001&orientation=landscape',
+      '/images/blog-social-strategy-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Digital Marketing Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-009&orientation=squarish',
+        '/images/blog-author-huna-009.jpg',
     },
     seo: {
       description:
@@ -850,12 +850,12 @@ export const blogArticles: BlogArticle[] = [
     readTime: '6 min read',
     date: 'June 10, 2025',
     heroImage:
-      'https://readdy.ai/api/search-image?query=premium%20print%20design%20collection%20showing%20business%20cards%20brochures%20and%20brand%20collateral%20on%20dark%20matte%20surface%20with%20warm%20orange%20accent%20lighting%20editorial%20photography%20flat%20lay%20minimal%20studio%20professional&width=1200&height=600&seq=blog-print-design-hero-001&orientation=landscape',
+      '/images/blog-print-design-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
       role: 'Brand Design Team',
       avatar:
-        'https://readdy.ai/api/search-image?query=professional%20creative%20agency%20team%20portrait%20warm%20studio%20lighting%20dark%20background%20minimal%20editorial%20style&width=80&height=80&seq=blog-author-huna-010&orientation=squarish',
+        '/images/blog-author-huna-010.jpg',
     },
     seo: {
       description:

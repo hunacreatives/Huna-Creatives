@@ -17,7 +17,7 @@ const mockProjects = [
     location: 'Manila',
     lat: 14.5547,
     lng: 121.0244,
-    image: 'https://readdy.ai/api/search-image?query=modern%20minimalist%20healthcare%20building%20exterior%20with%20clean%20white%20facade%20and%20large%20glass%20windows%2C%20simple%20background%2C%20architectural%20photography%20style%2C%20professional%20composition%2C%20natural%20daylight%2C%20contemporary%20medical%20facility%20design&width=800&height=600&seq=proj1&orientation=landscape',
+    image: '/images/proj1.jpg',
   },
   {
     id: 2,
@@ -30,7 +30,7 @@ const mockProjects = [
     location: 'Leyte',
     lat: 11.2442,
     lng: 124.9999,
-    image: 'https://readdy.ai/api/search-image?query=elegant%20minimalist%20resort%20building%20with%20natural%20materials%20and%20open%20design%2C%20simple%20tropical%20background%2C%20architectural%20photography%2C%20clean%20lines%2C%20contemporary%20hospitality%20architecture%2C%20warm%20natural%20lighting&width=800&height=600&seq=proj2&orientation=landscape',
+    image: '/images/proj2.jpg',
   },
   {
     id: 3,
@@ -43,7 +43,7 @@ const mockProjects = [
     location: 'Cebu',
     lat: 10.3157,
     lng: 123.8854,
-    image: 'https://readdy.ai/api/search-image?query=contemporary%20mixed-use%20building%20with%20residential%20and%20commercial%20spaces%2C%20minimalist%20facade%20design%2C%20simple%20urban%20background%2C%20architectural%20photography%20style%2C%20modern%20materials%2C%20clean%20composition&width=800&height=600&seq=proj3&orientation=landscape',
+    image: '/images/proj3.jpg',
   },
   {
     id: 4,
@@ -56,7 +56,7 @@ const mockProjects = [
     location: 'Manila',
     lat: 14.5502,
     lng: 121.0485,
-    image: 'https://readdy.ai/api/search-image?query=sleek%20modern%20office%20building%20with%20glass%20curtain%20wall%20facade%2C%20minimalist%20design%2C%20simple%20sky%20background%2C%20architectural%20photography%2C%20contemporary%20corporate%20architecture%2C%20professional%20lighting&width=800&height=600&seq=proj4&orientation=landscape',
+    image: '/images/proj4.jpg',
   },
   {
     id: 5,
@@ -69,7 +69,7 @@ const mockProjects = [
     location: 'Davao',
     lat: 7.1907,
     lng: 125.4553,
-    image: 'https://readdy.ai/api/search-image?query=modern%20minimalist%20residential%20building%20with%20clean%20geometric%20forms%2C%20simple%20natural%20background%2C%20architectural%20photography%20style%2C%20contemporary%20housing%20design%2C%20soft%20natural%20lighting&width=800&height=600&seq=proj5&orientation=landscape',
+    image: '/images/proj5.jpg',
   },
   {
     id: 6,
@@ -82,7 +82,7 @@ const mockProjects = [
     location: 'CDO',
     lat: 8.4542,
     lng: 124.6319,
-    image: 'https://readdy.ai/api/search-image?query=contemporary%20retail%20complex%20with%20open%20plaza%20design%2C%20minimalist%20commercial%20architecture%2C%20simple%20background%2C%20architectural%20photography%2C%20modern%20shopping%20center%2C%20bright%20daylight&width=800&height=600&seq=proj6&orientation=landscape',
+    image: '/images/proj6.jpg',
   },
   {
     id: 7,
@@ -95,7 +95,7 @@ const mockProjects = [
     location: 'Manila',
     lat: 14.5547,
     lng: 121.0244,
-    image: 'https://readdy.ai/api/search-image?query=minimalist%20modern%20interior%20space%20with%20clean%20lines%20and%20natural%20materials%2C%20simple%20elegant%20design%2C%20architectural%20interior%20photography%2C%20contemporary%20office%20interior%2C%20soft%20ambient%20lighting&width=800&height=600&seq=proj7&orientation=landscape',
+    image: '/images/proj7.jpg',
   },
   {
     id: 8,
@@ -108,7 +108,7 @@ const mockProjects = [
     location: 'Zamboanga',
     lat: 6.9214,
     lng: 122.079,
-    image: 'https://readdy.ai/api/search-image?query=elegant%20minimalist%20villa%20architecture%20with%20natural%20stone%20and%20wood%2C%20simple%20coastal%20background%2C%20architectural%20photography%20style%2C%20contemporary%20residential%20design%2C%20warm%20natural%20light&width=800&height=600&seq=proj8&orientation=landscape',
+    image: '/images/proj8.jpg',
   },
   {
     id: 9,
@@ -121,7 +121,7 @@ const mockProjects = [
     location: 'Cebu',
     lat: 10.3157,
     lng: 123.8854,
-    image: 'https://readdy.ai/api/search-image?query=modern%20healthcare%20facility%20with%20clean%20white%20exterior%20and%20glass%20elements%2C%20minimalist%20medical%20building%20design%2C%20simple%20background%2C%20architectural%20photography%2C%20professional%20composition&width=800&height=600&seq=proj9&orientation=landscape',
+    image: '/images/proj9.jpg',
   },
   {
     id: 10,
@@ -134,7 +134,7 @@ const mockProjects = [
     location: 'Manila',
     lat: 14.5995,
     lng: 120.9842,
-    image: 'https://readdy.ai/api/search-image?query=contemporary%20boutique%20hotel%20building%20with%20elegant%20minimalist%20facade%2C%20simple%20urban%20background%2C%20architectural%20photography%20style%2C%20modern%20hospitality%20design%2C%20sophisticated%20lighting&width=800&height=600&seq=proj10&orientation=landscape',
+    image: '/images/proj10.jpg',
   },
   {
     id: 11,
@@ -147,7 +147,7 @@ const mockProjects = [
     location: 'Davao',
     lat: 7.1907,
     lng: 125.4553,
-    image: 'https://readdy.ai/api/search-image?query=modern%20campus%20building%20with%20mixed-use%20design%2C%20minimalist%20contemporary%20architecture%2C%20simple%20landscape%20background%2C%20architectural%20photography%2C%20clean%20geometric%20forms&width=800&height=600&seq=proj11&orientation=landscape',
+    image: '/images/proj11.jpg',
   },
   {
     id: 12,
@@ -160,7 +160,7 @@ const mockProjects = [
     location: 'Manila',
     lat: 14.5547,
     lng: 121.0244,
-    image: 'https://readdy.ai/api/search-image?query=prestigious%20office%20building%20with%20minimalist%20glass%20and%20steel%20facade%2C%20simple%20sky%20background%2C%20architectural%20photography%20style%2C%20contemporary%20corporate%20design%2C%20professional%20composition&width=800&height=600&seq=proj12&orientation=landscape',
+    image: '/images/proj12.jpg',
   },
 ];
 

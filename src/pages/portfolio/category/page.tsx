@@ -187,14 +187,14 @@ const GraphicDesignLayout = ({ category }) => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {[
-              'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/203f7572a12f03a6a55d3a97977e399c.png',
-              'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/4a760c0b68accebf5448cc8bb9f956de.png',
-              'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/0e684af0f12d20b4bf8a449578cbf1b0.png',
-              'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/9229997a693668f1ea9573317309e1f1.png',
-              'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/129b76b17e2c06cca769b642a63ed500.png',
-              'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/e47d531d58febd435a7fb4e96c85fde7.png',
-              'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/55e240e348314c84ba40f27d212d20a5.png',
-              'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/2f115e6259210ddf16ac62cf5dfc7142.png',
+              '/images/203f7572a12f03a6a55d3a97977e399c.png',
+              '/images/4a760c0b68accebf5448cc8bb9f956de.png',
+              '/images/0e684af0f12d20b4bf8a449578cbf1b0.png',
+              '/images/9229997a693668f1ea9573317309e1f1.png',
+              '/images/129b76b17e2c06cca769b642a63ed500.png',
+              '/images/e47d531d58febd435a7fb4e96c85fde7.png',
+              '/images/55e240e348314c84ba40f27d212d20a5.png',
+              '/images/2f115e6259210ddf16ac62cf5dfc7142.png',
             ].map((img, i) => (
               <div
                 key={i}
@@ -219,7 +219,7 @@ const GraphicDesignLayout = ({ category }) => {
 };
 
 /* ── Email Marketing dedicated layout ─────────────────────────────────────── */
-const emailShowcaseImage = 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/0786ff49839456d59f84f19d66a7f551.png';
+const emailShowcaseImage = '/images/0786ff49839456d59f84f19d66a7f551.png';
 
 const emailAdvantages = [
   {
@@ -330,7 +330,7 @@ const EmailMarketingLayout = ({ category }) => {
           <div className="relative rounded-2xl md:rounded-3xl overflow-hidden mb-12 md:mb-16">
             <div className="w-full h-[240px] md:h-[320px] lg:h-[420px]">
               <img
-                src="https://readdy.ai/api/search-image?query=modern%20workspace%20flat%20lay%20with%20laptop%20keyboard%20coffee%20cup%20succulent%20plant%20and%20airpods%20on%20dark%20matte%20desk%20surface%20dramatic%20moody%20lighting%20cinematic%20dark%20photography%20professional%20creative%20workspace&width=1400&height=500&seq=email-workspace-001&orientation=landscape"
+                src="/images/email-workspace-001.jpg"
                 alt="Email marketing workspace"
                 className="w-full h-full object-cover object-top"
               />
@@ -398,7 +398,7 @@ const webDesignSites = [
     year: '2024',
     accentColor: '#c4a882',
     accentBg: 'rgba(196,168,130,0.1)',
-    image: 'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png?v=2f58c0d54407a354ae8e1afb547e2749',
+    image: '/images/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png',
     comingSoon: false,
   },
   {
@@ -413,7 +413,7 @@ const webDesignSites = [
     year: '2024',
     accentColor: '#f9a825',
     accentBg: 'rgba(249,168,37,0.1)',
-    image: 'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/968636a3-15e7-48ef-8452-b827dbfc706a_Screenshot-2026-03-27-at-12.53.00AM.png?v=ddbf8291c1f9b01c3ac82b2519ccd99e',
+    image: '/images/968636a3-15e7-48ef-8452-b827dbfc706a_Screenshot-2026-03-27-at-12.53.00AM.png',
     comingSoon: false,
   },
   {
@@ -428,7 +428,7 @@ const webDesignSites = [
     year: '2024',
     accentColor: '#6b9fb8',
     accentBg: 'rgba(107,159,184,0.1)',
-    image: 'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/d755c44c-3c91-4bc2-b4a0-52e262066e1c_Screenshot-2026-03-27-at-12.53.13AM.png?v=147f99625f693c99cd0801cb479d0306',
+    image: '/images/d755c44c-3c91-4bc2-b4a0-52e262066e1c_Screenshot-2026-03-27-at-12.53.13AM.png',
     comingSoon: false,
   },
   {
@@ -642,7 +642,7 @@ const categoryDataMap = {
         description:
           'Complete brand identity for a modern consignment boutique — logo, typography, color palette, brand guidelines, packaging, and every touchpoint.',
         image:
-          'https://readdy.ai/api/search-image?query=modern%20minimalist%20brand%20identity%20design%20system%20with%20logo%20variations%20color%20palette%20and%20typography%20guidelines%20displayed%20on%20deep%20black%20elegant%20surface%20with%20glass%20reflections%20and%20warm%20amber%20accent%20lighting%20professional%20dark%20studio%20photography%20cinematic%20mood&width=600&height=750&seq=cat-brand1-dark&orientation=portrait',
+          '/images/cat-brand1-dark.jpg',
         slug: 'the-second-haus',
       },
     ],

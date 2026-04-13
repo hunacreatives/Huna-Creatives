@@ -82,7 +82,7 @@ export default function HomePage() {
             {/* Logo */}
             <a href="/" className="flex-shrink-0">
               <img
-                src="https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/fc04818c74ad69bdfb22b93a6a0c6a72.png"
+                src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
                 alt="Huna Creatives"
                 className="h-11 w-auto transition-all duration-300"
               />

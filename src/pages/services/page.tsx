@@ -100,11 +100,11 @@ const brandLogos = [
   'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/ca36c015-dad0-4b1b-837f-4e6f4e133485/31.png',
   'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/a9410217-703d-4a84-bc3a-c2ba41fe24f2/14.png',
   'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/750f5b04-6825-4f27-84d6-fbc315a91779/27.png',
-  'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/7cc3752b-d99d-44c5-b528-340062dfaddc_33.png?v=fcc291c1d8e80470e506e58d2bb5b2d1',
-  'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/bc0af254-98a5-47c0-8504-369f3554baf0_34.png?v=bd8159d7acb4df3d8490311c7f5a3ae3',
-  'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/19064e88-64f6-4f3d-9ecb-9677e272b2e5_35.png?v=6acef06a158f54ab440a8b16f6281836',
-  'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/94eee4df-d1ec-49f3-b994-88b8523ef8f5_36.png?v=33bf0d20abbe43e44ce8411e633cb800',
-  'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/2259484d-46f9-4ca6-9da7-2fb0fffd26ca_37.png?v=9d9a0e2f7b0c9da3985185c4d53c4753',
+  '/images/7cc3752b-d99d-44c5-b528-340062dfaddc_33.png',
+  '/images/bc0af254-98a5-47c0-8504-369f3554baf0_34.png',
+  '/images/19064e88-64f6-4f3d-9ecb-9677e272b2e5_35.png',
+  '/images/94eee4df-d1ec-49f3-b994-88b8523ef8f5_36.png',
+  '/images/2259484d-46f9-4ca6-9da7-2fb0fffd26ca_37.png',
 ];
 
 function useScrollReveal() {

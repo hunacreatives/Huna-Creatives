@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-const WHITE_LOGO = 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/fc04818c74ad69bdfb22b93a6a0c6a72.png';
-const BLACK_LOGO = 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/547b59870e776a20eb28e4f20931787c.png';
+const WHITE_LOGO = '/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
+const BLACK_LOGO = '/images/547b59870e776a20eb28e4f20931787c.png';
 
 const LIGHT_BG_PAGES = ['/about', '/portfolio/email-marketing'];
 

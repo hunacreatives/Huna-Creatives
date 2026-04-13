@@ -14,7 +14,7 @@ const categories = [
     description: 'Complete brand systems that tell your story.',
     icon: 'ri-fingerprint-line',
     count: '25+',
-    image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/686a4b13770b0b212e743808c854259d.png',
+    image: '/images/686a4b13770b0b212e743808c854259d.png',
     accent: '#ef4444',
   },
   {
@@ -24,7 +24,7 @@ const categories = [
     description: 'Bold visuals that capture attention.',
     icon: 'ri-pen-nib-line',
     count: '18+',
-    image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/203f7572a12f03a6a55d3a97977e399c.png',
+    image: '/images/203f7572a12f03a6a55d3a97977e399c.png',
     accent: '#f97316',
   },
   {
@@ -44,7 +44,7 @@ const categories = [
     description: 'Campaigns that convert subscribers.',
     icon: 'ri-mail-send-line',
     count: '9+',
-    image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/0786ff49839456d59f84f19d66a7f551.png',
+    image: '/images/0786ff49839456d59f84f19d66a7f551.png',
     accent: '#fbbf24',
   },
   {
@@ -54,7 +54,7 @@ const categories = [
     description: 'Sites we designed & built.',
     icon: 'ri-global-line',
     count: '8+',
-    image: 'https://storage.readdy-site.link/project_files/badb1e13-363f-42c7-bea3-385fe56b5540/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png?v=2f58c0d54407a354ae8e1afb547e2749',
+    image: '/images/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png',
     accent: '#c4a882',
   },
 ];
@@ -133,7 +133,7 @@ export default function PortfolioPage() {
         <motion.div style={{ y: heroY }} className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/55 to-[#0a0a0a] z-10" />
           <img
-            src="https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/cba766423a8ca16256c39bdfe900b4d7.png"
+            src="/images/cba766423a8ca16256c39bdfe900b4d7.png"
             alt="Creative workspace"
             className="w-full h-full object-cover object-top opacity-40"
           />

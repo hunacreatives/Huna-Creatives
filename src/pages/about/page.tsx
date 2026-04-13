@@ -49,7 +49,7 @@ const teamMembers = [
     name: 'Claudette Tahil',
     role: 'Admin/Account Specialist',
     bio: 'Claudette keeps brand relationships strong and operations seamless, ensuring every account is handled with care and precision.',
-    image: 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/6785570f89c09728ca73acf4660742b6.png',
+    image: '/images/6785570f89c09728ca73acf4660742b6.png',
     hasPhoto: true,
     objectPosition: 'center 15%',
   },

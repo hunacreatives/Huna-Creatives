@@ -103,7 +103,7 @@ export default function Navigation({ showContent }: NavigationProps) {
             >
               <div className="relative w-[43px] h-[43px] flex items-center justify-center">
                 <img
-                  src="https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/af9840250b5d4b8ed50bb36142137e11.png"
+                  src="/images/af9840250b5d4b8ed50bb36142137e11.png"
                   alt="FS"
                   className="absolute inset-0 w-full h-full object-contain transition-all duration-500 ease-in-out group-hover:opacity-0 group-hover:scale-75 brightness-0 invert"
                   draggable={false}
@@ -124,7 +124,7 @@ export default function Navigation({ showContent }: NavigationProps) {
           {/* Center — brand logo */}
           <div className="flex items-center justify-center">
             <img
-              src="https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/e523ff87ab80aa155fa964cece9c981c.png"
+              src="/images/e523ff87ab80aa155fa964cece9c981c.png"
               alt="FS Architects"
               className="object-contain transition-all duration-700"
               style={{ height: '68px', width: 'auto', objectFit: 'contain', display: 'block' }}
@@ -184,7 +184,7 @@ export default function Navigation({ showContent }: NavigationProps) {
           >
             <div className="relative w-[36px] h-[36px] flex items-center justify-center">
               <img
-                src="https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/af9840250b5d4b8ed50bb36142137e11.png"
+                src="/images/af9840250b5d4b8ed50bb36142137e11.png"
                 alt="FS"
                 className="absolute inset-0 w-full h-full object-contain brightness-0 invert opacity-80 transition-all duration-500 ease-in-out group-hover:opacity-0 group-hover:scale-75"
                 draggable={false}

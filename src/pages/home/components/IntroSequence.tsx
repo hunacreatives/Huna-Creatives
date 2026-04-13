@@ -95,7 +95,7 @@ export default function IntroSequence({ userInterrupted, onComplete }: IntroSequ
           className="flex items-center justify-center"
         >
           <img
-            src="https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/af9840250b5d4b8ed50bb36142137e11.png"
+            src="/images/af9840250b5d4b8ed50bb36142137e11.png"
             alt="FS Architects"
             style={{ width: `${INTRO_LOGO_SIZE}px`, height: `${INTRO_LOGO_SIZE}px`, objectFit: 'contain' }}
             className="select-none brightness-0 invert"

@@ -38,8 +38,8 @@ export default function Footer({ isDark = false, compact = false }: FooterProps)
   const dimColor = shouldBeDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)';
   const bg = shouldBeDark ? '#0a0a0a' : '#f8f8f8';
   const logoSrc = shouldBeDark
-    ? 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/fc04818c74ad69bdfb22b93a6a0c6a72.png'
-    : 'https://static.readdy.ai/image/08981d36cd0b73cf08022d4d82071d03/547b59870e776a20eb28e4f20931787c.png';
+    ? '/images/fc04818c74ad69bdfb22b93a6a0c6a72.png'
+    : '/images/547b59870e776a20eb28e4f20931787c.png';
 
   if (compact) {
     return (
