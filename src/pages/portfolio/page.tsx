@@ -5,6 +5,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
 import ProcessTimeline from './components/ProcessTimeline';
+import { useSEO } from '../../hooks/useSEO';
 
 const categories = [
   {
@@ -74,6 +75,22 @@ const clients = [
 ];
 
 export default function PortfolioPage() {
+  useSEO({
+    title: 'Portfolio — Brand Identity, Social Media & Design Work',
+    description:
+      'Explore Huna Creatives\' portfolio across branding, graphic design, social media content, email marketing, and web design. 38+ brands built across Cebu and beyond.',
+    canonical: '/portfolio',
+    schema: {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      '@id': 'https://www.hunacreatives.com/portfolio/#webpage',
+      url: 'https://www.hunacreatives.com/portfolio',
+      name: 'Huna Creatives Portfolio',
+      description: 'Brand identity, social media, email marketing, and web design work by Huna Creatives.',
+      isPartOf: { '@id': 'https://www.hunacreatives.com/#website' },
+    },
+  });
+
   const heroRef = useRef<HTMLElement>(null);
   const marqueeRef = useRef<HTMLElement>(null);
   const cursorGlowRef = useRef<HTMLDivElement>(null);

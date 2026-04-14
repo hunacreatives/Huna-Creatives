@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block crawling of non-content URLs
+Disallow: /careers/apply
+Disallow: /?*
+
+# Sitemap
+Sitemap: https://www.hunacreatives.com/sitemap.xml

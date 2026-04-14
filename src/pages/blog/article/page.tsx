@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import Navigation from '../../../components/feature/Navigation';
 import Footer from '../../home/components/Footer';
 import { getBlogArticle, blogArticles } from '../data';
+import { useSEO } from '../../../hooks/useSEO';
 
 const CategoryBadge = ({ category }: { category: string }) => (
   <span
@@ -19,94 +20,44 @@ const CategoryBadge = ({ category }: { category: string }) => (
 
 const ArticlePage = () => {
   const { slug } = useParams<{ slug: string }>();
+  const article = getBlogArticle(slug ?? '');
+
+  useSEO({
+    title: article ? `${article.title} | Huna Creatives` : 'Article Not Found | Huna Creatives',
+    description: article?.seo?.description ?? 'Read brand strategy and design insights from the Huna Creatives journal.',
+    canonical: `/blog/${slug}`,
+    ogImage: article?.heroImage,
+    ogType: 'article',
+    schema: article
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'BlogPosting',
+          '@id': `https://www.hunacreatives.com/blog/${slug}/#article`,
+          headline: article.title,
+          description: article.seo.description,
+          image: article.heroImage,
+          datePublished: article.date,
+          author: {
+            '@type': 'Organization',
+            '@id': 'https://www.hunacreatives.com/#organization',
+            name: 'Huna Creatives',
+          },
+          publisher: {
+            '@id': 'https://www.hunacreatives.com/#organization',
+          },
+          keywords: article.seo.keywords.join(', '),
+          inLanguage: 'en-US',
+          mainEntityOfPage: {
+            '@type': 'WebPage',
+            '@id': `https://www.hunacreatives.com/blog/${slug}`,
+          },
+        }
+      : undefined,
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
-
-  const article = getBlogArticle(slug ?? '');
-
-  useEffect(() => {
-    if (!article) return;
-
-    // Title
-    document.title = `${article.title} | Huna Creatives`;
-
-    // Helper to upsert a <meta> tag
-    const setMeta = (selector: string, attr: string, value: string) => {
-      let el = document.querySelector<HTMLMetaElement>(selector);
-      if (!el) {
-        el = document.createElement('meta');
-        document.head.appendChild(el);
-      }
-      el.setAttribute(attr, value);
-    };
-
-    setMeta('meta[name="description"]', 'content', article.seo.description);
-    setMeta('meta[name="keywords"]', 'content', article.seo.keywords.join(', '));
-    setMeta('meta[name="description"]', 'name', 'description');
-    setMeta('meta[name="keywords"]', 'name', 'keywords');
-
-    // Open Graph
-    setMeta('meta[property="og:title"]', 'content', `${article.title} | Huna Creatives`);
-    setMeta('meta[property="og:title"]', 'property', 'og:title');
-    setMeta('meta[property="og:description"]', 'content', article.seo.description);
-    setMeta('meta[property="og:description"]', 'property', 'og:description');
-    setMeta('meta[property="og:image"]', 'content', article.heroImage);
-    setMeta('meta[property="og:image"]', 'property', 'og:image');
-    setMeta('meta[property="og:type"]', 'content', 'article');
-    setMeta('meta[property="og:type"]', 'property', 'og:type');
-
-    // Twitter Card
-    setMeta('meta[name="twitter:card"]', 'content', 'summary_large_image');
-    setMeta('meta[name="twitter:card"]', 'name', 'twitter:card');
-    setMeta('meta[name="twitter:title"]', 'content', `${article.title} | Huna Creatives`);
-    setMeta('meta[name="twitter:title"]', 'name', 'twitter:title');
-    setMeta('meta[name="twitter:description"]', 'content', article.seo.description);
-    setMeta('meta[name="twitter:description"]', 'name', 'twitter:description');
-
-    // JSON-LD structured data
-    const existingScript = document.querySelector('script[data-blog-jsonld]');
-    if (existingScript) existingScript.remove();
-
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.setAttribute('data-blog-jsonld', 'true');
-    script.textContent = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'BlogPosting',
-      headline: article.title,
-      description: article.seo.description,
-      image: article.heroImage,
-      datePublished: article.date,
-      author: {
-        '@type': 'Organization',
-        name: 'Huna Creatives',
-        url: 'https://hunacreatives.com',
-      },
-      publisher: {
-        '@type': 'Organization',
-        name: 'Huna Creatives',
-        logo: {
-          '@type': 'ImageObject',
-          url: 'https://hunacreatives.com/logo.png',
-        },
-      },
-      keywords: article.seo.keywords.join(', '),
-      inLanguage: 'en-PH',
-      locationCreated: {
-        '@type': 'Place',
-        name: 'Cebu City, Philippines',
-      },
-    });
-    document.head.appendChild(script);
-
-    return () => {
-      document.title = 'Huna Creatives';
-      const s = document.querySelector('script[data-blog-jsonld]');
-      if (s) s.remove();
-    };
-  }, [article]);
 
   if (!article) {
     return (

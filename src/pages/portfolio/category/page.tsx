@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Navigation from '../../../components/feature/Navigation';
 import Footer from '../../home/components/Footer';
+import { useSEO } from '../../../hooks/useSEO';
 
 /* -------------------------------------------------------------------------- */
 /*  Removed TypeScript‑only interfaces – they cause a syntax error in a plain  */
@@ -793,9 +794,62 @@ const SocialMediaLayout = ({ category }) => {
   );
 };
 
+const SEO_MAP: Record<string, { title: string; description: string }> = {
+  branding: {
+    title: 'Branding & Identity Portfolio',
+    description:
+      'Brand identity systems, logos, and visual guidelines designed by Huna Creatives for premium brands across equestrian, dental, nutrition, and more.',
+  },
+  'graphic-design': {
+    title: 'Graphic Design Portfolio',
+    description:
+      'Bold, strategic graphic design work across campaigns, print collateral, and digital assets — by Huna Creatives.',
+  },
+  'social-media': {
+    title: 'Social Media Content Portfolio',
+    description:
+      'Social media content systems built for brands in equestrian, dental, mortgage, and sports nutrition by Huna Creatives.',
+  },
+  'email-marketing': {
+    title: 'Email Marketing Design Portfolio',
+    description:
+      'Email newsletter and campaign designs that build trust and drive click-through — by Huna Creatives.',
+  },
+  'web-design': {
+    title: 'Web Design Portfolio',
+    description:
+      'Websites designed and built for brands that needed a premium digital presence — by Huna Creatives.',
+  },
+};
+
 const PortfolioCategoryPage = () => {
   const { categoryId } = useParams();
   const [category, setCategory] = useState(null);
+
+  const seoData = SEO_MAP[categoryId ?? ''] ?? {
+    title: 'Portfolio',
+    description: 'Explore work by Huna Creatives across branding, social media, email marketing, and web design.',
+  };
+
+  useSEO({
+    title: seoData.title,
+    description: seoData.description,
+    canonical: `/portfolio/${categoryId}`,
+    schema: {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.hunacreatives.com' },
+        { '@type': 'ListItem', position: 2, name: 'Portfolio', item: 'https://www.hunacreatives.com/portfolio' },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: seoData.title,
+          item: `https://www.hunacreatives.com/portfolio/${categoryId}`,
+        },
+      ],
+    },
+  });
 
   /* ── Scroll to top when category changes ── */
   useEffect(() => {

@@ -3,6 +3,7 @@ import Footer from '../home/components/Footer';
 import Navigation from '../../components/feature/Navigation';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
+import { useSEO } from '../../hooks/useSEO';
 
 const SERVICE_OPTIONS = [
   'Brand Identity & Logo Design',
@@ -25,6 +26,21 @@ const BUDGET_OPTIONS = [
 ];
 
 export default function ContactPage() {
+  useSEO({
+    title: 'Start a Project — Contact Huna Creatives',
+    description:
+      'Ready to build something great? Get in touch with Huna Creatives to discuss your branding, social media content, or design project.',
+    canonical: '/contact',
+    schema: {
+      '@context': 'https://schema.org',
+      '@type': 'ContactPage',
+      '@id': 'https://www.hunacreatives.com/contact/#webpage',
+      url: 'https://www.hunacreatives.com/contact',
+      name: 'Contact Huna Creatives',
+      isPartOf: { '@id': 'https://www.hunacreatives.com/#website' },
+    },
+  });
+
   const [searchParams] = useSearchParams();
 
   const [formData, setFormData] = useState({
@@ -83,6 +99,15 @@ export default function ContactPage() {
       if (res.ok && data?.success === true) {
         setStatus('success');
         setFormData({ name: '', email: '', service: '', budget: '', message: '' });
+
+        // GA4 conversion event
+        if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
+          (window as any).gtag('event', 'contact_form_submit', {
+            event_category: 'lead',
+            event_label: formData.service || 'General Inquiry',
+            value: 1,
+          });
+        }
       } else {
         setStatus('error');
       }

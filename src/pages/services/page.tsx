@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
+import { useSEO } from '../../hooks/useSEO';
 
 const services = [
   {
@@ -198,6 +199,77 @@ const pageStyles = `
 `;
 
 export default function ServicesPage() {
+  useSEO({
+    title: 'Creative Services — Branding, Social Media & Web Design',
+    description:
+      'Brand identity design, social media content creation, email marketing design, and website visuals for premium brands. Strategy-led creative from Huna Creatives.',
+    canonical: '/services',
+    schema: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Service',
+        '@id': 'https://www.hunacreatives.com/services/#service',
+        name: 'Creative Design Services',
+        provider: { '@id': 'https://www.hunacreatives.com/#organization' },
+        serviceType: 'Creative Agency Services',
+        areaServed: [
+          { '@type': 'Country', name: 'Philippines' },
+          { '@type': 'Country', name: 'United States' },
+        ],
+        hasOfferCatalog: {
+          '@type': 'OfferCatalog',
+          name: 'Huna Creatives Services',
+          itemListElement: [
+            { '@type': 'Offer', name: 'Brand Identity & Logo Design' },
+            { '@type': 'Offer', name: 'Social Media Content Creation' },
+            { '@type': 'Offer', name: 'Email Marketing Design' },
+            { '@type': 'Offer', name: 'Website Visual Design' },
+            { '@type': 'Offer', name: 'Content Creation & Photography' },
+            { '@type': 'Offer', name: 'Brand Strategy' },
+          ],
+        },
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'What services does Huna Creatives offer?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Huna Creatives offers brand identity design, social media content creation, email marketing design, website visual design, print and packaging design, and brand strategy consulting.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Do you work with clients outside the Philippines?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes. Huna Creatives works with businesses across the US and globally. Our team operates Monday through Friday, 10 AM to 8 PM EST.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'What industries does Huna Creatives specialize in?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'We have proven work in equestrian, mortgage, pediatric dentistry, and sports nutrition. We take on select clients in other industries where we can produce genuine creative impact.',
+            },
+          },
+        ],
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.hunacreatives.com' },
+          { '@type': 'ListItem', position: 2, name: 'Services', item: 'https://www.hunacreatives.com/services' },
+        ],
+      },
+    ],
+  });
+
   const navigate = useNavigate();
   const headerRef = useScrollReveal();
   const gridRef = useScrollReveal();
@@ -393,7 +465,7 @@ export default function ServicesPage() {
               <div className="marquee-left">
                 {[...brandLogos.slice(0, 19), ...brandLogos.slice(0, 19)].map((src, i) => (
                   <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
-                    <img src={src} alt={`Brand logo ${i + 1}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
+                    <img src={src} alt={`Client brand logo — Huna Creatives portfolio`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
                   </div>
                 ))}
               </div>

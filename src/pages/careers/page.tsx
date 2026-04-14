@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Footer from '../home/components/Footer';
 import Navigation from '../../components/feature/Navigation';
+import { useSEO } from '../../hooks/useSEO';
 
 interface JobListing {
   id: string;
@@ -120,6 +121,13 @@ const JOB_LISTINGS: JobListing[] = [
 const HAS_OPENINGS = JOB_LISTINGS.length > 0;
 
 export default function CareersPage() {
+  useSEO({
+    title: 'Careers at Huna Creatives — Join Our Creative Team',
+    description:
+      'Looking for a creative career in Cebu? Huna Creatives is looking for designers, strategists, and creatives who love what they do. View open roles.',
+    canonical: '/careers',
+  });
+
   const [selectedJob, setSelectedJob] = useState<JobListing | null>(
     HAS_OPENINGS ? JOB_LISTINGS[0] : null
   );

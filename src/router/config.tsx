@@ -8,6 +8,8 @@ const ContactPage = lazy(() => import('../pages/contact/page'));
 const BlogPage = lazy(() => import('../pages/blog/page'));
 const ArticlePage = lazy(() => import('../pages/blog/article/page'));
 const CareersPage = lazy(() => import('../pages/careers/page'));
+const PortfolioPage = lazy(() => import('../pages/portfolio/page'));
+const PortfolioCategoryPage = lazy(() => import('../pages/portfolio/category/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 const routes: RouteObject[] = [
@@ -22,6 +24,14 @@ const routes: RouteObject[] = [
   {
     path: '/services',
     element: <ServicesPage />,
+  },
+  {
+    path: '/portfolio',
+    element: <PortfolioPage />,
+  },
+  {
+    path: '/portfolio/:categoryId',
+    element: <PortfolioCategoryPage />,
   },
   {
     path: '/contact',

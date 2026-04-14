@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
+import { useSEO } from '../../hooks/useSEO';
 
 const teamMembers = [
   {
@@ -110,6 +111,23 @@ function useScrollReveal() {
 }
 
 export default function AboutPage() {
+  useSEO({
+    title: 'About Huna Creatives — Our Team & Story',
+    description:
+      'Meet the team behind Huna Creatives. A Cebuano creative firm built on strategy, storytelling, and purposeful design — delivering premium creative work for brands globally.',
+    canonical: '/about',
+    schema: {
+      '@context': 'https://schema.org',
+      '@type': 'AboutPage',
+      '@id': 'https://www.hunacreatives.com/about/#webpage',
+      url: 'https://www.hunacreatives.com/about',
+      name: 'About Huna Creatives',
+      description: 'Huna Creatives is a Cebuano creative firm that believes thoughtful design leads to meaningful impact.',
+      isPartOf: { '@id': 'https://www.hunacreatives.com/#website' },
+      about: { '@id': 'https://www.hunacreatives.com/#organization' },
+    },
+  });
+
   const heroRef = useScrollReveal();
   const storyRef = useScrollReveal();
   const valuesRef = useScrollReveal();

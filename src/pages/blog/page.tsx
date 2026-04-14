@@ -4,10 +4,27 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
 import { blogArticles } from './data';
+import { useSEO } from '../../hooks/useSEO';
 
 const CATEGORIES = ['All', 'Brand Identity', 'Web Design', 'Digital Marketing', 'Content Creation', 'Brand Strategy'];
 
 export default function BlogPage() {
+  useSEO({
+    title: 'Creative Journal — Brand Strategy & Design Insights',
+    description:
+      'Strategy-led articles on branding, social media content, and visual design for growth-focused business owners. By the team at Huna Creatives.',
+    canonical: '/blog',
+    schema: {
+      '@context': 'https://schema.org',
+      '@type': 'Blog',
+      '@id': 'https://www.hunacreatives.com/blog/#blog',
+      url: 'https://www.hunacreatives.com/blog',
+      name: 'Huna Creative Journal',
+      description: 'Strategy-led articles on branding, social media content, and visual design.',
+      publisher: { '@id': 'https://www.hunacreatives.com/#organization' },
+    },
+  });
+
   const [activeCategory, setActiveCategory] = useState('All');
   const navigate = useNavigate();
 
