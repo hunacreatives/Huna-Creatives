@@ -69,24 +69,10 @@ const socialClients = [
     description:
       "For Blue Collar Nutrition, our focus is on creating bold, high‑impact content that matches the brand's energy and grit. We develop a mix of product‑centered promotions, seasonal campaigns, and lifestyle‑driven content designed to connect with their community of athletes and everyday grinders. From supplement spotlights to campaign launches, every piece of content reinforces their identity as a trusted, no‑nonsense brand built on performance, consistency, and strength.",
     images: [
-      '/images/af9840250b5d4b8ed50bb36142137e11.png',
-      '/images/ba19a8ad592864043ff2c21c8607c9c8.png',
-      '/images/4be8756dcc635c33ed68261c7a8f7244.png',
-      '/images/8b24acbc6a923d2121048296103c85c8.png',
-    ],
-  },
-  {
-    id: 'dental',
-    number: '5',
-    name: 'Pediatric Dental Brands',
-    logo: '',
-    logoBg: '#f7f5f2',
-    dark: false,
-    description:
-      "Across multiple pediatric dental practices — Traditions Dental, Everyone By One, Once Upon a Tooth, and Hello Kids Dentistry — we create warm, educational, and parent-friendly social media content. Each post is crafted to ease anxiety around dental visits, answer real parent questions, and build a trustworthy online presence that feels approachable rather than clinical.",
-    images: [
-      '/images/drive-writeway-social-1.png',
-      '/images/drive-writeway-social-2.png',
+      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/ccd16ed1-02ba-4ad6-be83-377096c7027f/1+BCN+-+Social+Media+Contents.png',
+      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/1fbd6003-4130-42e4-8c92-8f4ebc3c8dff/2+Dad+Bundle.png',
+      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/499ff7e8-6a34-4b79-a72c-aff1c1c2296c/5+BCN+-+Social+Media+Contents.png',
+      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/4bf4753e-2a8c-4578-bb75-4dc82301cf89/23+BCN+-+Social+Media+Contents.png',
     ],
   },
 ];
