@@ -10,6 +10,7 @@ const ArticlePage = lazy(() => import('../pages/blog/article/page'));
 const CareersPage = lazy(() => import('../pages/careers/page'));
 const PortfolioPage = lazy(() => import('../pages/portfolio/page'));
 const PortfolioCategoryPage = lazy(() => import('../pages/portfolio/category/page'));
+const ProjectPage = lazy(() => import('../pages/portfolio/project/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 const routes: RouteObject[] = [
@@ -32,6 +33,10 @@ const routes: RouteObject[] = [
   {
     path: '/portfolio/:categoryId',
     element: <PortfolioCategoryPage />,
+  },
+  {
+    path: '/portfolio/project/:projectSlug',
+    element: <ProjectPage />,
   },
   {
     path: '/contact',

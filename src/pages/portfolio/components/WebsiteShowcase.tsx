@@ -13,7 +13,7 @@ const websites = [
     year: '2024',
     accentColor: '#c4a882',
     accentBg: 'rgba(196,168,130,0.1)',
-    image: 'https://image.thum.io/get/width/1200/crop/800/https://hulmacebu.com',
+    image: '/images/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png',
   },
   {
     id: 'bzmywq',
@@ -27,7 +27,7 @@ const websites = [
     year: '2024',
     accentColor: '#7a8fa0',
     accentBg: 'rgba(122,143,160,0.1)',
-    image: 'https://image.thum.io/get/width/1200/crop/800/https://bzmywq.readdy.co',
+    image: '/images/99c59eb0-4815-4d7a-866a-f56d3e927d63_FS-Homepage.png',
   },
   {
     id: 'palm-barge',
@@ -41,7 +41,7 @@ const websites = [
     year: '2024',
     accentColor: '#f9a825',
     accentBg: 'rgba(249,168,37,0.1)',
-    image: 'https://image.thum.io/get/width/1200/crop/800/https://palmbarge.com.au',
+    image: '/images/968636a3-15e7-48ef-8452-b827dbfc706a_Screenshot-2026-03-27-at-12.53.00AM.png',
   },
 ];
 

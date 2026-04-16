@@ -444,7 +444,7 @@ const webDesignSites = [
     year: '2025',
     accentColor: '#7a8fa0',
     accentBg: 'rgba(122,143,160,0.1)',
-    image: 'https://image.thum.io/get/width/1200/crop/800/https://bzmywq.readdy.co',
+    image: '/images/99c59eb0-4815-4d7a-866a-f56d3e927d63_FS-Homepage.png',
     comingSoon: true,
   },
 ];
