@@ -447,6 +447,21 @@ const webDesignSites = [
     image: '/images/99c59eb0-4815-4d7a-866a-f56d3e927d63_FS-Homepage.png',
     comingSoon: true,
   },
+  {
+    id: 'obra-majoralia',
+    name: 'Obra Majoralia',
+    url: '#',
+    displayUrl: 'obramajoralia.com',
+    category: 'Web Design & Branding',
+    description:
+      'A new project currently in progress. Full case study and live preview dropping soon.',
+    tags: ['Web Design', 'Architecture', 'Branding'],
+    year: '2025',
+    accentColor: '#8a7a6a',
+    accentBg: 'rgba(138,122,106,0.1)',
+    image: '/images/obra-majoralia-home.jpg',
+    comingSoon: true,
+  },
 ];
 
 const WebDesignLayout = () => (
