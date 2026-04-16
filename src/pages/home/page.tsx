@@ -76,6 +76,7 @@ export default function HomePage() {
   const navLinks = [
     { label: 'Home', href: '/' },
     { label: 'About Us', href: '/about' },
+    { label: 'Portfolio', href: '/portfolio' },
     { label: 'Services', href: '/services' },
     { label: 'Blog', href: '/blog' },
     { label: 'Careers', href: '/careers' },

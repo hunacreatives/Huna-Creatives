@@ -69,10 +69,24 @@ const socialClients = [
     description:
       "For Blue Collar Nutrition, our focus is on creating bold, high‑impact content that matches the brand's energy and grit. We develop a mix of product‑centered promotions, seasonal campaigns, and lifestyle‑driven content designed to connect with their community of athletes and everyday grinders. From supplement spotlights to campaign launches, every piece of content reinforces their identity as a trusted, no‑nonsense brand built on performance, consistency, and strength.",
     images: [
-      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/ccd16ed1-02ba-4ad6-be83-377096c7027f/1+BCN+-+Social+Media+Contents.png',
-      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/1fbd6003-4130-42e4-8c92-8f4ebc3c8dff/2+Dad+Bundle.png',
-      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/499ff7e8-6a34-4b79-a72c-aff1c1c2296c/5+BCN+-+Social+Media+Contents.png',
-      'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/4bf4753e-2a8c-4578-bb75-4dc82301cf89/23+BCN+-+Social+Media+Contents.png',
+      '/images/af9840250b5d4b8ed50bb36142137e11.png',
+      '/images/ba19a8ad592864043ff2c21c8607c9c8.png',
+      '/images/4be8756dcc635c33ed68261c7a8f7244.png',
+      '/images/8b24acbc6a923d2121048296103c85c8.png',
+    ],
+  },
+  {
+    id: 'dental',
+    number: '5',
+    name: 'Pediatric Dental Brands',
+    logo: '',
+    logoBg: '#f7f5f2',
+    dark: false,
+    description:
+      "Across multiple pediatric dental practices — Traditions Dental, Everyone By One, Once Upon a Tooth, and Hello Kids Dentistry — we create warm, educational, and parent-friendly social media content. Each post is crafted to ease anxiety around dental visits, answer real parent questions, and build a trustworthy online presence that feels approachable rather than clinical.",
+    images: [
+      '/images/drive-writeway-social-1.png',
+      '/images/drive-writeway-social-2.png',
     ],
   },
 ];
@@ -99,7 +113,7 @@ const GraphicDesignLayout = ({ category }) => {
       bg: '#0d0d0d',
       description: 'Menus are an extension of your brand. Every choice of font, color, and layout sets the stage for what your guests are about to enjoy.',
       subtext: 'We design menus that grab attention, spark curiosity, and leave a lasting impression.',
-      image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/93302523-9646-498f-b02a-81bbfdec163a/Vox+Menu+-+Website.png',
+      image: '/images/drive-fv-menu.png',
       imageLeft: true,
     },
     {
@@ -110,7 +124,7 @@ const GraphicDesignLayout = ({ category }) => {
       bg: '#111111',
       description: 'Compact, eye-catching, and built to travel far. Flyers carry your message directly into people\'s hands.',
       subtext: 'Every flyer is crafted to grab attention, spark curiosity, and leave a clear memory of your brand.',
-      image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/d8a9d944-4f06-46ce-ae78-22290ef04387/Flyer+mockup+2.png',
+      image: '/images/drive-vox-chifa-bowl.png',
       imageLeft: false,
     },
   ];
@@ -172,6 +186,34 @@ const GraphicDesignLayout = ({ category }) => {
         </section>
       ))}
 
+      {/* Menus Gallery */}
+      <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#111111' }}>
+        <div
+          className="absolute top-0 left-0 right-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.2), transparent)' }}
+        />
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-10 md:mb-12">
+            <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: 'rgba(249,115,22,0.85)' }}>
+              04 — Menus
+            </span>
+            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white mb-3 md:mb-4">More Menu Designs</h2>
+            <p className="text-white/35 text-sm max-w-lg mx-auto">From ramen shops to cocktail bars — menus designed to sell the experience.</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
+            {[
+              '/images/drive-kin-menu-front.png',
+              '/images/drive-kin-special-menu.png',
+              '/images/drive-kin-menu-flyer.png',
+            ].map((img, i) => (
+              <div key={i} className="group relative overflow-hidden rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+                <img src={img} alt={`Menu design ${i + 1}`} className="w-full h-auto object-cover object-top transition-transform duration-500 group-hover:scale-105" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Flyers Gallery */}
       <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#0d0d0d' }}>
         <div
@@ -181,7 +223,7 @@ const GraphicDesignLayout = ({ category }) => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10 md:mb-12 lg:mb-16">
             <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: 'rgba(249,115,22,0.85)' }}>
-              04 — Our Work
+              05 — Our Work
             </span>
             <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white mb-3 md:mb-4">Past Flyers &amp; Designs</h2>
             <p className="text-white/35 text-sm max-w-lg mx-auto">Bold, intentional designs built to make an impression.</p>
@@ -196,6 +238,14 @@ const GraphicDesignLayout = ({ category }) => {
               '/images/e47d531d58febd435a7fb4e96c85fde7.png',
               '/images/55e240e348314c84ba40f27d212d20a5.png',
               '/images/2f115e6259210ddf16ac62cf5dfc7142.png',
+              '/images/drive-vox-bar-program.png',
+              '/images/drive-vox-hh-program.png',
+              '/images/drive-kin-menu-flyer.png',
+              '/images/drive-kch-lny-poster.png',
+              '/images/drive-kei-cards.png',
+              '/images/drive-ad-torch.png',
+              '/images/drive-ad-1.png',
+              '/images/drive-ad-2.png',
             ].map((img, i) => (
               <div
                 key={i}
@@ -376,6 +426,48 @@ const EmailMarketingLayout = ({ category }) => {
                 </div>
                 <h3 className="font-display text-sm font-bold text-white mb-2 md:mb-3">{adv.title}</h3>
                 <p className="text-xs leading-relaxed text-white/40">{adv.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Newsletter Samples */}
+      <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#f0ece8' }}>
+        <div
+          className="absolute top-0 left-0 right-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.06), transparent)' }}
+        />
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-10 md:mb-12">
+            <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: '#c4572a' }}>
+              03 — Newsletter Samples
+            </span>
+            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-3 md:mb-4 leading-tight" style={{ color: '#1a1a1a' }}>
+              Campaigns That Convert
+            </h2>
+            <p className="text-sm max-w-lg mx-auto" style={{ color: 'rgba(26,26,26,0.5)' }}>
+              Real email campaigns we built for Blue Collar Nutrition — designed to drive urgency, tell the brand story, and get clicks.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-5 md:gap-6 max-w-4xl mx-auto">
+            {[
+              { img: '/images/drive-bcn-liquid-newsletter.png', label: 'BCN — Liquid Burn Campaign' },
+              { img: '/images/drive-bcn-ny-newsletter.png', label: 'BCN — New Year Promo' },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="group overflow-hidden rounded-2xl"
+                style={{ border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}
+              >
+                <img
+                  src={item.img}
+                  alt={item.label}
+                  className="w-full h-auto object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
+                />
+                <div className="px-4 py-3" style={{ background: '#ffffff' }}>
+                  <span className="text-xs font-semibold" style={{ color: '#3a3330' }}>{item.label}</span>
+                </div>
               </div>
             ))}
           </div>

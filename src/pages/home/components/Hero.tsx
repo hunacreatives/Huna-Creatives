@@ -203,7 +203,7 @@ export default function Hero() {
         {/* CTAs — right after the name, prominent */}
         <div className="hero-animate flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 w-full max-w-sm sm:max-w-none mx-auto mb-16 sm:mb-20">
           <a
-            href="/services"
+            href="/portfolio"
             className="sm:w-auto px-8 sm:px-10 py-3 sm:py-3.5 rounded-full text-[10px] sm:text-xs font-semibold tracking-widest uppercase text-white transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer text-center"
             style={{
               background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)',
@@ -212,7 +212,7 @@ export default function Hero() {
               animation: 'gradient-shift 6s ease infinite',
             }}
           >
-            Our Services
+            Our Portfolio
           </a>
           <a
             href="/contact"
