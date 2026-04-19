@@ -121,7 +121,7 @@ export default function Hero() {
       data-hero-section
       className="relative flex items-center justify-center overflow-hidden"
       style={{
-        height: 'calc(100vh - 52px)',
+        height: '100dvh',
         minHeight: '560px',
         paddingTop: '84px',
         background: 'linear-gradient(160deg, #0a0a0a 0%, #111111 50%, #0d0d0d 100%)',
@@ -201,7 +201,7 @@ export default function Hero() {
         </p>
 
         {/* CTAs — right after the name, prominent */}
-        <div className="hero-animate flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 w-full max-w-sm sm:max-w-none mx-auto mb-16 sm:mb-20">
+        <div className="hero-animate flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 w-full max-w-sm sm:max-w-none mx-auto">
           <a
             href="/portfolio"
             className="sm:w-auto px-8 sm:px-10 py-3 sm:py-3.5 rounded-full text-[10px] sm:text-xs font-semibold tracking-widest uppercase text-white transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer text-center"
@@ -233,15 +233,19 @@ export default function Hero() {
           </a>
         </div>
 
-        {/* Stats — proof at the bottom, low key */}
-        <div className="hero-animate w-full flex items-center justify-center gap-0">
+
+      </div>
+
+      {/* Stats pinned to bottom of hero */}
+      <div className="hero-animate absolute bottom-0 left-0 right-0 z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center gap-0">
           {[
             { value: '100+', label: 'Projects Delivered' },
             { value: '5.0★', label: 'Partner Rating' },
             { value: '100%', label: 'Satisfaction Rate' },
           ].map((stat, i, arr) => (
             <>
-              <div key={stat.label} className="text-center flex-1 min-w-0 py-4 sm:py-5">
+              <div key={stat.label} className="text-center flex-1 min-w-0 py-5 sm:py-6">
                 <div
                   className="text-base sm:text-xl md:text-2xl font-bold font-display"
                   style={{
@@ -257,17 +261,9 @@ export default function Hero() {
                   {stat.label}
                 </div>
               </div>
-              {i < arr.length - 1 && (
-                <div
-                  key={`div-${i}`}
-                  className="w-px h-10 flex-shrink-0"
-                  style={{ background: 'rgba(255,255,255,0.06)', marginTop: '1px' }}
-                />
-              )}
             </>
           ))}
         </div>
-
       </div>
     </section>
   );

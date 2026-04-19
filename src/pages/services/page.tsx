@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
@@ -108,74 +107,7 @@ const brandLogos = [
   '/images/2259484d-46f9-4ca6-9da7-2fb0fffd26ca_37.png',
 ];
 
-function useScrollReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('revealed');
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    const children = el.querySelectorAll('.reveal-item');
-    children.forEach((child) => observer.observe(child));
-
-    return () => observer.disconnect();
-  }, []);
-
-  return ref;
-}
-
 const pageStyles = `
-  /* Scroll reveal */
-  .scroll-reveal {
-    opacity: 0;
-    transform: translateY(36px);
-    transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .scroll-reveal.revealed {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  /* Ambient orb pulse */
-  @keyframes orb-pulse {
-    0%, 100% { opacity: 0.6; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.08); }
-  }
-  .orb-pulse { animation: orb-pulse 6s ease-in-out infinite; }
-  .orb-pulse-slow { animation: orb-pulse 9s ease-in-out infinite; }
-
-  /* Floating bubble drift */
-  @keyframes bubble-drift {
-    0%, 100% { transform: translateY(0) translateX(0) rotate(0deg); }
-    33% { transform: translateY(-18px) translateX(8px) rotate(3deg); }
-    66% { transform: translateY(-8px) translateX(-6px) rotate(-2deg); }
-  }
-  .bubble-drift { animation: bubble-drift 8s ease-in-out infinite; }
-
-  /* Divider line draw */
-  @keyframes line-draw {
-    from { width: 0; opacity: 0; }
-    to { width: 3rem; opacity: 1; }
-  }
-  .line-draw { animation: line-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both; }
-
-  /* Hero label pulse dot */
-  @keyframes dot-ping {
-    0% { transform: scale(1); opacity: 1; }
-    75%, 100% { transform: scale(2.2); opacity: 0; }
-  }
-  .dot-ping { animation: dot-ping 1.8s cubic-bezier(0,0,0.2,1) infinite; }
-
-  /* Logo marquee */
   @keyframes marquee-left {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
@@ -271,51 +203,22 @@ export default function ServicesPage() {
   });
 
   const navigate = useNavigate();
-  const headerRef = useScrollReveal();
-  const gridRef = useScrollReveal();
-  const collectiveRef = useScrollReveal();
 
   return (
-    <div className="min-h-screen text-white font-body" style={{ background: '#0a0a0a' }}>
+    <div className="relative min-h-screen text-white font-body" style={{ background: '#0a0a0a' }}>
       <Navigation />
 
-      {/* ── Ambient background ── */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="orb-pulse absolute top-0 right-1/4 w-[28rem] h-[28rem] bg-orange-600/10 rounded-full blur-[130px]" />
-        <div className="orb-pulse-slow absolute top-1/2 left-0 w-80 h-80 bg-red-600/8 rounded-full blur-[110px]" />
-        <div className="orb-pulse absolute bottom-1/4 right-0 w-72 h-72 bg-rose-600/8 rounded-full blur-[100px]" />
-        <div className="orb-pulse-slow absolute bottom-0 left-1/3 w-64 h-64 bg-orange-500/6 rounded-full blur-[80px]" />
-      </div>
-
-      {/* ── Floating bubbles ── */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        {[
-          { size: 'w-20 h-20', top: '10rem', left: '6%', delay: '0s' },
-          { size: 'w-12 h-12', top: '18rem', right: '10%', delay: '1.2s' },
-          { size: 'w-16 h-16', top: '50%', left: '4%', delay: '2.4s' },
-          { size: 'w-24 h-24', bottom: '33%', right: '6%', delay: '0.8s' },
-        ].map((b, i) => (
-          <div
-            key={i}
-            className={`${b.size} bubble-drift absolute rounded-full`}
-            style={{
-              top: b.top,
-              left: b.left,
-              right: b.right,
-              bottom: b.bottom,
-              animationDelay: b.delay,
-              background: 'radial-gradient(circle, rgba(249,115,22,0.15) 0%, rgba(239,68,68,0.08) 100%)',
-              border: '1px solid rgba(249,115,22,0.2)',
-            }}
-          />
-        ))}
+      {/* ── Static ambient background ── */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 right-1/4 w-[28rem] h-[28rem] bg-orange-600/8 rounded-full blur-[130px]" />
+        <div className="absolute bottom-1/4 right-0 w-72 h-72 bg-rose-600/6 rounded-full blur-[100px]" />
       </div>
 
       <main className="relative z-10">
 
         {/* ══ HEADER ══ */}
-        <div ref={headerRef} className="max-w-6xl mx-auto px-4 sm:px-6 pt-32 sm:pt-36 md:pt-40 pb-16 sm:pb-20 text-center">
-          <div className="reveal-item scroll-reveal inline-flex items-center gap-3 mb-5">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-32 sm:pt-36 md:pt-40 pb-16 sm:pb-20 text-center">
+          <div className="inline-flex items-center gap-3 mb-5">
             <span className="w-8 h-px bg-orange-500/50" />
             <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">
               Creative Services
@@ -323,12 +226,12 @@ export default function ServicesPage() {
             <span className="w-8 h-px bg-orange-500/50" />
           </div>
 
-          <h1 className="reveal-item scroll-reveal text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-bold font-display tracking-tight mb-5 text-white leading-[1.1]">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-bold font-display tracking-tight mb-5 text-white leading-[1.1]">
             What We Do{' '}
             <span className="gradient-text-animated">Best</span>
           </h1>
 
-          <p className="reveal-item scroll-reveal text-sm md:text-[15px] text-white/40 max-w-lg mx-auto leading-relaxed">
+          <p className="text-sm md:text-[15px] text-white/40 max-w-lg mx-auto leading-relaxed">
             From brand identity to digital strategy — everything your brand needs to stand out and move people.
           </p>
         </div>
@@ -339,8 +242,8 @@ export default function ServicesPage() {
         </div>
 
         {/* ══ SERVICES GRID ══ */}
-        <div ref={gridRef} className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
-          <div className="reveal-item scroll-reveal flex items-center gap-3 mb-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+          <div className="flex items-center gap-3 mb-12">
             <span className="w-8 h-px bg-orange-500/50" />
             <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">
               Our Services
@@ -351,9 +254,8 @@ export default function ServicesPage() {
             {services.map((service, index) => (
               <div
                 key={index}
-                className="reveal-item scroll-reveal group relative rounded-2xl p-7 md:p-8 overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2"
+                className="group relative rounded-2xl p-7 md:p-8 overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2"
                 style={{
-                  transitionDelay: `${index * 70}ms`,
                   background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
                   border: '1px solid rgba(255,255,255,0.07)',
                 }}
@@ -436,9 +338,9 @@ export default function ServicesPage() {
         </div>
 
         {/* ══ HUNA COLLECTIVE ══ */}
-        <div ref={collectiveRef} className="py-16 sm:py-20 md:py-24">
+        <div className="py-16 sm:py-20 md:py-24">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <span className="w-8 h-px bg-orange-500/50" />
@@ -465,7 +367,7 @@ export default function ServicesPage() {
               <div className="marquee-left">
                 {[...brandLogos.slice(0, 19), ...brandLogos.slice(0, 19)].map((src, i) => (
                   <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
-                    <img src={src} alt={`Client brand logo — Huna Creatives portfolio`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
+                    <img src={src} alt={`Client brand logo — Huna Creatives portfolio`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" loading="lazy" style={{ filter: 'invert(1)' }} />
                   </div>
                 ))}
               </div>
@@ -475,7 +377,7 @@ export default function ServicesPage() {
               <div className="marquee-right">
                 {[...brandLogos.slice(19), ...brandLogos.slice(19)].map((src, i) => (
                   <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
-                    <img src={src} alt={`Brand logo ${i + 20}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" style={{ filter: 'invert(1)' }} />
+                    <img src={src} alt={`Brand logo ${i + 20}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" loading="lazy" style={{ filter: 'invert(1)' }} />
                   </div>
                 ))}
               </div>
@@ -485,49 +387,6 @@ export default function ServicesPage() {
 
         </div>
 
-        {/* ── thin separator ── */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
-        </div>
-
-        {/* ══ CTA ══ */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-28">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-16">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="w-8 h-px bg-orange-500/50" />
-                <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">
-                  Let&apos;s Create
-                </span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white leading-tight mb-3">
-                Have a project in mind?<br />
-                <span className="gradient-text-animated">Let&apos;s talk.</span>
-              </h2>
-              <p className="text-sm text-white/40 max-w-sm leading-relaxed">
-                Not sure where to start? Reach out anyway — we&apos;ll figure out the right fit together.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 shrink-0">
-              <button
-                onClick={() => navigate('/contact')}
-                className="px-10 py-3.5 bg-gradient-brand text-white font-semibold font-display rounded-full transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/40 hover:scale-105 whitespace-nowrap cursor-pointer text-sm"
-              >
-                Get Started
-              </button>
-              <a
-                href="https://calendly.com/hunacreatives/30min"
-                target="_blank"
-                rel="nofollow noreferrer"
-                className="px-10 py-3.5 rounded-full text-sm font-semibold font-display border border-orange-400/40 text-orange-400 hover:bg-orange-500/10 transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer flex items-center justify-center gap-2"
-              >
-                <i className="ri-calendar-line text-base" />
-                Book a Free Call
-              </a>
-            </div>
-          </div>
-        </div>
 
       </main>
 

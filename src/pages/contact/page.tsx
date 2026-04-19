@@ -51,14 +51,6 @@ export default function ContactPage() {
     message: '',
   });
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 60);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     const serviceParam = searchParams.get('service');
@@ -66,13 +58,6 @@ export default function ContactPage() {
       setFormData((prev) => ({ ...prev, service: serviceParam }));
     }
   }, [searchParams]);
-
-  const navLinks = [
-    { label: 'Home', href: '/' },
-    { label: 'About Us', href: '/about' },
-
-    { label: 'Services', href: '/services' },
-  ];
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -285,36 +285,43 @@ export default function CareersPage() {
       <Navigation />
 
       {/* HERO */}
-      <section className="relative pt-24 pb-12 md:pt-32 md:pb-16 px-4 md:px-6 bg-[#0a0a0a] overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full bg-red-900/20 blur-[80px] pointer-events-none" />
-        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full bg-orange-900/20 blur-[60px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[350px] h-[350px] rounded-full bg-red-900/15 blur-[60px] pointer-events-none" />
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center max-w-3xl mx-auto fade-up fade-up-1">
-            <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.3em] uppercase text-orange-500 mb-4 md:mb-5 font-display">
-              <span className="w-6 h-px bg-orange-500" />Join Our Team<span className="w-6 h-px bg-orange-500" />
-            </span>
-            <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4 md:mb-6">
-              Build your career with<br />
-              <span style={{ background: 'linear-gradient(135deg, #ef4444 0%, #f97316 40%, #fb7185 80%, #fbbf24 100%)', backgroundSize: '200% 200%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'gradient-shift 6s ease infinite' }}>
-                Huna Creatives.
-              </span>
-            </h1>
-            <p className="text-white/40 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
-              At Huna Creatives, we build brands that mean something. If you&apos;re a creative who thinks boldly, works with intention, and wants to be part of something worth building — you&apos;re in the right place.
-            </p>
+      <section className="relative pt-32 sm:pt-36 md:pt-40 pb-16 sm:pb-20 px-4 md:px-6 bg-[#0a0a0a] overflow-hidden">
+        <div className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-orange-900/15 blur-[100px] pointer-events-none" />
+        <div className="max-w-6xl mx-auto relative z-10 text-center">
+          <div className="inline-flex items-center gap-3 mb-5">
+            <span className="w-8 h-px bg-orange-500/50" />
+            <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Join Our Team</span>
+            <span className="w-8 h-px bg-orange-500/50" />
           </div>
+          <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-bold text-white leading-[1.1] tracking-tight mb-5">
+            Build your career with{' '}
+            <span className="gradient-text-animated">Huna Creatives.</span>
+          </h1>
+          <p className="text-sm md:text-[15px] text-white/40 max-w-lg mx-auto leading-relaxed">
+            We build brands that mean something. If you think boldly, work with intention, and want to be part of something worth building — you&apos;re in the right place.
+          </p>
         </div>
       </section>
 
       {HAS_OPENINGS ? (
-        <section className="relative py-10 md:py-14 px-4 md:px-6 bg-[#0a0a0a]">
+        <section className="relative py-16 sm:py-20 md:py-24 px-4 md:px-6 bg-[#0a0a0a]">
           <div className="max-w-5xl mx-auto">
-            <div className="mb-6 flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-green-400 text-xs font-semibold tracking-widest uppercase">
-                {JOB_LISTINGS.length} Open Position{JOB_LISTINGS.length > 1 ? 's' : ''}
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-8 h-px bg-orange-500/50" />
+                  <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Open Roles</span>
+                </div>
+                <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">
+                  We&apos;re <span className="gradient-text-animated">hiring.</span>
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-green-400 text-xs font-semibold tracking-widest uppercase">
+                  {JOB_LISTINGS.length} Open Position{JOB_LISTINGS.length > 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
 
             <div className="space-y-3 mb-10">
@@ -329,7 +336,7 @@ export default function CareersPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                          <h2 className="font-display text-lg md:text-xl font-bold text-white">{job.title}</h2>
+                          <h2 className="font-display text-xl md:text-2xl font-bold text-white">{job.title}</h2>
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-green-500/15 text-green-400 border border-green-500/20">Hiring</span>
                         </div>
                         <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -345,14 +352,14 @@ export default function CareersPage() {
                     </div>
                     {selectedJob?.id === job.id && (
                       <div className="mt-6 pt-6 border-t border-white/8 space-y-6">
-                        <p className="text-white/50 text-sm leading-relaxed">{job.summary}</p>
+                        <p className="text-white/40 text-sm leading-relaxed">{job.summary}</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What You&apos;ll Do</h3><ul className="space-y-2">{job.whatYoullDo.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed"><i className="ri-arrow-right-s-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What We&apos;re Looking For</h3><ul className="space-y-2">{job.lookingFor.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed"><i className="ri-checkbox-circle-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Nice to Have</h3><ul className="space-y-2">{job.niceToHave.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed"><i className="ri-star-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Work Setup</h3><ul className="space-y-2">{job.workSetup.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed"><i className="ri-computer-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What Sets You Apart</h3><ul className="space-y-2">{job.setsYouApart.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed"><i className="ri-flashlight-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Growth Opportunity</h3><ul className="space-y-2">{job.growth.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed"><i className="ri-line-chart-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
+                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What You&apos;ll Do</h3><ul className="space-y-2">{job.whatYoullDo.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-arrow-right-s-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
+                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What We&apos;re Looking For</h3><ul className="space-y-2">{job.lookingFor.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-checkbox-circle-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
+                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Nice to Have</h3><ul className="space-y-2">{job.niceToHave.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-star-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
+                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Work Setup</h3><ul className="space-y-2">{job.workSetup.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-computer-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
+                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What Sets You Apart</h3><ul className="space-y-2">{job.setsYouApart.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-flashlight-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
+                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Growth Opportunity</h3><ul className="space-y-2">{job.growth.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-line-chart-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
                         </div>
                       </div>
                     )}

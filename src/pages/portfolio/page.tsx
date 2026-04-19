@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
@@ -74,6 +74,168 @@ const clients = [
   'FS Architects', 'Peak Coffee Roasters', 'Hulma Cebu',
 ];
 
+function CategoriesHoverReveal() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const prevRef = useRef(0);
+
+  const handleEnter = (index: number) => {
+    if (index === activeIndex) return;
+    prevRef.current = activeIndex;
+    setActiveIndex(index);
+  };
+
+  return (
+    <section className="relative py-20 md:py-28 px-4 md:px-6 bg-[#0a0a0a]">
+      <div className="max-w-6xl mx-auto relative z-10">
+        {/* Section header */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6 mb-12 md:mb-16">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <span className="w-8 h-px bg-orange-500/50" />
+              <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Expertise</span>
+            </div>
+            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">
+              What we <span className="gradient-text-animated">specialize</span> in.
+            </h2>
+          </div>
+          <p className="text-white/30 text-xs md:text-sm max-w-sm leading-relaxed text-right">
+            Five core disciplines, one unified creative vision. Click any category to explore.
+          </p>
+        </div>
+
+        {/* Desktop: split layout */}
+        <div className="hidden md:flex gap-8 lg:gap-12 items-stretch">
+
+          {/* LEFT — image panel: all images pre-rendered, slide via CSS transform */}
+          <div className="w-[45%] shrink-0 relative rounded-2xl overflow-hidden" style={{ minHeight: '480px' }}>
+            {categories.map((cat, index) => {
+              const isActive = index === activeIndex;
+              return (
+                <div
+                  key={cat.id}
+                  className="absolute inset-0 w-full h-full"
+                  style={{
+                    transform: `translateY(${isActive ? '0%' : index < activeIndex ? '-100%' : '100%'})`,
+                    transition: 'transform 0.55s cubic-bezier(0.76, 0, 0.24, 1)',
+                    willChange: 'transform',
+                    zIndex: isActive ? 2 : 1,
+                  }}
+                >
+                  <img
+                    src={cat.image}
+                    alt={cat.name}
+                    className="w-full h-full object-cover object-top"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <p className="text-white/80 text-sm leading-relaxed">{cat.description}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* RIGHT — list */}
+          <div className="flex-1 flex flex-col justify-center">
+            {categories.map((cat, index) => (
+              <Link
+                key={cat.id}
+                to={`/portfolio/${cat.id}`}
+                className="flex items-center justify-between py-5 xl:py-6 border-b border-white/8"
+                onMouseEnter={() => handleEnter(index)}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-8 h-8 flex items-center justify-center rounded-lg shrink-0"
+                    style={{
+                      background: activeIndex === index ? `${cat.accent}22` : 'rgba(255,255,255,0.04)',
+                      transition: 'background 0.25s',
+                    }}
+                  >
+                    <i
+                      className={`${cat.icon} text-sm`}
+                      style={{
+                        color: activeIndex === index ? cat.accent : 'rgba(255,255,255,0.25)',
+                        transition: 'color 0.25s',
+                      }}
+                    />
+                  </div>
+                  <h3
+                    className="font-display text-2xl xl:text-3xl font-bold leading-none"
+                    style={{
+                      color: activeIndex === index ? '#fff' : 'rgba(255,255,255,0.3)',
+                      transition: 'color 0.25s',
+                    }}
+                  >
+                    {cat.name}
+                  </h3>
+                  <span
+                    className="font-display text-base xl:text-lg font-bold"
+                    style={{
+                      color: activeIndex === index ? cat.accent : 'rgba(255,255,255,0.15)',
+                      transition: 'color 0.25s',
+                    }}
+                  >
+                    {`{${String(index + 1).padStart(2, '0')}}`}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <span
+                    className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full"
+                    style={{
+                      color: activeIndex === index ? cat.accent : 'rgba(255,255,255,0.2)',
+                      background: activeIndex === index ? `${cat.accent}15` : 'transparent',
+                      border: `1px solid ${activeIndex === index ? `${cat.accent}40` : 'rgba(255,255,255,0.08)'}`,
+                      transition: 'all 0.25s',
+                    }}
+                  >
+                    {cat.count}
+                  </span>
+                  <div
+                    className="w-8 h-8 flex items-center justify-center rounded-full"
+                    style={{
+                      background: activeIndex === index ? cat.accent : 'rgba(255,255,255,0.05)',
+                      transform: activeIndex === index ? 'rotate(-45deg)' : 'rotate(0deg)',
+                      transition: 'all 0.25s',
+                    }}
+                  >
+                    <i className="ri-arrow-right-line text-sm text-white" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile fallback */}
+        <div className="md:hidden grid grid-cols-1 gap-3">
+          {categories.map((cat) => (
+            <Link
+              key={cat.id}
+              to={`/portfolio/${cat.id}`}
+              className="flex items-center gap-4 p-4 rounded-xl"
+              style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <div className="relative w-20 h-16 rounded-lg overflow-hidden shrink-0">
+                <img src={cat.image} alt={cat.name} className="w-full h-full object-cover object-top" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <i className={`${cat.icon} text-xs`} style={{ color: cat.accent }} />
+                  <h3 className="font-display text-sm font-bold text-white truncate">{cat.name}</h3>
+                </div>
+                <p className="text-[10px] text-white/30 leading-relaxed line-clamp-2">{cat.description}</p>
+              </div>
+              <span className="text-[10px] font-bold text-white/30 shrink-0">{cat.count}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function PortfolioPage() {
   useSEO({
     title: 'Portfolio — Brand Identity, Social Media & Design Work',
@@ -91,17 +253,8 @@ export default function PortfolioPage() {
     },
   });
 
-  const heroRef = useRef<HTMLElement>(null);
   const marqueeRef = useRef<HTMLElement>(null);
   const cursorGlowRef = useRef<HTMLDivElement>(null);
-
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ['start start', 'end start'],
-  });
-
-  const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '30%']);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -146,25 +299,19 @@ export default function PortfolioPage() {
       <Navigation />
 
       {/* ═══════════════════ HERO ═══════════════════ */}
-      <section ref={heroRef} className="relative h-screen overflow-hidden bg-[#0a0a0a]">
-        <motion.div style={{ y: heroY }} className="absolute inset-0">
+      <section className="relative h-screen overflow-hidden bg-[#0a0a0a]">
+        <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/55 to-[#0a0a0a] z-10" />
           <img
             src="/images/cba766423a8ca16256c39bdfe900b4d7.png"
             alt="Creative workspace"
             className="w-full h-full object-cover object-top opacity-40"
+            loading="eager"
+            decoding="sync"
           />
-        </motion.div>
+        </div>
 
-        <div
-          className="absolute inset-0 z-20 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage:
-              'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'1\'/%3E%3C/svg%3E")',
-          }}
-        />
-
-        <motion.div style={{ opacity: heroOpacity }} className="relative z-30 h-full flex flex-col justify-end pb-12 md:pb-20 px-4 md:px-6 lg:px-16">
+        <div className="relative z-30 h-full flex flex-col justify-end pb-12 md:pb-20 px-4 md:px-6 lg:px-16">
           <div className="max-w-7xl mx-auto w-full">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
@@ -228,16 +375,11 @@ export default function PortfolioPage() {
             </motion.div>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.5 }}
-            className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-          >
+          <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
             <span className="text-[9px] tracking-[0.3em] uppercase text-white/20 font-display">Scroll</span>
             <div className="w-px h-6 md:h-8 bg-gradient-to-b from-white/30 to-transparent animate-pulse" />
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </section>
 
       {/* ═══════════════════ CLIENT MARQUEE ═══════════════════ */}
@@ -254,81 +396,8 @@ export default function PortfolioPage() {
         </div>
       </section>
 
-      {/* ═══════════════════ CATEGORIES ═══════════════════ */}
-      <section className="relative py-20 md:py-28 px-4 md:px-6 bg-[#0a0a0a]">
-        <div
-          className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full pointer-events-none opacity-30"
-          style={{ background: 'radial-gradient(circle, rgba(249,115,22,0.08) 0%, transparent 70%)', filter: 'blur(100px)' }}
-        />
-
-        <div className="max-w-6xl mx-auto relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.7 }}
-            className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6 mb-12 md:mb-16"
-          >
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="w-8 h-px bg-orange-500/50" />
-                <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Expertise</span>
-              </div>
-              <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">
-                What we <span className="gradient-text-animated">specialize</span> in.
-              </h2>
-            </div>
-            <p className="text-white/30 text-xs md:text-sm max-w-sm leading-relaxed text-right">
-              Five core disciplines, one unified creative vision. Click any category to explore.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-6 gap-3 md:gap-4">
-            {categories.map((cat, index) => {
-              let colClass = 'col-span-3 sm:col-span-2';
-              if (index === 3) colClass = 'col-span-3 sm:col-span-2 sm:col-start-2';
-              if (index === 4) colClass = 'col-span-3 sm:col-span-2 sm:col-start-4';
-              return (
-                <motion.div
-                  key={cat.id}
-                  className={colClass}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-60px' }}
-                  transition={{ duration: 0.5, delay: index * 0.08 }}
-                >
-                  <Link
-                    to={`/portfolio/${cat.id}`}
-                    className="group relative block overflow-hidden rounded-xl transition-all duration-500 hover:-translate-y-1 cursor-pointer"
-                    style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
-                  >
-                    <div className="relative h-36 md:h-44 lg:h-52 overflow-hidden">
-                      <img src={cat.image} alt={cat.name} className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent transition-all duration-500 group-hover:from-orange-900/70 group-hover:via-orange-900/20" />
-                      <div className="absolute top-2 md:top-3 right-2 md:right-3 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[9px] md:text-[10px] font-bold text-white" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-                        {cat.count}
-                      </div>
-                      <div className="absolute bottom-2 md:bottom-3 right-2 md:right-3 w-6 md:w-7 h-6 md:h-7 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                        <i className="ri-arrow-right-up-line text-xs md:text-sm text-white" />
-                      </div>
-                    </div>
-                    <div className="p-3 md:p-4 lg:p-5 transition-all duration-500 group-hover:bg-orange-950/20">
-                      <div className="flex items-center gap-2 mb-1.5 md:mb-2">
-                        <div className="w-5 md:w-6 h-5 md:h-6 flex items-center justify-center rounded-md transition-all duration-300 group-hover:bg-orange-500/20" style={{ background: `${cat.accent}18` }}>
-                          <i className={`${cat.icon} text-[10px] md:text-xs transition-colors duration-300 group-hover:text-orange-400`} style={{ color: cat.accent }} />
-                        </div>
-                        <h3 className="font-display text-[11px] md:text-xs lg:text-sm font-bold text-white leading-tight transition-colors duration-300 group-hover:text-orange-100">{cat.name}</h3>
-                      </div>
-                      <p className="text-[10px] md:text-[11px] text-white/30 leading-relaxed transition-colors duration-300 group-hover:text-orange-200/40">{cat.description}</p>
-                    </div>
-                    <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ boxShadow: 'inset 0 0 0 1px rgba(249,115,22,0.35), 0 8px 30px rgba(249,115,22,0.12)' }} />
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      {/* ═══════════════════ CATEGORIES — HOVER REVEAL ═══════════════════ */}
+      <CategoriesHoverReveal />
 
       {/* ── thin separator ── */}
       <div className="max-w-6xl mx-auto px-4 md:px-6">

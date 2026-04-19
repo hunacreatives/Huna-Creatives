@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import Hero from './components/Hero';
-import ClientsBanner from './components/ClientsBanner';
 import Footer from './components/Footer';
 import { useSEO } from '../../hooks/useSEO';
 
@@ -40,38 +39,6 @@ export default function HomePage() {
     };
   }, []);
 
-  // Load readdy.ai widget only after first user interaction to avoid LCP/INP penalty
-  useEffect(() => {
-    let loaded = false;
-
-    const loadWidget = () => {
-      if (loaded) return;
-      loaded = true;
-
-      const script = document.createElement('script');
-      script.src = 'https://readdy.ai/api/public/assistant/widget?projectId=badb1e13-363f-42c7-bea3-385fe56b5540';
-      script.setAttribute('mode', 'hybrid');
-      script.setAttribute('voice-show-transcript', 'true');
-      script.setAttribute('theme', 'light');
-      script.setAttribute('size', 'compact');
-      script.setAttribute('accent-color', '#F97316');
-      script.setAttribute('button-base-color', '#000000');
-      script.setAttribute('button-accent-color', '#FFFFFF');
-      script.defer = true;
-      document.body.appendChild(script);
-    };
-
-    const events = ['mousedown', 'touchstart', 'keydown', 'scroll'];
-    events.forEach((e) => window.addEventListener(e, loadWidget, { once: true, passive: true }));
-
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, loadWidget));
-      const widget = document.querySelector('readdy-widget') as HTMLElement | null;
-      if (widget) widget.remove();
-      const btn = document.querySelector('#vapi-widget-floating-button') as HTMLElement | null;
-      if (btn) btn.remove();
-    };
-  }, []);
 
   const navLinks = [
     { label: 'Home', href: '/' },
@@ -191,7 +158,6 @@ export default function HomePage() {
       <Hero />
 
       {/* Clients Banner */}
-      <ClientsBanner />
 
       {/* Footer */}
       <Footer isDark />

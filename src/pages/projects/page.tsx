@@ -361,16 +361,6 @@ export default function ProjectsPage() {
     }, 300);
   }, [isTransitioning, sortedProjects.length]);
 
-  const prevSlide = () => {
-    const newIndex = slideIndex === 0 ? sortedProjects.length - 1 : slideIndex - 1;
-    goToSlide(newIndex);
-  };
-
-  const nextSlide = () => {
-    const newIndex = slideIndex === sortedProjects.length - 1 ? 0 : slideIndex + 1;
-    goToSlide(newIndex);
-  };
-
   // Auto-advance slideshow
   useEffect(() => {
     if (viewMode !== 'slideshow' || sortedProjects.length === 0) return;
