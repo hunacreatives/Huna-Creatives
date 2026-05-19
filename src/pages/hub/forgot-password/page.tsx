@@ -13,9 +13,10 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/hub/reset-password`,
-    });
+    const redirectTo = window.location.hostname === 'localhost'
+      ? `${window.location.origin}/hub/reset-password`
+      : 'https://www.hunacreatives.com/hub/reset-password';
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     setLoading(false);
     if (err) {
       setError(err.message);

@@ -15,6 +15,7 @@ const NotFound = lazy(() => import('../pages/NotFound'));
 const HubLoginPage = lazy(() => import('../pages/hub/login/page'));
 const HubSignupPage = lazy(() => import('../pages/hub/signup/page'));
 const HubForgotPasswordPage = lazy(() => import('../pages/hub/forgot-password/page'));
+const HubResetPasswordPage = lazy(() => import('../pages/hub/reset-password/page'));
 const HubAdminDashboard = lazy(() => import('../pages/hub/admin/dashboard/page'));
 const HubAdminContractors = lazy(() => import('../pages/hub/admin/contractors/page'));
 const HubAdminContractorDetail = lazy(() => import('../pages/hub/admin/contractors/detail/page'));
@@ -84,6 +85,7 @@ const routes: RouteObject[] = [
   { path: '/hub/login', element: <HubLoginPage /> },
   { path: '/hub/signup', element: <HubSignupPage /> },
   { path: '/hub/forgot-password', element: <HubForgotPasswordPage /> },
+  { path: '/hub/reset-password', element: <HubResetPasswordPage /> },
   { path: '/hub/admin/dashboard', element: <HubAdminDashboard /> },
   { path: '/hub/admin/contractors', element: <HubAdminContractors /> },
   { path: '/hub/admin/contractors/:id', element: <HubAdminContractorDetail /> },
