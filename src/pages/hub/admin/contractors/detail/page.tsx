@@ -5,6 +5,44 @@ import { supabase } from '@/lib/supabase';
 import { HubUser, HubAttendance, HubTimeOff, HubRequest, HubClient, HubAsset } from '@/lib/types';
 import EditContractorModal from './EditContractorModal';
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function getPeriods() {
+  const periods: { label: string; start: string; end: string }[] = [];
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const lastDay = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  let year = 2026; let month = 0; let firstHalf = true;
+  while (true) {
+    const start = firstHalf ? `${year}-${pad(month+1)}-01` : `${year}-${pad(month+1)}-16`;
+    if (new Date(start) > now) break;
+    const endDay = firstHalf ? 15 : lastDay(year, month);
+    const end = `${year}-${pad(month+1)}-${pad(endDay)}`;
+    const label = firstHalf ? `${MONTHS[month]} 1–15, ${year}` : `${MONTHS[month]} 16–${endDay}, ${year}`;
+    periods.push({ label, start, end });
+    if (firstHalf) { firstHalf = false; } else { firstHalf = true; month += 1; if (month > 11) { month = 0; year += 1; } }
+  }
+  return periods;
+}
+
+function fmtTime(iso: string | null) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function fmtDate(dateStr: string) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+interface DayRow {
+  date: string;
+  hours_raw: number;
+  hours_capped: number;
+  overtime_hours: number;
+  first_on: string | null;
+  last_off: string | null;
+}
+
 export default function ContractorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -16,7 +54,14 @@ export default function ContractorDetailPage() {
   const [assets, setAssets] = useState<HubAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEdit, setShowEdit] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'requests' | 'assets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'requests' | 'assets' | 'payslip'>('overview');
+
+  // Payslip tab state
+  const allPeriods = getPeriods();
+  const [selectedPeriod, setSelectedPeriod] = useState(allPeriods[allPeriods.length - 1]);
+  const [payslipDays, setPayslipDays] = useState<DayRow[]>([]);
+  const [payslipPayout, setPayslipPayout] = useState<any>(null);
+  const [payslipLoading, setPayslipLoading] = useState(false);
 
   const fetch = async () => {
     if (!id) return;
@@ -39,6 +84,30 @@ export default function ContractorDetailPage() {
 
   useEffect(() => { fetch(); }, [id]);
 
+  useEffect(() => {
+    if (activeTab === 'payslip' && id) fetchPayslip();
+  }, [activeTab, selectedPeriod, id]);
+
+  const fetchPayslip = async () => {
+    setPayslipLoading(true);
+    const [daysRes, payoutRes] = await Promise.all([
+      supabase.from('hub_daily_hours')
+        .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
+        .eq('user_id', id!)
+        .gte('date', selectedPeriod.start)
+        .lte('date', selectedPeriod.end)
+        .order('date', { ascending: true }),
+      supabase.from('hub_payouts')
+        .select('id, status, final_payout, payment_date')
+        .eq('contractor_id', id!)
+        .eq('cutoff_start', selectedPeriod.start)
+        .maybeSingle(),
+    ]);
+    setPayslipDays((daysRes.data as DayRow[]) ?? []);
+    setPayslipPayout(payoutRes.data ?? null);
+    setPayslipLoading(false);
+  };
+
   const statusColors = {
     complete: 'bg-emerald-100 text-emerald-700',
     missing_on: 'bg-red-100 text-red-700',
@@ -51,6 +120,7 @@ export default function ContractorDetailPage() {
     { key: 'attendance', label: 'Attendance', icon: 'ri-time-line' },
     { key: 'requests', label: 'Requests', icon: 'ri-inbox-line' },
     { key: 'assets', label: 'Assets', icon: 'ri-key-2-line' },
+    { key: 'payslip', label: 'Payslip', icon: 'ri-file-text-line' },
   ];
 
   if (loading) {
@@ -299,6 +369,186 @@ export default function ContractorDetailPage() {
             ))}
           </div>
         )}
+
+        {activeTab === 'payslip' && (() => {
+          const paymentType = (contractor as any)?.payment_type || 'hourly';
+          const hourlyRate = Number((contractor as any)?.hourly_rate || 0);
+          const monthlyRate = Number((contractor as any)?.monthly_rate || 0);
+          const currency = (contractor as any)?.currency || 'PHP';
+          const isUSD = currency === 'USD';
+          const fmt = (val: number) => isUSD
+            ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
+            : new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val);
+
+          const startDate = (contractor as any)?.start_date ?? null;
+          const periods = startDate ? allPeriods.filter(p => p.end >= startDate) : allPeriods;
+
+          const totalDaysWorked = payslipDays.length;
+          const totalHoursRaw = payslipDays.reduce((s, d) => s + d.hours_raw, 0);
+          const totalHoursBillable = payslipDays.reduce((s, d) => s + d.hours_capped, 0);
+          const totalOvertime = payslipDays.reduce((s, d) => s + (d.overtime_hours || 0), 0);
+          const basePay = paymentType === 'fixed' ? monthlyRate / 2 : totalHoursBillable * hourlyRate;
+          const otRate = paymentType === 'fixed' ? monthlyRate / 176 : hourlyRate;
+          const overtimePay = totalOvertime * otRate;
+          const totalPay = basePay + overtimePay;
+
+          return (
+            <div className="max-w-2xl space-y-5">
+              {/* Period selector */}
+              <div className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Pay Period</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{selectedPeriod.start} — {selectedPeriod.end}</p>
+                </div>
+                <select
+                  value={selectedPeriod.start}
+                  onChange={(e) => setSelectedPeriod(periods.find(p => p.start === e.target.value)!)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer"
+                >
+                  {periods.map((p) => (
+                    <option key={p.start} value={p.start}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {payslipLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="bg-[#111827] px-6 py-5 flex items-start justify-between">
+                      <div>
+                        <p className="text-white font-bold text-base">Huna Creatives</p>
+                        <p className="text-white/40 text-xs mt-0.5">Contractor Payment Summary</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[#FF6B35] font-bold text-sm tracking-widest">PAYSLIP</p>
+                        <p className="text-white/40 text-xs mt-1">{selectedPeriod.label}</p>
+                      </div>
+                    </div>
+
+                    <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-400 mb-0.5">Contractor</p>
+                        <p className="text-sm font-semibold text-gray-900">{contractor?.full_name}</p>
+                        {(contractor as any)?.department && <p className="text-xs text-gray-400">{(contractor as any).department}</p>}
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 mb-0.5">Pay Period</p>
+                        <p className="text-sm font-semibold text-gray-900">{selectedPeriod.label}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 mb-0.5">Rate</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {paymentType === 'fixed' ? `₱${monthlyRate.toLocaleString()}/mo` : `${isUSD ? '$' : '₱'}${hourlyRate}/hr`}
+                        </p>
+                        <p className="text-xs text-gray-400 capitalize">{paymentType}</p>
+                      </div>
+                    </div>
+
+                    <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-4 gap-3 text-center">
+                      {[
+                        { label: 'Days Worked', value: totalDaysWorked, color: 'text-gray-900' },
+                        { label: 'Hours Logged', value: `${totalHoursRaw.toFixed(1)}h`, color: 'text-gray-900' },
+                        { label: 'Billable Hours', value: `${totalHoursBillable.toFixed(1)}h`, color: 'text-sky-700' },
+                        { label: 'Overtime', value: totalOvertime > 0 ? `+${totalOvertime}h` : '—', color: totalOvertime > 0 ? 'text-purple-700' : 'text-gray-400' },
+                      ].map(s => (
+                        <div key={s.label} className="bg-gray-50 rounded-xl py-3">
+                          <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {payslipDays.length > 0 ? (
+                      <div className="px-6 py-4 border-b border-gray-50">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Attendance Log</p>
+                        <div className="space-y-1.5">
+                          {payslipDays.map((d) => (
+                            <div key={d.date} className="flex items-center gap-3 text-sm py-1.5 border-b border-gray-50 last:border-0">
+                              <span className="text-gray-500 w-32 flex-shrink-0">{fmtDate(d.date)}</span>
+                              <span className="text-gray-400 text-xs w-20 flex-shrink-0 text-center">{fmtTime(d.first_on)}</span>
+                              <i className="ri-arrow-right-line text-gray-300 text-xs flex-shrink-0"></i>
+                              <span className="text-gray-400 text-xs w-20 flex-shrink-0 text-center">{fmtTime(d.last_off)}</span>
+                              <span className="flex-1 text-right">
+                                <span className="font-medium text-gray-800">{d.hours_capped.toFixed(2)}h</span>
+                                {d.hours_raw > d.hours_capped && (
+                                  <span className="text-xs text-amber-500 ml-1.5">(raw {d.hours_raw.toFixed(2)}h)</span>
+                                )}
+                              </span>
+                              {d.overtime_hours > 0 && (
+                                <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-medium flex-shrink-0">+{d.overtime_hours}h OT</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="px-6 py-8 text-center border-b border-gray-50">
+                        <i className="ri-calendar-line text-2xl text-gray-200 block mb-2"></i>
+                        <p className="text-sm text-gray-400">No attendance logged for this period</p>
+                      </div>
+                    )}
+
+                    <div className="px-6 py-4">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Earnings</p>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">
+                            {paymentType === 'fixed'
+                              ? `Fixed rate (${fmt(monthlyRate)}/mo ÷ 2)`
+                              : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${hourlyRate})`}
+                          </span>
+                          <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>
+                        </div>
+                        {overtimePay > 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-purple-600">Overtime ({totalOvertime}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)</span>
+                            <span className="text-sm font-medium text-purple-700">+{fmt(overtimePay)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between pt-3 mt-1 border-t border-gray-100">
+                          <span className="font-semibold text-gray-900">Total Payout</span>
+                          <span className="text-xl font-bold text-[#FF6B35]">{fmt(totalPay)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {payslipPayout && (
+                    <div className={`rounded-xl px-4 py-3.5 flex items-center gap-3 ${
+                      payslipPayout.status === 'paid' ? 'bg-emerald-50 border border-emerald-100' :
+                      payslipPayout.status === 'approved' ? 'bg-sky-50 border border-sky-100' :
+                      'bg-amber-50 border border-amber-100'
+                    }`}>
+                      <i className={`text-lg ${
+                        payslipPayout.status === 'paid' ? 'ri-checkbox-circle-fill text-emerald-500' :
+                        payslipPayout.status === 'approved' ? 'ri-shield-check-fill text-sky-500' :
+                        'ri-time-fill text-amber-500'
+                      }`}></i>
+                      <div className="flex-1">
+                        <p className={`text-sm font-semibold ${
+                          payslipPayout.status === 'paid' ? 'text-emerald-800' :
+                          payslipPayout.status === 'approved' ? 'text-sky-800' : 'text-amber-800'
+                        }`}>
+                          {payslipPayout.status === 'paid' ? 'Payment sent' :
+                           payslipPayout.status === 'approved' ? 'Approved — payment incoming' :
+                           payslipPayout.status === 'reviewed' ? 'Under review' : 'Submitted — awaiting approval'}
+                        </p>
+                        {payslipPayout.status === 'paid' && payslipPayout.payment_date && (
+                          <p className="text-xs text-emerald-600 mt-0.5">Paid on {new Date(payslipPayout.payment_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                        )}
+                      </div>
+                      <span className="text-sm font-bold text-gray-800">{fmt(payslipPayout.final_payout)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {activeTab === 'assets' && (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
