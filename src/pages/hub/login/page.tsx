@@ -29,8 +29,6 @@ export default function HubLoginPage() {
     setError('');
     setLoading(true);
     try {
-      // Clear any stale session first
-      await supabase.auth.signOut();
       const { error: err } = await signIn(email, password);
       if (err) {
         setError('Invalid email or password. Please try again.');

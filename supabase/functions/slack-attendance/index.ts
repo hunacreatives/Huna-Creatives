@@ -85,22 +85,29 @@ Deno.serve(async (req) => {
     // Get all active contractors
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, department, email, status')
+      .select('id, full_name, avatar_url, department, email, status, slack_username')
       .eq('status', 'active');
 
     const emailMap: Record<string, any> = {};
-    for (const c of contractors || []) emailMap[c.email] = c;
+    const slackUsernameMap: Record<string, any> = {};
+    for (const c of contractors || []) {
+      emailMap[c.email?.toLowerCase()] = c;
+      if (c.slack_username) slackUsernameMap[c.slack_username.toLowerCase().replace(/^@/, '')] = c;
+    }
 
-    // Resolve Slack user emails
+    // Resolve Slack user info (email + display name)
     const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId)])];
     const slackEmailMap: Record<string, string> = {};
+    const slackDisplayNameMap: Record<string, string> = {};
 
     await Promise.all(
       slackIds.map(async (slackId) => {
         const info = await slackGet(`users.info?user=${slackId}`);
         if (info.ok) {
           const email = info.user?.profile?.email;
-          if (email) slackEmailMap[slackId] = email;
+          if (email) slackEmailMap[slackId] = email.toLowerCase();
+          const display = (info.user?.profile?.display_name || info.user?.profile?.real_name || '').toLowerCase().replace(/^@/, '');
+          if (display) slackDisplayNameMap[slackId] = display;
         }
       })
     );
@@ -116,8 +123,11 @@ Deno.serve(async (req) => {
     for (const slackId of allSlackIds) {
       const punches = userPunches[slackId] || [];
       const email = slackEmailMap[slackId];
-      const hubUser = email ? emailMap[email] : null;
-      if (email) punchedEmails.add(email);
+      // Match by email first, then fall back to Slack display name vs slack_username
+      const displayName = slackDisplayNameMap[slackId];
+      const hubUser = (email ? emailMap[email] : null) ?? (displayName ? slackUsernameMap[displayName] : null);
+      if (hubUser?.email) punchedEmails.add(hubUser.email);
+      else if (email) punchedEmails.add(email);
 
       const latestPunch = punches[punches.length - 1];
       const status = latestPunch?.status ?? 'absent';
