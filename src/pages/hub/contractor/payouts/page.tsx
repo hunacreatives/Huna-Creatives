@@ -1,0 +1,504 @@
+import { useState, useEffect } from 'react';
+import ContractorLayout from '@/pages/hub/components/ContractorLayout';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface DayRow {
+  date: string;
+  hours_raw: number;
+  hours_capped: number;
+  overtime_hours: number;
+  first_on: string | null;
+  last_off: string | null;
+}
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function getPeriods() {
+  const periods: { label: string; start: string; end: string }[] = [];
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const lastDay = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+
+  let year = 2026;
+  let month = 0; // January
+  let firstHalf = true;
+
+  while (true) {
+    const start = firstHalf
+      ? `${year}-${pad(month + 1)}-01`
+      : `${year}-${pad(month + 1)}-16`;
+    if (new Date(start) > now) break;
+
+    const end = firstHalf
+      ? `${year}-${pad(month + 1)}-15`
+      : `${year}-${pad(month + 1)}-${pad(lastDay(year, month))}`;
+    const endDay = firstHalf ? 15 : lastDay(year, month);
+    const label = firstHalf
+      ? `${MONTHS[month]} 1–15, ${year}`
+      : `${MONTHS[month]} 16–${endDay}, ${year}`;
+
+    periods.push({ label, start, end });
+
+    if (firstHalf) {
+      firstHalf = false;
+    } else {
+      firstHalf = true;
+      month += 1;
+      if (month > 11) { month = 0; year += 1; }
+    }
+  }
+  return periods;
+}
+
+function fmtTime(iso: string | null) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function fmtDate(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function fmtPHP(val: number) {
+  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 }).format(val);
+}
+
+function generatePayslipHTML(opts: {
+  name: string;
+  department: string | null;
+  period: { label: string; start: string; end: string };
+  days: DayRow[];
+  paymentType: 'hourly' | 'fixed';
+  hourlyRate: number;
+  monthlyRate: number;
+  currency: string;
+  totalDaysWorked: number;
+  totalHoursRaw: number;
+  totalHoursBillable: number;
+  totalOvertime: number;
+  basePay: number;
+  overtimePay: number;
+  totalPay: number;
+  generatedDate: string;
+  logoUrl: string;
+}) {
+  const { name, department, period, days, paymentType, hourlyRate, monthlyRate, currency,
+    totalDaysWorked, totalHoursRaw, totalHoursBillable, totalOvertime,
+    basePay, overtimePay, totalPay, generatedDate, logoUrl } = opts;
+
+  const isUSD = currency === 'USD';
+  const fmt = (val: number) => isUSD
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
+    : new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val);
+
+  const rateDisplay = paymentType === 'fixed'
+    ? `${fmt(monthlyRate)} / month (bi-monthly disbursement of ${fmt(monthlyRate / 2)})`
+    : `${isUSD ? 'USD' : 'PHP'} ${hourlyRate}.00 per hour`;
+
+  const dayRows = days.map(d => `
+    <tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:#374151;">${fmtDate(d.date)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:#374151;text-align:center;">${fmtTime(d.first_on)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:#374151;text-align:center;">${fmtTime(d.last_off)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:#6b7280;text-align:center;">${d.hours_raw.toFixed(2)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;font-weight:600;color:#111827;text-align:center;">${d.hours_capped.toFixed(2)}</td>
+      ${d.overtime_hours > 0
+        ? `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:#7c3aed;font-weight:600;text-align:center;">+${d.overtime_hours}</td>`
+        : `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;color:#d1d5db;text-align:center;">—</td>`}
+    </tr>
+  `).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Payslip – ${name} – ${period.label}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #111827; background: #fff; padding: 48px; font-size: 13px; line-height: 1.5; }
+    @media print {
+      body { padding: 24px; }
+      .no-print { display: none !important; }
+      @page { margin: 1cm; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Letterhead -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:3px solid #FF6B35;margin-bottom:28px;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <img src="${logoUrl}" alt="Huna Creatives" style="height:44px;width:auto;object-fit:contain;" />
+      <div>
+        <div style="font-size:18px;font-weight:800;color:#111827;letter-spacing:-0.3px;">Huna Creatives</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:1px;">Cebu, Philippines · hunacreatives.com</div>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:22px;font-weight:800;color:#FF6B35;letter-spacing:3px;">PAYSLIP</div>
+      <div style="font-size:11px;color:#9ca3af;margin-top:4px;">Document No. HC-${Date.now().toString().slice(-8)}</div>
+      <div style="font-size:11px;color:#9ca3af;">Issued: ${generatedDate}</div>
+    </div>
+  </div>
+
+  <!-- Certification statement -->
+  <div style="background:#f9fafb;border-left:3px solid #FF6B35;padding:14px 16px;border-radius:0 8px 8px 0;margin-bottom:28px;">
+    <p style="font-size:12px;color:#374151;line-height:1.7;">
+      <strong>To Whom It May Concern:</strong><br>
+      This is to certify that <strong>${name}</strong>${department ? `, assigned to the <strong>${department}</strong> department,` : ''} is an active independent contractor of <strong>Huna Creatives</strong>, a creative agency based in Cebu, Philippines. This document serves as an official record of compensation rendered for the pay period indicated below, and may be used for financial, banking, or institutional purposes.
+    </p>
+  </div>
+
+  <!-- Contractor + Period info -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-bottom:28px;">
+    <div>
+      <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;font-weight:600;">Contractor</div>
+      <div style="font-size:15px;font-weight:700;color:#111827;">${name}</div>
+      ${department ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;">${department}</div>` : ''}
+      <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Independent Contractor</div>
+    </div>
+    <div>
+      <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;font-weight:600;">Pay Period</div>
+      <div style="font-size:14px;font-weight:700;color:#111827;">${period.label}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:2px;">${period.start} to ${period.end}</div>
+    </div>
+    <div>
+      <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;font-weight:600;">Compensation Basis</div>
+      <div style="font-size:13px;font-weight:600;color:#111827;">${paymentType === 'fixed' ? 'Fixed Monthly Rate' : 'Hourly Rate'}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:2px;">${rateDisplay}</div>
+    </div>
+  </div>
+
+  <!-- Summary stats -->
+  <div style="display:grid;grid-template-columns:repeat(${totalOvertime > 0 ? 4 : 3},1fr);gap:10px;margin-bottom:28px;">
+    <div style="background:#f3f4f6;border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:24px;font-weight:800;color:#111827;">${totalDaysWorked}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;">Days Worked</div>
+    </div>
+    <div style="background:#f3f4f6;border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:24px;font-weight:800;color:#111827;">${totalHoursRaw.toFixed(1)}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;">Total Hours Logged</div>
+    </div>
+    <div style="background:#e0f2fe;border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:24px;font-weight:800;color:#0369a1;">${totalHoursBillable.toFixed(1)}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;">Billable Hours</div>
+    </div>
+    ${totalOvertime > 0 ? `
+    <div style="background:#ede9fe;border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:24px;font-weight:800;color:#7c3aed;">+${totalOvertime}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;">Overtime Hours</div>
+    </div>` : ''}
+  </div>
+
+  <!-- Attendance table -->
+  <div style="margin-bottom:28px;">
+    <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">Attendance Record</div>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+      <thead>
+        <tr style="background:#f9fafb;">
+          <th style="padding:9px 10px;text-align:left;font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e5e7eb;">Date</th>
+          <th style="padding:9px 10px;text-align:center;font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e5e7eb;">Time In</th>
+          <th style="padding:9px 10px;text-align:center;font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e5e7eb;">Time Out</th>
+          <th style="padding:9px 10px;text-align:center;font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e5e7eb;">Raw Hrs</th>
+          <th style="padding:9px 10px;text-align:center;font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e5e7eb;">Billable Hrs</th>
+          <th style="padding:9px 10px;text-align:center;font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e5e7eb;">Overtime</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${days.length > 0 ? dayRows : `<tr><td colspan="6" style="padding:20px;text-align:center;color:#9ca3af;font-style:italic;">No attendance records for this period.</td></tr>`}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Earnings breakdown -->
+  <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:28px;">
+    <div style="background:#f9fafb;padding:11px 16px;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid #e5e7eb;">Compensation Breakdown</div>
+    <table style="width:100%;border-collapse:collapse;">
+      <tbody>
+        ${paymentType === 'fixed' ? `
+        <tr>
+          <td style="padding:11px 16px;color:#374151;border-bottom:1px solid #f3f4f6;">Fixed Service Fee &nbsp;<span style="color:#9ca3af;font-size:11px;">(${fmt(monthlyRate)}/mo ÷ 2 periods)</span></td>
+          <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111827;border-bottom:1px solid #f3f4f6;">${fmt(basePay)}</td>
+        </tr>` : `
+        <tr>
+          <td style="padding:11px 16px;color:#374151;border-bottom:1px solid #f3f4f6;">Base Pay &nbsp;<span style="color:#9ca3af;font-size:11px;">(${totalHoursBillable.toFixed(2)} billable hrs × ${isUSD ? '$' : '₱'}${hourlyRate}/hr)</span></td>
+          <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111827;border-bottom:1px solid #f3f4f6;">${fmt(basePay)}</td>
+        </tr>`}
+        ${totalOvertime > 0 ? `
+        <tr>
+          <td style="padding:11px 16px;color:#7c3aed;border-bottom:1px solid #f3f4f6;">Overtime Compensation &nbsp;<span style="color:#9ca3af;font-size:11px;">(${totalOvertime} hrs × ${isUSD ? '$' : '₱'}${hourlyRate}/hr)</span></td>
+          <td style="padding:11px 16px;text-align:right;font-weight:600;color:#7c3aed;border-bottom:1px solid #f3f4f6;">+ ${fmt(overtimePay)}</td>
+        </tr>` : ''}
+        <tr style="background:#fff7f4;">
+          <td style="padding:16px;font-weight:800;font-size:15px;color:#111827;">
+            TOTAL COMPENSATION
+            <div style="font-size:11px;font-weight:400;color:#9ca3af;margin-top:2px;">For the period ${period.label}</div>
+          </td>
+          <td style="padding:16px;text-align:right;font-weight:900;font-size:22px;color:#FF6B35;">${fmt(totalPay)}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Signature block -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-bottom:32px;margin-top:16px;">
+    <div>
+      <div style="border-top:1.5px solid #374151;padding-top:8px;margin-top:48px;">
+        <div style="font-size:12px;font-weight:700;color:#111827;">Francis Fiel Roble</div>
+        <div style="font-size:11px;color:#6b7280;">Owner, Huna Creatives</div>
+        <div style="font-size:11px;color:#6b7280;">Date: ${generatedDate}</div>
+      </div>
+    </div>
+    <div>
+      <div style="border-top:1.5px solid #d1d5db;padding-top:8px;margin-top:48px;">
+        <div style="font-size:12px;font-weight:700;color:#111827;">${name}</div>
+        <div style="font-size:11px;color:#6b7280;">Independent Contractor</div>
+        <div style="font-size:11px;color:#6b7280;">Date: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="border-top:1px solid #f0f0f0;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div style="font-size:10px;color:#9ca3af;max-width:420px;line-height:1.7;">
+      This document is an officially issued payslip by Huna Creatives. Attendance and hours are recorded via the company's internal time-tracking system. This payslip may be presented to banks, government agencies, or other institutions as proof of income.
+      <br>For verification, contact us at <strong>hunacreatives.com</strong>.
+    </div>
+    <div style="text-align:right;">
+      <img src="${logoUrl}" alt="Huna Creatives" style="height:28px;width:auto;opacity:0.3;" />
+    </div>
+  </div>
+
+</body>
+</html>`;
+}
+
+export default function ContractorPayoutsPage() {
+  const { hubUser } = useAuth();
+  const periods = getPeriods();
+  const [selectedPeriod, setSelectedPeriod] = useState(periods[periods.length - 1]);
+  const [days, setDays] = useState<DayRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (hubUser?.id) fetchDays();
+  }, [hubUser, selectedPeriod]);
+
+  const fetchDays = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('hub_daily_hours')
+      .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
+      .eq('user_id', hubUser!.id)
+      .gte('date', selectedPeriod.start)
+      .lte('date', selectedPeriod.end)
+      .order('date', { ascending: true });
+    setDays((data as DayRow[]) ?? []);
+    setLoading(false);
+  };
+
+  const paymentType = (hubUser as any)?.payment_type || 'hourly';
+  const hourlyRate = Number((hubUser as any)?.hourly_rate || 0);
+  const monthlyRate = Number((hubUser as any)?.monthly_rate || 0);
+  const currency = (hubUser as any)?.currency || 'PHP';
+  const isUSD = currency === 'USD';
+
+  const totalDaysWorked = days.length;
+  const totalHoursRaw = days.reduce((s, d) => s + d.hours_raw, 0);
+  const totalHoursBillable = days.reduce((s, d) => s + d.hours_capped, 0);
+  const totalOvertime = days.reduce((s, d) => s + (d.overtime_hours || 0), 0);
+
+  const basePay = paymentType === 'fixed'
+    ? monthlyRate / 2
+    : totalHoursBillable * hourlyRate;
+  const overtimePay = paymentType === 'hourly' ? totalOvertime * hourlyRate : 0;
+  const totalPay = basePay + overtimePay;
+
+  const fmt = (val: number) => isUSD
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
+    : fmtPHP(val);
+
+  const handleDownload = () => {
+    const html = generatePayslipHTML({
+      name: hubUser?.full_name || '',
+      department: (hubUser as any)?.department || null,
+      period: selectedPeriod,
+      days,
+      paymentType,
+      hourlyRate,
+      monthlyRate,
+      currency,
+      totalDaysWorked,
+      totalHoursRaw,
+      totalHoursBillable,
+      totalOvertime,
+      basePay,
+      overtimePay,
+      totalPay,
+      generatedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      logoUrl: `${window.location.origin}/images/547b59870e776a20eb28e4f20931787c.png`,
+    });
+    const win = window.open('', '_blank', 'width=900,height=1000');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  };
+
+  return (
+    <ContractorLayout title="My Payslip">
+      <div className="max-w-2xl space-y-5">
+
+        {/* Period selector */}
+        <div className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Pay Period</p>
+            <p className="text-xs text-gray-400 mt-0.5">{selectedPeriod.start} — {selectedPeriod.end}</p>
+          </div>
+          <select
+            value={selectedPeriod.start}
+            onChange={(e) => setSelectedPeriod(periods.find(p => p.start === e.target.value)!)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer"
+          >
+            {periods.map((p) => (
+              <option key={p.start} value={p.start}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i>
+          </div>
+        ) : (
+          <>
+            {/* Payslip preview card */}
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+
+              {/* Payslip header */}
+              <div className="bg-[#111827] px-6 py-5 flex items-start justify-between">
+                <div>
+                  <p className="text-white font-bold text-base">Huna Creatives</p>
+                  <p className="text-white/40 text-xs mt-0.5">Contractor Payment Summary</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[#FF6B35] font-bold text-sm tracking-widest">PAYSLIP</p>
+                  <p className="text-white/40 text-xs mt-1">{selectedPeriod.label}</p>
+                </div>
+              </div>
+
+              {/* Contractor info row */}
+              <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Contractor</p>
+                  <p className="text-sm font-semibold text-gray-900">{hubUser?.full_name}</p>
+                  {(hubUser as any)?.department && <p className="text-xs text-gray-400">{(hubUser as any).department}</p>}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Pay Period</p>
+                  <p className="text-sm font-semibold text-gray-900">{selectedPeriod.label}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-0.5">Rate</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {paymentType === 'fixed'
+                      ? `₱${monthlyRate.toLocaleString()}/mo`
+                      : `${isUSD ? '$' : '₱'}${hourlyRate}/hr`}
+                  </p>
+                  <p className="text-xs text-gray-400 capitalize">{paymentType}</p>
+                </div>
+              </div>
+
+              {/* Stats row */}
+              <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-4 gap-3 text-center">
+                {[
+                  { label: 'Days Worked', value: totalDaysWorked, color: 'text-gray-900' },
+                  { label: 'Hours Logged', value: `${totalHoursRaw.toFixed(1)}h`, color: 'text-gray-900' },
+                  { label: 'Billable Hours', value: `${totalHoursBillable.toFixed(1)}h`, color: 'text-sky-700' },
+                  { label: 'Overtime', value: totalOvertime > 0 ? `+${totalOvertime}h` : '—', color: totalOvertime > 0 ? 'text-purple-700' : 'text-gray-400' },
+                ].map(s => (
+                  <div key={s.label} className="bg-gray-50 rounded-xl py-3">
+                    <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Day log */}
+              {days.length > 0 ? (
+                <div className="px-6 py-4 border-b border-gray-50">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Attendance Log</p>
+                  <div className="space-y-1.5">
+                    {days.map((d) => (
+                      <div key={d.date} className="flex items-center gap-3 text-sm py-1.5 border-b border-gray-50 last:border-0">
+                        <span className="text-gray-500 w-32 flex-shrink-0">{fmtDate(d.date)}</span>
+                        <span className="text-gray-400 text-xs w-20 flex-shrink-0 text-center">{fmtTime(d.first_on)}</span>
+                        <i className="ri-arrow-right-line text-gray-300 text-xs flex-shrink-0"></i>
+                        <span className="text-gray-400 text-xs w-20 flex-shrink-0 text-center">{fmtTime(d.last_off)}</span>
+                        <span className="flex-1 text-right">
+                          <span className="font-medium text-gray-800">{d.hours_capped.toFixed(2)}h</span>
+                          {d.hours_raw > d.hours_capped && (
+                            <span className="text-xs text-amber-500 ml-1.5" title="Capped at 8h">(raw {d.hours_raw.toFixed(2)}h)</span>
+                          )}
+                        </span>
+                        {d.overtime_hours > 0 && (
+                          <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-medium flex-shrink-0">+{d.overtime_hours}h OT</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="px-6 py-8 text-center border-b border-gray-50">
+                  <i className="ri-calendar-line text-2xl text-gray-200 block mb-2"></i>
+                  <p className="text-sm text-gray-400">No attendance logged for this period</p>
+                </div>
+              )}
+
+              {/* Earnings breakdown */}
+              <div className="px-6 py-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Earnings</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">
+                      {paymentType === 'fixed'
+                        ? `Fixed rate (${fmt(monthlyRate)}/mo ÷ 2)`
+                        : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${hourlyRate})`}
+                    </span>
+                    <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>
+                  </div>
+                  {overtimePay > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-purple-600">Overtime ({totalOvertime}h × {isUSD ? '$' : '₱'}{hourlyRate})</span>
+                      <span className="text-sm font-medium text-purple-700">+{fmt(overtimePay)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-3 mt-1 border-t border-gray-100">
+                    <span className="font-semibold text-gray-900">Total Payout</span>
+                    <span className="text-xl font-bold text-[#FF6B35]">{fmt(totalPay)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Download button */}
+            <button
+              onClick={handleDownload}
+              className="w-full flex items-center justify-center gap-2 bg-[#FF6B35] hover:bg-[#e55a27] text-white font-medium py-3 rounded-xl transition-colors cursor-pointer"
+            >
+              <i className="ri-download-2-line"></i>
+              Download Payslip
+            </button>
+
+            <p className="text-xs text-center text-gray-400">
+              Opens a print dialog — save as PDF from there. Data is pulled from your Slack attendance.
+            </p>
+          </>
+        )}
+      </div>
+    </ContractorLayout>
+  );
+}

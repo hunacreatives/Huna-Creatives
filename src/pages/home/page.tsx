@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Hero from './components/Hero';
 import Footer from './components/Footer';
 import { useSEO } from '../../hooks/useSEO';
 
 export default function HomePage() {
+  const navigate = useNavigate();
+
   useSEO({
     title: 'Huna Creatives — Premium Creative Agency in Cebu, Philippines',
     description:
@@ -98,6 +101,17 @@ export default function HomePage() {
                 </a>
               ))}
 
+              {/* Team Portal */}
+              <button
+                onClick={() => navigate('/hub/login')}
+                className="text-xs font-medium tracking-wide whitespace-nowrap cursor-pointer relative group text-white/70 hover:text-white flex items-center gap-1.5"
+                style={{ transition: 'color 200ms ease' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Team Portal
+                <span className="absolute -bottom-0.5 left-0 w-0 h-px group-hover:w-full transition-all duration-300 bg-gradient-to-r from-orange-500 to-pink-400" />
+              </button>
+
               {/* Contact CTA */}
               <a
                 href="/contact"
@@ -139,6 +153,13 @@ export default function HomePage() {
                   {link.label}
                 </a>
               ))}
+              <button
+                onClick={() => navigate('/hub/login')}
+                className="text-sm font-medium tracking-wide text-white/70 hover:text-white transition-colors whitespace-nowrap cursor-pointer text-left flex items-center gap-2"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Team Portal
+              </button>
               <a
                 href="/contact"
                 className="px-6 py-2.5 rounded-full text-xs font-semibold text-center whitespace-nowrap cursor-pointer text-white transition-all"
@@ -157,10 +178,9 @@ export default function HomePage() {
       {/* Hero Section */}
       <Hero />
 
-      {/* Clients Banner */}
-
       {/* Footer */}
       <Footer isDark />
+
     </div>
   );
 }

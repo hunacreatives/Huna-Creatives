@@ -1,0 +1,204 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
+const CHANNEL_ID = 'C0830PCGQK1';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const MAX_HOURS = 8;
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json',
+};
+
+async function slackGet(path: string) {
+  const res = await fetch(`https://slack.com/api/${path}`, {
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}` },
+  });
+  return res.json();
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+
+  try {
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+    // Today midnight UTC
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const oldest = String(todayStart.getTime() / 1000);
+    const todayDate = todayStart.toISOString().split('T')[0];
+
+    // Fetch today's messages
+    const slack = await slackGet(
+      `conversations.history?channel=${CHANNEL_ID}&oldest=${oldest}&limit=500`
+    );
+
+    if (!slack.ok) {
+      return new Response(JSON.stringify({ error: slack.error }), { status: 400, headers: cors });
+    }
+
+    const messages = [...(slack.messages || [])].reverse();
+
+    // Per user: on/off punches
+    const userPunches: Record<string, { status: 'on' | 'off'; ts: number }[]> = {};
+
+    // Per user: overtime messages (messages that start with "overtime" and have replies)
+    const overtimeMessages: { slackId: string; ts: string }[] = [];
+
+    for (const msg of messages) {
+      const text = (msg.text || '').trim().toLowerCase();
+
+      if ((text === 'on' || text === 'off') && msg.user) {
+        if (!userPunches[msg.user]) userPunches[msg.user] = [];
+        userPunches[msg.user].push({ status: text as 'on' | 'off', ts: parseFloat(msg.ts) });
+      }
+
+      // Detect "Overtime" posts that have at least one thread reply
+      if (text.startsWith('overtime') && msg.user && msg.reply_count > 0) {
+        overtimeMessages.push({ slackId: msg.user, ts: msg.ts });
+      }
+    }
+
+    // Resolve overtime hours per Slack user by reading thread replies
+    const overtimeBySlackId: Record<string, number> = {};
+
+    await Promise.all(
+      overtimeMessages.map(async ({ slackId, ts }) => {
+        const thread = await slackGet(`conversations.replies?channel=${CHANNEL_ID}&ts=${ts}`);
+        if (!thread.ok) return;
+        // Replies after the parent message, from the same user
+        for (const reply of thread.messages || []) {
+          if (reply.ts === ts) continue; // skip parent
+          if (reply.user !== slackId) continue;
+          const num = parseFloat((reply.text || '').trim());
+          if (!isNaN(num) && num > 0) {
+            overtimeBySlackId[slackId] = (overtimeBySlackId[slackId] || 0) + num;
+            break; // one reply per overtime thread
+          }
+        }
+      })
+    );
+
+    // Get all active contractors
+    const { data: contractors } = await supabase
+      .from('hub_users')
+      .select('id, full_name, avatar_url, department, email, status')
+      .eq('status', 'active');
+
+    const emailMap: Record<string, any> = {};
+    for (const c of contractors || []) emailMap[c.email] = c;
+
+    // Resolve Slack user emails
+    const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId)])];
+    const slackEmailMap: Record<string, string> = {};
+
+    await Promise.all(
+      slackIds.map(async (slackId) => {
+        const info = await slackGet(`users.info?user=${slackId}`);
+        if (info.ok) {
+          const email = info.user?.profile?.email;
+          if (email) slackEmailMap[slackId] = email;
+        }
+      })
+    );
+
+    // Build attendance result + persist hours
+    const punchedEmails = new Set<string>();
+    const attendance: any[] = [];
+    const hoursUpserts: any[] = [];
+
+    // Collect all slackIds that punched OR logged overtime
+    const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId)])];
+
+    for (const slackId of allSlackIds) {
+      const punches = userPunches[slackId] || [];
+      const email = slackEmailMap[slackId];
+      const hubUser = email ? emailMap[email] : null;
+      if (email) punchedEmails.add(email);
+
+      const latestPunch = punches[punches.length - 1];
+      const status = latestPunch?.status ?? 'absent';
+
+      const punchList = punches.map((p) => ({
+        status: p.status,
+        time: new Date(p.ts * 1000).toISOString(),
+      }));
+
+      const firstOn = punches.find(p => p.status === 'on');
+      const lastOff = [...punches].reverse().find(p => p.status === 'off');
+
+      let hoursRaw = 0;
+      let hoursCapped = 0;
+
+      if (firstOn && lastOff && lastOff.ts > firstOn.ts) {
+        hoursRaw = (lastOff.ts - firstOn.ts) / 3600;
+        hoursCapped = Math.min(hoursRaw, MAX_HOURS);
+      }
+
+      const overtimeHours = overtimeBySlackId[slackId] || 0;
+
+      if (hubUser && (firstOn || overtimeHours > 0)) {
+        hoursUpserts.push({
+          user_id: hubUser.id,
+          date: todayDate,
+          hours_raw: parseFloat(hoursRaw.toFixed(4)),
+          hours_capped: parseFloat(hoursCapped.toFixed(4)),
+          overtime_hours: parseFloat(overtimeHours.toFixed(2)),
+          first_on: firstOn ? new Date(firstOn.ts * 1000).toISOString() : null,
+          last_off: lastOff ? new Date(lastOff.ts * 1000).toISOString() : null,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      if (latestPunch) {
+        attendance.push({
+          hub_user_id: hubUser?.id || null,
+          email: email || null,
+          full_name: hubUser?.full_name || `Slack user (${slackId})`,
+          avatar_url: hubUser?.avatar_url || null,
+          department: hubUser?.department || null,
+          status,
+          last_punch: new Date(latestPunch.ts * 1000).toISOString(),
+          punches: punchList,
+          hours_today: parseFloat(hoursCapped.toFixed(2)),
+          overtime_today: parseFloat(overtimeHours.toFixed(2)),
+        });
+      }
+    }
+
+    // Upsert daily hours
+    if (hoursUpserts.length > 0) {
+      await supabase
+        .from('hub_daily_hours')
+        .upsert(hoursUpserts, { onConflict: 'user_id,date' });
+    }
+
+    // Add absent contractors
+    for (const c of contractors || []) {
+      if (!punchedEmails.has(c.email)) {
+        attendance.push({
+          hub_user_id: c.id,
+          email: c.email,
+          full_name: c.full_name,
+          avatar_url: c.avatar_url,
+          department: c.department,
+          status: 'absent',
+          last_punch: null,
+          punches: [],
+          hours_today: 0,
+          overtime_today: 0,
+        });
+      }
+    }
+
+    const order: Record<string, number> = { on: 0, off: 1, absent: 2 };
+    attendance.sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3));
+
+    return new Response(JSON.stringify({ attendance }), { headers: cors });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });
+  }
+});

@@ -40,7 +40,8 @@ export default function ContactForm() {
     });
 
     try {
-      const res = await fetch('https://readdy.ai/api/form/d6jlpnnrgrhbthj8n1eg', {
+      data.append('access_key', import.meta.env.VITE_WEB3FORMS_KEY || '');
+      const res = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: data.toString(),
@@ -165,7 +166,6 @@ export default function ContactForm() {
             </div>
           ) : (
             <form
-              data-readdy-form
               id="contact-main-form"
               onSubmit={handleSubmit}
               className="flex flex-col gap-6"

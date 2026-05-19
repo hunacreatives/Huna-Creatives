@@ -12,6 +12,33 @@ const PortfolioPage = lazy(() => import('../pages/portfolio/page'));
 const PortfolioCategoryPage = lazy(() => import('../pages/portfolio/category/page'));
 const ProjectPage = lazy(() => import('../pages/portfolio/project/page'));
 const NotFound = lazy(() => import('../pages/NotFound'));
+const HubLoginPage = lazy(() => import('../pages/hub/login/page'));
+const HubSignupPage = lazy(() => import('../pages/hub/signup/page'));
+const HubForgotPasswordPage = lazy(() => import('../pages/hub/forgot-password/page'));
+const HubAdminDashboard = lazy(() => import('../pages/hub/admin/dashboard/page'));
+const HubAdminContractors = lazy(() => import('../pages/hub/admin/contractors/page'));
+const HubAdminContractorDetail = lazy(() => import('../pages/hub/admin/contractors/detail/page'));
+const HubAdminAttendance = lazy(() => import('../pages/hub/admin/attendance/page'));
+const HubAdminRequests = lazy(() => import('../pages/hub/admin/requests/page'));
+const HubAdminTimeOff = lazy(() => import('../pages/hub/admin/timeoff/page'));
+const HubAdminAnnouncements = lazy(() => import('../pages/hub/admin/announcements/page'));
+const HubAdminSop = lazy(() => import('../pages/hub/admin/sop/page'));
+const HubAdminClients = lazy(() => import('../pages/hub/admin/clients/page'));
+const HubAdminAssets = lazy(() => import('../pages/hub/admin/assets/page'));
+const HubAdminAuditLog = lazy(() => import('../pages/hub/admin/auditlog/page'));
+const HubAdminSettings = lazy(() => import('../pages/hub/admin/settings/page'));
+const HubAdminPayroll = lazy(() => import('../pages/hub/admin/payroll/page'));
+const HubAdminPayouts = lazy(() => import('../pages/hub/admin/payouts/page'));
+const HubAdminDocRequests = lazy(() => import('../pages/hub/admin/docrequests/page'));
+const HubContractorDashboard = lazy(() => import('../pages/hub/contractor/dashboard/page'));
+const HubContractorAttendance = lazy(() => import('../pages/hub/contractor/attendance/page'));
+const HubContractorRequests = lazy(() => import('../pages/hub/contractor/requests/page'));
+const HubContractorTimeOff = lazy(() => import('../pages/hub/contractor/timeoff/page'));
+const HubContractorSop = lazy(() => import('../pages/hub/contractor/sop/page'));
+const HubContractorAnnouncements = lazy(() => import('../pages/hub/contractor/announcements/page'));
+const HubContractorProfile = lazy(() => import('../pages/hub/contractor/profile/page'));
+const HubContractorPayouts = lazy(() => import('../pages/hub/contractor/payouts/page'));
+const HubContractorDocuments = lazy(() => import('../pages/hub/contractor/documents/page'));
 
 const routes: RouteObject[] = [
   {
@@ -54,6 +81,33 @@ const routes: RouteObject[] = [
     path: '/careers',
     element: <CareersPage />,
   },
+  { path: '/hub/login', element: <HubLoginPage /> },
+  { path: '/hub/signup', element: <HubSignupPage /> },
+  { path: '/hub/forgot-password', element: <HubForgotPasswordPage /> },
+  { path: '/hub/admin/dashboard', element: <HubAdminDashboard /> },
+  { path: '/hub/admin/contractors', element: <HubAdminContractors /> },
+  { path: '/hub/admin/contractors/:id', element: <HubAdminContractorDetail /> },
+  { path: '/hub/admin/attendance', element: <HubAdminAttendance /> },
+  { path: '/hub/admin/requests', element: <HubAdminRequests /> },
+  { path: '/hub/admin/timeoff', element: <HubAdminTimeOff /> },
+  { path: '/hub/admin/announcements', element: <HubAdminAnnouncements /> },
+  { path: '/hub/admin/sop', element: <HubAdminSop /> },
+  { path: '/hub/admin/clients', element: <HubAdminClients /> },
+  { path: '/hub/admin/assets', element: <HubAdminAssets /> },
+  { path: '/hub/admin/auditlog', element: <HubAdminAuditLog /> },
+  { path: '/hub/admin/settings', element: <HubAdminSettings /> },
+  { path: '/hub/admin/payroll', element: <HubAdminPayroll /> },
+  { path: '/hub/admin/payouts', element: <HubAdminPayouts /> },
+  { path: '/hub/admin/docrequests', element: <HubAdminDocRequests /> },
+  { path: '/hub/contractor/dashboard', element: <HubContractorDashboard /> },
+  { path: '/hub/contractor/attendance', element: <HubContractorAttendance /> },
+  { path: '/hub/contractor/requests', element: <HubContractorRequests /> },
+  { path: '/hub/contractor/timeoff', element: <HubContractorTimeOff /> },
+  { path: '/hub/contractor/sop', element: <HubContractorSop /> },
+  { path: '/hub/contractor/announcements', element: <HubContractorAnnouncements /> },
+  { path: '/hub/contractor/profile', element: <HubContractorProfile /> },
+  { path: '/hub/contractor/payouts', element: <HubContractorPayouts /> },
+  { path: '/hub/contractor/documents', element: <HubContractorDocuments /> },
   {
     path: '*',
     element: <NotFound />,
