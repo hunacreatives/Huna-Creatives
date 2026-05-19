@@ -71,7 +71,6 @@ export default function Navigation() {
       };
 
   return (
-    <>
     <nav className="fixed top-0 left-0 right-0 z-50" style={navStyle}>
       <div className="px-6 lg:px-12 py-5">
         <div className="flex items-center justify-between">
@@ -196,54 +195,5 @@ export default function Navigation() {
         </div>
       </div>
     </nav>
-
-    {pinOpen && (
-      <div
-        className="fixed inset-0 z-[100] flex items-center justify-center"
-        style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-        onClick={() => setPinOpen(false)}
-      >
-        <div
-          className="rounded-2xl p-8 flex flex-col items-center gap-6"
-          style={{ background: '#111', border: '1px solid rgba(255,255,255,0.1)', minWidth: '280px' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex flex-col items-center gap-1">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <p className="text-white text-sm font-semibold tracking-wide font-body mt-2">Team Portal</p>
-            <p className="text-gray-400 text-xs font-body">Enter your PIN to continue</p>
-          </div>
-          <div className="flex gap-3">
-            {pinDigits.map((d, i) => (
-              <input
-                key={i}
-                ref={pinRefs[i]}
-                type="password"
-                inputMode="numeric"
-                maxLength={1}
-                value={d}
-                onChange={(e) => handlePinDigit(i, e.target.value)}
-                onKeyDown={(e) => handlePinKeyDown(i, e)}
-                className="w-12 h-12 text-center text-xl font-bold text-white rounded-xl outline-none"
-                style={{
-                  background: '#1a1a1a',
-                  border: pinError ? '1.5px solid #ef4444' : '1.5px solid rgba(255,255,255,0.15)',
-                  transition: 'border-color 200ms ease',
-                }}
-              />
-            ))}
-          </div>
-          {pinError && <p className="text-red-400 text-xs font-body -mt-3">Incorrect PIN. Try again.</p>}
-          <button
-            onClick={() => setPinOpen(false)}
-            className="text-gray-500 text-xs hover:text-gray-300 font-body"
-            style={{ transition: 'color 200ms ease' }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    )}
-    </>
   );
 }
