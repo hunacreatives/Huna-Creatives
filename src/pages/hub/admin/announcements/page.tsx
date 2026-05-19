@@ -28,10 +28,26 @@ export default function AnnouncementsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [detailAnn, setDetailAnn] = useState<HubAnnouncement | null>(null);
+  const [detailComments, setDetailComments] = useState<any[]>([]);
+  const [detailReactions, setDetailReactions] = useState<any[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
   }, []);
+
+  const openDetail = async (a: HubAnnouncement) => {
+    setDetailAnn(a);
+    setDetailLoading(true);
+    const [commRes, reactRes] = await Promise.all([
+      supabase.from('hub_announcement_comments').select('*, hub_users(full_name, avatar_url)').eq('announcement_id', a.id).order('created_at', { ascending: true }),
+      supabase.from('hub_announcement_reactions').select('emoji, hub_users(full_name)').eq('announcement_id', a.id),
+    ]);
+    setDetailComments(commRes.data ?? []);
+    setDetailReactions(reactRes.data ?? []);
+    setDetailLoading(false);
+  };
 
   const fetchAnnouncements = async () => {
     setLoading(true);
@@ -96,7 +112,7 @@ export default function AnnouncementsPage() {
         ) : (
           <div className="space-y-3">
             {announcements.map((a) => (
-              <div key={a.id} className="bg-white border border-gray-100 rounded-xl p-5 hover:border-gray-200 transition-colors">
+              <div key={a.id} onClick={() => openDetail(a)} className="bg-white border border-gray-100 rounded-xl p-5 hover:border-gray-200 hover:shadow-sm transition-all cursor-pointer">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -108,7 +124,7 @@ export default function AnnouncementsPage() {
                     <p className="text-sm text-gray-500 line-clamp-2">{a.body}</p>
                     <p className="text-xs text-gray-400 mt-2">{new Date(a.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                     <button onClick={() => openEdit(a)} className="p-1.5 text-gray-400 hover:text-gray-700 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 w-7 h-7 flex items-center justify-center">
                       <i className="ri-edit-line text-sm"></i>
                     </button>
@@ -196,6 +212,101 @@ export default function AnnouncementsPage() {
             <div className="flex gap-2">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg cursor-pointer whitespace-nowrap">Cancel</button>
               <button onClick={() => deleteAnnouncement(deleteConfirm)} className="flex-1 py-2.5 text-sm bg-rose-500 text-white rounded-lg hover:bg-rose-600 cursor-pointer transition-colors whitespace-nowrap">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailAnn && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={() => setDetailAnn(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${priorityColors[detailAnn.priority]}`}>{detailAnn.priority}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${categoryColors[detailAnn.category]}`}>{detailAnn.category}</span>
+              </div>
+              <button onClick={() => setDetailAnn(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
+                <i className="ri-close-line text-lg"></i>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {/* Body */}
+              <div className="px-5 py-4 border-b border-gray-50">
+                <h2 className="text-base font-semibold text-[#111827] mb-2">{detailAnn.title}</h2>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{detailAnn.body}</p>
+                <p className="text-xs text-gray-400 mt-3">{new Date(detailAnn.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+              </div>
+
+              {detailLoading ? (
+                <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-gray-300 text-xl"></i></div>
+              ) : (
+                <>
+                  {/* Reactions */}
+                  {detailReactions.length > 0 && (
+                    <div className="px-5 py-3 border-b border-gray-50">
+                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Reactions</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(
+                          detailReactions.reduce((acc: Record<string, string[]>, r: any) => {
+                            const name = r.hub_users?.full_name?.split(' ')[0] ?? '?';
+                            acc[r.emoji] = [...(acc[r.emoji] || []), name];
+                            return acc;
+                          }, {})
+                        ).map(([emoji, names]) => (
+                          <div key={emoji} className="flex items-center gap-1 bg-gray-50 rounded-full px-2.5 py-1 text-sm" title={(names as string[]).join(', ')}>
+                            <span>{emoji}</span>
+                            <span className="text-xs text-gray-500 font-medium">{(names as string[]).length}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Comments */}
+                  <div className="px-5 py-3">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
+                      Comments ({detailComments.length})
+                    </p>
+                    {detailComments.length === 0 ? (
+                      <p className="text-sm text-gray-400 py-2">No comments yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {detailComments.map((c: any) => {
+                          const poster = c.hub_users;
+                          return (
+                            <div key={c.id} className="flex items-start gap-2.5">
+                              {poster?.avatar_url
+                                ? <img src={poster.avatar_url} className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0" />
+                                : <div className="w-7 h-7 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0"><span className="text-white text-xs font-bold">{poster?.full_name?.charAt(0) ?? '?'}</span></div>
+                              }
+                              <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2">
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <span className="text-xs font-semibold text-[#111827]">{poster?.full_name?.split(' ')[0] ?? 'Unknown'}</span>
+                                  <span className="text-[10px] text-gray-400">{new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                </div>
+                                <p className="text-sm text-gray-600">{c.body}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer actions */}
+            <div className="px-5 py-3 border-t border-gray-100 flex gap-2 flex-shrink-0">
+              <button onClick={() => { setDetailAnn(null); openEdit(detailAnn); }} className="flex items-center gap-1.5 px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer whitespace-nowrap">
+                <i className="ri-edit-line text-sm"></i> Edit
+              </button>
+              <button onClick={() => { setDetailAnn(null); setDeleteConfirm(detailAnn.id); }} className="flex items-center gap-1.5 px-4 py-2 text-sm border border-rose-100 text-rose-500 rounded-lg hover:bg-rose-50 cursor-pointer whitespace-nowrap">
+                <i className="ri-delete-bin-line text-sm"></i> Delete
+              </button>
             </div>
           </div>
         </div>

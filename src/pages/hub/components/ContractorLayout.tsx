@@ -2,6 +2,7 @@ import { ReactNode, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import ContractorSidebar from './ContractorSidebar';
+import NotificationBell from './NotificationBell';
 
 interface Props {
   children: ReactNode;
@@ -55,6 +56,7 @@ export default function ContractorLayout({ children, title, actions }: Props) {
           </div>
           <div className="flex items-center gap-3">
             {actions}
+            <NotificationBell />
             <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
               <span className="text-gray-400">|</span>
               <img
