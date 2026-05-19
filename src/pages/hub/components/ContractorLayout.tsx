@@ -10,16 +10,16 @@ interface Props {
 }
 
 export default function ContractorLayout({ children, title, actions }: Props) {
-  const { hubUser, loading } = useAuth();
+  const { hubUser, loading, session } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && !hubUser) {
+    if (!loading && !session) {
       navigate('/hub/login', { replace: true });
     }
-  }, [loading, hubUser]);
+  }, [loading, session]);
 
   if (loading || !hubUser) return (
     <div className="flex h-screen items-center justify-center bg-[#FAFAFA]">

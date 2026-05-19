@@ -10,18 +10,18 @@ interface Props {
 }
 
 export default function AdminLayout({ children, title, actions }: Props) {
-  const { hubUser, loading } = useAuth();
+  const { hubUser, loading, session } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && (!hubUser || hubUser.role === 'contractor')) {
+    if (!loading && !session) {
       navigate('/hub/login', { replace: true });
     }
-  }, [loading, hubUser]);
+  }, [loading, session]);
 
-  if (loading || !hubUser || hubUser.role === 'contractor') return (
+  if (loading || !hubUser) return (
     <div className="flex h-screen items-center justify-center bg-[#FAFAFA]">
       <i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i>
     </div>

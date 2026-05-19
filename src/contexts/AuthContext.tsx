@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { HubUser } from '@/lib/types';
@@ -6,9 +6,7 @@ import { HubUser } from '@/lib/types';
 interface AuthContextValue {
   session: Session | null;
   authUser: SupabaseUser | null;
-  /** The hub profile row from hub_users (full_name, role, etc.) */
   user: HubUser | null;
-  /** Alias for user — the hub profile */
   hubUser: HubUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -23,49 +21,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authUser, setAuthUser] = useState<SupabaseUser | null>(null);
   const [hubUser, setHubUser] = useState<HubUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const hubUserLoadedRef = useRef(false);
 
-  const fetchHubUser = async (userId: string) => {
+  const loadHubUser = async (userId: string): Promise<HubUser | null> => {
     try {
-      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000));
-      const query = supabase.from('hub_users').select('*').eq('id', userId).maybeSingle().then(r => r.data);
-      const data = await Promise.race([query, timeout]);
-      setHubUser(data ?? null);
+      const { data } = await supabase
+        .from('hub_users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      return data ?? null;
     } catch {
-      setHubUser(null);
+      return null;
     }
   };
 
   const refreshHubUser = async () => {
-    if (authUser) await fetchHubUser(authUser.id);
+    if (!authUser) return;
+    const data = await loadHubUser(authUser.id);
+    if (mountedRef.current) setHubUser(data);
   };
 
   useEffect(() => {
-    // Hard timeout — loading never hangs past 5 seconds even if fetchHubUser stalls
-    const timeout = setTimeout(() => setLoading(false), 5000);
+    mountedRef.current = true;
 
+    const timeout = setTimeout(() => {
+      if (mountedRef.current) setLoading(false);
+    }, 8000);
+
+    // Initial session load — single source of truth for first render
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      setAuthUser(s?.user ?? null);
-      if (s?.user) await fetchHubUser(s.user.id);
-      clearTimeout(timeout);
-      setLoading(false);
-    }).catch(() => {
-      clearTimeout(timeout);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
+      if (!mountedRef.current) return;
       setSession(s);
       setAuthUser(s?.user ?? null);
       if (s?.user) {
-        await fetchHubUser(s.user.id);
-      } else {
-        setHubUser(null);
+        const profile = await loadHubUser(s.user.id);
+        if (mountedRef.current) {
+          setHubUser(profile);
+          hubUserLoadedRef.current = true;
+        }
       }
-      setLoading(false);
+      clearTimeout(timeout);
+      if (mountedRef.current) setLoading(false);
+    }).catch(() => {
+      clearTimeout(timeout);
+      if (mountedRef.current) setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
+      if (!mountedRef.current) return;
+
+      // Token refresh / user update — just update session, never clear hubUser
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        setSession(s);
+        setAuthUser(s?.user ?? null);
+        return;
+      }
+
+      // Explicit sign-out
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setAuthUser(null);
+        setHubUser(null);
+        hubUserLoadedRef.current = false;
+        if (mountedRef.current) setLoading(false);
+        return;
+      }
+
+      // SIGNED_IN or INITIAL_SESSION — only load hub profile if not already loaded
+      setSession(s);
+      setAuthUser(s?.user ?? null);
+      if (s?.user && !hubUserLoadedRef.current) {
+        const profile = await loadHubUser(s.user.id);
+        if (mountedRef.current) {
+          setHubUser(profile);
+          hubUserLoadedRef.current = true;
+        }
+      }
+      if (mountedRef.current) setLoading(false);
     });
 
     return () => {
+      mountedRef.current = false;
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
@@ -77,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    hubUserLoadedRef.current = false;
     await supabase.auth.signOut();
   };
 
