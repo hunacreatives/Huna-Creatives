@@ -25,6 +25,7 @@ export default function AnnouncementsPage() {
   const [editing, setEditing] = useState<HubAnnouncement | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
   const fetchAnnouncements = async () => {
@@ -46,14 +47,22 @@ export default function AnnouncementsPage() {
   const save = async () => {
     if (!form.title.trim() || !form.body.trim()) return;
     setSaving(true);
-    if (editing) {
-      await supabase.from('hub_announcements').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id);
-    } else {
-      await supabase.from('hub_announcements').insert({ ...form });
+    setSaveError(null);
+    try {
+      let error;
+      if (editing) {
+        ({ error } = await supabase.from('hub_announcements').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id));
+      } else {
+        ({ error } = await supabase.from('hub_announcements').insert({ ...form }));
+      }
+      if (error) { setSaveError(error.message); return; }
+      setShowModal(false);
+      fetchAnnouncements();
+    } catch (e: any) {
+      setSaveError(e?.message ?? 'Unknown error');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setShowModal(false);
-    fetchAnnouncements();
   };
 
   const deleteAnnouncement = async (id: number) => {
@@ -155,6 +164,9 @@ export default function AnnouncementsPage() {
                 <span className="text-sm text-gray-600">Publish immediately</span>
               </label>
             </div>
+            {saveError && (
+              <p className="mx-5 mb-3 text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">{saveError}</p>
+            )}
             <div className="flex gap-2 p-5 pt-0">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors whitespace-nowrap">Cancel</button>
               <button onClick={save} disabled={saving || !form.title.trim() || !form.body.trim()}

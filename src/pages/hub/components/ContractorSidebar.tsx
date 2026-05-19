@@ -36,12 +36,16 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
       }`}
     >
       <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
-        <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0">
-          <i className="ri-briefcase-4-fill text-white text-xs"></i>
-        </div>
+        {collapsed ? (
+          <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0">
+            <i className="ri-home-heart-line text-white text-xs"></i>
+          </div>
+        ) : (
+          <img src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-7 w-auto flex-shrink-0" />
+        )}
         {!collapsed && (
-          <span className="text-white font-semibold text-sm tracking-tight whitespace-nowrap overflow-hidden">
-            Contractor Hub
+          <span className="text-white/40 text-xs tracking-widest uppercase font-medium whitespace-nowrap overflow-hidden">
+            Huna Hub
           </span>
         )}
         <button

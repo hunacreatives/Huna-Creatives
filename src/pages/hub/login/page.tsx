@@ -64,15 +64,15 @@ export default function HubLoginPage() {
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-[45%] bg-[#1c1917] flex-col p-10 gap-8">
         {/* Logo */}
-        <img src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-8 w-auto self-start" />
+        <img src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-11 w-auto self-start" />
 
         {/* Team photo */}
         <div className="rounded-2xl overflow-hidden ring-1 ring-white/10">
           <img
             src="https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/f4405f8d-bb2d-4158-8112-4d2c495073e8/Screenshot+2025-08-05+at+12.46.35%E2%80%AFPM.png"
             alt="Huna Creatives Team"
-            className="w-full h-[500px] object-cover"
-            style={{ objectPosition: '70% top' }}
+            className="w-full h-[380px] object-cover"
+            style={{ objectPosition: '70% center' }}
           />
         </div>
 
@@ -83,7 +83,7 @@ export default function HubLoginPage() {
             Your team ops, all in one place.
           </h2>
           <p className="text-white/50 text-sm leading-relaxed">
-            The Huna Contractor Hub is where the team clocks in and out via Slack, tracks hours, views payslips, submits requests, reads announcements, and accesses SOPs — all in one private portal.
+            The Huna Hub is where the team clocks in and out via Slack, tracks hours, views payslips, submits requests, reads announcements, and accesses SOPs — all in one private portal.
           </p>
           <p className="text-white/25 text-xs">Private access — Huna Creatives team only.</p>
         </div>

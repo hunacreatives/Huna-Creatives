@@ -54,7 +54,7 @@ export default function ContractorAttendancePage() {
 
   return (
     <ContractorLayout title="My Attendance">
-      <div className="max-w-lg mx-auto space-y-5">
+      <div className="max-w-3xl space-y-5">
 
         {/* Date + refresh */}
         <div className="flex items-center justify-between">

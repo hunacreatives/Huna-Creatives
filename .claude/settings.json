@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"require\\('./node_modules/cobe/dist/index.cjs'\\); console.log\\('cobe ok'\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/cobe/package.json'\\).version\\)\")",
+      "Bash(curl -s http://localhost:5175)",
+      "Bash(open http://localhost:5175/projects)",
+      "Bash(curl -s http://localhost:5175/projects)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s 'http://localhost:5175/src/pages/projects/components/PhilippinesMap.tsx')"
+    ]
+  }
+}

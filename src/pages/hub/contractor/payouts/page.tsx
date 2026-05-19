@@ -282,6 +282,8 @@ export default function ContractorPayoutsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState(periods[periods.length - 1]);
   const [days, setDays] = useState<DayRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [existingPayout, setExistingPayout] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (hubUser?.id) fetchDays();
@@ -289,14 +291,23 @@ export default function ContractorPayoutsPage() {
 
   const fetchDays = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('hub_daily_hours')
-      .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
-      .eq('user_id', hubUser!.id)
-      .gte('date', selectedPeriod.start)
-      .lte('date', selectedPeriod.end)
-      .order('date', { ascending: true });
-    setDays((data as DayRow[]) ?? []);
+    const [daysRes, payoutRes] = await Promise.all([
+      supabase
+        .from('hub_daily_hours')
+        .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
+        .eq('user_id', hubUser!.id)
+        .gte('date', selectedPeriod.start)
+        .lte('date', selectedPeriod.end)
+        .order('date', { ascending: true }),
+      supabase
+        .from('hub_payouts')
+        .select('id, status, final_payout, payment_date')
+        .eq('contractor_id', hubUser!.id)
+        .eq('cutoff_start', selectedPeriod.start)
+        .maybeSingle(),
+    ]);
+    setDays((daysRes.data as DayRow[]) ?? []);
+    setExistingPayout(payoutRes.data ?? null);
     setLoading(false);
   };
 
@@ -311,11 +322,34 @@ export default function ContractorPayoutsPage() {
   const totalHoursBillable = days.reduce((s, d) => s + d.hours_capped, 0);
   const totalOvertime = days.reduce((s, d) => s + (d.overtime_hours || 0), 0);
 
-  const basePay = paymentType === 'fixed'
-    ? monthlyRate / 2
-    : totalHoursBillable * hourlyRate;
-  const overtimePay = paymentType === 'hourly' ? totalOvertime * hourlyRate : 0;
+  const basePay = paymentType === 'fixed' ? monthlyRate / 2 : totalHoursBillable * hourlyRate;
+  const otRate = paymentType === 'fixed' ? monthlyRate / 176 : hourlyRate;
+  const overtimePay = totalOvertime * otRate;
   const totalPay = basePay + overtimePay;
+
+  const handleSubmit = async () => {
+    if (!hubUser || submitting) return;
+    setSubmitting(true);
+    const { data, error } = await supabase.from('hub_payouts').insert({
+      contractor_id: hubUser.id,
+      cutoff_start: selectedPeriod.start,
+      cutoff_end: selectedPeriod.end,
+      approved_hours: totalHoursBillable,
+      hourly_rate: paymentType === 'hourly' ? hourlyRate : monthlyRate / 176,
+      base_pay: basePay,
+      bonus: 0,
+      incentives: 0,
+      reimbursements: 0,
+      deductions: 0,
+      advances: 0,
+      penalties: 0,
+      final_payout: totalPay,
+      status: 'draft',
+      locked: false,
+    }).select('id, status, final_payout, payment_date').single();
+    if (!error && data) setExistingPayout(data);
+    setSubmitting(false);
+  };
 
   const fmt = (val: number) => isUSD
     ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
@@ -472,7 +506,9 @@ export default function ContractorPayoutsPage() {
                   </div>
                   {overtimePay > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-purple-600">Overtime ({totalOvertime}h × {isUSD ? '$' : '₱'}{hourlyRate})</span>
+                      <span className="text-sm text-purple-600">
+                        Overtime ({totalOvertime}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)
+                      </span>
                       <span className="text-sm font-medium text-purple-700">+{fmt(overtimePay)}</span>
                     </div>
                   )}
@@ -484,18 +520,68 @@ export default function ContractorPayoutsPage() {
               </div>
             </div>
 
-            {/* Download button */}
-            <button
-              onClick={handleDownload}
-              className="w-full flex items-center justify-center gap-2 bg-[#FF6B35] hover:bg-[#e55a27] text-white font-medium py-3 rounded-xl transition-colors cursor-pointer"
-            >
-              <i className="ri-download-2-line"></i>
-              Download Payslip
-            </button>
-
-            <p className="text-xs text-center text-gray-400">
-              Opens a print dialog — save as PDF from there. Data is pulled from your Slack attendance.
-            </p>
+            {/* Status + actions */}
+            {existingPayout ? (
+              <div className="space-y-3">
+                <div className={`rounded-xl px-4 py-3.5 flex items-center gap-3 ${
+                  existingPayout.status === 'paid' ? 'bg-emerald-50 border border-emerald-100' :
+                  existingPayout.status === 'approved' ? 'bg-sky-50 border border-sky-100' :
+                  'bg-amber-50 border border-amber-100'
+                }`}>
+                  <i className={`text-lg ${
+                    existingPayout.status === 'paid' ? 'ri-checkbox-circle-fill text-emerald-500' :
+                    existingPayout.status === 'approved' ? 'ri-shield-check-fill text-sky-500' :
+                    'ri-time-fill text-amber-500'
+                  }`}></i>
+                  <div className="flex-1">
+                    <p className={`text-sm font-semibold ${
+                      existingPayout.status === 'paid' ? 'text-emerald-800' :
+                      existingPayout.status === 'approved' ? 'text-sky-800' : 'text-amber-800'
+                    }`}>
+                      {existingPayout.status === 'paid' ? 'Payment sent' :
+                       existingPayout.status === 'approved' ? 'Approved — payment incoming' :
+                       existingPayout.status === 'reviewed' ? 'Under review' :
+                       'Submitted — awaiting approval'}
+                    </p>
+                    {existingPayout.status === 'paid' && existingPayout.payment_date && (
+                      <p className="text-xs text-emerald-600 mt-0.5">Paid on {new Date(existingPayout.payment_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                    )}
+                    {existingPayout.status === 'draft' && (
+                      <p className="text-xs text-amber-600 mt-0.5">We'll process this by the first business day after the period ends.</p>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold text-gray-800">{fmt(existingPayout.final_payout)}</span>
+                </div>
+                <button
+                  onClick={handleDownload}
+                  className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl transition-colors cursor-pointer text-sm"
+                >
+                  <i className="ri-download-2-line"></i>
+                  Download Payslip
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting || days.length === 0}
+                  className="w-full flex items-center justify-center gap-2 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-40 text-white font-medium py-3 rounded-xl transition-colors cursor-pointer"
+                >
+                  {submitting ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-send-plane-line"></i>}
+                  {submitting ? 'Submitting...' : 'Submit for Payment'}
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl transition-colors cursor-pointer text-sm"
+                >
+                  <i className="ri-download-2-line"></i>
+                  Download Payslip
+                </button>
+                <p className="text-xs text-center text-gray-400">
+                  Submit by the 15th or last day of the month. Payment is sent the first business day after.
+                </p>
+              </div>
+            )}
           </>
         )}
       </div>

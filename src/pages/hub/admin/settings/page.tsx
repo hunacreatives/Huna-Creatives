@@ -132,7 +132,7 @@ export default function SettingsPage() {
             <h3 className="font-semibold text-[#111827]">System Info</h3>
             <div className="space-y-3">
               {[
-                { label: 'Platform', value: 'Huna Contractor Hub' },
+                { label: 'Platform', value: 'Huna Hub' },
                 { label: 'Version', value: '1.0.0' },
                 { label: 'Agency', value: 'Huna Creatives' },
                 { label: 'Timezone', value: 'Asia/Manila (PHT)' },

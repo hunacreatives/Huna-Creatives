@@ -18,6 +18,8 @@ interface PayRow {
   hours: number;
   cappedHours: number;
   overtimeHours: number;
+  overtimePay: number;
+  derivedHourlyRate: number;
   pay: number;
   days: number;
 }
@@ -114,12 +116,18 @@ export default function AdminPayrollPage() {
       const payType = c.payment_type || 'hourly';
       let pay = 0;
 
+      let overtimePay = 0;
+      // For fixed: derive hourly from monthly / 176 (22 working days × 8hrs)
+      const derivedHourlyRate = payType === 'fixed'
+        ? (c.monthly_rate || 0) / 176
+        : (c.hourly_rate || 0);
+
       if (payType === 'hourly') {
-        // Regular hours + overtime at same rate (overtime pay handled separately by admin)
-        pay = (hrs.capped + hrs.overtime) * (c.hourly_rate || 0);
+        overtimePay = hrs.overtime * derivedHourlyRate;
+        pay = hrs.capped * derivedHourlyRate + overtimePay;
       } else {
-        // Fixed: monthly / 2 + any overtime at hourly equivalent if set
-        pay = (c.monthly_rate || 0) / 2;
+        overtimePay = hrs.overtime * derivedHourlyRate;
+        pay = (c.monthly_rate || 0) / 2 + overtimePay;
       }
 
       return {
@@ -127,6 +135,8 @@ export default function AdminPayrollPage() {
         hours: parseFloat(hrs.raw.toFixed(2)),
         cappedHours: parseFloat(hrs.capped.toFixed(2)),
         overtimeHours: parseFloat(hrs.overtime.toFixed(2)),
+        overtimePay: parseFloat(overtimePay.toFixed(2)),
+        derivedHourlyRate: parseFloat(derivedHourlyRate.toFixed(2)),
         pay,
         days: hrs.days,
       };
@@ -221,8 +231,8 @@ export default function AdminPayrollPage() {
                     const c = r.contractor;
                     const isFixed = c.payment_type === 'fixed';
                     const rate = isFixed
-                      ? `${fmt(c.monthly_rate || 0, c.currency)}/mo`
-                      : `${fmt(c.hourly_rate || 0, c.currency)}/hr`;
+                      ? `${fmt(c.monthly_rate || 0, 'PHP')}/mo · ${fmt(r.derivedHourlyRate, 'PHP')}/hr OT`
+                      : `${fmt(c.hourly_rate || 0, 'PHP')}/hr`;
                     const hoursExceeded = r.hours > r.cappedHours;
 
                     return (
@@ -256,13 +266,16 @@ export default function AdminPayrollPage() {
                         <td className="px-4 py-3 font-medium text-gray-800">{r.cappedHours.toFixed(2)}h</td>
                         <td className="px-4 py-3">
                           {r.overtimeHours > 0 ? (
-                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">+{r.overtimeHours}h OT</span>
+                            <div className="space-y-0.5">
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">+{r.overtimeHours}h OT</span>
+                              <p className="text-xs text-purple-500 pl-1">{fmt(r.overtimePay, 'PHP')}</p>
+                            </div>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 font-semibold text-gray-900">
-                          {fmt(r.pay, c.currency)}
+                          {fmt(r.pay, 'PHP')}
                           {isFixed && r.days === 0 && (
                             <p className="text-xs text-gray-400 font-normal">No attendance logged</p>
                           )}

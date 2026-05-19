@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
           <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
             <i className="ri-briefcase-4-fill text-white text-sm"></i>
           </div>
-          <span className="text-[#111827] font-semibold text-lg tracking-tight">Huna Contractor Hub</span>
+          <span className="text-[#111827] font-semibold text-lg tracking-tight">Huna Hub</span>
         </div>
 
         {sent ? (

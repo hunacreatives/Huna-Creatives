@@ -98,7 +98,7 @@ export default function HubSignupPage() {
           <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
             <i className="ri-briefcase-4-fill text-white text-sm"></i>
           </div>
-          <span className="text-white font-semibold text-lg tracking-tight">Huna Contractor Hub</span>
+          <span className="text-white font-semibold text-lg tracking-tight">Huna Hub</span>
         </div>
         <div className="space-y-4">
           <h2 className="text-white text-3xl font-bold leading-tight">Welcome to the team.</h2>
@@ -115,7 +115,7 @@ export default function HubSignupPage() {
             <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
               <i className="ri-briefcase-4-fill text-white text-sm"></i>
             </div>
-            <span className="text-[#111827] font-semibold text-lg tracking-tight">Huna Contractor Hub</span>
+            <span className="text-[#111827] font-semibold text-lg tracking-tight">Huna Hub</span>
           </div>
 
           {step === 'verify' ? (

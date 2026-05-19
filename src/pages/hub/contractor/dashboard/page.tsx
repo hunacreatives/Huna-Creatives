@@ -5,6 +5,198 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 
+const REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
+
+interface Reaction { emoji: string; user_id: string; }
+interface Comment { id: string; body: string; user_id: string; created_at: string; hub_users: { full_name: string; avatar_url: string | null } | null; }
+
+function AnnouncementCard({ a, currentUserId, canDelete, onDeleted }: {
+  a: HubAnnouncement;
+  currentUserId: string;
+  canDelete: boolean;
+  onDeleted: (id: number) => void;
+}) {
+  const [reactions, setReactions] = useState<Reaction[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [deletingComment, setDeletingComment] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from('hub_announcement_reactions').select('emoji, user_id').eq('announcement_id', a.id)
+      .then(({ data }) => setReactions(data ?? []));
+    supabase.from('hub_announcement_comments')
+      .select('id, body, user_id, created_at, hub_users(full_name, avatar_url)')
+      .eq('announcement_id', a.id).order('created_at', { ascending: true })
+      .then(({ data }) => setComments((data as any) ?? []));
+  }, [a.id]);
+
+  const toggleReaction = async (emoji: string) => {
+    const mine = reactions.find(r => r.user_id === currentUserId && r.emoji === emoji);
+    if (mine) {
+      await supabase.from('hub_announcement_reactions').delete()
+        .eq('announcement_id', a.id).eq('user_id', currentUserId).eq('emoji', emoji);
+      setReactions(prev => prev.filter(r => !(r.user_id === currentUserId && r.emoji === emoji)));
+    } else {
+      await supabase.from('hub_announcement_reactions').insert({ announcement_id: a.id, user_id: currentUserId, emoji });
+      setReactions(prev => [...prev, { emoji, user_id: currentUserId }]);
+    }
+  };
+
+  const postComment = async () => {
+    if (!commentText.trim() || posting) return;
+    setPosting(true);
+    const { data, error } = await supabase.from('hub_announcement_comments')
+      .insert({ announcement_id: a.id, user_id: currentUserId, body: commentText.trim() })
+      .select('id, body, user_id, created_at, hub_users(full_name, avatar_url)')
+      .single();
+    if (!error && data) {
+      setComments(prev => [...prev, data as any]);
+      setCommentText('');
+    }
+    setPosting(false);
+  };
+
+  const deleteComment = async (commentId: string) => {
+    setDeletingComment(commentId);
+    await supabase.from('hub_announcement_comments').delete().eq('id', commentId);
+    setComments(prev => prev.filter(c => c.id !== commentId));
+    setDeletingComment(null);
+  };
+
+  const deleteAnnouncement = async () => {
+    await supabase.from('hub_announcements').delete().eq('id', a.id);
+    onDeleted(a.id);
+  };
+
+  const priorityDot: Record<string, string> = {
+    urgent: 'bg-rose-500', important: 'bg-amber-400', normal: 'bg-gray-300',
+  };
+
+  const reactionCounts = REACTIONS.map(emoji => ({
+    emoji,
+    count: reactions.filter(r => r.emoji === emoji).length,
+    mine: reactions.some(r => r.user_id === currentUserId && r.emoji === emoji),
+  }));
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 bg-[#FF6B35]/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+            <i className="ri-megaphone-line text-[#FF6B35] text-sm"></i>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${priorityDot[a.priority]}`} />
+              <p className="text-sm font-semibold text-[#111827] leading-snug">{a.title}</p>
+            </div>
+            <p className="text-xs text-gray-400">
+              {new Date(a.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
+          </div>
+          {canDelete && (
+            <button
+              onClick={deleteAnnouncement}
+              className="p-1.5 text-gray-300 hover:text-rose-400 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+              title="Delete announcement"
+            >
+              <i className="ri-delete-bin-line text-sm"></i>
+            </button>
+          )}
+        </div>
+        <p className="text-sm text-gray-600 mt-3 leading-relaxed whitespace-pre-wrap">{a.body}</p>
+      </div>
+
+      {/* Reactions */}
+      <div className="px-4 pb-3 flex items-center gap-1.5 flex-wrap">
+        {reactionCounts.filter(r => r.count > 0 || true).map(({ emoji, count, mine }) => (
+          <button
+            key={emoji}
+            onClick={() => toggleReaction(emoji)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border transition-all cursor-pointer ${
+              mine
+                ? 'border-[#FF6B35]/40 bg-[#FF6B35]/8 text-[#FF6B35]'
+                : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200 hover:bg-gray-100'
+            }`}
+          >
+            <span>{emoji}</span>
+            {count > 0 && <span className="font-medium tabular-nums">{count}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* Comment toggle */}
+      <div className="border-t border-gray-50 px-4 py-2 flex items-center gap-3">
+        <button
+          onClick={() => setShowComments(!showComments)}
+          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
+        >
+          <i className="ri-chat-3-line"></i>
+          {comments.length > 0 ? `${comments.length} comment${comments.length !== 1 ? 's' : ''}` : 'Comment'}
+        </button>
+      </div>
+
+      {/* Comments section */}
+      {showComments && (
+        <div className="border-t border-gray-50 px-4 py-3 space-y-3 bg-gray-50/50">
+          {comments.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-1">No comments yet. Be the first!</p>
+          )}
+          {comments.map((c) => (
+            <div key={c.id} className="flex items-start gap-2.5">
+              {c.hub_users?.avatar_url
+                ? <img src={c.hub_users.avatar_url} alt={c.hub_users.full_name} className="w-6 h-6 rounded-full object-cover object-top flex-shrink-0 mt-0.5" />
+                : <div className="w-6 h-6 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-white text-xs font-bold">{(c.hub_users?.full_name ?? '?').charAt(0)}</span>
+                  </div>
+              }
+              <div className="flex-1 min-w-0">
+                <div className="bg-white border border-gray-100 rounded-xl px-3 py-2 relative group">
+                  <p className="text-xs font-semibold text-gray-700">{c.hub_users?.full_name?.split(' ')[0] ?? 'Unknown'}</p>
+                  <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{c.body}</p>
+                  {c.user_id === currentUserId && (
+                    <button
+                      onClick={() => deleteComment(c.id)}
+                      disabled={deletingComment === c.id}
+                      className="absolute top-1.5 right-2 opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-rose-400 transition-all cursor-pointer rounded"
+                      title="Delete comment"
+                    >
+                      <i className="ri-delete-bin-line text-xs"></i>
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-300 mt-1 ml-1">
+                  {new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} · {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </p>
+              </div>
+            </div>
+          ))}
+          {/* Input */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); postComment(); } }}
+              placeholder="Write a comment..."
+              className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/20 focus:border-[#FF6B35] bg-white"
+            />
+            <button
+              onClick={postComment}
+              disabled={!commentText.trim() || posting}
+              className="w-8 h-8 bg-[#FF6B35] rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-40 cursor-pointer transition-opacity"
+            >
+              <i className="ri-send-plane-fill text-white text-xs"></i>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const CLOCKS = [
   { label: 'Philippines', city: 'Cebu', tz: 'Asia/Manila', flag: '🇵🇭' },
   { label: 'US Pacific', city: 'Los Angeles', tz: 'America/Los_Angeles', flag: '🇺🇸' },
@@ -107,7 +299,7 @@ export default function ContractorDashboard() {
         .eq('user_id', user.id)
         .gte('date', cutoffStart.toISOString().split('T')[0])
         .lte('date', cutoffEnd.toISOString().split('T')[0]),
-      supabase.from('hub_announcements').select('*').eq('published', true).order('created_at', { ascending: false }).limit(4),
+      supabase.from('hub_announcements').select('*').eq('published', true).order('created_at', { ascending: false }).limit(10),
       supabase.from('hub_requests').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
       supabase.from('hub_time_off').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
       supabase.functions.invoke('slack-attendance'),
@@ -252,21 +444,17 @@ export default function ContractorDashboard() {
 
             {/* Announcements */}
             {announcements.length > 0 && (
-              <div className="bg-white border border-gray-100 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-[#111827] mb-3">Announcements</h3>
-                <div className="space-y-3">
-                  {announcements.map((a) => (
-                    <div key={a.id} className="flex items-start gap-2.5 pb-3 border-b border-gray-50 last:border-0 last:pb-0">
-                      <div className="w-7 h-7 bg-[#FF6B35]/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <i className="ri-megaphone-line text-[#FF6B35] text-xs"></i>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-[#111827]">{a.title}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{a.body}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-[#111827]">Announcements</h3>
+                {announcements.map((a) => (
+                  <AnnouncementCard
+                    key={a.id}
+                    a={a}
+                    currentUserId={user!.id}
+                    canDelete={user?.role === 'admin' || user?.role === 'owner'}
+                    onDeleted={(id) => setAnnouncements(prev => prev.filter(x => x.id !== id))}
+                  />
+                ))}
               </div>
             )}
 

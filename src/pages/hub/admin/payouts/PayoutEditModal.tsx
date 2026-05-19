@@ -134,15 +134,15 @@ export default function PayoutEditModal({ payout, contractors, onClose, onSaved 
               <input type="number" step="0.01" min="0" className={inputCls} value={form.approved_hours} onChange={e => set('approved_hours', e.target.value)} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Hourly Rate (USD)</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Hourly Rate (PHP)</label>
               <input type="number" step="0.01" min="0" className={inputCls} value={form.hourly_rate} onChange={e => set('hourly_rate', e.target.value)} />
             </div>
           </div>
 
           {/* Preview base pay */}
           <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
-            Base Pay: <span className="font-semibold text-gray-900">{basePay.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
-            <span className="text-gray-400 ml-1">({form.approved_hours || 0} hrs × ${form.hourly_rate || 0}/hr)</span>
+            Base Pay: <span className="font-semibold text-gray-900">{basePay.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</span>
+            <span className="text-gray-400 ml-1">({form.approved_hours || 0} hrs × ₱{form.hourly_rate || 0}/hr)</span>
           </div>
 
           {/* Additions */}
@@ -183,7 +183,7 @@ export default function PayoutEditModal({ payout, contractors, onClose, onSaved 
           <div className="bg-[#FF6B35]/5 border border-[#FF6B35]/20 rounded-lg px-4 py-3 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">Final Payout</span>
             <span className="text-xl font-bold text-[#FF6B35]">
-              {preview.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+              {preview.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}
             </span>
           </div>
 
