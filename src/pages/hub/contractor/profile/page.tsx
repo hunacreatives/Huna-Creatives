@@ -14,29 +14,26 @@ export default function ContractorProfilePage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
-    full_name: user?.full_name || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
-    emergency_contact: user?.emergency_contact || '',
-    slack_username: user?.slack_username || '',
+  const u = user as any;
+
+  const blankForm = () => ({
+    full_name: u?.full_name || '',
+    phone: u?.phone || '',
+    address: u?.address || '',
+    slack_username: u?.slack_username || '',
+    emergency_contact_name: u?.emergency_contact_name || '',
+    emergency_contact_relationship: u?.emergency_contact_relationship || '',
+    emergency_contact_phone: u?.emergency_contact_phone || '',
   });
+
+  const [form, setForm] = useState(blankForm);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3500);
   };
 
-  const startEdit = () => {
-    setForm({
-      full_name: user?.full_name || '',
-      phone: user?.phone || '',
-      address: user?.address || '',
-      emergency_contact: user?.emergency_contact || '',
-      slack_username: user?.slack_username || '',
-    });
-    setEditing(true);
-  };
+  const startEdit = () => { setForm(blankForm()); setEditing(true); };
 
   const saveInfo = async (e: FormEvent) => {
     e.preventDefault();
@@ -46,8 +43,10 @@ export default function ContractorProfilePage() {
       full_name: form.full_name,
       phone: form.phone || null,
       address: form.address || null,
-      emergency_contact: form.emergency_contact || null,
       slack_username: form.slack_username || null,
+      emergency_contact_name: form.emergency_contact_name || null,
+      emergency_contact_relationship: form.emergency_contact_relationship || null,
+      emergency_contact_phone: form.emergency_contact_phone || null,
       updated_at: new Date().toISOString(),
     }).eq('id', user.id);
     setSaving(false);
@@ -92,10 +91,15 @@ export default function ContractorProfilePage() {
 
   if (!user) return null;
 
-  const payType = (user as any).payment_type || 'hourly';
+  const payType = u.payment_type || 'hourly';
   const rateLabel = payType === 'fixed'
-    ? `PHP ${((user as any).monthly_rate || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}/month (fixed)`
-    : user.hourly_rate ? `PHP ${user.hourly_rate}/hr` : '—';
+    ? `PHP ${(u.monthly_rate || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}/month (fixed)`
+    : u.hourly_rate ? `PHP ${u.hourly_rate}/hr` : '—';
+
+  const ecName = u.emergency_contact_name;
+  const ecRel = u.emergency_contact_relationship;
+  const ecPhone = u.emergency_contact_phone;
+  const ecDisplay = [ecName, ecRel, ecPhone].filter(Boolean).join(' · ') || '—';
 
   const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]';
 
@@ -128,13 +132,8 @@ export default function ContractorProfilePage() {
                   ? <i className="ri-loader-4-line animate-spin text-xs"></i>
                   : <i className="ri-camera-line text-xs"></i>}
               </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }}
-              />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
             </div>
             <div>
               <h2 className="text-lg font-bold text-[#111827]">{user.full_name}</h2>
@@ -171,7 +170,7 @@ export default function ContractorProfilePage() {
                 { label: 'Email', value: user.email },
                 { label: 'Phone', value: user.phone || '—' },
                 { label: 'Address', value: user.address || '—' },
-                { label: 'Emergency Contact', value: user.emergency_contact || '—' },
+                { label: 'Emergency Contact', value: ecDisplay },
                 { label: 'Slack Display Name', value: user.slack_username || '—' },
                 { label: 'Department', value: user.department || '—' },
                 { label: 'Start Date', value: user.start_date ? new Date(user.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—' },
@@ -207,13 +206,18 @@ export default function ContractorProfilePage() {
                 <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="City, Province" className={inputCls} />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Emergency Contact</label>
-                <input value={form.emergency_contact} onChange={(e) => setForm({ ...form, emergency_contact: e.target.value })} placeholder="Name · Relationship · Number" className={inputCls} />
-              </div>
-              <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Slack Display Name</label>
                 <input value={form.slack_username} onChange={(e) => setForm({ ...form, slack_username: e.target.value })} placeholder="Your name as it appears in Slack" className={inputCls} />
               </div>
+
+              {/* Emergency Contact */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-700">Emergency Contact</label>
+                <input value={form.emergency_contact_name} onChange={(e) => setForm({ ...form, emergency_contact_name: e.target.value })} placeholder="Full name" className={inputCls} />
+                <input value={form.emergency_contact_relationship} onChange={(e) => setForm({ ...form, emergency_contact_relationship: e.target.value })} placeholder="Relationship (e.g. Mother, Spouse)" className={inputCls} />
+                <input value={form.emergency_contact_phone} onChange={(e) => setForm({ ...form, emergency_contact_phone: e.target.value })} placeholder="Contact number" className={inputCls} />
+              </div>
+
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setEditing(false)} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 cursor-pointer whitespace-nowrap">Cancel</button>
                 <button type="submit" disabled={saving} className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-60 cursor-pointer whitespace-nowrap">

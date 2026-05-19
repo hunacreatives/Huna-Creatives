@@ -278,7 +278,12 @@ function generatePayslipHTML(opts: {
 
 export default function ContractorPayoutsPage() {
   const { hubUser } = useAuth();
-  const periods = getPeriods();
+  const allPeriods = getPeriods();
+  // Only show periods on or after the contractor's start date
+  const startDate = (hubUser as any)?.start_date ?? null;
+  const periods = startDate
+    ? allPeriods.filter(p => p.end >= startDate)
+    : allPeriods;
   const [selectedPeriod, setSelectedPeriod] = useState(periods[periods.length - 1]);
   const [days, setDays] = useState<DayRow[]>([]);
   const [loading, setLoading] = useState(true);
