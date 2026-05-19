@@ -31,7 +31,7 @@ export default function HubLoginPage() {
     try {
       const { error: err } = await signIn(email, password);
       if (err) {
-        setError('Invalid email or password. Please try again.');
+        setError(err.message || 'Invalid email or password. Please try again.');
         setLoading(false);
         return;
       }
