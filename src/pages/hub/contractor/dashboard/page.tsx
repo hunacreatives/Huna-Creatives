@@ -231,7 +231,7 @@ function useClock() {
 
 function ClockFace({ tz, flag, label, city, isHome }: { tz: string; flag: string; label: string; city: string; isHome: boolean }) {
   const now = useClock();
-  const time = now.toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  const time = now.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
   const date = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric' });
   const [h, ms] = time.split(':');
   const ampm = ms.slice(-2);
