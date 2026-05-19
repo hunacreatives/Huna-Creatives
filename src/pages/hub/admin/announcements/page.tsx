@@ -27,6 +27,11 @@ export default function AnnouncementsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
+  }, []);
 
   const fetchAnnouncements = async () => {
     setLoading(true);
@@ -53,7 +58,7 @@ export default function AnnouncementsPage() {
       if (editing) {
         ({ error } = await supabase.from('hub_announcements').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id));
       } else {
-        ({ error } = await supabase.from('hub_announcements').insert({ ...form }));
+        ({ error } = await supabase.from('hub_announcements').insert({ ...form, posted_by: currentUserId }));
       }
       if (error) { setSaveError(error.message); return; }
       setShowModal(false);

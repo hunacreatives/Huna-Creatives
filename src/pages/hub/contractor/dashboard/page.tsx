@@ -93,9 +93,24 @@ function AnnouncementCard({ a, currentUserId, canDelete, onDeleted }: {
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${priorityDot[a.priority]}`} />
               <p className="text-sm font-semibold text-[#111827] leading-snug">{a.title}</p>
             </div>
-            <p className="text-xs text-gray-400">
-              {new Date(a.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {(() => {
+                const poster = (a as any).hub_users;
+                if (!poster) return <p className="text-xs text-gray-400">{new Date(a.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>;
+                return (
+                  <>
+                    {poster.avatar_url
+                      ? <img src={poster.avatar_url} alt={poster.full_name} className="w-4 h-4 rounded-full object-cover object-top flex-shrink-0" />
+                      : <div className="w-4 h-4 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0"><span className="text-white text-xs font-bold" style={{fontSize:'8px'}}>{poster.full_name.charAt(0)}</span></div>
+                    }
+                    <p className="text-xs text-gray-400">
+                      <span className="text-gray-500 font-medium">{poster.full_name.split(' ')[0]}</span>
+                      {' · '}{new Date(a.created_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </>
+                );
+              })()}
+            </div>
           </div>
           {canDelete && (
             <button
@@ -299,7 +314,7 @@ export default function ContractorDashboard() {
         .eq('user_id', user.id)
         .gte('date', cutoffStart.toISOString().split('T')[0])
         .lte('date', cutoffEnd.toISOString().split('T')[0]),
-      supabase.from('hub_announcements').select('*').eq('published', true).order('created_at', { ascending: false }).limit(10),
+      supabase.from('hub_announcements').select('*, hub_users(full_name, avatar_url)').eq('published', true).order('created_at', { ascending: false }).limit(10),
       supabase.from('hub_requests').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
       supabase.from('hub_time_off').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
       supabase.functions.invoke('slack-attendance'),
