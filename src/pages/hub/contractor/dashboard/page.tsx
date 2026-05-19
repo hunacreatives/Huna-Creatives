@@ -277,6 +277,7 @@ export default function ContractorDashboard() {
   const [slackStatus, setSlackStatus] = useState<'on' | 'off' | 'absent' | null>(null);
   const [hoursThisCutoff, setHoursThisCutoff] = useState(0);
   const [estimatedPayout, setEstimatedPayout] = useState(0);
+  const [showPayout, setShowPayout] = useState(false);
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>([]);
   const [requests, setRequests] = useState<HubRequest[]>([]);
   const [timeOffs, setTimeOffs] = useState<HubTimeOff[]>([]);
@@ -446,12 +447,17 @@ export default function ContractorDashboard() {
               <div className="bg-white border border-gray-100 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-gray-400">Est. Payout</span>
-                  <div className="w-7 h-7 bg-[#FF6B35]/10 rounded-lg flex items-center justify-center">
-                    <i className="ri-money-dollar-circle-line text-[#FF6B35] text-sm"></i>
-                  </div>
+                  <button
+                    onClick={() => setShowPayout(v => !v)}
+                    className="w-7 h-7 bg-[#FF6B35]/10 rounded-lg flex items-center justify-center hover:bg-[#FF6B35]/20 transition-colors cursor-pointer"
+                  >
+                    <i className={`${showPayout ? 'ri-eye-line' : 'ri-eye-off-line'} text-[#FF6B35] text-sm`}></i>
+                  </button>
                 </div>
-                <p className="text-xl font-bold text-[#111827]">
-                  {isUSD ? '$' : '₱'}{estimatedPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <p className="text-xl font-bold text-[#111827] tracking-wider">
+                  {showPayout
+                    ? `${isUSD ? '$' : '₱'}${estimatedPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : '••••••'}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">{isFixed ? 'Fixed cutoff rate' : 'Based on hours logged'}</p>
               </div>
