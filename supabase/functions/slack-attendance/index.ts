@@ -48,12 +48,20 @@ Deno.serve(async (req) => {
     // Per user: overtime messages (messages that start with "overtime" and have replies)
     const overtimeMessages: { slackId: string; ts: string }[] = [];
 
+    // Per user: "on" messages with thread replies (hourly contractors log hours in thread)
+    const hourlyOnMessages: { slackId: string; ts: string }[] = [];
+
     for (const msg of messages) {
       const text = (msg.text || '').trim().toLowerCase();
 
       if ((text === 'on' || text === 'off') && msg.user) {
         if (!userPunches[msg.user]) userPunches[msg.user] = [];
         userPunches[msg.user].push({ status: text as 'on' | 'off', ts: parseFloat(msg.ts) });
+
+        // Track "on" messages with replies — used for hourly hour logging
+        if (text === 'on' && msg.reply_count > 0) {
+          hourlyOnMessages.push({ slackId: msg.user, ts: msg.ts });
+        }
       }
 
       // Detect "Overtime" posts that have at least one thread reply
@@ -69,14 +77,32 @@ Deno.serve(async (req) => {
       overtimeMessages.map(async ({ slackId, ts }) => {
         const thread = await slackGet(`conversations.replies?channel=${CHANNEL_ID}&ts=${ts}`);
         if (!thread.ok) return;
-        // Replies after the parent message, from the same user
         for (const reply of thread.messages || []) {
           if (reply.ts === ts) continue; // skip parent
           if (reply.user !== slackId) continue;
           const num = parseFloat((reply.text || '').trim());
           if (!isNaN(num) && num > 0) {
             overtimeBySlackId[slackId] = (overtimeBySlackId[slackId] || 0) + num;
-            break; // one reply per overtime thread
+            break;
+          }
+        }
+      })
+    );
+
+    // Resolve hourly hours from "on" thread replies (hourly contractors type hours in thread)
+    const hourlyHoursBySlackId: Record<string, number> = {};
+
+    await Promise.all(
+      hourlyOnMessages.map(async ({ slackId, ts }) => {
+        const thread = await slackGet(`conversations.replies?channel=${CHANNEL_ID}&ts=${ts}`);
+        if (!thread.ok) return;
+        for (const reply of thread.messages || []) {
+          if (reply.ts === ts) continue; // skip parent
+          if (reply.user !== slackId) continue;
+          const num = parseFloat((reply.text || '').trim());
+          if (!isNaN(num) && num > 0) {
+            hourlyHoursBySlackId[slackId] = num;
+            break; // use the first numeric reply
           }
         }
       })
@@ -85,7 +111,7 @@ Deno.serve(async (req) => {
     // Get all active contractors
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, department, email, status, slack_username')
+      .select('id, full_name, avatar_url, department, email, status, slack_username, payment_type')
       .eq('status', 'active');
 
     const emailMap: Record<string, any> = {};
@@ -96,7 +122,7 @@ Deno.serve(async (req) => {
     }
 
     // Resolve Slack user info (email + display name)
-    const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId)])];
+    const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId), ...Object.keys(hourlyHoursBySlackId)])];
     const slackEmailMap: Record<string, string> = {};
     const slackDisplayNameMap: Record<string, string> = {};
 
@@ -117,8 +143,8 @@ Deno.serve(async (req) => {
     const attendance: any[] = [];
     const hoursUpserts: any[] = [];
 
-    // Collect all slackIds that punched OR logged overtime
-    const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId)])];
+    // Collect all slackIds that punched, logged overtime, or logged hourly hours
+    const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId), ...Object.keys(hourlyHoursBySlackId)])];
 
     for (const slackId of allSlackIds) {
       const punches = userPunches[slackId] || [];
@@ -140,17 +166,27 @@ Deno.serve(async (req) => {
       const firstOn = punches.find(p => p.status === 'on');
       const lastOff = [...punches].reverse().find(p => p.status === 'off');
 
+      const isHourly = hubUser?.payment_type === 'hourly';
+      const threadHours = hourlyHoursBySlackId[slackId];
+
       let hoursRaw = 0;
       let hoursCapped = 0;
+      let effectiveStatus = status;
 
-      if (firstOn && lastOff && lastOff.ts > firstOn.ts) {
+      if (isHourly && threadHours != null) {
+        // Hourly contractor: use hours from thread reply
+        hoursRaw = threadHours;
+        hoursCapped = Math.min(threadHours, MAX_HOURS);
+        // Once hours are logged, treat as clocked out
+        effectiveStatus = 'off';
+      } else if (firstOn && lastOff && lastOff.ts > firstOn.ts) {
         hoursRaw = (lastOff.ts - firstOn.ts) / 3600;
         hoursCapped = Math.min(hoursRaw, MAX_HOURS);
       }
 
       const overtimeHours = overtimeBySlackId[slackId] || 0;
 
-      if (hubUser && (firstOn || overtimeHours > 0)) {
+      if (hubUser && (firstOn || overtimeHours > 0 || (isHourly && threadHours != null))) {
         hoursUpserts.push({
           user_id: hubUser.id,
           date: todayDate,
@@ -170,7 +206,7 @@ Deno.serve(async (req) => {
           full_name: hubUser?.full_name || `Slack user (${slackId})`,
           avatar_url: hubUser?.avatar_url || null,
           department: hubUser?.department || null,
-          status,
+          status: effectiveStatus,
           last_punch: new Date(latestPunch.ts * 1000).toISOString(),
           punches: punchList,
           hours_today: parseFloat(hoursCapped.toFixed(2)),
