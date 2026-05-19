@@ -32,10 +32,16 @@ export default function SettingsPage() {
     if (passwordForm.newPass !== passwordForm.confirm) { showMessage('error', 'Passwords do not match.'); return; }
     if (passwordForm.newPass.length < 8) { showMessage('error', 'Password must be at least 8 characters.'); return; }
     setPasswordSaving(true);
-    const { error } = await supabase.auth.updateUser({ password: passwordForm.newPass });
-    if (error) showMessage('error', error.message);
-    else { showMessage('success', 'Password updated!'); setPasswordForm({ current: '', newPass: '', confirm: '' }); }
-    setPasswordSaving(false);
+    try {
+      const timeout = new Promise<{ error: Error }>(resolve => setTimeout(() => resolve({ error: new Error('Request timed out. Please try again.') }), 10000));
+      const result = await Promise.race([supabase.auth.updateUser({ password: passwordForm.newPass }), timeout]);
+      if (result.error) showMessage('error', result.error.message);
+      else { showMessage('success', 'Password updated!'); setPasswordForm({ current: '', newPass: '', confirm: '' }); }
+    } catch (e: any) {
+      showMessage('error', e?.message ?? 'Something went wrong.');
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const tabs = [

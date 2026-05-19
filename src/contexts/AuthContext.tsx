@@ -26,11 +26,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchHubUser = async (userId: string) => {
     try {
-      const { data } = await supabase
-        .from('hub_users')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000));
+      const query = supabase.from('hub_users').select('*').eq('id', userId).maybeSingle().then(r => r.data);
+      const data = await Promise.race([query, timeout]);
       setHubUser(data ?? null);
     } catch {
       setHubUser(null);
@@ -42,14 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Hard timeout — loading never hangs past 6 seconds
-    const timeout = setTimeout(() => setLoading(false), 6000);
+    // Hard timeout — loading never hangs past 5 seconds even if fetchHubUser stalls
+    const timeout = setTimeout(() => setLoading(false), 5000);
 
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      clearTimeout(timeout);
       setSession(s);
       setAuthUser(s?.user ?? null);
       if (s?.user) await fetchHubUser(s.user.id);
+      clearTimeout(timeout);
       setLoading(false);
     }).catch(() => {
       clearTimeout(timeout);
