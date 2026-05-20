@@ -294,6 +294,7 @@ export default function AdminPayrollPage() {
     if (newBatch) {
       const approvedIds = approved.map(r => payoutsMap[r.contractor.id]?.id).filter(Boolean);
       await supabase.from('hub_payouts').update({ batch_id: newBatch.id }).in('id', approvedIds);
+      supabase.functions.invoke('notify-owner', { body: { batch_id: newBatch.id } }).catch(() => {});
     }
     await fetchWorkflow();
     setWorkflowLoading(false);
