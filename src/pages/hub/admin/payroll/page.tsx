@@ -129,15 +129,44 @@ export default function AdminPayrollPage() {
   const [editHours, setEditHours] = useState('');
   const [editPay, setEditPay] = useState('');
   const [rowOverrides, setRowOverrides] = useState<Record<string, { hours?: number; pay?: number }>>({});
+  const [editAdjItems, setEditAdjItems] = useState<{ label: string; amount: number; type: string }[]>([]);
+  const [editAdjLabel, setEditAdjLabel] = useState('');
+  const [editAdjAmount, setEditAdjAmount] = useState('');
+  const [editAdjType, setEditAdjType] = useState('bonus');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const ADJ_TYPES = [
+    { value: 'bonus', label: 'Bonus' },
+    { value: 'referral', label: 'Referral Fee' },
+    { value: 'reimbursement', label: 'Reimbursement' },
+    { value: 'allowance', label: 'Allowance' },
+    { value: 'deduction', label: 'Deduction' },
+    { value: 'other', label: 'Other' },
+  ];
 
   const openEditRow = (r: PayRow) => {
     const override = rowOverrides[r.contractor.id];
+    const p = payoutsMap[r.contractor.id];
     setEditHours(String(override?.hours ?? r.cappedHours));
     setEditPay(String(override?.pay !== undefined ? override.pay : parseFloat(r.pay.toFixed(2))));
+    setEditAdjItems((p?.adjustments || []).map((a: any) => ({ ...a, type: a.type || 'other' })));
+    setEditAdjLabel('');
+    setEditAdjAmount('');
+    setEditAdjType('bonus');
     setEditRowId(r.contractor.id);
   };
 
-  const saveEditRow = (contractorId: string) => {
+  const addEditAdjItem = () => {
+    const amt = parseFloat(editAdjAmount);
+    if (!editAdjLabel.trim() || isNaN(amt)) return;
+    const isDeduction = editAdjType === 'deduction';
+    setEditAdjItems(prev => [...prev, { label: editAdjLabel.trim(), amount: isDeduction ? -Math.abs(amt) : Math.abs(amt), type: editAdjType }]);
+    setEditAdjLabel('');
+    setEditAdjAmount('');
+  };
+
+  const saveEditRow = async (contractorId: string) => {
+    setEditSaving(true);
     const h = parseFloat(editHours);
     const p = parseFloat(editPay);
     setRowOverrides(prev => ({
@@ -147,15 +176,32 @@ export default function AdminPayrollPage() {
         pay: isNaN(p) ? undefined : p,
       },
     }));
+    // Save adjustments to DB
+    const row = rows.find(r => r.contractor.id === contractorId);
+    const basePay = isNaN(p) ? (row?.pay ?? 0) : p;
+    const adjTotal = editAdjItems.reduce((s, i) => s + i.amount, 0);
+    const finalPay = basePay + adjTotal;
+    const existing = payoutsMap[contractorId];
+    if (existing) {
+      await supabase.from('hub_payouts').update({ adjustments: editAdjItems, final_payout: finalPay }).eq('id', existing.id);
+    } else if (editAdjItems.length > 0) {
+      await supabase.from('hub_payouts').insert({
+        contractor_id: contractorId,
+        cutoff_start: selectedPeriod.start,
+        cutoff_end: selectedPeriod.end,
+        final_payout: finalPay,
+        status: 'pending',
+        adjustments: editAdjItems,
+      });
+    }
+    await fetchWorkflow();
+    setEditSaving(false);
     setEditRowId(null);
   };
 
-  // Adjustments modal state
-  const [adjContractorId, setAdjContractorId] = useState<string | null>(null);
-  const [adjItems, setAdjItems] = useState<{ label: string; amount: number }[]>([]);
-  const [adjLabel, setAdjLabel] = useState('');
-  const [adjAmount, setAdjAmount] = useState('');
-  const [adjSaving, setAdjSaving] = useState(false);
+  // Keep adjContractorId etc for backward compat but no longer used
+  const [adjContractorId] = useState<string | null>(null);
+  const [adjSaving] = useState(false);
 
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
@@ -249,49 +295,6 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(false);
   };
 
-  const openAdjModal = (contractorId: string) => {
-    const p = payoutsMap[contractorId];
-    setAdjItems(p?.adjustments || []);
-    setAdjLabel('');
-    setAdjAmount('');
-    setAdjContractorId(contractorId);
-  };
-
-  const addAdjItem = () => {
-    const amt = parseFloat(adjAmount);
-    if (!adjLabel.trim() || isNaN(amt)) return;
-    setAdjItems(prev => [...prev, { label: adjLabel.trim(), amount: amt }]);
-    setAdjLabel('');
-    setAdjAmount('');
-  };
-
-  const saveAdjustments = async () => {
-    if (!adjContractorId) return;
-    setAdjSaving(true);
-    const row = rows.find(r => r.contractor.id === adjContractorId);
-    const basePay = row?.pay ?? 0;
-    const adjTotal = adjItems.reduce((s, i) => s + i.amount, 0);
-    const finalPay = basePay + adjTotal;
-    const existing = payoutsMap[adjContractorId];
-    if (existing) {
-      await supabase.from('hub_payouts').update({
-        adjustments: adjItems,
-        final_payout: finalPay,
-      }).eq('id', existing.id);
-    } else {
-      await supabase.from('hub_payouts').insert({
-        contractor_id: adjContractorId,
-        cutoff_start: selectedPeriod.start,
-        cutoff_end: selectedPeriod.end,
-        final_payout: finalPay,
-        status: 'pending',
-        adjustments: adjItems,
-      });
-    }
-    await fetchWorkflow();
-    setAdjSaving(false);
-    setAdjContractorId(null);
-  };
 
   const cancelPayout = async (contractorId: string) => {
     const p = payoutsMap[contractorId];
@@ -815,13 +818,6 @@ export default function AdminPayrollPage() {
                                       prorated
                                     </span>
                                   )}
-                                  <button
-                                    onClick={() => openAdjModal(c.id)}
-                                    title="Add/edit adjustments"
-                                    className="text-gray-300 hover:text-[#FF6B35] cursor-pointer transition-colors"
-                                  >
-                                    <i className="ri-add-circle-line text-sm"></i>
-                                  </button>
                                 </div>
                                 {isUSD && r.payOriginalCurrency !== undefined && (
                                   <p className="text-[10px] text-sky-500 font-normal mt-0.5">
@@ -1025,140 +1021,124 @@ export default function AdminPayrollPage() {
           );
         })()}
       </div>
-      {/* Edit Row Modal */}
+      {/* Edit Row Modal — hours, pay override + additions/deductions */}
       {editRowId && (() => {
         const editRow = rows.find(r => r.contractor.id === editRowId);
         if (!editRow) return null;
         const c = editRow.contractor;
+        const adjTotal = editAdjItems.reduce((s, i) => s + i.amount, 0);
+        const basePay = parseFloat(editPay) || editRow.pay;
+        const grandTotal = basePay + adjTotal;
         return (
           <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditRowId(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-[#111827]">Edit Payroll Row</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{c.full_name} · {selectedPeriod.label}</p>
-              </div>
-              <div className="px-5 py-4 space-y-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Billed Hours</label>
-                  <input
-                    type="number"
-                    value={editHours}
-                    onChange={e => setEditHours(e.target.value)}
-                    step="0.5"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1">Computed from Slack: {editRow.cappedHours.toFixed(2)}h</p>
+                  <h3 className="text-sm font-semibold text-[#111827]">Edit Payroll</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{c.full_name} · {selectedPeriod.label}</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Final Pay (₱)</label>
-                  <input
-                    type="number"
-                    value={editPay}
-                    onChange={e => setEditPay(e.target.value)}
-                    step="0.01"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1">Computed: {fmt(editRow.pay, 'PHP')}</p>
-                </div>
-                <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                  Edits are local until you click Approve — they won't save unless you approve this row.
-                </p>
+                <button onClick={() => setEditRowId(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
               </div>
-              <div className="px-5 pb-4 flex justify-between gap-2">
+
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+                {/* Hours + Base pay */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Base Pay</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600">Billed Hours</label>
+                      <input type="number" value={editHours} onChange={e => setEditHours(e.target.value)} step="0.5"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <p className="text-[10px] text-gray-400">Slack: {editRow.cappedHours.toFixed(2)}h</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600">Base Pay (₱)</label>
+                      <input type="number" value={editPay} onChange={e => setEditPay(e.target.value)} step="0.01"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <p className="text-[10px] text-gray-400">Computed: {fmt(editRow.pay, 'PHP')}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additions & Deductions */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Additions & Deductions</p>
+                  {editAdjItems.length > 0 && (
+                    <div className="space-y-1.5 mb-3">
+                      {editAdjItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                            item.type === 'deduction' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-700'
+                          }`}>{ADJ_TYPES.find(t => t.value === item.type)?.label ?? item.type}</span>
+                          <span className="text-xs text-gray-700 flex-1">{item.label}</span>
+                          <span className={`text-xs font-semibold ${item.amount >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {item.amount > 0 ? '+' : ''}{fmt(item.amount, 'PHP')}
+                          </span>
+                          <button onClick={() => setEditAdjItems(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0">
+                            <i className="ri-delete-bin-line text-sm"></i>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Add line item */}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={editAdjType} onChange={e => setEditAdjType(e.target.value)}
+                        className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer">
+                        {ADJ_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      </select>
+                      <input type="number" placeholder="Amount (₱)" value={editAdjAmount} onChange={e => setEditAdjAmount(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addEditAdjItem()}
+                        className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="Description (e.g. May referral — John)" value={editAdjLabel}
+                        onChange={e => setEditAdjLabel(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addEditAdjItem()}
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <button onClick={addEditAdjItem}
+                        className="px-3 py-2 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-700 cursor-pointer whitespace-nowrap">
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total summary */}
+                <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-1.5">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Base pay</span><span>{fmt(basePay, 'PHP')}</span>
+                  </div>
+                  {adjTotal !== 0 && (
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Adjustments</span>
+                      <span className={adjTotal >= 0 ? 'text-emerald-600' : 'text-rose-500'}>
+                        {adjTotal > 0 ? '+' : ''}{fmt(adjTotal, 'PHP')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-bold text-[#111827] pt-1 border-t border-gray-200">
+                    <span>Total</span><span>{fmt(grandTotal, 'PHP')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-5 pb-4 pt-3 border-t border-gray-100 flex justify-between gap-2 flex-shrink-0">
                 <button
-                  onClick={() => { setRowOverrides(prev => { const n = { ...prev }; delete n[editRowId!]; return n; }); setEditRowId(null); }}
+                  onClick={() => { setRowOverrides(prev => { const n = { ...prev }; delete n[editRowId!]; return n; }); setEditAdjItems([]); setEditRowId(null); }}
                   className="px-3 py-2 text-xs text-rose-400 hover:text-rose-600 cursor-pointer"
                 >
-                  Reset to computed
+                  Reset all
                 </button>
                 <div className="flex gap-2">
                   <button onClick={() => setEditRowId(null)} className="px-4 py-2 text-xs text-gray-500 hover:text-gray-700 cursor-pointer">Cancel</button>
-                  <button
-                    onClick={() => saveEditRow(editRowId!)}
-                    className="px-4 py-2 bg-[#FF6B35] text-white text-xs font-medium rounded-lg hover:bg-[#e55a27] cursor-pointer"
-                  >
-                    Apply
+                  <button onClick={() => saveEditRow(editRowId!)} disabled={editSaving}
+                    className="px-4 py-2 bg-[#FF6B35] text-white text-xs font-medium rounded-lg hover:bg-[#e55a27] cursor-pointer disabled:opacity-40">
+                    {editSaving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Adjustments Modal */}
-      {adjContractorId && (() => {
-        const adjRow = rows.find(r => r.contractor.id === adjContractorId);
-        const adjTotal = adjItems.reduce((s, i) => s + i.amount, 0);
-        return (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAdjContractorId(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-semibold text-[#111827]">Adjustments</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{adjRow?.contractor.full_name} · {selectedPeriod.label}</p>
-              </div>
-              <div className="px-5 py-4 space-y-3">
-                {adjItems.length > 0 && (
-                  <div className="space-y-1.5">
-                    {adjItems.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 rounded-lg">
-                        <span className="text-xs text-gray-700 flex-1">{item.label}</span>
-                        <span className={`text-xs font-medium ${item.amount >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                          {item.amount > 0 ? '+' : ''}{fmt(item.amount, 'PHP')}
-                        </span>
-                        <button
-                          onClick={() => setAdjItems(prev => prev.filter((_, i) => i !== idx))}
-                          className="text-gray-300 hover:text-rose-400 cursor-pointer"
-                        >
-                          <i className="ri-delete-bin-line text-sm"></i>
-                        </button>
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-between px-3 pt-1 border-t border-gray-100">
-                      <span className="text-xs font-medium text-gray-500">Base pay</span>
-                      <span className="text-xs text-gray-600">{fmt(adjRow?.pay ?? 0, 'PHP')}</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3">
-                      <span className="text-xs font-semibold text-[#111827]">Total</span>
-                      <span className="text-sm font-bold text-[#111827]">{fmt((adjRow?.pay ?? 0) + adjTotal, 'PHP')}</span>
-                    </div>
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Label (e.g. Referral bonus)"
-                    value={adjLabel}
-                    onChange={e => setAdjLabel(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addAdjItem()}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Amount"
-                    value={adjAmount}
-                    onChange={e => setAdjAmount(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addAdjItem()}
-                    className="w-28 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                  />
-                  <button
-                    onClick={addAdjItem}
-                    className="px-3 py-2 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-700 cursor-pointer whitespace-nowrap"
-                  >
-                    Add
-                  </button>
-                </div>
-                <p className="text-[10px] text-gray-400">Use negative amounts for deductions.</p>
-              </div>
-              <div className="px-5 pb-4 flex justify-end gap-2">
-                <button onClick={() => setAdjContractorId(null)} className="px-4 py-2 text-xs text-gray-500 hover:text-gray-700 cursor-pointer">Cancel</button>
-                <button
-                  onClick={saveAdjustments}
-                  disabled={adjSaving}
-                  className="px-4 py-2 bg-[#FF6B35] text-white text-xs font-medium rounded-lg hover:bg-[#e55a27] cursor-pointer disabled:opacity-40"
-                >
-                  {adjSaving ? 'Saving…' : 'Save'}
-                </button>
               </div>
             </div>
           </div>
