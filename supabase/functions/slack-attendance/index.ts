@@ -25,14 +25,16 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Today midnight PH time (UTC+8)
+    // Today's date in PH time (UTC+8) — used for DB records
     const now = new Date();
     const phOffset = 8 * 60; // minutes
     const phNow = new Date(now.getTime() + phOffset * 60 * 1000);
     const todayDate = phNow.toISOString().split('T')[0]; // YYYY-MM-DD in PH time
-    // Midnight PH = previous day 16:00 UTC
-    const todayStart = new Date(`${todayDate}T00:00:00+08:00`);
-    const oldest = String(todayStart.getTime() / 1000);
+
+    // Look back 18 hours rolling — covers overnight shifts (e.g. 11pm–7am)
+    // so punches from the previous evening aren't dropped when midnight rolls over
+    const windowStart = new Date(now.getTime() - 18 * 60 * 60 * 1000);
+    const oldest = String(windowStart.getTime() / 1000);
 
     // Fetch today's messages
     const slack = await slackGet(
