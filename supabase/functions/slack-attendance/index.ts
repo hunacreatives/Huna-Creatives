@@ -25,11 +25,14 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Today midnight UTC
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
+    // Today midnight PH time (UTC+8)
+    const now = new Date();
+    const phOffset = 8 * 60; // minutes
+    const phNow = new Date(now.getTime() + phOffset * 60 * 1000);
+    const todayDate = phNow.toISOString().split('T')[0]; // YYYY-MM-DD in PH time
+    // Midnight PH = previous day 16:00 UTC
+    const todayStart = new Date(`${todayDate}T00:00:00+08:00`);
     const oldest = String(todayStart.getTime() / 1000);
-    const todayDate = todayStart.toISOString().split('T')[0];
 
     // Fetch today's messages
     const slack = await slackGet(
