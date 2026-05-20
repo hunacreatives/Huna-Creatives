@@ -33,20 +33,6 @@ export default function NotificationBell() {
     return s ? new Date(s) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   };
 
-  useEffect(() => {
-    if (!hubUser) return;
-    fetchNotifs();
-  }, [hubUser, fetchNotifs]);
-
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   const fetchNotifs = useCallback(async () => {
     if (!hubUser) return;
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // last 7 days
@@ -417,6 +403,20 @@ export default function NotificationBell() {
     setNotifs(items);
     setUnread(items.filter(n => n.time > lastSeen).length);
   }, [hubUser]);
+
+  useEffect(() => {
+    if (!hubUser) return;
+    fetchNotifs();
+  }, [hubUser, fetchNotifs]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Realtime subscription — re-fetch on any relevant table change
   useEffect(() => {
