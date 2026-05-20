@@ -4,7 +4,7 @@ const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const CHANNEL_ID = 'C0830PCGQK1';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const MAX_HOURS = 8;
+const MAX_HOURS = 24; // hard ceiling per session — reasonable daily max
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
