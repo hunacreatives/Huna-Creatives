@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
         let pay = 0;
         if (c.payment_type === 'fixed') {
           const monthly = c.monthly_rate || 0;
-          const otRate = monthly / 176;
+          const otRate = c.hourly_rate || monthly / 176;
           pay = monthly / 2 + h.overtime * otRate;
         } else {
           const rate = c.hourly_rate || 0;

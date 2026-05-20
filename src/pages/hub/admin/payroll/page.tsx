@@ -425,7 +425,8 @@ export default function AdminPayrollPage() {
           const daysAtNew = totalDays - daysAtOld;
 
           const basePay = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
-          derivedHourlyRate = newMonthly / 176;
+          const newHourlyForOT = changeInPeriod.hourly_rate || 0;
+          derivedHourlyRate = newHourlyForOT || newMonthly / 176;
           overtimePay = hrs.overtime * derivedHourlyRate;
           pay = basePay + overtimePay;
           proratedNote = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
@@ -449,7 +450,8 @@ export default function AdminPayrollPage() {
         const monthly = effectiveRate?.monthly_rate ?? c.monthly_rate ?? 0;
         const hourly  = effectiveRate?.hourly_rate  ?? c.hourly_rate  ?? 0;
 
-        derivedHourlyRate = payType === 'fixed' ? monthly / 176 : hourly;
+        // For fixed: use explicit hourly_rate as OT rate if set, else derive from monthly
+        derivedHourlyRate = payType === 'fixed' ? (hourly || monthly / 176) : hourly;
 
         if (payType === 'hourly') {
           overtimePay = hrs.overtime * derivedHourlyRate;
