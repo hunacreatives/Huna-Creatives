@@ -62,6 +62,7 @@ export default function ContractorDetailPage() {
   const [rateForm, setRateForm] = useState({ payment_type: 'fixed', monthly_rate: '', hourly_rate: '', effective_date: new Date().toISOString().slice(0, 10), note: '' });
   const [rateSaving, setRateSaving] = useState(false);
   const [rateError, setRateError] = useState('');
+  const [confirmDeleteRateId, setConfirmDeleteRateId] = useState<string | null>(null);
 
   // Payslip tab state
   const allPeriods = getPeriods();
@@ -151,6 +152,26 @@ export default function ContractorDetailPage() {
 
     setRateSaving(false);
     setShowRateModal(false);
+    await Promise.all([fetch(), fetchRateHistory()]);
+  };
+
+  const deleteRate = async (entryId: string) => {
+    if (!id || !contractor) return;
+    // Deleting the most recent entry → revert hub_users to the one before it
+    const isLatest = rateHistory[0]?.id === entryId;
+    await supabase.from('hub_rate_history').delete().eq('id', entryId);
+    if (isLatest) {
+      const remaining = rateHistory.filter(r => r.id !== entryId);
+      const prev = remaining[0] || null;
+      if (prev) {
+        await supabase.from('hub_users').update({
+          payment_type: prev.payment_type,
+          hourly_rate: prev.hourly_rate,
+          monthly_rate: prev.monthly_rate,
+        }).eq('id', id);
+      }
+    }
+    setConfirmDeleteRateId(null);
     await Promise.all([fetch(), fetchRateHistory()]);
   };
 
@@ -396,17 +417,38 @@ export default function ContractorDetailPage() {
                   <p className="text-xs text-gray-400 font-medium mb-2">Rate History</p>
                   <div className="space-y-1.5">
                     {rateHistory.map((r, i) => (
-                      <div key={r.id} className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${i === 0 ? 'bg-emerald-400' : 'bg-gray-300'}`}></span>
-                          <span className="text-gray-500">{new Date(r.effective_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                          {r.note && <span className="text-gray-400 italic">· {r.note}</span>}
-                        </div>
-                        <span className={`font-medium ${i === 0 ? 'text-emerald-600' : 'text-gray-500'}`}>
-                          {r.payment_type === 'fixed'
-                            ? `₱${(r.monthly_rate || 0).toLocaleString()}/mo`
-                            : `₱${r.hourly_rate}/hr`}
-                        </span>
+                      <div key={r.id}>
+                        {confirmDeleteRateId === r.id ? (
+                          <div className="flex items-center justify-between bg-red-50 border border-red-100 rounded-lg px-2.5 py-2 text-xs">
+                            <span className="text-red-700 font-medium">Delete this entry?{i === 0 ? ' Rate will revert to previous.' : ''}</span>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => deleteRate(r.id)} className="text-red-600 font-semibold hover:underline cursor-pointer">Delete</button>
+                              <button onClick={() => setConfirmDeleteRateId(null)} className="text-gray-500 hover:underline cursor-pointer">Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between text-xs group">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${i === 0 ? 'bg-emerald-400' : 'bg-gray-300'}`}></span>
+                              <span className="text-gray-500">{new Date(r.effective_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              {r.note && <span className="text-gray-400 italic">· {r.note}</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`font-medium ${i === 0 ? 'text-emerald-600' : 'text-gray-500'}`}>
+                                {r.payment_type === 'fixed'
+                                  ? `₱${(r.monthly_rate || 0).toLocaleString()}/mo`
+                                  : `₱${r.hourly_rate}/hr`}
+                              </span>
+                              <button
+                                onClick={() => setConfirmDeleteRateId(r.id)}
+                                className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all cursor-pointer"
+                                title="Delete this rate entry"
+                              >
+                                <i className="ri-delete-bin-line text-xs"></i>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
