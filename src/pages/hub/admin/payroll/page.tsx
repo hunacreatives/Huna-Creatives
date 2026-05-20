@@ -11,6 +11,7 @@ interface Contractor {
   payment_type: 'hourly' | 'fixed';
   hourly_rate: number | null;
   monthly_rate: number | null;
+  start_date: string | null;
 }
 
 interface PayRow {
@@ -87,12 +88,17 @@ export default function AdminPayrollPage() {
   const fetchPayroll = async () => {
     setLoading(true);
 
-    // Get all active contractors with pay info
+    // Get all active contractors with pay info + start_date
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate')
+      .select('id, full_name, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date')
       .eq('status', 'active')
       .in('role', ['contractor', 'admin']);
+
+    // Filter out contractors who hadn't started yet during this period
+    const eligibleContractors = (contractors || []).filter((c: any) =>
+      !c.start_date || c.start_date <= selectedPeriod.end
+    );
 
     // Get hours for this period
     const { data: hoursData } = await supabase
@@ -111,7 +117,7 @@ export default function AdminPayrollPage() {
       hoursMap[h.user_id].days += 1;
     }
 
-    const result: PayRow[] = (contractors || []).map((c: any) => {
+    const result: PayRow[] = eligibleContractors.map((c: any) => {
       const hrs = hoursMap[c.id] || { capped: 0, raw: 0, overtime: 0, days: 0 };
       const payType = c.payment_type || 'hourly';
       let pay = 0;
@@ -153,11 +159,124 @@ export default function AdminPayrollPage() {
   const hourlyCount = rows.filter(r => r.contractor.payment_type === 'hourly').length;
   const fixedCount = rows.filter(r => r.contractor.payment_type === 'fixed').length;
 
+  const downloadPDF = () => {
+    const logoUrl = `${window.location.origin}/images/547b59870e776a20eb28e4f20931787c.png`;
+    const win = window.open('', '_blank', 'width=1000,height=800');
+    if (!win) return;
+
+    const tableRows = rows.map(r => {
+      const c = r.contractor;
+      const isFixed = c.payment_type === 'fixed';
+      const rate = isFixed
+        ? `${fmt(c.monthly_rate || 0, 'PHP')}/mo`
+        : `${fmt(c.hourly_rate || 0, 'PHP')}/hr`;
+      const otCell = r.overtimeHours > 0
+        ? `+${r.overtimeHours}h (${fmt(r.overtimePay, 'PHP')})`
+        : '—';
+      return `
+        <tr>
+          <td>${c.full_name}</td>
+          <td>${c.department || '—'}</td>
+          <td>${isFixed ? 'Fixed' : 'Hourly'}</td>
+          <td>${rate}</td>
+          <td>${r.days}</td>
+          <td>${r.hours.toFixed(2)}h</td>
+          <td>${r.cappedHours.toFixed(2)}h</td>
+          <td>${otCell}</td>
+          <td><strong>${fmt(r.pay, 'PHP')}</strong></td>
+        </tr>`;
+    }).join('');
+
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Payroll — ${selectedPeriod.label}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; background: #fff; padding: 40px; }
+    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #FF6B35; padding-bottom: 20px; margin-bottom: 28px; }
+    .header img { height: 48px; object-fit: contain; }
+    .header-right { text-align: right; }
+    .header-right h1 { font-size: 22px; font-weight: 700; color: #111827; }
+    .header-right p { font-size: 13px; color: #6b7280; margin-top: 4px; }
+    .summary { display: flex; gap: 24px; margin-bottom: 24px; }
+    .summary-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 18px; }
+    .summary-item .label { font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; }
+    .summary-item .value { font-size: 18px; font-weight: 700; color: #111827; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #111827; color: #fff; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
+    tr:nth-child(even) td { background: #fafafa; }
+    tfoot td { background: #f3f4f6 !important; font-weight: 700; border-top: 2px solid #e5e7eb; }
+    .accent { color: #FF6B35; }
+    .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="${logoUrl}" alt="Huna Creatives" onerror="this.style.display='none'" />
+    <div class="header-right">
+      <h1>Payroll Report</h1>
+      <p>Period: <strong>${selectedPeriod.label}</strong></p>
+      <p>Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+    </div>
+  </div>
+  <div class="summary">
+    <div class="summary-item">
+      <div class="label">Total Payroll</div>
+      <div class="value accent">${fmt(totalPay, 'PHP')}</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">Total Hours</div>
+      <div class="value">${totalHours.toFixed(1)}h</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">Contractors</div>
+      <div class="value">${rows.length}</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">Hourly / Fixed</div>
+      <div class="value">${hourlyCount} / ${fixedCount}</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Contractor</th>
+        <th>Department</th>
+        <th>Type</th>
+        <th>Rate</th>
+        <th>Days</th>
+        <th>Raw Hours</th>
+        <th>Billed Hours</th>
+        <th>Overtime</th>
+        <th>Pay</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="6">Total</td>
+        <td>${totalHours.toFixed(2)}h</td>
+        <td></td>
+        <td>${fmt(totalPay, 'PHP')}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div class="footer">Huna Creatives · Payroll · ${selectedPeriod.label}</div>
+  <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };<\/script>
+</body>
+</html>`);
+    win.document.close();
+  };
+
   return (
     <AdminLayout title="Payroll">
       <div className="max-w-5xl mx-auto space-y-5">
 
-        {/* Period selector */}
+        {/* Period selector + Download PDF */}
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs text-gray-500 font-medium">Period:</span>
           {periods.map((p) => (
@@ -173,6 +292,16 @@ export default function AdminPayrollPage() {
               {p.label}
             </button>
           ))}
+          <div className="ml-auto">
+            <button
+              onClick={downloadPDF}
+              disabled={loading || rows.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#FF6B35] text-white hover:bg-orange-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <i className="ri-file-pdf-line text-sm"></i>
+              Download PDF
+            </button>
+          </div>
         </div>
 
         {/* KPI cards */}
