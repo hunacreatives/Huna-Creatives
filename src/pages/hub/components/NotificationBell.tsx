@@ -122,24 +122,46 @@ export default function NotificationBell() {
         });
       }
 
-      // Payroll submitted for approval
-      const { data: payrolls } = await supabase
-        .from('hub_payroll_runs')
-        .select('id, period_label, updated_at')
-        .gte('updated_at', since)
-        .eq('status', 'reviewed')
-        .order('updated_at', { ascending: false })
+      // Fund transfer batches pending owner approval
+      const { data: batches } = await supabase
+        .from('hub_payroll_batches')
+        .select('id, period_label, total_amount, created_at')
+        .gte('created_at', since)
+        .eq('status', 'pending_owner')
+        .order('created_at', { ascending: false })
         .limit(3);
 
-      for (const p of payrolls || []) {
+      for (const b of batches || []) {
         items.push({
-          id: `payroll-${p.id}`,
-          icon: 'ri-money-dollar-circle-line',
+          id: `batch-${b.id}`,
+          icon: 'ri-send-plane-line',
           iconBg: 'bg-emerald-50',
           iconColor: 'text-emerald-500',
-          title: 'Payroll ready for approval',
-          body: `Period: ${p.period_label}`,
-          time: new Date(p.updated_at),
+          title: 'Fund transfer awaiting your approval',
+          body: `${b.period_label} · ₱${Number(b.total_amount).toLocaleString()}`,
+          time: new Date(b.created_at),
+        });
+      }
+
+      // Payslips submitted by contractors (pending HR approval)
+      const { data: submitted } = await supabase
+        .from('hub_payouts')
+        .select('id, cutoff_start, submitted_at, hub_users(full_name)')
+        .gte('submitted_at', since)
+        .eq('status', 'submitted')
+        .order('submitted_at', { ascending: false })
+        .limit(5);
+
+      for (const p of submitted || []) {
+        const name = (p as any).hub_users?.full_name?.split(' ')[0] ?? 'Someone';
+        items.push({
+          id: `submitted-${p.id}`,
+          icon: 'ri-file-text-line',
+          iconBg: 'bg-amber-50',
+          iconColor: 'text-amber-500',
+          title: `${name} submitted their payslip`,
+          body: `Period starting ${new Date(p.cutoff_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          time: new Date(p.submitted_at),
         });
       }
 
@@ -170,26 +192,23 @@ export default function NotificationBell() {
       // Payout status updates
       const { data: payouts } = await supabase
         .from('hub_payouts')
-        .select('id, status, cutoff_start, updated_at')
+        .select('id, status, cutoff_start, approved_at, paid_at')
         .eq('contractor_id', hubUser.id)
-        .gte('updated_at', since)
-        .in('status', ['approved', 'paid', 'reviewed'])
-        .order('updated_at', { ascending: false })
+        .gte('approved_at', since)
+        .in('status', ['hr_approved', 'paid'])
+        .order('approved_at', { ascending: false })
         .limit(5);
 
       for (const p of payouts || []) {
-        const statusLabel = p.status === 'paid' ? 'Payment sent' : p.status === 'approved' ? 'Payout approved' : 'Payout under review';
-        const icon = p.status === 'paid' ? 'ri-bank-card-line' : 'ri-checkbox-circle-line';
-        const bg = p.status === 'paid' ? 'bg-emerald-50' : 'bg-sky-50';
-        const color = p.status === 'paid' ? 'text-emerald-500' : 'text-sky-500';
+        const isPaid = p.status === 'paid';
         items.push({
           id: `payout-${p.id}`,
-          icon,
-          iconBg: bg,
-          iconColor: color,
-          title: statusLabel,
+          icon: isPaid ? 'ri-bank-card-line' : 'ri-checkbox-circle-line',
+          iconBg: isPaid ? 'bg-emerald-50' : 'bg-sky-50',
+          iconColor: isPaid ? 'text-emerald-500' : 'text-sky-500',
+          title: isPaid ? 'Payment sent' : 'Payslip approved — payment incoming',
           body: `Period starting ${new Date(p.cutoff_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-          time: new Date(p.updated_at),
+          time: new Date(isPaid ? p.paid_at : p.approved_at),
         });
       }
 
@@ -278,10 +297,15 @@ export default function NotificationBell() {
   const handleOpen = () => {
     setOpen(v => !v);
     if (!open) {
-      // Mark as read when opening
       localStorage.setItem(lsKey, new Date().toISOString());
       setUnread(0);
     }
+  };
+
+  const clearAll = () => {
+    setNotifs([]);
+    setUnread(0);
+    localStorage.setItem(lsKey, new Date().toISOString());
   };
 
   if (!hubUser) return null;
@@ -305,7 +329,12 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
             <h3 className="text-sm font-semibold text-[#111827]">Notifications</h3>
             {notifs.length > 0 && (
-              <span className="text-xs text-gray-400">{notifs.length} recent</span>
+              <button
+                onClick={clearAll}
+                className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
+              >
+                Clear all
+              </button>
             )}
           </div>
 
