@@ -349,7 +349,8 @@ export default function ContractorPayoutsPage() {
       advances: 0,
       penalties: 0,
       final_payout: totalPay,
-      status: 'draft',
+      status: 'submitted',
+      submitted_at: new Date().toISOString(),
       locked: false,
     }).select('id, status, final_payout, payment_date').single();
     if (!error && data) setExistingPayout(data);
@@ -535,24 +536,23 @@ export default function ContractorPayoutsPage() {
                 }`}>
                   <i className={`text-lg ${
                     existingPayout.status === 'paid' ? 'ri-checkbox-circle-fill text-emerald-500' :
-                    existingPayout.status === 'approved' ? 'ri-shield-check-fill text-sky-500' :
+                    existingPayout.status === 'hr_approved' ? 'ri-shield-check-fill text-sky-500' :
                     'ri-time-fill text-amber-500'
                   }`}></i>
                   <div className="flex-1">
                     <p className={`text-sm font-semibold ${
                       existingPayout.status === 'paid' ? 'text-emerald-800' :
-                      existingPayout.status === 'approved' ? 'text-sky-800' : 'text-amber-800'
+                      existingPayout.status === 'hr_approved' ? 'text-sky-800' : 'text-amber-800'
                     }`}>
                       {existingPayout.status === 'paid' ? 'Payment sent' :
-                       existingPayout.status === 'approved' ? 'Approved — payment incoming' :
-                       existingPayout.status === 'reviewed' ? 'Under review' :
-                       'Submitted — awaiting approval'}
+                       existingPayout.status === 'hr_approved' ? 'Approved — payment incoming' :
+                       'Submitted — awaiting HR review'}
                     </p>
                     {existingPayout.status === 'paid' && existingPayout.payment_date && (
                       <p className="text-xs text-emerald-600 mt-0.5">Paid on {new Date(existingPayout.payment_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                     )}
-                    {existingPayout.status === 'draft' && (
-                      <p className="text-xs text-amber-600 mt-0.5">We'll process this by the first business day after the period ends.</p>
+                    {existingPayout.status === 'submitted' && (
+                      <p className="text-xs text-amber-600 mt-0.5">HR will review and approve before processing payment.</p>
                     )}
                   </div>
                   <span className="text-sm font-bold text-gray-800">{fmt(existingPayout.final_payout)}</span>

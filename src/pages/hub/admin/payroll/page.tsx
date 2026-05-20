@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Contractor {
   id: string;
@@ -87,10 +88,12 @@ function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null 
 const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function AdminPayrollPage() {
+  const { hubUser } = useAuth();
+  const isOwner = (hubUser as any)?.role === 'owner';
+
   const periods = getPeriods();
   const lastPeriod = periods[periods.length - 1];
 
-  // Derive unique years and months from available periods
   const years = [...new Set(periods.map(p => p.start.slice(0, 4)))];
   const [selectedYear, setSelectedYear] = useState(lastPeriod.start.slice(0, 4));
 
@@ -106,6 +109,11 @@ export default function AdminPayrollPage() {
   const [rows, setRows] = useState<PayRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Payout workflow state
+  const [payoutsMap, setPayoutsMap] = useState<Record<string, any>>({});
+  const [batch, setBatch] = useState<any>(null);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
+
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
     const firstMonth = periods.find(p => p.start.startsWith(year))?.start.slice(0, 7) || '';
@@ -120,8 +128,99 @@ export default function AdminPayrollPage() {
     if (firstPeriod) setSelectedPeriod(firstPeriod);
   };
 
+  const fetchWorkflow = async () => {
+    const [payoutsRes, batchRes] = await Promise.all([
+      supabase
+        .from('hub_payouts')
+        .select('id, contractor_id, status, final_payout, payment_date, batch_id')
+        .eq('cutoff_start', selectedPeriod.start),
+      supabase
+        .from('hub_payroll_batches')
+        .select('*')
+        .eq('period_start', selectedPeriod.start)
+        .maybeSingle(),
+    ]);
+    const map: Record<string, any> = {};
+    for (const p of payoutsRes.data || []) map[p.contractor_id] = p;
+    setPayoutsMap(map);
+    setBatch(batchRes.data ?? null);
+  };
+
+  const approvePayout = async (contractorId: string, computedPay: number) => {
+    setWorkflowLoading(true);
+    const existing = payoutsMap[contractorId];
+    if (existing) {
+      await supabase.from('hub_payouts').update({ status: 'hr_approved', approved_at: new Date().toISOString() }).eq('id', existing.id);
+    } else {
+      await supabase.from('hub_payouts').insert({
+        contractor_id: contractorId,
+        cutoff_start: selectedPeriod.start,
+        cutoff_end: selectedPeriod.end,
+        final_payout: computedPay,
+        status: 'hr_approved',
+        approved_at: new Date().toISOString(),
+      });
+    }
+    await fetchWorkflow();
+    setWorkflowLoading(false);
+  };
+
+  const requestFundTransfer = async () => {
+    setWorkflowLoading(true);
+    const approved = rows.filter(r => {
+      const p = payoutsMap[r.contractor.id];
+      return p?.status === 'hr_approved';
+    });
+    const total = approved.reduce((s, r) => {
+      const p = payoutsMap[r.contractor.id];
+      return s + (p?.final_payout ?? r.pay);
+    }, 0);
+    const { data: newBatch } = await supabase.from('hub_payroll_batches').insert({
+      period_start: selectedPeriod.start,
+      period_end: selectedPeriod.end,
+      period_label: selectedPeriod.label,
+      total_amount: total,
+      contractor_count: approved.length,
+      status: 'pending_owner',
+      requested_by: hubUser?.id,
+    }).select('id').single();
+
+    if (newBatch) {
+      const approvedIds = approved.map(r => payoutsMap[r.contractor.id]?.id).filter(Boolean);
+      await supabase.from('hub_payouts').update({ batch_id: newBatch.id }).in('id', approvedIds);
+    }
+    await fetchWorkflow();
+    setWorkflowLoading(false);
+  };
+
+  const approveBatch = async () => {
+    if (!batch) return;
+    setWorkflowLoading(true);
+    await supabase.from('hub_payroll_batches').update({
+      status: 'owner_approved',
+      approved_by: hubUser?.id,
+      approved_at: new Date().toISOString(),
+    }).eq('id', batch.id);
+    await fetchWorkflow();
+    setWorkflowLoading(false);
+  };
+
+  const markPaid = async (contractorId: string) => {
+    const existing = payoutsMap[contractorId];
+    if (!existing) return;
+    setWorkflowLoading(true);
+    await supabase.from('hub_payouts').update({
+      status: 'paid',
+      payment_date: new Date().toISOString().slice(0, 10),
+      paid_at: new Date().toISOString(),
+    }).eq('id', existing.id);
+    await fetchWorkflow();
+    setWorkflowLoading(false);
+  };
+
   useEffect(() => {
     fetchPayroll();
+    fetchWorkflow();
   }, [selectedPeriod]);
 
   const fetchPayroll = async () => {
@@ -484,7 +583,7 @@ export default function AdminPayrollPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    {['Contractor', 'Type', 'Rate', 'Days Worked', 'Raw Hours', 'Billed Hours', 'Overtime', 'Pay'].map(h => (
+                    {['Contractor', 'Type', 'Rate', 'Days Worked', 'Raw Hours', 'Billed Hours', 'Overtime', 'Pay', 'Status', ''].map(h => (
                       <th key={h} className="text-left text-xs text-gray-400 font-medium px-4 py-3">{h}</th>
                     ))}
                   </tr>
@@ -492,7 +591,7 @@ export default function AdminPayrollPage() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-12 text-gray-400 text-sm">
+                      <td colSpan={10} className="text-center py-12 text-gray-400 text-sm">
                         No contractor data found
                       </td>
                     </tr>
@@ -559,6 +658,50 @@ export default function AdminPayrollPage() {
                             <p className="text-xs text-gray-400 font-normal">No attendance logged</p>
                           )}
                         </td>
+                        {/* Status */}
+                        <td className="px-4 py-3">
+                          {(() => {
+                            const p = payoutsMap[c.id];
+                            if (!p) return <span className="text-xs text-gray-400">Pending</span>;
+                            const cfg = {
+                              submitted:   { label: 'Submitted',  cls: 'bg-amber-100 text-amber-700' },
+                              hr_approved: { label: 'HR Approved', cls: 'bg-sky-100 text-sky-700' },
+                              paid:        { label: 'Paid',        cls: 'bg-emerald-100 text-emerald-700' },
+                            }[p.status as string] || { label: p.status, cls: 'bg-gray-100 text-gray-500' };
+                            return <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${cfg.cls}`}>{cfg.label}</span>;
+                          })()}
+                        </td>
+                        {/* Action */}
+                        <td className="px-4 py-3">
+                          {(() => {
+                            const p = payoutsMap[c.id];
+                            const batchApproved = batch?.status === 'owner_approved';
+                            if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-sm"></i>;
+                            if (batchApproved && p?.status === 'hr_approved') {
+                              return (
+                                <button
+                                  onClick={() => markPaid(c.id)}
+                                  disabled={workflowLoading}
+                                  className="text-xs px-2.5 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap"
+                                >
+                                  Mark Paid
+                                </button>
+                              );
+                            }
+                            if (!p || p.status === 'submitted') {
+                              return (
+                                <button
+                                  onClick={() => approvePayout(c.id, r.pay)}
+                                  disabled={workflowLoading || !!batch}
+                                  className="text-xs px-2.5 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap"
+                                >
+                                  Approve
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </td>
                       </tr>
                     );
                   })}
@@ -570,6 +713,7 @@ export default function AdminPayrollPage() {
                       <td className="px-4 py-3 font-semibold text-gray-800">{totalHours.toFixed(2)}h</td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3 font-bold text-gray-900">{fmt(totalPay, 'PHP')}</td>
+                      <td colSpan={2} className="px-4 py-3"></td>
                     </tr>
                   </tfoot>
                 )}
@@ -577,6 +721,85 @@ export default function AdminPayrollPage() {
             </div>
           </div>
         )}
+
+        {/* Fund Transfer Workflow */}
+        {!loading && (() => {
+          const approvedCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'hr_approved').length;
+          const paidCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'paid').length;
+
+          return (
+            <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#111827]">Fund Transfer</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{selectedPeriod.label}</p>
+                </div>
+                {!batch && approvedCount > 0 && (
+                  <button
+                    onClick={requestFundTransfer}
+                    disabled={workflowLoading}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#FF6B35] text-white text-xs font-medium rounded-lg hover:bg-[#e55a27] cursor-pointer disabled:opacity-40 whitespace-nowrap"
+                  >
+                    <i className="ri-send-plane-line text-sm"></i>
+                    Request Fund Transfer ({approvedCount} contractors)
+                  </button>
+                )}
+              </div>
+
+              {!batch && approvedCount === 0 && (
+                <p className="text-xs text-gray-400">Approve at least one contractor to request a fund transfer.</p>
+              )}
+
+              {batch && (
+                <div className={`rounded-xl p-4 border ${
+                  batch.status === 'owner_approved'
+                    ? 'bg-emerald-50 border-emerald-100'
+                    : 'bg-amber-50 border-amber-100'
+                }`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <i className={`text-2xl ${batch.status === 'owner_approved' ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-time-fill text-amber-500'}`}></i>
+                      <div>
+                        <p className={`text-sm font-semibold ${batch.status === 'owner_approved' ? 'text-emerald-800' : 'text-amber-800'}`}>
+                          {batch.status === 'owner_approved' ? 'Fund transfer approved — mark contractors paid as you send' : 'Awaiting owner approval'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {batch.contractor_count} contractors · {fmt(batch.total_amount, 'PHP')}
+                          {batch.approved_at && ` · Approved ${new Date(batch.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                        </p>
+                      </div>
+                    </div>
+                    {isOwner && batch.status === 'pending_owner' && (
+                      <button
+                        onClick={approveBatch}
+                        disabled={workflowLoading}
+                        className="flex-shrink-0 px-3 py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 cursor-pointer disabled:opacity-40 whitespace-nowrap"
+                      >
+                        Approve & Release
+                      </button>
+                    )}
+                  </div>
+
+                  {batch.status === 'owner_approved' && paidCount < batch.contractor_count && (
+                    <div className="mt-3 pt-3 border-t border-emerald-200">
+                      <p className="text-xs text-emerald-700">
+                        <strong>{paidCount}</strong> of <strong>{batch.contractor_count}</strong> contractors marked paid.
+                        Use the <strong>Mark Paid</strong> button on each row after sending their transfer.
+                      </p>
+                    </div>
+                  )}
+
+                  {paidCount > 0 && paidCount === batch.contractor_count && (
+                    <div className="mt-3 pt-3 border-t border-emerald-200 flex items-center gap-2">
+                      <i className="ri-check-double-line text-emerald-500"></i>
+                      <p className="text-xs text-emerald-700 font-medium">All contractors paid for this period.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </AdminLayout>
   );
