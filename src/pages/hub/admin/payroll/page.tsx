@@ -75,11 +75,41 @@ function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null 
   );
 }
 
+const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
 export default function AdminPayrollPage() {
   const periods = getPeriods();
-  const [selectedPeriod, setSelectedPeriod] = useState(periods[periods.length - 1]);
+  const lastPeriod = periods[periods.length - 1];
+
+  // Derive unique years and months from available periods
+  const years = [...new Set(periods.map(p => p.start.slice(0, 4)))];
+  const [selectedYear, setSelectedYear] = useState(lastPeriod.start.slice(0, 4));
+
+  const monthsInYear = [...new Set(
+    periods.filter(p => p.start.startsWith(selectedYear))
+      .map(p => p.start.slice(0, 7))
+  )];
+  const [selectedMonth, setSelectedMonth] = useState(lastPeriod.start.slice(0, 7));
+
+  const periodsInMonth = periods.filter(p => p.start.startsWith(selectedMonth));
+  const [selectedPeriod, setSelectedPeriod] = useState(lastPeriod);
+
   const [rows, setRows] = useState<PayRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const handleYearChange = (year: string) => {
+    setSelectedYear(year);
+    const firstMonth = periods.find(p => p.start.startsWith(year))?.start.slice(0, 7) || '';
+    setSelectedMonth(firstMonth);
+    const firstPeriod = periods.find(p => p.start.startsWith(firstMonth));
+    if (firstPeriod) setSelectedPeriod(firstPeriod);
+  };
+
+  const handleMonthChange = (month: string) => {
+    setSelectedMonth(month);
+    const firstPeriod = periods.find(p => p.start.startsWith(month));
+    if (firstPeriod) setSelectedPeriod(firstPeriod);
+  };
 
   useEffect(() => {
     fetchPayroll();
@@ -278,20 +308,40 @@ export default function AdminPayrollPage() {
 
         {/* Period selector + Download PDF */}
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs text-gray-500 font-medium">Period:</span>
-          {periods.map((p) => (
-            <button
-              key={p.start}
-              onClick={() => setSelectedPeriod(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                selectedPeriod.start === p.start
-                  ? 'bg-[#111827] text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+          {/* Year */}
+          <select
+            value={selectedYear}
+            onChange={e => handleYearChange(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] cursor-pointer"
+          >
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          {/* Month */}
+          <select
+            value={selectedMonth}
+            onChange={e => handleMonthChange(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] cursor-pointer"
+          >
+            {monthsInYear.map(m => (
+              <option key={m} value={m}>{FULL_MONTHS[parseInt(m.slice(5, 7)) - 1]}</option>
+            ))}
+          </select>
+          {/* Period half */}
+          <div className="flex gap-1.5">
+            {periodsInMonth.map((p) => (
+              <button
+                key={p.start}
+                onClick={() => setSelectedPeriod(p)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap border ${
+                  selectedPeriod.start === p.start
+                    ? 'bg-[#111827] text-white border-[#111827]'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
           <div className="ml-auto">
             <button
               onClick={downloadPDF}

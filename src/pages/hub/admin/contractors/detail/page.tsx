@@ -189,7 +189,7 @@ export default function ContractorDetailPage() {
               )}
               {contractor.hourly_rate && (
                 <span className="text-xs bg-[#FF6B35]/10 text-[#FF6B35] px-2 py-0.5 rounded-full font-medium">
-                  ${contractor.hourly_rate}/hr {contractor.currency}
+                  ₱{contractor.hourly_rate}/hr {contractor.currency}
                 </span>
               )}
               {contractor.payment_method && (
@@ -283,7 +283,7 @@ export default function ContractorDetailPage() {
               <h3 className="text-sm font-semibold text-[#111827]">Pay Info</h3>
               {[
                 { label: 'Payment Type', value: contractor.payment_type ? (contractor.payment_type === 'fixed' ? 'Fixed Monthly' : 'Hourly') : undefined, icon: 'ri-bank-card-line' },
-                { label: 'Rate', value: contractor.payment_type === 'fixed' ? (contractor.monthly_rate ? `₱${contractor.monthly_rate.toLocaleString()}/mo` : undefined) : (contractor.hourly_rate ? `$${contractor.hourly_rate}/hr ${contractor.currency || ''}` : undefined), icon: 'ri-money-dollar-circle-line' },
+                { label: 'Rate', value: contractor.payment_type === 'fixed' ? (contractor.monthly_rate ? `₱${contractor.monthly_rate.toLocaleString()}/mo` : undefined) : (contractor.hourly_rate ? `₱${contractor.hourly_rate}/hr ${contractor.currency || ''}` : undefined), icon: 'ri-money-dollar-circle-line' },
                 { label: 'Bank', value: contractor.bank_name, icon: 'ri-building-line' },
                 { label: 'Account Name', value: contractor.bank_account_name, icon: 'ri-user-line' },
                 { label: 'Account Number', value: contractor.bank_account_number, icon: 'ri-hashtag' },
