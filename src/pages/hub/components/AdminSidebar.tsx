@@ -16,6 +16,7 @@ const navItems = [
   { to: '/hub/admin/announcements', label: 'Announcements', icon: 'ri-megaphone-line' },
   { to: '/hub/admin/clients', label: 'Client Assignments', icon: 'ri-building-2-line' },
   { to: '/hub/admin/assets', label: 'Asset Access', icon: 'ri-key-2-line' },
+  { to: '/hub/admin/credentials', label: 'Credentials Vault', icon: 'ri-lock-2-line' },
   { to: '/hub/admin/auditlog', label: 'Audit Log', icon: 'ri-shield-check-line' },
   { to: '/hub/admin/settings', label: 'Settings', icon: 'ri-settings-3-line' },
 ];

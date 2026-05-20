@@ -9,6 +9,7 @@ const navItems = [
   { divider: true, label: 'Finance & Docs' },
   { to: '/hub/contractor/payouts', label: 'My Payouts', icon: 'ri-money-dollar-circle-line' },
   { to: '/hub/contractor/documents', label: 'Documents', icon: 'ri-file-list-3-line' },
+  { to: '/hub/contractor/credentials', label: 'Credentials', icon: 'ri-lock-2-line' },
   { divider: true, label: 'Resources' },
   { to: '/hub/contractor/sop', label: 'SOP Library', icon: 'ri-book-open-line' },
   { to: '/hub/contractor/announcements', label: 'Announcements', icon: 'ri-megaphone-line' },
