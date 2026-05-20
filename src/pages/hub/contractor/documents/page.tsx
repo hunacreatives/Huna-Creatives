@@ -98,15 +98,22 @@ export default function ContractorDocumentsPage() {
   const submitSign = async () => {
     if (!signModal || !signName.trim()) return;
     setSigning(true);
+    const signedAt = new Date().toISOString();
     await supabase
       .from('hub_sign_assignments')
-      .update({ status: 'signed', signed_name: signName.trim(), signed_at: new Date().toISOString() })
+      .update({ status: 'signed', signed_name: signName.trim(), signed_at: signedAt })
       .eq('id', signModal.id);
+
+    // Send signed copy to contractor's email
+    supabase.functions.invoke('send-signed-contract', {
+      body: { assignment_id: signModal.id },
+    }).catch(() => {}); // fire and forget
+
     setSigning(false);
     setSignModal(null);
     setSignName('');
     fetchAssignments();
-    showToast('Document signed successfully!');
+    showToast('Document signed! A copy has been sent to your email.');
   };
 
   const handleSubmit = async (e: FormEvent) => {
