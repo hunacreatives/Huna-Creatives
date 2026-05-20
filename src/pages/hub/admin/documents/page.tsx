@@ -3,6 +3,7 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubSignDocument, HubSignAssignment, HubUser } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import ContractGeneratorModal from './ContractGeneratorModal';
 
 export default function AdminDocumentsPage() {
   const { hubUser } = useAuth();
@@ -10,6 +11,7 @@ export default function AdminDocumentsPage() {
   const [contractors, setContractors] = useState<HubUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<HubSignDocument | null>(null);
   const [assignments, setAssignments] = useState<HubSignAssignment[]>([]);
   const [toast, setToast] = useState('');
@@ -135,13 +137,22 @@ export default function AdminDocumentsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <p className="text-sm text-gray-500">Send contracts and documents to contractors for signature.</p>
-          <button
-            onClick={() => setShowUpload(true)}
-            className="flex items-center gap-2 bg-[#FF6B35] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#e55a24] transition-colors cursor-pointer"
-          >
-            <i className="ri-upload-2-line"></i>
-            Upload & Send
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowUpload(true)}
+              className="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <i className="ri-upload-2-line"></i>
+              Upload PDF
+            </button>
+            <button
+              onClick={() => setShowGenerator(true)}
+              className="flex items-center gap-2 bg-[#FF6B35] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#e55a24] transition-colors cursor-pointer"
+            >
+              <i className="ri-file-text-line"></i>
+              Generate Contract
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -305,7 +316,9 @@ export default function AdminDocumentsPage() {
             </div>
             <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <a
-                href={selectedDoc.file_url}
+                href={selectedDoc.is_generated && selectedDoc.content
+                  ? URL.createObjectURL(new Blob([selectedDoc.content], { type: 'text/html' }))
+                  : selectedDoc.file_url!}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
@@ -314,8 +327,8 @@ export default function AdminDocumentsPage() {
                   <i className="ri-file-text-line text-[#FF6B35]"></i>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{selectedDoc.file_name}</p>
-                  <p className="text-xs text-gray-400">Click to open</p>
+                  <p className="text-sm font-medium text-gray-800 truncate">{selectedDoc.file_name || selectedDoc.title}</p>
+                  <p className="text-xs text-gray-400">{selectedDoc.is_generated ? 'Generated contract — click to open' : 'Click to open'}</p>
                 </div>
                 <i className="ri-external-link-line text-gray-400"></i>
               </a>
@@ -348,6 +361,13 @@ export default function AdminDocumentsPage() {
             </div>
           </div>
         </div>
+      )}
+      {showGenerator && (
+        <ContractGeneratorModal
+          contractors={contractors}
+          onClose={() => setShowGenerator(false)}
+          onDone={() => { setShowGenerator(false); fetchDocs(); showToast('Contract sent for signature!'); }}
+        />
       )}
     </AdminLayout>
   );

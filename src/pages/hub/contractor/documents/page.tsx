@@ -75,10 +75,19 @@ export default function ContractorDocumentsPage() {
   const fetchAssignments = async () => {
     const { data } = await supabase
       .from('hub_sign_assignments')
-      .select('*, hub_sign_documents(id, title, description, file_url, file_name, created_at)')
+      .select('*, hub_sign_documents(id, title, description, file_url, file_name, content, is_generated, created_at)')
       .eq('contractor_id', hubUser!.id)
       .order('created_at', { ascending: false });
     setAssignments((data as HubSignAssignment[]) ?? []);
+  };
+
+  const openDoc = (doc: any) => {
+    if (doc?.is_generated && doc?.content) {
+      const blob = new Blob([doc.content], { type: 'text/html' });
+      window.open(URL.createObjectURL(blob), '_blank');
+    } else if (doc?.file_url) {
+      window.open(doc.file_url, '_blank');
+    }
   };
 
   const openSignModal = (a: HubSignAssignment) => {
@@ -205,15 +214,13 @@ export default function ContractorDocumentsPage() {
                           <p className="text-xs text-gray-400 mt-1">Signed as "{a.signed_name}" on {new Date(a.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                         )}
                         <div className="flex items-center gap-3 mt-3">
-                          <a
-                            href={doc?.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            onClick={() => openDoc(doc)}
                             className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
                           >
                             <i className="ri-eye-line"></i>
                             View document
-                          </a>
+                          </button>
                           {a.status === 'pending' && (
                             <button
                               onClick={() => openSignModal(a)}
@@ -355,9 +362,9 @@ export default function ContractorDocumentsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{(signModal as any).hub_sign_documents?.title}</p>
                 </div>
-                <a href={(signModal as any).hub_sign_documents?.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#FF6B35] cursor-pointer whitespace-nowrap">
+                <button onClick={() => openDoc((signModal as any).hub_sign_documents)} className="text-xs text-[#FF6B35] cursor-pointer whitespace-nowrap">
                   View <i className="ri-external-link-line"></i>
-                </a>
+                </button>
               </div>
               <p className="text-sm text-gray-600">By typing your full name below, you confirm that you have read and agree to this document.</p>
               <div>

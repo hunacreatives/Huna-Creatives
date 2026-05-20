@@ -169,8 +169,10 @@ export interface HubSignDocument {
   id: string;
   title: string;
   description?: string;
-  file_url: string;
-  file_name: string;
+  file_url?: string;
+  file_name?: string;
+  content?: string;
+  is_generated?: boolean;
   uploaded_by?: string;
   created_at?: string;
   hub_sign_assignments?: HubSignAssignment[];
