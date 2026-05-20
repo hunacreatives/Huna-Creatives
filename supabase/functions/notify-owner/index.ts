@@ -13,17 +13,26 @@ const cors = {
 };
 
 async function sendNotification(batch_id: string) {
+  console.log('sendNotification started for batch:', batch_id);
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
   const { data: batch, error } = await supabase
     .from('hub_payroll_batches')
-    .select('*, hub_users!requested_by(full_name)')
+    .select('*')
     .eq('id', batch_id)
     .single();
 
   if (error || !batch) { console.error('batch not found:', error); return; }
 
-  const requestedBy = (batch as any).hub_users?.full_name ?? 'HR Admin';
+  let requestedBy = 'HR Admin';
+  if (batch.requested_by) {
+    const { data: requester } = await supabase
+      .from('hub_users')
+      .select('full_name')
+      .eq('id', batch.requested_by)
+      .single();
+    if (requester?.full_name) requestedBy = requester.full_name;
+  }
   const total = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(batch.total_amount);
   const approveUrl = 'https://hunacreatives.com/hub/admin/payroll';
 
