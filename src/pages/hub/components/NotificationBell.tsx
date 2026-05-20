@@ -122,6 +122,30 @@ export default function NotificationBell() {
         });
       }
 
+      // Pending credential access requests
+      const { data: credReqs } = await supabase
+        .from('hub_credential_requests')
+        .select('id, created_at, hub_users(full_name), hub_credentials(platform, client_name)')
+        .gte('created_at', since)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      for (const r of credReqs || []) {
+        const name = (r as any).hub_users?.full_name?.split(' ')[0] ?? 'Someone';
+        const platform = (r as any).hub_credentials?.platform ?? 'a credential';
+        const client = (r as any).hub_credentials?.client_name ?? '';
+        items.push({
+          id: `credreq-${r.id}`,
+          icon: 'ri-key-line',
+          iconBg: 'bg-amber-50',
+          iconColor: 'text-amber-500',
+          title: `${name} requested credential access`,
+          body: `${platform}${client ? ` — ${client}` : ''}`,
+          time: new Date(r.created_at),
+        });
+      }
+
       // Fund transfer batches pending owner approval
       const { data: batches } = await supabase
         .from('hub_payroll_batches')
