@@ -173,6 +173,8 @@ export interface HubSignDocument {
   file_name?: string;
   content?: string;
   is_generated?: boolean;
+  amendment_type?: string;
+  rate_snapshot?: number;
   uploaded_by?: string;
   created_at?: string;
   hub_sign_assignments?: HubSignAssignment[];

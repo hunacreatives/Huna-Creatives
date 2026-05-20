@@ -220,6 +220,7 @@ interface ContractFields {
   commissionClient: string;
   commissionPercent: string;
   termDate: string;
+  amendmentType: string;
 }
 
 const BLANK: ContractFields = {
@@ -242,6 +243,7 @@ const BLANK: ContractFields = {
   commissionClient: '',
   commissionPercent: '1',
   termDate: '',
+  amendmentType: 'initial',
 };
 
 export default function ContractGeneratorModal({ contractors, onClose, onDone }: Props) {
@@ -299,6 +301,8 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
         file_name: null,
         content: html,
         is_generated: true,
+        amendment_type: fields.amendmentType,
+        rate_snapshot: fields.monthlyRate ? Number(fields.monthlyRate) : null,
         uploaded_by: hubUser!.id,
       })
       .select('id')
@@ -368,6 +372,34 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
                 <option value="">Select contractor…</option>
                 {contractors.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
               </select>
+            </div>
+
+            {/* Contract type */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Contract Type *</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { key: 'initial',        label: 'Initial Agreement', icon: 'ri-file-text-line' },
+                  { key: 'rate_amendment', label: 'Rate Amendment',    icon: 'ri-money-dollar-circle-line' },
+                  { key: 'scope_change',   label: 'Scope Change',      icon: 'ri-edit-box-line' },
+                  { key: 'renewal',        label: 'Renewal',           icon: 'ri-refresh-line' },
+                  { key: 'other',          label: 'Other Amendment',   icon: 'ri-file-edit-line' },
+                ].map(t => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => set('amendmentType', t.key)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
+                      fields.amendmentType === t.key
+                        ? 'bg-[#FF6B35] border-[#FF6B35] text-white'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <i className={t.icon}></i>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Dates */}

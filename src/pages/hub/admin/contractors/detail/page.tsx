@@ -54,7 +54,8 @@ export default function ContractorDetailPage() {
   const [assets, setAssets] = useState<HubAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEdit, setShowEdit] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'requests' | 'assets' | 'payslip'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'requests' | 'assets' | 'payslip' | 'contracts'>('overview');
+  const [contracts, setContracts] = useState<any[]>([]);
 
   // Rate history
   const [rateHistory, setRateHistory] = useState<any[]>([]);
@@ -180,7 +181,17 @@ export default function ContractorDetailPage() {
 
   useEffect(() => {
     if (activeTab === 'payslip' && id) fetchPayslip();
+    if (activeTab === 'contracts' && id) fetchContracts();
   }, [activeTab, selectedPeriod, id]);
+
+  const fetchContracts = async () => {
+    const { data } = await supabase
+      .from('hub_sign_assignments')
+      .select('*, hub_sign_documents(id, title, description, amendment_type, rate_snapshot, is_generated, content, file_url, created_at)')
+      .eq('contractor_id', id!)
+      .order('created_at', { ascending: false });
+    setContracts(data ?? []);
+  };
 
   const fetchPayslip = async () => {
     setPayslipLoading(true);
@@ -215,6 +226,7 @@ export default function ContractorDetailPage() {
     { key: 'requests', label: 'Requests', icon: 'ri-inbox-line' },
     { key: 'assets', label: 'Assets', icon: 'ri-key-2-line' },
     { key: 'payslip', label: 'Payslip', icon: 'ri-file-text-line' },
+    { key: 'contracts', label: 'Contracts', icon: 'ri-pen-nib-line' },
   ];
 
   if (loading) {
@@ -740,6 +752,84 @@ export default function ContractorDetailPage() {
             </div>
           </div>
         )}
+
+        {activeTab === 'contracts' && (() => {
+          const TYPE_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+            initial:        { label: 'Initial Agreement', color: 'bg-sky-50 text-sky-700',     icon: 'ri-file-text-line' },
+            rate_amendment: { label: 'Rate Amendment',    color: 'bg-emerald-50 text-emerald-700', icon: 'ri-money-dollar-circle-line' },
+            scope_change:   { label: 'Scope Change',      color: 'bg-purple-50 text-purple-700', icon: 'ri-edit-box-line' },
+            renewal:        { label: 'Renewal',           color: 'bg-amber-50 text-amber-700',  icon: 'ri-refresh-line' },
+            other:          { label: 'Amendment',         color: 'bg-gray-100 text-gray-600',   icon: 'ri-file-edit-line' },
+          };
+          return (
+            <div className="space-y-3">
+              {contracts.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-100 py-12 text-center">
+                  <i className="ri-pen-nib-line text-3xl text-gray-200 block mb-2"></i>
+                  <p className="text-gray-400 text-sm">No contracts sent yet.</p>
+                  <p className="text-gray-300 text-xs mt-1">Go to Contracts → Generate Contract to send one.</p>
+                </div>
+              ) : contracts.map((a: any, i: number) => {
+                const doc = a.hub_sign_documents;
+                const type = TYPE_LABELS[doc?.amendment_type] ?? TYPE_LABELS.other;
+                const isSigned = a.status === 'signed';
+                const openDoc = () => {
+                  if (doc?.is_generated && doc?.content) {
+                    const blob = new Blob([doc.content], { type: 'text/html' });
+                    window.open(URL.createObjectURL(blob), '_blank');
+                  } else if (doc?.file_url) {
+                    window.open(doc.file_url, '_blank');
+                  }
+                };
+                return (
+                  <div key={a.id} className="bg-white rounded-xl border border-gray-100 p-5">
+                    <div className="flex items-start gap-4">
+                      {/* Timeline dot */}
+                      <div className="flex flex-col items-center flex-shrink-0 mt-1">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isSigned ? 'bg-emerald-50' : 'bg-gray-100'}`}>
+                          <i className={`${type.icon} text-sm ${isSigned ? 'text-emerald-500' : 'text-gray-400'}`}></i>
+                        </div>
+                        {i < contracts.length - 1 && <div className="w-px flex-1 bg-gray-100 mt-2 min-h-[16px]"></div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${type.color}`}>{type.label}</span>
+                              {doc?.rate_snapshot && (
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                                  ₱{Number(doc.rate_snapshot).toLocaleString()}/mo
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium text-gray-800 mt-1">{doc?.title}</p>
+                            {doc?.description && <p className="text-xs text-gray-400 mt-0.5">{doc.description}</p>}
+                          </div>
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${isSigned ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                            {isSigned ? <><i className="ri-checkbox-circle-line mr-1"></i>Signed</> : <><i className="ri-time-line mr-1"></i>Pending</>}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-xs text-gray-400">
+                            Sent {new Date(doc?.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          {isSigned && a.signed_at && (
+                            <span className="text-xs text-gray-400">
+                              Signed {new Date(a.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} as "{a.signed_name}"
+                            </span>
+                          )}
+                          <button onClick={openDoc} className="text-xs text-[#FF6B35] hover:underline cursor-pointer ml-auto">
+                            View <i className="ri-external-link-line"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {showEdit && contractor && (
