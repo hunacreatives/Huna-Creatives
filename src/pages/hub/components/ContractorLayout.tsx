@@ -22,6 +22,15 @@ export default function ContractorLayout({ children, title, actions }: Props) {
     }
   }, [loading, session]);
 
+  useEffect(() => {
+    if (!loading && hubUser && hubUser.role === 'contractor' && hubUser.onboarding_completed === false) {
+      const path = window.location.pathname;
+      if (path !== '/hub/contractor/onboarding') {
+        navigate('/hub/contractor/onboarding', { replace: true });
+      }
+    }
+  }, [loading, hubUser]);
+
   if (loading || !hubUser) return (
     <div className="flex h-screen items-center justify-center bg-[#FAFAFA]">
       <i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i>

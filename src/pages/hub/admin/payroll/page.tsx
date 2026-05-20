@@ -124,6 +124,9 @@ export default function AdminPayrollPage() {
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
+  // Disputes map: payout_id → dispute
+  const [disputesMap, setDisputesMap] = useState<Record<string, any>>({});
+
   // Row edit overrides (before approval)
   const [editRowId, setEditRowId] = useState<string | null>(null);
   const [editHours, setEditHours] = useState('');
@@ -249,6 +252,21 @@ export default function AdminPayrollPage() {
     for (const p of payoutsRes.data || []) map[p.contractor_id] = p;
     setPayoutsMap(map);
     setBatch(batchRes.data ?? null);
+
+    // Fetch open disputes for this period's payouts
+    const payoutIds = (payoutsRes.data || []).map((p: any) => p.id);
+    if (payoutIds.length > 0) {
+      const { data: disputes } = await supabase
+        .from('hub_payslip_disputes')
+        .select('id, payout_id, reason, status, admin_notes')
+        .in('payout_id', payoutIds)
+        .eq('status', 'open');
+      const dm: Record<string, any> = {};
+      for (const d of disputes || []) dm[d.payout_id] = d;
+      setDisputesMap(dm);
+    } else {
+      setDisputesMap({});
+    }
   };
 
   const approvePayout = async (contractorId: string, computedPay: number) => {
@@ -684,14 +702,43 @@ export default function AdminPayrollPage() {
               </button>
             ))}
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={() => {
+                const headers = ['Contractor', 'Department', 'Type', 'Rate', 'Days', 'Raw Hours', 'Billed Hours', 'Overtime Hours', 'Overtime Pay (PHP)', 'Pay (PHP)'];
+                const csvRows = rows.map(r => {
+                  const c = r.contractor;
+                  const p = payoutsMap[c.id];
+                  const adjs: any[] = p?.adjustments || [];
+                  const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+                  const override = rowOverrides[c.id];
+                  const displayPay = override?.pay !== undefined ? override.pay : r.pay;
+                  const total = displayPay + adjTotal;
+                  const rate = c.payment_type === 'fixed' ? `${c.monthly_rate}/mo` : `${c.hourly_rate}/hr`;
+                  return [c.full_name, c.department || '', c.payment_type, rate, r.days, r.hours.toFixed(2), r.cappedHours.toFixed(2), r.overtimeHours.toFixed(2), r.overtimePay.toFixed(2), total.toFixed(2)];
+                });
+                const csv = [headers, ...csvRows].map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `payroll-${selectedPeriod.label.replace(/[^a-z0-9]/gi, '-')}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              disabled={loading || rows.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <i className="ri-file-excel-line text-sm"></i>
+              CSV
+            </button>
             <button
               onClick={downloadPDF}
               disabled={loading || rows.length === 0}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#FF6B35] text-white hover:bg-orange-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <i className="ri-file-pdf-line text-sm"></i>
-              Download PDF
+              PDF
             </button>
           </div>
         </div>
@@ -873,6 +920,15 @@ export default function AdminPayrollPage() {
                                 {isFixed && r.days === 0 && !r.prorated && (
                                   <p className="text-xs text-gray-400 font-normal">No attendance logged</p>
                                 )}
+                                {(() => {
+                                  const payout = payoutsMap[c.id];
+                                  const dispute = payout ? disputesMap[payout.id] : null;
+                                  return dispute ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-600 font-medium mt-0.5" title={dispute.reason}>
+                                      <i className="ri-flag-fill text-[9px]"></i> Flagged
+                                    </span>
+                                  ) : null;
+                                })()}
                                 {adjs.length > 0 && (
                                   <div className="mt-1 space-y-0.5">
                                     {adjs.map((a, i) => (
@@ -1079,6 +1135,30 @@ export default function AdminPayrollPage() {
               </div>
 
               <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+                {/* Dispute banner */}
+                {(() => {
+                  const payout = payoutsMap[editRowId!];
+                  const dispute = payout ? disputesMap[payout.id] : null;
+                  if (!dispute) return null;
+                  return (
+                    <div className="flex items-start gap-3 p-3 bg-rose-50 border border-rose-100 rounded-xl">
+                      <i className="ri-flag-fill text-rose-500 text-sm mt-0.5 flex-shrink-0"></i>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-rose-700">Flagged by contractor</p>
+                        <p className="text-xs text-rose-600 mt-0.5">{dispute.reason}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          await supabase.from('hub_payslip_disputes').update({ status: 'resolved' }).eq('id', dispute.id);
+                          await fetchWorkflow();
+                        }}
+                        className="text-xs px-2 py-1 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer flex-shrink-0 whitespace-nowrap"
+                      >
+                        Resolve
+                      </button>
+                    </div>
+                  );
+                })()}
                 {/* Hours + Base pay */}
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Base Pay</p>

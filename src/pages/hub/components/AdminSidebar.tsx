@@ -7,6 +7,7 @@ const navItems = [
   { to: '/hub/admin/attendance', label: 'Attendance', icon: 'ri-time-line' },
   { to: '/hub/admin/requests', label: 'Requests', icon: 'ri-inbox-line' },
   { to: '/hub/admin/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
+  { to: '/hub/admin/overtime', label: 'Overtime', icon: 'ri-timer-flash-line' },
   { divider: true, label: 'Finance' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
   { to: '/hub/admin/docrequests', label: 'Doc Requests', icon: 'ri-file-list-3-line' },

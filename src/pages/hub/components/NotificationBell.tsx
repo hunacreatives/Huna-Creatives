@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -36,7 +36,7 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!hubUser) return;
     fetchNotifs();
-  }, [hubUser]);
+  }, [hubUser, fetchNotifs]);
 
   // Close on outside click
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     if (!hubUser) return;
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // last 7 days
     const lastSeen = getLastSeen();
@@ -142,6 +142,50 @@ export default function NotificationBell() {
           iconColor: 'text-amber-500',
           title: `${name} requested credential access`,
           body: `${platform}${client ? ` — ${client}` : ''}`,
+          time: new Date(r.created_at),
+        });
+      }
+
+      // Open payslip disputes
+      const { data: disputes } = await supabase
+        .from('hub_payslip_disputes')
+        .select('id, created_at, reason, hub_users!contractor_id(full_name)')
+        .gte('created_at', since)
+        .eq('status', 'open')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      for (const d of disputes || []) {
+        const name = (d as any).hub_users?.full_name?.split(' ')[0] ?? 'Someone';
+        items.push({
+          id: `dispute-${d.id}`,
+          icon: 'ri-flag-line',
+          iconBg: 'bg-rose-50',
+          iconColor: 'text-rose-500',
+          title: `${name} flagged a payslip`,
+          body: (d.reason as string).slice(0, 80),
+          time: new Date(d.created_at),
+        });
+      }
+
+      // Pending overtime requests
+      const { data: otReqs } = await supabase
+        .from('hub_overtime_requests')
+        .select('id, created_at, date, hours, hub_users!contractor_id(full_name)')
+        .gte('created_at', since)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      for (const r of otReqs || []) {
+        const name = (r as any).hub_users?.full_name?.split(' ')[0] ?? 'Someone';
+        items.push({
+          id: `ot-${r.id}`,
+          icon: 'ri-timer-flash-line',
+          iconBg: 'bg-purple-50',
+          iconColor: 'text-purple-500',
+          title: `${name} requested overtime`,
+          body: `${r.hours}h on ${new Date(r.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
           time: new Date(r.created_at),
         });
       }
@@ -314,6 +358,28 @@ export default function NotificationBell() {
         });
       }
 
+      // OT request decisions
+      const { data: otDecisions } = await supabase
+        .from('hub_overtime_requests')
+        .select('id, status, date, hours, updated_at')
+        .eq('contractor_id', hubUser.id)
+        .gte('updated_at', since)
+        .in('status', ['approved', 'rejected'])
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      for (const r of otDecisions || []) {
+        items.push({
+          id: `otdec-${r.id}`,
+          icon: r.status === 'approved' ? 'ri-timer-flash-line' : 'ri-close-circle-line',
+          iconBg: r.status === 'approved' ? 'bg-emerald-50' : 'bg-rose-50',
+          iconColor: r.status === 'approved' ? 'text-emerald-500' : 'text-rose-500',
+          title: `Overtime request ${r.status}`,
+          body: `${r.hours}h on ${new Date(r.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          time: new Date(r.updated_at),
+        });
+      }
+
       // Comments on announcements you reacted to
       const { data: myReactions } = await supabase
         .from('hub_announcement_reactions')
@@ -350,7 +416,35 @@ export default function NotificationBell() {
     items.sort((a, b) => b.time.getTime() - a.time.getTime());
     setNotifs(items);
     setUnread(items.filter(n => n.time > lastSeen).length);
-  };
+  }, [hubUser]);
+
+  // Realtime subscription — re-fetch on any relevant table change
+  useEffect(() => {
+    if (!hubUser) return;
+
+    const isAdmin = hubUser.role === 'admin' || hubUser.role === 'owner';
+    const adminTables = ['hub_announcement_comments', 'hub_time_off', 'hub_requests', 'hub_credential_requests', 'hub_payroll_batches', 'hub_payouts', 'hub_payslip_disputes', 'hub_overtime_requests'];
+    const contractorTables = ['hub_announcements', 'hub_payouts', 'hub_payroll_batches', 'hub_time_off', 'hub_requests', 'hub_overtime_requests'];
+    const tables = isAdmin ? adminTables : contractorTables;
+
+    // Debounce to avoid flooding on burst inserts
+    let debounce: ReturnType<typeof setTimeout>;
+    const refetch = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => fetchNotifs(), 800);
+    };
+
+    const channel = supabase.channel(`hub-notifs-${hubUser.id}`);
+    for (const table of tables) {
+      channel.on('postgres_changes' as any, { event: '*', schema: 'public', table }, refetch);
+    }
+    channel.subscribe();
+
+    return () => {
+      clearTimeout(debounce);
+      supabase.removeChannel(channel);
+    };
+  }, [hubUser, fetchNotifs]);
 
   const handleOpen = () => {
     setOpen(v => !v);

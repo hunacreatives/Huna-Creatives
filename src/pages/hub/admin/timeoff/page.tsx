@@ -29,7 +29,9 @@ export default function AdminTimeOffPage() {
   const { hubUser } = useAuth();
   const isOwner = hubUser?.role === 'owner';
 
-  const [tab, setTab] = useState<'requests' | 'blackouts'>('requests');
+  const [tab, setTab] = useState<'requests' | 'blackouts' | 'balances'>('requests');
+  const [balances, setBalances] = useState<any[]>([]);
+  const [balancesLoading, setBalancesLoading] = useState(false);
   const [requests, setRequests] = useState<HubTimeOff[]>([]);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
@@ -59,8 +61,48 @@ export default function AdminTimeOffPage() {
     setBlackouts(data ?? []);
   };
 
+  const fetchBalances = async () => {
+    setBalancesLoading(true);
+    const year = new Date().getFullYear();
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+
+    const [usersRes, leavesRes] = await Promise.all([
+      supabase.from('hub_users').select('id, full_name, avatar_url, department, start_date').eq('status', 'active').eq('role', 'contractor'),
+      supabase.from('hub_time_off').select('contractor_id, type, status, start_date, end_date, half_day').gte('start_date', yearStart).lte('start_date', yearEnd).eq('status', 'approved'),
+    ]);
+
+    const PTO_LIMIT = 6;
+    const SICK_LIMIT = 4;
+
+    const leavesByUser: Record<string, any[]> = {};
+    for (const l of leavesRes.data || []) {
+      if (!leavesByUser[l.contractor_id]) leavesByUser[l.contractor_id] = [];
+      leavesByUser[l.contractor_id].push(l);
+    }
+
+    const daysBetween = (a: string, b: string) =>
+      Math.ceil((new Date(b).getTime() - new Date(a).getTime()) / 86400000) + 1;
+
+    const result = (usersRes.data || []).map((u: any) => {
+      const leaves = leavesByUser[u.id] || [];
+      const ptoUsed = leaves.filter(l => l.type === 'pto' || l.type === 'vacation')
+        .reduce((s, l) => s + (l.half_day ? 0.5 : daysBetween(l.start_date, l.end_date)), 0);
+      const sickUsed = leaves.filter(l => l.type === 'sick')
+        .reduce((s, l) => s + (l.half_day ? 0.5 : daysBetween(l.start_date, l.end_date)), 0);
+      const ptoEligible = u.start_date
+        ? new Date() >= new Date(new Date(u.start_date).setMonth(new Date(u.start_date).getMonth() + 6))
+        : false;
+      return { ...u, ptoUsed, sickUsed, ptoLeft: Math.max(0, PTO_LIMIT - ptoUsed), sickLeft: Math.max(0, SICK_LIMIT - sickUsed), ptoEligible };
+    });
+
+    setBalances(result);
+    setBalancesLoading(false);
+  };
+
   useEffect(() => { fetchRequests(); }, [statusFilter]);
   useEffect(() => { fetchBlackouts(); }, []);
+  useEffect(() => { if (tab === 'balances') fetchBalances(); }, [tab]);
 
   const days = (r: HubTimeOff) => r.half_day ? 0.5 : daysBetween(r.start_date, r.end_date);
 
@@ -121,9 +163,9 @@ export default function AdminTimeOffPage() {
     <AdminLayout title="Time Off">
       <div className="space-y-4 max-w-5xl">
 
-        {/* Tab: Requests / Blackouts */}
+        {/* Tab: Requests / Blackouts / Balances */}
         <div className="flex gap-2 border-b border-gray-100 pb-0">
-          {[{ key: 'requests', label: 'Leave Requests' }, { key: 'blackouts', label: 'Blackout Dates' }].map((t) => (
+          {[{ key: 'requests', label: 'Leave Requests' }, { key: 'blackouts', label: 'Blackout Dates' }, { key: 'balances', label: 'Leave Balances' }].map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key as any)}
@@ -295,6 +337,83 @@ export default function AdminTimeOffPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'balances' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400">Leave balances for {new Date().getFullYear()} · approved requests only</p>
+              <button onClick={fetchBalances} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer flex items-center gap-1">
+                <i className="ri-refresh-line text-xs"></i> Refresh
+              </button>
+            </div>
+            {balancesLoading ? (
+              <div className="flex justify-center py-10"><i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i></div>
+            ) : balances.length === 0 ? (
+              <div className="bg-white border border-gray-100 rounded-xl p-10 text-center">
+                <i className="ri-user-line text-3xl text-gray-200 mb-2 block"></i>
+                <p className="text-sm text-gray-400">No active contractors found</p>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      {['Contractor', 'PTO Used', 'PTO Left', 'Sick Used', 'Sick Left', 'PTO Status'].map(h => (
+                        <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {balances.map((b) => (
+                      <tr key={b.id} className="hover:bg-gray-50/50">
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[#FF6B35] text-xs font-bold">{b.full_name?.charAt(0) || '?'}</span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-[#111827]">{b.full_name}</p>
+                              {b.department && <p className="text-xs text-gray-400">{b.department}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${Math.min(100, (b.ptoUsed / 6) * 100)}%` }} />
+                            </div>
+                            <span className="text-xs text-gray-600">{b.ptoUsed}<span className="text-gray-400">/6</span></span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`text-sm font-semibold ${b.ptoLeft === 0 ? 'text-gray-300' : 'text-sky-600'}`}>{b.ptoLeft}d</span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-rose-400 rounded-full" style={{ width: `${Math.min(100, (b.sickUsed / 4) * 100)}%` }} />
+                            </div>
+                            <span className="text-xs text-gray-600">{b.sickUsed}<span className="text-gray-400">/4</span></span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`text-sm font-semibold ${b.sickLeft === 0 ? 'text-gray-300' : 'text-rose-600'}`}>{b.sickLeft}d</span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          {b.ptoEligible ? (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Eligible</span>
+                          ) : (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Not yet</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

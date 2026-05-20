@@ -27,6 +27,7 @@ export interface HubUser {
   bank_account_number?: string;
   bank_account_type?: string;
   notes?: string;
+  onboarding_completed?: boolean;
   created_at?: string;
   updated_at?: string;
 }

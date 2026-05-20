@@ -289,6 +289,10 @@ export default function ContractorPayoutsPage() {
   const [loading, setLoading] = useState(true);
   const [existingPayout, setExistingPayout] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [disputeModal, setDisputeModal] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeSaving, setDisputeSaving] = useState(false);
+  const [existingDispute, setExistingDispute] = useState<any>(null);
 
   useEffect(() => {
     if (hubUser?.id) fetchDays();
@@ -311,8 +315,20 @@ export default function ContractorPayoutsPage() {
         .eq('cutoff_start', selectedPeriod.start)
         .maybeSingle(),
     ]);
+    const payout = payoutRes.data ?? null;
     setDays((daysRes.data as DayRow[]) ?? []);
-    setExistingPayout(payoutRes.data ?? null);
+    setExistingPayout(payout);
+
+    if (payout?.id) {
+      const { data: dispute } = await supabase
+        .from('hub_payslip_disputes')
+        .select('id, reason, status, admin_notes, created_at')
+        .eq('payout_id', payout.id)
+        .maybeSingle();
+      setExistingDispute(dispute ?? null);
+    } else {
+      setExistingDispute(null);
+    }
     setLoading(false);
   };
 
@@ -360,6 +376,20 @@ export default function ContractorPayoutsPage() {
   const fmt = (val: number) => isUSD
     ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
     : fmtPHP(val);
+
+  const submitDispute = async () => {
+    if (!hubUser || !existingPayout || !disputeReason.trim()) return;
+    setDisputeSaving(true);
+    await supabase.from('hub_payslip_disputes').insert({
+      payout_id: existingPayout.id,
+      contractor_id: hubUser.id,
+      reason: disputeReason.trim(),
+    });
+    setDisputeSaving(false);
+    setDisputeModal(false);
+    setDisputeReason('');
+    await fetchDays();
+  };
 
   const handleDownload = () => {
     const html = generatePayslipHTML({
@@ -564,6 +594,34 @@ export default function ContractorPayoutsPage() {
                   <i className="ri-download-2-line"></i>
                   Download Payslip
                 </button>
+
+                {/* Dispute/flag section */}
+                {existingDispute ? (
+                  <div className={`rounded-xl px-4 py-3 border ${
+                    existingDispute.status === 'resolved'
+                      ? 'bg-emerald-50 border-emerald-100'
+                      : 'bg-rose-50 border-rose-100'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <i className={`ri-flag-fill text-sm ${existingDispute.status === 'resolved' ? 'text-emerald-500' : 'text-rose-500'}`}></i>
+                      <p className={`text-xs font-semibold ${existingDispute.status === 'resolved' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {existingDispute.status === 'resolved' ? 'Dispute resolved' : 'Payslip flagged — HR will review'}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-500 ml-5">{existingDispute.reason}</p>
+                    {existingDispute.admin_notes && (
+                      <p className="text-xs text-emerald-700 ml-5 mt-1"><strong>HR: </strong>{existingDispute.admin_notes}</p>
+                    )}
+                  </div>
+                ) : existingPayout && (
+                  <button
+                    onClick={() => { setDisputeReason(''); setDisputeModal(true); }}
+                    className="w-full flex items-center justify-center gap-2 border border-rose-100 text-rose-400 hover:bg-rose-50 font-medium py-2 rounded-xl transition-colors cursor-pointer text-xs"
+                  >
+                    <i className="ri-flag-line"></i>
+                    Flag an Issue with this Payslip
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
@@ -590,6 +648,43 @@ export default function ContractorPayoutsPage() {
           </>
         )}
       </div>
+      {/* Dispute modal */}
+      {disputeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <h2 className="font-semibold text-[#111827]">Flag a Payslip Issue</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{selectedPeriod.label}</p>
+              </div>
+              <button onClick={() => setDisputeModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
+                <i className="ri-close-line text-lg"></i>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-xs text-gray-500">Describe the issue — e.g. wrong hours, incorrect rate, missing overtime.</p>
+              <textarea
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                rows={4}
+                placeholder="e.g. My hours show 20h but I worked 32h this period..."
+                maxLength={500}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setDisputeModal(false)}
+                  className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  Cancel
+                </button>
+                <button onClick={submitDispute} disabled={disputeSaving || !disputeReason.trim()}
+                  className="flex-1 py-2.5 text-sm bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-40 cursor-pointer transition-colors">
+                  {disputeSaving ? 'Submitting...' : 'Submit Flag'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </ContractorLayout>
   );
 }

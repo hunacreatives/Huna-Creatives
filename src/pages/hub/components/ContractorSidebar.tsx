@@ -6,6 +6,7 @@ const navItems = [
   { to: '/hub/contractor/attendance', label: 'My Attendance', icon: 'ri-time-line' },
   { to: '/hub/contractor/requests', label: 'Requests', icon: 'ri-inbox-line' },
   { to: '/hub/contractor/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
+  { to: '/hub/contractor/overtime', label: 'Overtime', icon: 'ri-timer-flash-line' },
   { divider: true, label: 'Finance & Docs' },
   { to: '/hub/contractor/payouts', label: 'My Payouts', icon: 'ri-money-dollar-circle-line' },
   { to: '/hub/contractor/documents', label: 'Documents', icon: 'ri-file-list-3-line' },
