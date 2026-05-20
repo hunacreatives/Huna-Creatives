@@ -199,21 +199,18 @@ export default function AdminPayrollPage() {
     const finalPay = basePay + adjTotal;
     const existing = payoutsMap[contractorId];
 
-    if (existing) {
-      await supabase.from('hub_payouts')
-        .update({ adjustments: finalAdjItems, final_payout: finalPay })
-        .eq('id', existing.id);
-    } else {
-      await supabase.from('hub_payouts').insert({
-        contractor_id: contractorId,
-        cutoff_start: selectedPeriod.start,
-        cutoff_end: selectedPeriod.end,
-        final_payout: finalPay,
-        status: 'pending',
-        locked: false,
-        adjustments: finalAdjItems,
-      });
-    }
+    const { error } = await supabase.from('hub_payouts').upsert({
+      ...(existing ? { id: existing.id } : {}),
+      contractor_id: contractorId,
+      cutoff_start: selectedPeriod.start,
+      cutoff_end: selectedPeriod.end,
+      final_payout: finalPay,
+      status: existing?.status || 'pending',
+      locked: existing?.locked ?? false,
+      adjustments: finalAdjItems,
+    }, { onConflict: 'contractor_id,cutoff_start' });
+
+    if (error) console.error('saveEditRow error:', error);
 
     await fetchWorkflow();
     setEditSaving(false);
