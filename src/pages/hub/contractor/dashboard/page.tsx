@@ -274,6 +274,7 @@ interface SlackTeamRecord {
 export default function ContractorDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const now = useClock();
   const [slackStatus, setSlackStatus] = useState<'on' | 'off' | 'absent' | null>(null);
   const [hoursThisCutoff, setHoursThisCutoff] = useState(0);
   const [estimatedPayout, setEstimatedPayout] = useState(0);
@@ -355,8 +356,12 @@ export default function ContractorDashboard() {
 
   useEffect(() => { fetchData(); }, [user]);
 
-  const hour = today.getHours();
+  const hour = now.getHours();
+  const phTime = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true });
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const isNight = hour >= 20 || hour < 5;
+  const isMorning = hour >= 5 && hour < 12;
+  const isEvening = hour >= 17 && hour < 20;
   const currency = (user as any)?.currency || 'PHP';
   const isUSD = currency === 'USD';
 
@@ -381,12 +386,80 @@ export default function ContractorDashboard() {
 
             {/* Hero greeting */}
             <div className="bg-[#111827] rounded-2xl p-5 text-white relative overflow-hidden">
-              <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, #FF6B35 0%, transparent 60%)' }} />
+              <style>{`
+                @keyframes sun-pulse{0%,100%{box-shadow:0 0 24px 10px rgba(255,185,50,0.35)}50%{box-shadow:0 0 42px 20px rgba(255,185,50,0.6)}}
+                @keyframes eve-pulse{0%,100%{box-shadow:0 0 24px 10px rgba(255,100,30,0.4)}50%{box-shadow:0 0 42px 20px rgba(255,100,30,0.65)}}
+                @keyframes moon-pulse{0%,100%{box-shadow:0 0 18px 7px rgba(180,215,255,0.2)}50%{box-shadow:0 0 32px 14px rgba(180,215,255,0.42)}}
+                @keyframes twinkle-a{0%,100%{opacity:.15}50%{opacity:.9}}
+                @keyframes twinkle-b{0%,100%{opacity:.6}50%{opacity:.1}}
+                @keyframes twinkle-c{0%,100%{opacity:.35}50%{opacity:.85}}
+              `}</style>
+
+              {/* Sky + celestial */}
+              <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+                <div className="absolute inset-0" style={{
+                  background: isNight
+                    ? 'radial-gradient(ellipse at 78% 18%, rgba(25,35,75,0.9) 0%, transparent 65%)'
+                    : isEvening
+                    ? 'radial-gradient(ellipse at 82% 28%, rgba(200,70,20,0.28) 0%, transparent 60%)'
+                    : isMorning
+                    ? 'radial-gradient(ellipse at 85% 20%, rgba(255,165,30,0.22) 0%, transparent 58%)'
+                    : 'radial-gradient(ellipse at 85% 12%, rgba(255,210,50,0.18) 0%, transparent 56%)'
+                }} />
+
+                {isNight ? (
+                  <>
+                    {/* Moon */}
+                    <div style={{
+                      position:'absolute', right:'8%', top:'10%',
+                      width:30, height:30, borderRadius:'50%',
+                      background:'radial-gradient(circle at 38% 38%, #EEF4FF 0%, #C0D4F0 55%, #90B0D8 100%)',
+                      animation:'moon-pulse 4s ease-in-out infinite',
+                      overflow:'hidden'
+                    }}>
+                      <div style={{ position:'absolute', right:-5, top:-5, width:28, height:28, borderRadius:'50%', background:'#111827' }} />
+                    </div>
+                    {/* Stars */}
+                    {([
+                      [11,34,2,'twinkle-a',1.6,0],[18,52,1.5,'twinkle-b',2.3,0.3],[7,68,1,'twinkle-c',1.9,0.6],
+                      [22,43,1.5,'twinkle-a',2.6,0.9],[14,24,1,'twinkle-b',1.3,1.2],[28,60,2,'twinkle-c',2.1,0.4],
+                      [5,48,1,'twinkle-a',1.7,0.8],[20,30,1.5,'twinkle-b',2.4,1.5],[25,72,1,'twinkle-c',1.5,0.2],
+                    ] as [number,number,number,string,number,number][]).map(([t,r,s,anim,dur,delay],i) => (
+                      <div key={i} style={{
+                        position:'absolute', top:`${t}%`, right:`${r}%`,
+                        width:s, height:s, borderRadius:'50%', background:'white',
+                        animation:`${anim} ${dur}s ease-in-out infinite`,
+                        animationDelay:`${delay}s`
+                      }} />
+                    ))}
+                  </>
+                ) : (
+                  /* Sun */
+                  <div style={{
+                    position:'absolute',
+                    right:'7%',
+                    top: isMorning ? '18%' : isEvening ? '30%' : '8%',
+                    width:38, height:38, borderRadius:'50%',
+                    background: isEvening
+                      ? 'radial-gradient(circle, #FFBC70 0%, #FF6B35 55%, #C0392B 100%)'
+                      : isMorning
+                      ? 'radial-gradient(circle, #FFE566 0%, #FFBB30 55%, #FF9500 100%)'
+                      : 'radial-gradient(circle, #FFF176 0%, #FFD740 55%, #FFA000 100%)',
+                    animation: isEvening ? 'eve-pulse 3s ease-in-out infinite' : 'sun-pulse 3s ease-in-out infinite',
+                    transition:'top 2s ease'
+                  }} />
+                )}
+              </div>
+
               <div className="relative">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-white/50 text-xs">
+                    <p className="text-white/50 text-xs flex items-center gap-1.5">
                       {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                      <span className="text-white/30">·</span>
+                      <i className="ri-time-line text-white/40 text-xs"></i>
+                      <span className="font-mono text-white/60">{phTime}</span>
+                      <span className="text-white/30 text-[10px]">PH</span>
                     </p>
                     <h2 className="text-xl font-bold mt-0.5">{greeting}, {user?.full_name?.split(' ')[0]}.</h2>
                   </div>
