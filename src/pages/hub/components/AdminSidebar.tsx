@@ -9,7 +9,6 @@ const navItems = [
   { to: '/hub/admin/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
   { divider: true, label: 'Finance' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
-  { to: '/hub/admin/payouts', label: 'Payouts', icon: 'ri-money-dollar-circle-line' },
   { to: '/hub/admin/docrequests', label: 'Doc Requests', icon: 'ri-file-list-3-line' },
   { divider: true, label: 'Content' },
   { to: '/hub/admin/sop', label: 'SOP Library', icon: 'ri-book-open-line' },
