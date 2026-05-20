@@ -85,7 +85,7 @@ export default function CredentialsVaultPage() {
       supabase.from('hub_credentials').select('*').order('client_name').order('platform'),
       supabase
         .from('hub_credential_requests')
-        .select('*, hub_users(full_name, avatar_url), hub_credentials(platform, client_name)')
+        .select('*, hub_users!contractor_id(full_name, avatar_url), hub_credentials!credential_id(platform, client_name)')
         .order('created_at', { ascending: false }),
     ]);
     const credList = (creds as Credential[]) ?? [];
@@ -367,21 +367,27 @@ export default function CredentialsVaultPage() {
           </div>
         )}
 
-        {/* Access Requests Section */}
-        {requests.length > 0 && (
-          <div id="access-requests" className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100">
-              <i className="ri-key-line text-[#FF6B35]"></i>
-              <h2 className="text-sm font-semibold text-[#111827]">Access Requests</h2>
-              {pendingRequests.length > 0 && (
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                  {pendingRequests.length} pending
-                </span>
-              )}
-            </div>
+        {/* Access Requests Section — always visible */}
+        <div id="access-requests" className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100">
+            <i className="ri-key-line text-[#FF6B35]"></i>
+            <h2 className="text-sm font-semibold text-[#111827]">Access Requests</h2>
+            {pendingRequests.length > 0 && (
+              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                {pendingRequests.length} pending
+              </span>
+            )}
+          </div>
 
+          {loading ? (
+            <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i></div>
+          ) : requests.length === 0 ? (
+            <div className="py-8 text-center">
+              <i className="ri-key-line text-2xl text-gray-200 block mb-2"></i>
+              <p className="text-sm text-gray-400">No access requests yet.</p>
+            </div>
+          ) : (
             <div className="divide-y divide-gray-50">
-              {/* Pending first */}
               {pendingRequests.map((req) => {
                 const user = req.hub_users;
                 const cred = req.hub_credentials;
@@ -419,7 +425,6 @@ export default function CredentialsVaultPage() {
                 );
               })}
 
-              {/* Reviewed requests (muted) */}
               {otherRequests.slice(0, 10).map((req) => {
                 const user = req.hub_users;
                 const cred = req.hub_credentials;
@@ -438,8 +443,8 @@ export default function CredentialsVaultPage() {
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Add / Edit Modal */}

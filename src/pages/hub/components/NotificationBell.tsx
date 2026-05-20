@@ -125,7 +125,7 @@ export default function NotificationBell() {
       // Pending credential access requests
       const { data: credReqs } = await supabase
         .from('hub_credential_requests')
-        .select('id, created_at, hub_users(full_name), hub_credentials(platform, client_name)')
+        .select('id, created_at, hub_users!contractor_id(full_name), hub_credentials!credential_id(platform, client_name)')
         .gte('created_at', since)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })

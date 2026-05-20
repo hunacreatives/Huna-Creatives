@@ -234,7 +234,6 @@ function ClockFace({ tz, flag, label, city, isHome }: { tz: string; flag: string
   const time = now.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
   const date = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric' });
   const [h, ms] = time.split(':');
-  const ampm = ms.slice(-2);
   const minSec = ms.slice(0, 5);
 
   // Work hours indicator (9am–6pm local)
@@ -257,7 +256,7 @@ function ClockFace({ tz, flag, label, city, isHome }: { tz: string; flag: string
       </div>
       <div className="text-right tabular-nums">
         <p className="text-sm font-bold text-gray-800">
-          {h}:{minSec} <span className="text-xs font-normal text-gray-400">{ampm}</span>
+          {h}:{minSec}
         </p>
       </div>
     </div>
