@@ -133,6 +133,7 @@ export default function AdminPayrollPage() {
   const [editAdjLabel, setEditAdjLabel] = useState('');
   const [editAdjAmount, setEditAdjAmount] = useState('');
   const [editAdjType, setEditAdjType] = useState('bonus');
+  const [editAdjSign, setEditAdjSign] = useState<'+' | '-'>('+');
   const [editSaving, setEditSaving] = useState(false);
 
   const ADJ_TYPES = [
@@ -153,16 +154,18 @@ export default function AdminPayrollPage() {
     setEditAdjLabel('');
     setEditAdjAmount('');
     setEditAdjType('bonus');
+    setEditAdjSign('+');
     setEditRowId(r.contractor.id);
   };
 
   const addEditAdjItem = () => {
     const amt = parseFloat(editAdjAmount);
     if (!editAdjLabel.trim() || isNaN(amt)) return;
-    const isDeduction = editAdjType === 'deduction';
-    setEditAdjItems(prev => [...prev, { label: editAdjLabel.trim(), amount: isDeduction ? -Math.abs(amt) : Math.abs(amt), type: editAdjType }]);
+    const signedAmt = editAdjSign === '-' ? -Math.abs(amt) : Math.abs(amt);
+    setEditAdjItems(prev => [...prev, { label: editAdjLabel.trim(), amount: signedAmt, type: editAdjType }]);
     setEditAdjLabel('');
     setEditAdjAmount('');
+    setEditAdjSign('+');
   };
 
   const saveEditRow = async (contractorId: string) => {
@@ -172,10 +175,10 @@ export default function AdminPayrollPage() {
     let finalAdjItems = [...editAdjItems];
     const pendingAmt = parseFloat(editAdjAmount);
     if (editAdjLabel.trim() && !isNaN(pendingAmt)) {
-      const isDeduction = editAdjType === 'deduction';
+      const signedAmt = editAdjSign === '-' ? -Math.abs(pendingAmt) : Math.abs(pendingAmt);
       finalAdjItems = [...finalAdjItems, {
         label: editAdjLabel.trim(),
-        amount: isDeduction ? -Math.abs(pendingAmt) : Math.abs(pendingAmt),
+        amount: signedAmt,
         type: editAdjType,
       }];
     }
@@ -341,6 +344,8 @@ export default function AdminPayrollPage() {
       payment_date: new Date().toISOString().slice(0, 10),
       paid_at: new Date().toISOString(),
     }).eq('id', existing.id);
+    // Fire payslip email (non-blocking — ignore failures)
+    supabase.functions.invoke('send-payslip', { body: { payout_id: existing.id } }).catch(() => {});
     await fetchWorkflow();
     setWorkflowLoading(false);
   };
@@ -1103,13 +1108,29 @@ export default function AdminPayrollPage() {
                   {/* Add line item */}
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
-                      <select value={editAdjType} onChange={e => setEditAdjType(e.target.value)}
+                      <select value={editAdjType} onChange={e => {
+                        setEditAdjType(e.target.value);
+                        setEditAdjSign(e.target.value === 'deduction' ? '-' : '+');
+                      }}
                         className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer">
                         {ADJ_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
-                      <input type="number" placeholder="Amount (₱)" value={editAdjAmount} onChange={e => setEditAdjAmount(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && addEditAdjItem()}
-                        className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditAdjSign(s => s === '+' ? '-' : '+')}
+                          className={`w-9 flex-shrink-0 rounded-lg text-sm font-bold border transition-colors cursor-pointer ${
+                            editAdjSign === '+'
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100'
+                              : 'bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100'
+                          }`}
+                        >
+                          {editAdjSign}
+                        </button>
+                        <input type="number" placeholder="Amount (₱)" value={editAdjAmount} onChange={e => setEditAdjAmount(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && addEditAdjItem()}
+                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <input type="text" placeholder="Description (e.g. May referral — John)" value={editAdjLabel}
