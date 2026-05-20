@@ -133,16 +133,29 @@ export default function AdminDashboardPage() {
         hoursMap[h.user_id].overtime += h.overtime_hours || 0;
       }
 
+      // Fetch live USD/PHP rate for USD contractors
+      let usdRate = 56;
+      try {
+        const fx = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const fxData = await fx.json();
+        if (fxData?.rates?.PHP) usdRate = fxData.rates.PHP;
+      } catch {}
+
       let payroll = 0;
       let hrs = 0;
       for (const c of contractorsResult.data || []) {
         const h = hoursMap[c.id] || { capped: 0, overtime: 0 };
         hrs += h.capped;
+        let pay = 0;
         if (c.payment_type === 'fixed') {
-          payroll += (c.monthly_rate || 0) / 2;
+          const monthly = c.monthly_rate || 0;
+          const otRate = monthly / 176;
+          pay = monthly / 2 + h.overtime * otRate;
         } else {
-          payroll += (h.capped + h.overtime) * (c.hourly_rate || 0);
+          const rate = c.hourly_rate || 0;
+          pay = h.capped * rate + h.overtime * rate;
         }
+        payroll += c.currency === 'USD' ? pay * usdRate : pay;
       }
       setTotalPayroll(payroll);
       setTotalHours(parseFloat(hrs.toFixed(1)));

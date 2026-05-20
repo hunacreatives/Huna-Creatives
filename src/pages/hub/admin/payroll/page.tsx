@@ -30,6 +30,7 @@ interface PayRow {
   overtimePay: number;
   derivedHourlyRate: number;
   pay: number;
+  payOriginalCurrency?: number;
   days: number;
   prorated: boolean;
   proratedNote?: string;
@@ -108,11 +109,53 @@ export default function AdminPayrollPage() {
 
   const [rows, setRows] = useState<PayRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usdRate, setUsdRate] = useState<number>(56); // fallback rate
+
+  useEffect(() => {
+    fetch('https://api.exchangerate-api.com/v4/latest/USD')
+      .then(r => r.json())
+      .then(d => { if (d?.rates?.PHP) setUsdRate(d.rates.PHP); })
+      .catch(() => {}); // silently keep fallback
+  }, []);
 
   // Payout workflow state
   const [payoutsMap, setPayoutsMap] = useState<Record<string, any>>({});
   const [batch, setBatch] = useState<any>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+
+  // Row edit overrides (before approval)
+  const [editRowId, setEditRowId] = useState<string | null>(null);
+  const [editHours, setEditHours] = useState('');
+  const [editPay, setEditPay] = useState('');
+  const [rowOverrides, setRowOverrides] = useState<Record<string, { hours?: number; pay?: number }>>({});
+
+  const openEditRow = (r: PayRow) => {
+    const override = rowOverrides[r.contractor.id];
+    setEditHours(String(override?.hours ?? r.cappedHours));
+    setEditPay(String(override?.pay !== undefined ? override.pay : parseFloat(r.pay.toFixed(2))));
+    setEditRowId(r.contractor.id);
+  };
+
+  const saveEditRow = (contractorId: string) => {
+    const h = parseFloat(editHours);
+    const p = parseFloat(editPay);
+    setRowOverrides(prev => ({
+      ...prev,
+      [contractorId]: {
+        hours: isNaN(h) ? undefined : h,
+        pay: isNaN(p) ? undefined : p,
+      },
+    }));
+    setEditRowId(null);
+  };
+
+  // Adjustments modal state
+  const [adjContractorId, setAdjContractorId] = useState<string | null>(null);
+  const [adjItems, setAdjItems] = useState<{ label: string; amount: number }[]>([]);
+  const [adjLabel, setAdjLabel] = useState('');
+  const [adjAmount, setAdjAmount] = useState('');
+  const [adjSaving, setAdjSaving] = useState(false);
 
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
@@ -132,7 +175,7 @@ export default function AdminPayrollPage() {
     const [payoutsRes, batchRes] = await Promise.all([
       supabase
         .from('hub_payouts')
-        .select('id, contractor_id, status, final_payout, payment_date, batch_id')
+        .select('id, contractor_id, status, final_payout, payment_date, batch_id, adjustments')
         .eq('cutoff_start', selectedPeriod.start),
       supabase
         .from('hub_payroll_batches')
@@ -148,15 +191,16 @@ export default function AdminPayrollPage() {
 
   const approvePayout = async (contractorId: string, computedPay: number) => {
     setWorkflowLoading(true);
+    const finalPay = rowOverrides[contractorId]?.pay ?? computedPay;
     const existing = payoutsMap[contractorId];
     if (existing) {
-      await supabase.from('hub_payouts').update({ status: 'hr_approved', approved_at: new Date().toISOString() }).eq('id', existing.id);
+      await supabase.from('hub_payouts').update({ status: 'hr_approved', approved_at: new Date().toISOString(), final_payout: finalPay }).eq('id', existing.id);
     } else {
       await supabase.from('hub_payouts').insert({
         contractor_id: contractorId,
         cutoff_start: selectedPeriod.start,
         cutoff_end: selectedPeriod.end,
-        final_payout: computedPay,
+        final_payout: finalPay,
         status: 'hr_approved',
         approved_at: new Date().toISOString(),
       });
@@ -205,6 +249,68 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(false);
   };
 
+  const openAdjModal = (contractorId: string) => {
+    const p = payoutsMap[contractorId];
+    setAdjItems(p?.adjustments || []);
+    setAdjLabel('');
+    setAdjAmount('');
+    setAdjContractorId(contractorId);
+  };
+
+  const addAdjItem = () => {
+    const amt = parseFloat(adjAmount);
+    if (!adjLabel.trim() || isNaN(amt)) return;
+    setAdjItems(prev => [...prev, { label: adjLabel.trim(), amount: amt }]);
+    setAdjLabel('');
+    setAdjAmount('');
+  };
+
+  const saveAdjustments = async () => {
+    if (!adjContractorId) return;
+    setAdjSaving(true);
+    const row = rows.find(r => r.contractor.id === adjContractorId);
+    const basePay = row?.pay ?? 0;
+    const adjTotal = adjItems.reduce((s, i) => s + i.amount, 0);
+    const finalPay = basePay + adjTotal;
+    const existing = payoutsMap[adjContractorId];
+    if (existing) {
+      await supabase.from('hub_payouts').update({
+        adjustments: adjItems,
+        final_payout: finalPay,
+      }).eq('id', existing.id);
+    } else {
+      await supabase.from('hub_payouts').insert({
+        contractor_id: adjContractorId,
+        cutoff_start: selectedPeriod.start,
+        cutoff_end: selectedPeriod.end,
+        final_payout: finalPay,
+        status: 'pending',
+        adjustments: adjItems,
+      });
+    }
+    await fetchWorkflow();
+    setAdjSaving(false);
+    setAdjContractorId(null);
+  };
+
+  const cancelPayout = async (contractorId: string) => {
+    const p = payoutsMap[contractorId];
+    if (!p) return;
+    setWorkflowLoading(true);
+    if (p.status === 'paid') {
+      await supabase.from('hub_payouts').update({
+        status: 'hr_approved',
+        payment_date: null,
+        paid_at: null,
+      }).eq('id', p.id);
+    } else {
+      await supabase.from('hub_payouts').delete().eq('id', p.id);
+    }
+    setConfirmCancelId(null);
+    await fetchWorkflow();
+    setWorkflowLoading(false);
+  };
+
   const markPaid = async (contractorId: string) => {
     const existing = payoutsMap[contractorId];
     if (!existing) return;
@@ -221,7 +327,7 @@ export default function AdminPayrollPage() {
   useEffect(() => {
     fetchPayroll();
     fetchWorkflow();
-  }, [selectedPeriod]);
+  }, [selectedPeriod, usdRate]);
 
   const fetchPayroll = async () => {
     setLoading(true);
@@ -354,14 +460,18 @@ export default function AdminPayrollPage() {
         }
       }
 
+      const isUSD = c.currency === 'USD';
+      const payInPHP = isUSD ? pay * usdRate : pay;
+
       return {
         contractor: c as Contractor,
         hours: parseFloat(hrs.raw.toFixed(2)),
         cappedHours: parseFloat(hrs.capped.toFixed(2)),
         overtimeHours: parseFloat(hrs.overtime.toFixed(2)),
-        overtimePay: parseFloat(overtimePay.toFixed(2)),
+        overtimePay: parseFloat((isUSD ? overtimePay * usdRate : overtimePay).toFixed(2)),
         derivedHourlyRate: parseFloat(derivedHourlyRate.toFixed(2)),
-        pay,
+        pay: payInPHP,
+        payOriginalCurrency: isUSD ? parseFloat(pay.toFixed(2)) : undefined,
         days: hrs.days,
         prorated,
         proratedNote,
@@ -563,6 +673,16 @@ export default function AdminPayrollPage() {
           ))}
         </div>
 
+        {/* USD rate indicator — only if any contractor is USD */}
+        {rows.some(r => r.contractor.currency === 'USD') && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-sky-50 border border-sky-100 rounded-lg">
+            <i className="ri-exchange-dollar-line text-sky-500 text-sm flex-shrink-0"></i>
+            <p className="text-xs text-sky-700">
+              Live rate: <strong>1 USD = ₱{usdRate.toFixed(2)}</strong> — USD contractor pay is converted to PHP at this rate.
+            </p>
+          </div>
+        )}
+
         {/* Note */}
         <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-lg">
           <i className="ri-information-line text-amber-500 text-sm flex-shrink-0 mt-0.5"></i>
@@ -598,20 +718,38 @@ export default function AdminPayrollPage() {
                   ) : rows.map((r) => {
                     const c = r.contractor;
                     const isFixed = c.payment_type === 'fixed';
+                    const isUSD = c.currency === 'USD';
                     const rate = isFixed
                       ? `${fmt(c.monthly_rate || 0, 'PHP')}/mo · ${fmt(r.derivedHourlyRate, 'PHP')}/hr OT`
-                      : `${fmt(c.hourly_rate || 0, 'PHP')}/hr`;
+                      : isUSD
+                        ? `$${c.hourly_rate}/hr USD`
+                        : `${fmt(c.hourly_rate || 0, 'PHP')}/hr`;
                     const hoursExceeded = r.hours > r.cappedHours;
+                    const override = rowOverrides[c.id];
+                    const displayPay = override?.pay !== undefined ? override.pay : r.pay;
+                    const displayHours = override?.hours !== undefined ? override.hours : r.cappedHours;
 
                     return (
                       <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
                             <Avatar name={c.full_name} avatar_url={c.avatar_url} />
-                            <div>
-                              <p className="font-medium text-gray-900">{c.full_name}</p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-medium text-gray-900">{c.full_name}</p>
+                                {override && (
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">edited</span>
+                                )}
+                              </div>
                               {c.department && <p className="text-xs text-gray-400">{c.department}</p>}
                             </div>
+                            <button
+                              onClick={() => openEditRow(r)}
+                              title="Edit row"
+                              className="text-gray-300 hover:text-[#FF6B35] cursor-pointer transition-colors flex-shrink-0"
+                            >
+                              <i className="ri-edit-line text-sm"></i>
+                            </button>
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -631,38 +769,92 @@ export default function AdminPayrollPage() {
                             )}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-medium text-gray-800">{r.cappedHours.toFixed(2)}h</td>
+                        <td className="px-4 py-3 font-medium text-gray-800">
+                          {displayHours.toFixed(2)}h
+                          {override?.hours !== undefined && (
+                            <span className="ml-1 text-[10px] text-gray-400 line-through">{r.cappedHours.toFixed(2)}h</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           {r.overtimeHours > 0 ? (
                             <div className="space-y-0.5">
                               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">+{r.overtimeHours}h OT</span>
-                              <p className="text-xs text-purple-500 pl-1">{fmt(r.overtimePay, 'PHP')}</p>
+                              <p className="text-xs text-purple-500 pl-1">
+                                {isUSD
+                                  ? `$${(r.overtimeHours * (c.hourly_rate || 0)).toFixed(2)} → ${fmt(r.overtimePay, 'PHP')}`
+                                  : fmt(r.overtimePay, 'PHP')}
+                              </p>
                             </div>
                           ) : (
                             <span className="text-gray-400">—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 font-semibold text-gray-900">
-                          <div className="flex items-center gap-1.5">
-                            {fmt(r.pay, 'PHP')}
-                            {r.prorated && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-medium whitespace-nowrap" title={r.proratedNote}>
-                                prorated
-                              </span>
-                            )}
-                          </div>
-                          {r.prorated && r.proratedNote && (
-                            <p className="text-[10px] text-sky-500 font-normal mt-0.5">{r.proratedNote}</p>
-                          )}
-                          {isFixed && r.days === 0 && !r.prorated && (
-                            <p className="text-xs text-gray-400 font-normal">No attendance logged</p>
-                          )}
+                          {(() => {
+                            const p = payoutsMap[c.id];
+                            const adjs: { label: string; amount: number }[] = p?.adjustments || [];
+                            const adjTotal = adjs.reduce((s: number, i: { label: string; amount: number }) => s + i.amount, 0);
+                            const total = displayPay + adjTotal;
+                            return (
+                              <>
+                                <div className="flex items-center gap-1.5">
+                                  {adjTotal !== 0 ? (
+                                    <span className="text-gray-900">{fmt(total, 'PHP')}</span>
+                                  ) : (
+                                    <span>
+                                      {fmt(displayPay, 'PHP')}
+                                      {override?.pay !== undefined && (
+                                        <span className="ml-1 text-[10px] text-gray-400 line-through">{fmt(r.pay, 'PHP')}</span>
+                                      )}
+                                    </span>
+                                  )}
+                                  {r.prorated && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-medium whitespace-nowrap" title={r.proratedNote}>
+                                      prorated
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={() => openAdjModal(c.id)}
+                                    title="Add/edit adjustments"
+                                    className="text-gray-300 hover:text-[#FF6B35] cursor-pointer transition-colors"
+                                  >
+                                    <i className="ri-add-circle-line text-sm"></i>
+                                  </button>
+                                </div>
+                                {isUSD && r.payOriginalCurrency !== undefined && (
+                                  <p className="text-[10px] text-sky-500 font-normal mt-0.5">
+                                    ${r.payOriginalCurrency.toFixed(2)} USD × {usdRate.toFixed(2)}
+                                  </p>
+                                )}
+                                {adjTotal !== 0 && (
+                                  <p className="text-[10px] text-gray-400 font-normal mt-0.5">
+                                    Base {fmt(displayPay, 'PHP')} + adj {adjTotal > 0 ? '+' : ''}{fmt(adjTotal, 'PHP')}
+                                  </p>
+                                )}
+                                {r.prorated && r.proratedNote && (
+                                  <p className="text-[10px] text-sky-500 font-normal mt-0.5">{r.proratedNote}</p>
+                                )}
+                                {isFixed && r.days === 0 && !r.prorated && (
+                                  <p className="text-xs text-gray-400 font-normal">No attendance logged</p>
+                                )}
+                                {adjs.length > 0 && (
+                                  <div className="mt-1 space-y-0.5">
+                                    {adjs.map((a, i) => (
+                                      <p key={i} className="text-[10px] text-emerald-600 font-normal">
+                                        {a.label}: {a.amount > 0 ? '+' : ''}{fmt(a.amount, 'PHP')}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </td>
                         {/* Status */}
                         <td className="px-4 py-3">
                           {(() => {
                             const p = payoutsMap[c.id];
-                            if (!p) return <span className="text-xs text-gray-400">Pending</span>;
+                            if (!p || p.status === 'pending') return <span className="text-xs text-gray-400">Pending</span>;
                             const cfg = {
                               submitted:   { label: 'Submitted',  cls: 'bg-amber-100 text-amber-700' },
                               hr_approved: { label: 'HR Approved', cls: 'bg-sky-100 text-sky-700' },
@@ -673,34 +865,64 @@ export default function AdminPayrollPage() {
                         </td>
                         {/* Action */}
                         <td className="px-4 py-3">
-                          {(() => {
-                            const p = payoutsMap[c.id];
-                            const batchApproved = batch?.status === 'owner_approved';
-                            if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-sm"></i>;
-                            if (batchApproved && p?.status === 'hr_approved') {
-                              return (
+                          {confirmCancelId === c.id ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs text-gray-500 whitespace-nowrap">Undo?</span>
+                              <button
+                                onClick={() => cancelPayout(c.id)}
+                                disabled={workflowLoading}
+                                className="text-xs px-2 py-1 bg-rose-500 text-white rounded-lg hover:bg-rose-600 cursor-pointer disabled:opacity-40"
+                              >
+                                Yes
+                              </button>
+                              <button
+                                onClick={() => setConfirmCancelId(null)}
+                                className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 cursor-pointer"
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              {(() => {
+                                const p = payoutsMap[c.id];
+                                const batchApproved = batch?.status === 'owner_approved';
+                                if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-sm"></i>;
+                                if (batchApproved && p?.status === 'hr_approved') {
+                                  return (
+                                    <button
+                                      onClick={() => markPaid(c.id)}
+                                      disabled={workflowLoading}
+                                      className="text-xs px-2.5 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap"
+                                    >
+                                      Mark Paid
+                                    </button>
+                                  );
+                                }
+                                if (!p || p.status === 'pending' || p.status === 'submitted') {
+                                  return (
+                                    <button
+                                      onClick={() => approvePayout(c.id, r.pay)}
+                                      disabled={workflowLoading || !!batch}
+                                      className="text-xs px-2.5 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap"
+                                    >
+                                      Approve
+                                    </button>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              {payoutsMap[c.id] && payoutsMap[c.id].status !== 'pending' && (
                                 <button
-                                  onClick={() => markPaid(c.id)}
-                                  disabled={workflowLoading}
-                                  className="text-xs px-2.5 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap"
+                                  onClick={() => setConfirmCancelId(c.id)}
+                                  title="Undo / revert status"
+                                  className="text-gray-300 hover:text-rose-400 cursor-pointer transition-colors p-0.5"
                                 >
-                                  Mark Paid
+                                  <i className="ri-arrow-go-back-line text-sm"></i>
                                 </button>
-                              );
-                            }
-                            if (!p || p.status === 'submitted') {
-                              return (
-                                <button
-                                  onClick={() => approvePayout(c.id, r.pay)}
-                                  disabled={workflowLoading || !!batch}
-                                  className="text-xs px-2.5 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap"
-                                >
-                                  Approve
-                                </button>
-                              );
-                            }
-                            return null;
-                          })()}
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -801,6 +1023,145 @@ export default function AdminPayrollPage() {
           );
         })()}
       </div>
+      {/* Edit Row Modal */}
+      {editRowId && (() => {
+        const editRow = rows.find(r => r.contractor.id === editRowId);
+        if (!editRow) return null;
+        const c = editRow.contractor;
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditRowId(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-[#111827]">Edit Payroll Row</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{c.full_name} · {selectedPeriod.label}</p>
+              </div>
+              <div className="px-5 py-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Billed Hours</label>
+                  <input
+                    type="number"
+                    value={editHours}
+                    onChange={e => setEditHours(e.target.value)}
+                    step="0.5"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Computed from Slack: {editRow.cappedHours.toFixed(2)}h</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Final Pay (₱)</label>
+                  <input
+                    type="number"
+                    value={editPay}
+                    onChange={e => setEditPay(e.target.value)}
+                    step="0.01"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Computed: {fmt(editRow.pay, 'PHP')}</p>
+                </div>
+                <p className="text-[10px] text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  Edits are local until you click Approve — they won't save unless you approve this row.
+                </p>
+              </div>
+              <div className="px-5 pb-4 flex justify-between gap-2">
+                <button
+                  onClick={() => { setRowOverrides(prev => { const n = { ...prev }; delete n[editRowId!]; return n; }); setEditRowId(null); }}
+                  className="px-3 py-2 text-xs text-rose-400 hover:text-rose-600 cursor-pointer"
+                >
+                  Reset to computed
+                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditRowId(null)} className="px-4 py-2 text-xs text-gray-500 hover:text-gray-700 cursor-pointer">Cancel</button>
+                  <button
+                    onClick={() => saveEditRow(editRowId!)}
+                    className="px-4 py-2 bg-[#FF6B35] text-white text-xs font-medium rounded-lg hover:bg-[#e55a27] cursor-pointer"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Adjustments Modal */}
+      {adjContractorId && (() => {
+        const adjRow = rows.find(r => r.contractor.id === adjContractorId);
+        const adjTotal = adjItems.reduce((s, i) => s + i.amount, 0);
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAdjContractorId(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-[#111827]">Adjustments</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{adjRow?.contractor.full_name} · {selectedPeriod.label}</p>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                {adjItems.length > 0 && (
+                  <div className="space-y-1.5">
+                    {adjItems.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                        <span className="text-xs text-gray-700 flex-1">{item.label}</span>
+                        <span className={`text-xs font-medium ${item.amount >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          {item.amount > 0 ? '+' : ''}{fmt(item.amount, 'PHP')}
+                        </span>
+                        <button
+                          onClick={() => setAdjItems(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-gray-300 hover:text-rose-400 cursor-pointer"
+                        >
+                          <i className="ri-delete-bin-line text-sm"></i>
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-3 pt-1 border-t border-gray-100">
+                      <span className="text-xs font-medium text-gray-500">Base pay</span>
+                      <span className="text-xs text-gray-600">{fmt(adjRow?.pay ?? 0, 'PHP')}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3">
+                      <span className="text-xs font-semibold text-[#111827]">Total</span>
+                      <span className="text-sm font-bold text-[#111827]">{fmt((adjRow?.pay ?? 0) + adjTotal, 'PHP')}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Label (e.g. Referral bonus)"
+                    value={adjLabel}
+                    onChange={e => setAdjLabel(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addAdjItem()}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    value={adjAmount}
+                    onChange={e => setAdjAmount(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addAdjItem()}
+                    className="w-28 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  />
+                  <button
+                    onClick={addAdjItem}
+                    className="px-3 py-2 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-700 cursor-pointer whitespace-nowrap"
+                  >
+                    Add
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-400">Use negative amounts for deductions.</p>
+              </div>
+              <div className="px-5 pb-4 flex justify-end gap-2">
+                <button onClick={() => setAdjContractorId(null)} className="px-4 py-2 text-xs text-gray-500 hover:text-gray-700 cursor-pointer">Cancel</button>
+                <button
+                  onClick={saveAdjustments}
+                  disabled={adjSaving}
+                  className="px-4 py-2 bg-[#FF6B35] text-white text-xs font-medium rounded-lg hover:bg-[#e55a27] cursor-pointer disabled:opacity-40"
+                >
+                  {adjSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </AdminLayout>
   );
 }
