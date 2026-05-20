@@ -21,6 +21,7 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
     department: contractor.department || '',
     role: contractor.role || 'contractor',
     start_date: contractor.start_date || '',
+    birthday: (contractor as any).birthday || '',
     status: contractor.status,
     payment_type: (contractor as any).payment_type || 'hourly',
     hourly_rate: contractor.hourly_rate?.toString() || '',
@@ -75,6 +76,7 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
               { label: 'Relationship', key: 'emergency_contact_relationship', colSpan: '2' },
               { label: 'Emergency Contact Number', key: 'emergency_contact_phone', colSpan: '2' },
               { label: 'Start Date', key: 'start_date', type: 'date' },
+              { label: 'Birthday', key: 'birthday', type: 'date' },
             ].map((f) => (
               <div key={f.key} className={`space-y-1 ${f.colSpan === '2' ? 'col-span-2' : ''}`}>
                 <label className="text-xs font-medium text-gray-700">{f.label}</label>
