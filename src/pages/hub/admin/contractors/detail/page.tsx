@@ -397,6 +397,7 @@ export default function ContractorDetailPage() {
               {[
                 { label: 'Payment Type', value: contractor.payment_type ? (contractor.payment_type === 'fixed' ? 'Fixed Monthly' : 'Hourly') : undefined, icon: 'ri-bank-card-line' },
                 { label: 'Rate', value: contractor.payment_type === 'fixed' ? (contractor.monthly_rate ? `₱${contractor.monthly_rate.toLocaleString()}/mo` : undefined) : (contractor.hourly_rate ? `₱${contractor.hourly_rate}/hr ${contractor.currency || ''}` : undefined), icon: 'ri-money-dollar-circle-line' },
+                { label: 'OT Rate', value: contractor.payment_type === 'fixed' && contractor.hourly_rate ? `₱${contractor.hourly_rate}/hr` : undefined, icon: 'ri-time-line' },
                 { label: 'Bank', value: contractor.bank_name, icon: 'ri-building-line' },
                 { label: 'Account Name', value: contractor.bank_account_name, icon: 'ri-user-line' },
                 { label: 'Account Number', value: contractor.bank_account_number, icon: 'ri-hashtag' },
@@ -545,7 +546,7 @@ export default function ContractorDetailPage() {
           const totalHoursBillable = payslipDays.reduce((s, d) => s + d.hours_capped, 0);
           const totalOvertime = payslipDays.reduce((s, d) => s + (d.overtime_hours || 0), 0);
           const basePay = paymentType === 'fixed' ? monthlyRate / 2 : totalHoursBillable * hourlyRate;
-          const otRate = paymentType === 'fixed' ? monthlyRate / 176 : hourlyRate;
+          const otRate = paymentType === 'fixed' ? (hourlyRate || monthlyRate / 176) : hourlyRate;
           const overtimePay = totalOvertime * otRate;
           const totalPay = basePay + overtimePay;
 
@@ -791,14 +792,20 @@ export default function ContractorDetailPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">Hourly Rate (₱) <span className="text-gray-400 font-normal">optional</span></label>
+                  <label className="text-xs font-medium text-gray-700">
+                    {rateForm.monthly_rate ? 'OT Rate (₱/hr)' : 'Hourly Rate (₱/hr)'}
+                    <span className="text-gray-400 font-normal"> optional</span>
+                  </label>
                   <input
                     type="number"
                     value={rateForm.hourly_rate}
                     onChange={e => setRateForm(f => ({ ...f, hourly_rate: e.target.value }))}
-                    placeholder="e.g. 200"
+                    placeholder={rateForm.monthly_rate ? 'e.g. 166' : 'e.g. 200'}
                     className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
                   />
+                  {rateForm.monthly_rate && (
+                    <p className="text-[10px] text-gray-400">Used for overtime. Leave blank to auto-derive from monthly ÷ 176.</p>
+                  )}
                 </div>
               </div>
 
