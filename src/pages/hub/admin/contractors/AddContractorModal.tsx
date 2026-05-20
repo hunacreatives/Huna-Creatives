@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TEAM_MEMBERS, TeamMember } from '@/lib/teamData';
+import { supabase } from '@/lib/supabase';
 
 const INVITE_CODE = import.meta.env.VITE_HUB_INVITE_CODE || 'HUNASTAFF';
 
@@ -11,11 +12,15 @@ interface Props {
 export default function AddContractorModal({ onClose }: Props) {
   const [email, setEmail] = useState('');
   const [selected, setSelected] = useState<TeamMember | null>(null);
+  const [role, setRole] = useState<'contractor' | 'admin'>('contractor');
   const [copied, setCopied] = useState(false);
+  const [adminToken, setAdminToken] = useState<string | null>(null);
+  const [generatingToken, setGeneratingToken] = useState(false);
+  const [tokenError, setTokenError] = useState('');
 
   const base = window.location.origin + (import.meta.env.BASE_URL || '/');
 
-  const buildLink = () => {
+  const buildContractorLink = () => {
     const params = new URLSearchParams({ code: INVITE_CODE });
     if (email) params.set('email', email);
     if (selected) {
@@ -28,9 +33,37 @@ export default function AddContractorModal({ onClose }: Props) {
     return `${base}hub/signup?${params.toString()}`;
   };
 
-  const link = buildLink();
+  const buildAdminLink = (token: string) => {
+    const params = new URLSearchParams({ adminToken: token });
+    if (email) params.set('email', email);
+    if (selected) {
+      params.set('name', selected.name);
+      params.set('dept', selected.department);
+      if (selected.avatar) params.set('avatar', selected.avatar);
+    }
+    return `${base}hub/signup?${params.toString()}`;
+  };
+
+  const generateAdminToken = async () => {
+    if (!email) { setTokenError('Enter their email first.'); return; }
+    setTokenError('');
+    setGeneratingToken(true);
+    const token = crypto.randomUUID();
+    const { error } = await supabase.from('hub_admin_invites').insert({ email, token, used: false });
+    if (error) {
+      setTokenError('Failed to create invite: ' + error.message);
+    } else {
+      setAdminToken(token);
+    }
+    setGeneratingToken(false);
+  };
+
+  const link = role === 'admin'
+    ? (adminToken ? buildAdminLink(adminToken) : null)
+    : buildContractorLink();
 
   const copyLink = async () => {
+    if (!link) return;
     await navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -43,6 +76,7 @@ export default function AddContractorModal({ onClose }: Props) {
     } else {
       setSelected(m);
       if (m.email) setEmail(m.email);
+      setAdminToken(null); // reset token if person changes
     }
   };
 
@@ -109,44 +143,98 @@ export default function AddContractorModal({ onClose }: Props) {
             </div>
           )}
 
+          {/* Role selector */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-700">Access Role</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: 'contractor', label: 'Contractor', icon: 'ri-user-line', desc: 'Standard team member' },
+                { value: 'admin', label: 'HR / Admin', icon: 'ri-shield-user-line', desc: 'Manage team & payroll' },
+              ].map((r) => (
+                <button
+                  key={r.value}
+                  onClick={() => { setRole(r.value as 'contractor' | 'admin'); setAdminToken(null); setTokenError(''); }}
+                  className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                    role === r.value ? 'border-[#FF6B35] bg-orange-50' : 'border-gray-100 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <i className={`${r.icon} text-base ${role === r.value ? 'text-[#FF6B35]' : 'text-gray-400'}`}></i>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-800">{r.label}</p>
+                    <p className="text-[10px] text-gray-400">{r.desc}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Email */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700">Their Email <span className="text-gray-400 font-normal">(optional — pre-fills on signup)</span></label>
+            <label className="text-xs font-medium text-gray-700">
+              Their Email {role === 'admin' ? <span className="text-red-400">*required</span> : <span className="text-gray-400 font-normal">(optional — pre-fills on signup)</span>}
+            </label>
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setAdminToken(null); setTokenError(''); }}
               placeholder="email@example.com"
               className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
             />
           </div>
 
-          {/* Link */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700">Invite Link</label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 px-3 py-2.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg truncate font-mono">
-                {link}
-              </div>
+          {/* Admin: generate token before showing link */}
+          {role === 'admin' && !adminToken && (
+            <div className="space-y-2">
+              {tokenError && <p className="text-xs text-red-500">{tokenError}</p>}
               <button
-                onClick={copyLink}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer whitespace-nowrap ${
-                  copied ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
-                }`}
+                onClick={generateAdminToken}
+                disabled={generatingToken || !email}
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap"
               >
-                <i className={copied ? 'ri-check-line' : 'ri-file-copy-line'}></i>
-                {copied ? 'Copied!' : 'Copy'}
+                {generatingToken ? <i className="ri-loader-4-line animate-spin text-sm"></i> : <i className="ri-key-2-line text-sm"></i>}
+                {generatingToken ? 'Generating…' : 'Generate Secure Invite Link'}
               </button>
+              <p className="text-[10px] text-gray-400 text-center">Creates a one-time link tied to this email. Single use only.</p>
             </div>
-          </div>
+          )}
+
+          {role === 'admin' && adminToken && (
+            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-2">
+              <i className="ri-checkbox-circle-fill text-emerald-500 flex-shrink-0"></i>
+              <p className="text-xs text-emerald-700 font-medium">Secure invite token generated for <strong>{email}</strong></p>
+            </div>
+          )}
+
+          {/* Link */}
+          {link && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-700">Invite Link</label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 px-3 py-2.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg truncate font-mono">
+                  {link}
+                </div>
+                <button
+                  onClick={copyLink}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer whitespace-nowrap ${
+                    copied ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <i className={copied ? 'ri-check-line' : 'ri-file-copy-line'}></i>
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-1">
             <button onClick={onClose} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer whitespace-nowrap">
               Close
             </button>
-            <button onClick={copyLink} className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] cursor-pointer whitespace-nowrap">
-              {copied ? '✓ Copied' : 'Copy Invite Link'}
-            </button>
+            {link && (
+              <button onClick={copyLink} className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] cursor-pointer whitespace-nowrap">
+                {copied ? '✓ Copied' : 'Copy Invite Link'}
+              </button>
+            )}
           </div>
         </div>
       </div>
