@@ -103,17 +103,14 @@ export default function ContractorDetailPage() {
   const saveRate = async () => {
     if (!id || !contractor) return;
     setRateError('');
-    const monthly = parseFloat(rateForm.monthly_rate);
-    const hourly  = parseFloat(rateForm.hourly_rate);
-    if (rateForm.payment_type === 'fixed' && (!rateForm.monthly_rate || isNaN(monthly))) {
-      setRateError('Enter the new monthly rate.'); return;
-    }
-    if (rateForm.payment_type === 'hourly' && (!rateForm.hourly_rate || isNaN(hourly))) {
-      setRateError('Enter the new hourly rate.'); return;
+    const monthly = rateForm.monthly_rate ? parseFloat(rateForm.monthly_rate) : null;
+    const hourly  = rateForm.hourly_rate  ? parseFloat(rateForm.hourly_rate)  : null;
+    if (!monthly && !hourly) {
+      setRateError('Fill in at least one rate.'); return;
     }
     setRateSaving(true);
 
-    // If no history yet, seed the current rate as the original entry (from start_date or today)
+    // If no history yet, seed the current rates as the original entry
     const { data: existing } = await supabase
       .from('hub_rate_history')
       .select('id')
@@ -132,22 +129,26 @@ export default function ContractorDetailPage() {
       });
     }
 
+    // Determine updated payment_type: if only one field filled, use that; if both, keep existing
+    const newPaymentType = monthly && !hourly ? 'fixed' : !monthly && hourly ? 'hourly' : contractor.payment_type || 'fixed';
+
     const { error } = await supabase.from('hub_rate_history').insert({
       contractor_id: id,
       effective_date: rateForm.effective_date,
-      payment_type: rateForm.payment_type,
-      hourly_rate: rateForm.payment_type === 'hourly' ? hourly : null,
-      monthly_rate: rateForm.payment_type === 'fixed' ? monthly : null,
+      payment_type: newPaymentType,
+      hourly_rate: hourly ?? null,
+      monthly_rate: monthly ?? null,
       currency: contractor.currency || 'PHP',
       note: rateForm.note || null,
     });
 
     if (error) { setRateError(error.message); setRateSaving(false); return; }
 
-    // Update hub_users with new rate
+    // Update hub_users with whichever rates were filled
     await supabase.from('hub_users').update({
-      payment_type: rateForm.payment_type,
-      ...(rateForm.payment_type === 'fixed' ? { monthly_rate: monthly } : { hourly_rate: hourly }),
+      payment_type: newPaymentType,
+      ...(monthly !== null ? { monthly_rate: monthly } : {}),
+      ...(hourly  !== null ? { hourly_rate:  hourly  } : {}),
     }).eq('id', id);
 
     setRateSaving(false);
@@ -761,49 +762,36 @@ export default function ContractorDetailPage() {
               </button>
             </div>
             <div className="p-5 space-y-4">
-              {/* Current rate */}
-              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 rounded-lg">
-                <span className="text-xs text-gray-500">Current rate</span>
-                <span className="text-sm font-semibold text-gray-700">
-                  {contractor.payment_type === 'fixed'
-                    ? `₱${(contractor.monthly_rate || 0).toLocaleString()}/mo`
-                    : `₱${contractor.hourly_rate || 0}/hr`}
-                </span>
+              {/* Current rates */}
+              <div className="grid grid-cols-2 gap-2">
+                {contractor.monthly_rate && (
+                  <div className="px-3 py-2.5 bg-gray-50 rounded-lg">
+                    <p className="text-[10px] text-gray-400">Current monthly</p>
+                    <p className="text-sm font-semibold text-gray-700">₱{contractor.monthly_rate.toLocaleString()}/mo</p>
+                  </div>
+                )}
+                {contractor.hourly_rate && (
+                  <div className="px-3 py-2.5 bg-gray-50 rounded-lg">
+                    <p className="text-[10px] text-gray-400">Current hourly</p>
+                    <p className="text-sm font-semibold text-gray-700">₱{contractor.hourly_rate}/hr</p>
+                  </div>
+                )}
               </div>
 
-              {/* Payment type */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700">Payment Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[{ v: 'fixed', label: 'Fixed Monthly' }, { v: 'hourly', label: 'Hourly' }].map(pt => (
-                    <button
-                      key={pt.v}
-                      onClick={() => setRateForm(f => ({ ...f, payment_type: pt.v }))}
-                      className={`py-2 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
-                        rateForm.payment_type === pt.v
-                          ? 'border-[#FF6B35] bg-orange-50 text-[#FF6B35]'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                      }`}
-                    >{pt.label}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* New rate */}
-              {rateForm.payment_type === 'fixed' ? (
+              {/* New rates — both optional */}
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">New Monthly Rate (₱)</label>
+                  <label className="text-xs font-medium text-gray-700">Monthly Rate (₱) <span className="text-gray-400 font-normal">optional</span></label>
                   <input
                     type="number"
                     value={rateForm.monthly_rate}
                     onChange={e => setRateForm(f => ({ ...f, monthly_rate: e.target.value }))}
-                    placeholder="e.g. 30000"
+                    placeholder="e.g. 35000"
                     className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
                   />
                 </div>
-              ) : (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">New Hourly Rate (₱)</label>
+                  <label className="text-xs font-medium text-gray-700">Hourly Rate (₱) <span className="text-gray-400 font-normal">optional</span></label>
                   <input
                     type="number"
                     value={rateForm.hourly_rate}
@@ -812,7 +800,7 @@ export default function ContractorDetailPage() {
                     className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
                   />
                 </div>
-              )}
+              </div>
 
               {/* Effective date */}
               <div className="space-y-1.5">
