@@ -308,6 +308,7 @@ export default function AdminPayrollPage() {
       approved_by: hubUser?.id,
       approved_at: new Date().toISOString(),
     }).eq('id', batch.id);
+    supabase.functions.invoke('notify-owner', { body: { batch_id: batch.id, type: 'fund_approved' } }).catch(() => {});
     await fetchWorkflow();
     setWorkflowLoading(false);
   };
