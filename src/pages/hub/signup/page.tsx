@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
 const INVITE_CODE = import.meta.env.VITE_HUB_INVITE_CODE || 'HUNASTAFF';
-const ADMIN_INVITE_CODE = import.meta.env.VITE_HUB_ADMIN_INVITE_CODE || 'HUNAADMIN';
 
 export default function HubSignupPage() {
   const navigate = useNavigate();
@@ -16,9 +15,9 @@ export default function HubSignupPage() {
   const prefillAvatar = params.get('avatar') || '';
   const prefillSlack = params.get('slack') || '';
   const code = params.get('code') || '';
+  const adminToken = params.get('adminToken') || '';
 
-  const isValidCode = (c: string) => c === INVITE_CODE || c === ADMIN_INVITE_CODE;
-  const [step, setStep] = useState<'verify' | 'form'>(isValidCode(code) ? 'form' : 'verify');
+  const [step, setStep] = useState<'verify' | 'form'>(code === INVITE_CODE || !!adminToken ? 'form' : 'verify');
   const [inviteCode, setInviteCode] = useState(code);
   const [codeError, setCodeError] = useState('');
 
@@ -36,7 +35,7 @@ export default function HubSignupPage() {
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   const verifyCode = () => {
-    if (isValidCode(inviteCode.trim().toUpperCase())) {
+    if (inviteCode.trim().toUpperCase() === INVITE_CODE) {
       setStep('form');
     } else {
       setCodeError('Invalid invite code. Please check with your admin.');
@@ -58,6 +57,26 @@ export default function HubSignupPage() {
     if (signUpErr) { setError(signUpErr.message); setLoading(false); return; }
 
     if (data.user) {
+      // Validate admin token if present
+      let assignedRole: 'contractor' | 'admin' = 'contractor';
+      if (adminToken) {
+        const { data: invite } = await supabase
+          .from('hub_admin_invites')
+          .select('id, email, used')
+          .eq('token', adminToken)
+          .maybeSingle();
+
+        if (!invite || invite.used || invite.email.toLowerCase() !== form.email.toLowerCase()) {
+          setError('This admin invite link is invalid, already used, or the email does not match.');
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        assignedRole = 'admin';
+        await supabase.from('hub_admin_invites').update({ used: true }).eq('id', invite.id);
+      }
+
       // Check for pre-seeded rate data
       const { data: pending } = await supabase
         .from('hub_pending_rates')
@@ -65,13 +84,11 @@ export default function HubSignupPage() {
         .eq('email', form.email)
         .maybeSingle();
 
-      const assignedRole = inviteCode.trim().toUpperCase() === ADMIN_INVITE_CODE ? 'admin' : 'contractor';
-
       const { error: insertErr } = await supabase.from('hub_users').insert({
         id: data.user.id,
         email: form.email,
         full_name: form.full_name,
-        role: assignedRole,
+        role: assignedRole as string,
         status: 'active',
         department: prefillDept || null,
         avatar_url: prefillAvatar || null,
