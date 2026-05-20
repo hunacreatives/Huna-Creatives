@@ -16,7 +16,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   const {
     contractorName, effectiveDate, role, primaryClient, responsibilities,
     additionalSupport, hoursPerDay, daysPerWeek, shiftTime, monthlyRate,
-    paymentSchedule, tools, ptaDays, hasCommission, commissionClient,
+    paymentSchedule, tools, ptaDays, sickDays, hasCommission, commissionClient,
     commissionPercent, termDate,
   } = fields;
 
@@ -37,7 +37,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <p>10.6 No commission shall be due on refunded, reversed, disputed, unpaid, or cancelled transactions, or after termination of this Agreement.</p>
   <p>10.7 This commission is a <strong>performance-based incentive</strong> and does not form part of the Contractor's guaranteed compensation.</p>` : '';
 
-  const sectionNum = (n: number) => hasCommission ? n : n >= 10 ? n - 1 : n;
+  const sectionNum = (n: number) => hasCommission ? n : n >= 11 ? n - 1 : n;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -134,20 +134,29 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <p>5.6 Huna Creatives reserves the right to modify, suspend, or withdraw this discretionary benefit at any time.</p>
   <hr class="divider" />
 
-  <div class="section-title">6. Confidentiality</div>
+  <div class="section-title">6. Sick Leave</div>
+  <p>6.1 The Contractor is entitled to <strong>${sickDays} days of paid sick leave per calendar year</strong>, effective upon the start of engagement.</p>
+  <p>6.2 Sick leave is intended for use when the Contractor is genuinely ill or unwell and unable to render services. It is <strong>not interchangeable with PTA</strong> or other leave types.</p>
+  <p>6.3 The Contractor must notify the Client or designated supervisor <strong>as early as possible</strong> on the day of absence, or in advance when foreseeable.</p>
+  <p>6.4 Huna Creatives may request reasonable documentation (e.g., a medical certificate) for sick leave absences exceeding two (2) consecutive days.</p>
+  <p>6.5 Unused sick leave credits do not carry over and automatically expire at the end of each calendar year.</p>
+  <p>6.6 Sick leave taken beyond the allotted days will be treated as unpaid leave or deducted proportionally from the Contractor's monthly service fee.</p>
+  <hr class="divider" />
+
+  <div class="section-title">7. Confidentiality</div>
   <p>The Contractor agrees to maintain strict confidentiality over all proprietary, sensitive, and client-related information obtained during the engagement. No materials, strategies, files, or information may be shared or reused without prior written consent from Huna Creatives.</p>
   <hr class="divider" />
 
-  <div class="section-title">7. Non-Compete &amp; Conflict of Interest</div>
+  <div class="section-title">8. Non-Compete &amp; Conflict of Interest</div>
   <p>The Contractor agrees not to engage in work for <strong>direct competitors of Huna Creatives</strong> or participate in activities that create a conflict of interest during the term of this Agreement, without prior written approval.</p>
   <hr class="divider" />
 
-  <div class="section-title">8. Ownership of Work</div>
-  <p>8.1 All creative output, designs, content, and materials produced during this engagement shall be the <strong>exclusive property of Huna Creatives and/or its clients</strong>.</p>
-  <p>8.2 The Contractor may not use, repurpose, or redistribute such materials without prior written consent from Huna Creatives.</p>
+  <div class="section-title">9. Ownership of Work</div>
+  <p>9.1 All creative output, designs, content, and materials produced during this engagement shall be the <strong>exclusive property of Huna Creatives and/or its clients</strong>.</p>
+  <p>9.2 The Contractor may not use, repurpose, or redistribute such materials without prior written consent from Huna Creatives.</p>
   <hr class="divider" />
 
-  <div class="section-title">9. Communication &amp; Remote Work Expectations</div>
+  <div class="section-title">10. Communication &amp; Remote Work Expectations</div>
   <p>The Contractor shall remain active and responsive during scheduled working hours via Slack, email, or other designated platforms and must promptly notify the Client if unavailable.</p>
 
   ${commissionSection}
@@ -206,6 +215,7 @@ interface ContractFields {
   paymentSchedule: string;
   tools: string[];
   ptaDays: string;
+  sickDays: string;
   hasCommission: boolean;
   commissionClient: string;
   commissionPercent: string;
@@ -227,6 +237,7 @@ const BLANK: ContractFields = {
   paymentSchedule: 'bi-monthly basis, on the 15th and the last working day of each month',
   tools: [...DEFAULT_TOOLS],
   ptaDays: '10',
+  sickDays: '5',
   hasCommission: false,
   commissionClient: '',
   commissionPercent: '1',
@@ -439,7 +450,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
             {/* Schedule */}
             <div>
               <p className="text-xs font-medium text-gray-600 mb-2">Work Schedule</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Hours/day</label>
                   <input type="number" value={fields.hoursPerDay} onChange={e => set('hoursPerDay', e.target.value)} min={1} max={24}
@@ -453,6 +464,11 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">PTA days/year</label>
                   <input type="number" value={fields.ptaDays} onChange={e => set('ptaDays', e.target.value)} min={0}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Sick days/year</label>
+                  <input type="number" value={fields.sickDays} onChange={e => set('sickDays', e.target.value)} min={0}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
               </div>
