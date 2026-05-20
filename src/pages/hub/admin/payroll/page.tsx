@@ -517,7 +517,14 @@ export default function AdminPayrollPage() {
     setLoading(false);
   };
 
-  const totalPay = rows.reduce((s, r) => s + r.pay, 0);
+  const totalPay = rows.reduce((s, r) => {
+    const p = payoutsMap[r.contractor.id];
+    const override = rowOverrides[r.contractor.id];
+    const basePay = override?.pay !== undefined ? override.pay : r.pay;
+    const adjs: any[] = p?.adjustments || [];
+    const adjTotal = adjs.reduce((as: number, a: any) => as + (a.amount || 0), 0);
+    return s + basePay + adjTotal;
+  }, 0);
   const totalHours = rows.reduce((s, r) => s + r.cappedHours, 0);
   const hourlyCount = rows.filter(r => r.contractor.payment_type === 'hourly').length;
   const fixedCount = rows.filter(r => r.contractor.payment_type === 'fixed').length;
