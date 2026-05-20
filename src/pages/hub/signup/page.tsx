@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
 const INVITE_CODE = import.meta.env.VITE_HUB_INVITE_CODE || 'HUNASTAFF';
+const ADMIN_INVITE_CODE = import.meta.env.VITE_HUB_ADMIN_INVITE_CODE || 'HUNAADMIN';
 
 export default function HubSignupPage() {
   const navigate = useNavigate();
@@ -16,7 +17,8 @@ export default function HubSignupPage() {
   const prefillSlack = params.get('slack') || '';
   const code = params.get('code') || '';
 
-  const [step, setStep] = useState<'verify' | 'form'>(code === INVITE_CODE ? 'form' : 'verify');
+  const isValidCode = (c: string) => c === INVITE_CODE || c === ADMIN_INVITE_CODE;
+  const [step, setStep] = useState<'verify' | 'form'>(isValidCode(code) ? 'form' : 'verify');
   const [inviteCode, setInviteCode] = useState(code);
   const [codeError, setCodeError] = useState('');
 
@@ -34,7 +36,7 @@ export default function HubSignupPage() {
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   const verifyCode = () => {
-    if (inviteCode.trim().toUpperCase() === INVITE_CODE) {
+    if (isValidCode(inviteCode.trim().toUpperCase())) {
       setStep('form');
     } else {
       setCodeError('Invalid invite code. Please check with your admin.');
@@ -63,11 +65,13 @@ export default function HubSignupPage() {
         .eq('email', form.email)
         .maybeSingle();
 
+      const assignedRole = inviteCode.trim().toUpperCase() === ADMIN_INVITE_CODE ? 'admin' : 'contractor';
+
       const { error: insertErr } = await supabase.from('hub_users').insert({
         id: data.user.id,
         email: form.email,
         full_name: form.full_name,
-        role: 'contractor',
+        role: assignedRole,
         status: 'active',
         department: prefillDept || null,
         avatar_url: prefillAvatar || null,
