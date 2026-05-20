@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     // Fetch payout + contractor
     const { data: payout } = await supabase
       .from('hub_payouts')
-      .select('*, hub_users(id, full_name, email, payment_type, hourly_rate, monthly_rate, department, currency)')
+      .select('*, hub_users!contractor_id(id, full_name, email, payment_type, hourly_rate, monthly_rate, department, currency)')
       .eq('id', payout_id)
       .single();
 

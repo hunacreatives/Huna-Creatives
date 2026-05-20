@@ -330,6 +330,17 @@ export default function AdminPayrollPage() {
     } else {
       await supabase.from('hub_payouts').delete().eq('id', p.id);
     }
+    // Clean up batch if no more active payouts remain in it
+    if (batch) {
+      const { count } = await supabase
+        .from('hub_payouts')
+        .select('id', { count: 'exact', head: true })
+        .eq('batch_id', batch.id)
+        .neq('id', p.id);
+      if ((count ?? 0) === 0) {
+        await supabase.from('hub_payroll_batches').delete().eq('id', batch.id);
+      }
+    }
     setConfirmCancelId(null);
     await fetchWorkflow();
     setWorkflowLoading(false);
