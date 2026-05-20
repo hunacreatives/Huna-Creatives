@@ -859,7 +859,7 @@ export default function AdminPayrollPage() {
                                 </div>
                                 {isUSD && r.payOriginalCurrency !== undefined && (
                                   <p className="text-[10px] text-sky-500 font-normal mt-0.5">
-                                    ${r.payOriginalCurrency.toFixed(2)} USD × {usdRate.toFixed(2)}
+                                    {r.cappedHours.toFixed(2)}h × ${c.hourly_rate}/hr = ${r.payOriginalCurrency.toFixed(2)} USD × ₱{usdRate.toFixed(2)}
                                   </p>
                                 )}
                                 {adjTotal !== 0 && (
