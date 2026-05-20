@@ -42,8 +42,15 @@ Deno.serve(async (req) => {
       .eq('id', payout.contractor_id)
       .single();
 
-    if (contractorErr || !contractor) return new Response(JSON.stringify({ error: 'contractor not found', detail: contractorErr }), { status: 404, headers: cors });
-    if (!contractor.email) return new Response(JSON.stringify({ error: 'contractor has no email' }), { status: 400, headers: cors });
+    if (contractorErr || !contractor) {
+      console.error('contractor not found:', contractorErr);
+      return new Response(JSON.stringify({ error: 'contractor not found', detail: contractorErr }), { status: 404, headers: cors });
+    }
+    if (!contractor.email) {
+      console.error('contractor has no email:', contractor.id);
+      return new Response(JSON.stringify({ error: 'contractor has no email' }), { status: 400, headers: cors });
+    }
+    console.log('Sending payslip to:', contractor.email, 'payout:', payout_id);
 
     // Fetch daily hours for this period
     const { data: dailyHours } = await supabase
@@ -233,8 +240,12 @@ Deno.serve(async (req) => {
     });
 
     const result = await res.json();
-    if (!res.ok) return new Response(JSON.stringify({ error: result }), { status: 500, headers: cors });
+    if (!res.ok) {
+      console.error('Resend error:', JSON.stringify(result));
+      return new Response(JSON.stringify({ error: result }), { status: 500, headers: cors });
+    }
 
+    console.log('Resend success:', result.id);
     return new Response(JSON.stringify({ ok: true, email_id: result.id }), { headers: cors });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });
