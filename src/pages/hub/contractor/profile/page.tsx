@@ -173,6 +173,7 @@ export default function ContractorProfilePage() {
                 { label: 'Emergency Contact', value: ecDisplay },
                 { label: 'Slack Display Name', value: user.slack_username || '—' },
                 { label: 'Department', value: user.department || '—' },
+                { label: 'Birthday', value: u.birthday ? new Date(u.birthday).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—' },
                 { label: 'Start Date', value: user.start_date ? new Date(user.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—' },
                 { label: 'Rate', value: rateLabel },
                 { label: 'Payment Method', value: user.payment_method || '—' },
