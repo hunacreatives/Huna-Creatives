@@ -167,6 +167,19 @@ export default function AdminPayrollPage() {
 
   const saveEditRow = async (contractorId: string) => {
     setEditSaving(true);
+
+    // Auto-flush any unsaved adj item in the input fields
+    let finalAdjItems = [...editAdjItems];
+    const pendingAmt = parseFloat(editAdjAmount);
+    if (editAdjLabel.trim() && !isNaN(pendingAmt)) {
+      const isDeduction = editAdjType === 'deduction';
+      finalAdjItems = [...finalAdjItems, {
+        label: editAdjLabel.trim(),
+        amount: isDeduction ? -Math.abs(pendingAmt) : Math.abs(pendingAmt),
+        type: editAdjType,
+      }];
+    }
+
     const h = parseFloat(editHours);
     const p = parseFloat(editPay);
     setRowOverrides(prev => ({
@@ -176,24 +189,29 @@ export default function AdminPayrollPage() {
         pay: isNaN(p) ? undefined : p,
       },
     }));
-    // Save adjustments to DB
+
     const row = rows.find(r => r.contractor.id === contractorId);
     const basePay = isNaN(p) ? (row?.pay ?? 0) : p;
-    const adjTotal = editAdjItems.reduce((s, i) => s + i.amount, 0);
+    const adjTotal = finalAdjItems.reduce((s, i) => s + i.amount, 0);
     const finalPay = basePay + adjTotal;
     const existing = payoutsMap[contractorId];
+
     if (existing) {
-      await supabase.from('hub_payouts').update({ adjustments: editAdjItems, final_payout: finalPay }).eq('id', existing.id);
-    } else if (editAdjItems.length > 0) {
+      await supabase.from('hub_payouts')
+        .update({ adjustments: finalAdjItems, final_payout: finalPay })
+        .eq('id', existing.id);
+    } else {
       await supabase.from('hub_payouts').insert({
         contractor_id: contractorId,
         cutoff_start: selectedPeriod.start,
         cutoff_end: selectedPeriod.end,
         final_payout: finalPay,
         status: 'pending',
-        adjustments: editAdjItems,
+        locked: false,
+        adjustments: finalAdjItems,
       });
     }
+
     await fetchWorkflow();
     setEditSaving(false);
     setEditRowId(null);
