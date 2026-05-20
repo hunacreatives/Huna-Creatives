@@ -4,7 +4,7 @@ const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const CHANNEL_ID = 'C0830PCGQK1';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const MAX_HOURS = 24; // hard ceiling per session — reasonable daily max
+const MAX_HOURS_FIXED = 24; // wall-clock cap for on/off punch sessions
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -179,18 +179,18 @@ Deno.serve(async (req) => {
       let effectiveStatus = status;
 
       if (isHourly && threadHours != null) {
-        // Hourly contractor: use hours from thread reply
+        // Hourly contractors self-report hours — no cap, trust their input
         hoursRaw = threadHours;
-        hoursCapped = Math.min(threadHours, MAX_HOURS);
+        hoursCapped = threadHours;
         effectiveStatus = 'off';
       } else if (firstOn && lastOff && lastOff.ts > firstOn.ts) {
-        // Standard on/off punch
+        // Standard on/off punch — cap wall-clock duration
         hoursRaw = (lastOff.ts - firstOn.ts) / 3600;
-        hoursCapped = Math.min(hoursRaw, MAX_HOURS);
+        hoursCapped = Math.min(hoursRaw, MAX_HOURS_FIXED);
       } else if (!isHourly && threadHours != null && firstOn) {
-        // Fixed contractor replied with hours under "on" but didn't type "off"
+        // Fixed contractor thread hours
         hoursRaw = threadHours;
-        hoursCapped = Math.min(threadHours, MAX_HOURS);
+        hoursCapped = Math.min(threadHours, MAX_HOURS_FIXED);
         effectiveStatus = 'off';
       }
 
