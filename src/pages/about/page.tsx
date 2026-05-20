@@ -186,10 +186,10 @@ export default function AboutPage() {
                 src="https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/f4405f8d-bb2d-4158-8112-4d2c495073e8/Screenshot+2025-08-05+at+12.46.35%E2%80%AFPM.png"
                 alt="Huna Creatives Team Photo"
                 className="w-full h-full object-cover object-top"
-                initial={{ filter: 'blur(24px)', scale: 1.06, opacity: 0.7 }}
+                initial={{ filter: 'blur(16px)', scale: 1.04, opacity: 0.8 }}
                 whileInView={{ filter: 'blur(0px)', scale: 1, opacity: 1 }}
-                viewport={{ once: true, margin: '-60px' }}
-                transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+                viewport={{ once: true, amount: 0.1 }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
               />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent" />

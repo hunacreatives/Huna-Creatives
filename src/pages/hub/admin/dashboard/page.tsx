@@ -133,13 +133,8 @@ export default function AdminDashboardPage() {
         hoursMap[h.user_id].overtime += h.overtime_hours || 0;
       }
 
-      // Fetch live USD/PHP rate for USD contractors
-      let usdRate = 56;
-      try {
-        const fx = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-        const fxData = await fx.json();
-        if (fxData?.rates?.PHP) usdRate = fxData.rates.PHP;
-      } catch {}
+      // Use a conservative PayPal-approximate rate for dashboard estimates
+      const usdRate = 56;
 
       let payroll = 0;
       let hrs = 0;

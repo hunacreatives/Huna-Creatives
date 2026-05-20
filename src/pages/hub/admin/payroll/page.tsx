@@ -111,12 +111,7 @@ export default function AdminPayrollPage() {
   const [loading, setLoading] = useState(true);
   const [usdRate, setUsdRate] = useState<number>(56); // fallback rate
 
-  useEffect(() => {
-    fetch('https://api.exchangerate-api.com/v4/latest/USD')
-      .then(r => r.json())
-      .then(d => { if (d?.rates?.PHP) setUsdRate(d.rates.PHP); })
-      .catch(() => {}); // silently keep fallback
-  }, []);
+  // USD rate is entered manually — check PayPal's rate before processing payroll
 
   // Payout workflow state
   const [payoutsMap, setPayoutsMap] = useState<Record<string, any>>({});
@@ -763,13 +758,23 @@ export default function AdminPayrollPage() {
           ))}
         </div>
 
-        {/* USD rate indicator — only if any contractor is USD */}
+        {/* USD rate — manual entry, use PayPal's rate */}
         {rows.some(r => r.contractor.currency === 'USD') && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-sky-50 border border-sky-100 rounded-lg">
+          <div className="flex items-center gap-3 px-3 py-2 bg-sky-50 border border-sky-100 rounded-lg flex-wrap">
             <i className="ri-exchange-dollar-line text-sky-500 text-sm flex-shrink-0"></i>
-            <p className="text-xs text-sky-700">
-              Live rate: <strong>1 USD = ₱{usdRate.toFixed(2)}</strong> — USD contractor pay is converted to PHP at this rate.
-            </p>
+            <p className="text-xs text-sky-700 flex-shrink-0">PayPal rate: <strong>1 USD =</strong></p>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-sky-700 font-bold">₱</span>
+              <input
+                type="number"
+                value={usdRate}
+                onChange={e => setUsdRate(Number(e.target.value))}
+                step="0.01"
+                min="1"
+                className="w-20 text-xs font-bold text-sky-800 bg-white border border-sky-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-300"
+              />
+            </div>
+            <p className="text-xs text-sky-600">— check <strong>paypal.com</strong> before processing. USD pay is converted at this rate.</p>
           </div>
         )}
 
