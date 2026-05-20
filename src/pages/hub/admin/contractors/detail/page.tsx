@@ -56,12 +56,29 @@ export default function ContractorDetailPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'requests' | 'assets' | 'payslip'>('overview');
 
+  // Rate history
+  const [rateHistory, setRateHistory] = useState<any[]>([]);
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [rateForm, setRateForm] = useState({ payment_type: 'fixed', monthly_rate: '', hourly_rate: '', effective_date: new Date().toISOString().slice(0, 10), note: '' });
+  const [rateSaving, setRateSaving] = useState(false);
+  const [rateError, setRateError] = useState('');
+
   // Payslip tab state
   const allPeriods = getPeriods();
   const [selectedPeriod, setSelectedPeriod] = useState(allPeriods[allPeriods.length - 1]);
   const [payslipDays, setPayslipDays] = useState<DayRow[]>([]);
   const [payslipPayout, setPayslipPayout] = useState<any>(null);
   const [payslipLoading, setPayslipLoading] = useState(false);
+
+  const fetchRateHistory = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from('hub_rate_history')
+      .select('id, effective_date, payment_type, hourly_rate, monthly_rate, note, created_at')
+      .eq('contractor_id', id)
+      .order('effective_date', { ascending: false });
+    setRateHistory(data || []);
+  };
 
   const fetch = async () => {
     if (!id) return;
@@ -82,7 +99,62 @@ export default function ContractorDetailPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetch(); }, [id]);
+  const saveRate = async () => {
+    if (!id || !contractor) return;
+    setRateError('');
+    const monthly = parseFloat(rateForm.monthly_rate);
+    const hourly  = parseFloat(rateForm.hourly_rate);
+    if (rateForm.payment_type === 'fixed' && (!rateForm.monthly_rate || isNaN(monthly))) {
+      setRateError('Enter the new monthly rate.'); return;
+    }
+    if (rateForm.payment_type === 'hourly' && (!rateForm.hourly_rate || isNaN(hourly))) {
+      setRateError('Enter the new hourly rate.'); return;
+    }
+    setRateSaving(true);
+
+    // If no history yet, seed the current rate as the original entry (from start_date or today)
+    const { data: existing } = await supabase
+      .from('hub_rate_history')
+      .select('id')
+      .eq('contractor_id', id)
+      .limit(1);
+
+    if (!existing || existing.length === 0) {
+      await supabase.from('hub_rate_history').insert({
+        contractor_id: id,
+        effective_date: contractor.start_date || new Date().toISOString().slice(0, 10),
+        payment_type: contractor.payment_type || 'fixed',
+        hourly_rate: contractor.hourly_rate || null,
+        monthly_rate: contractor.monthly_rate || null,
+        currency: contractor.currency || 'PHP',
+        note: 'Initial rate',
+      });
+    }
+
+    const { error } = await supabase.from('hub_rate_history').insert({
+      contractor_id: id,
+      effective_date: rateForm.effective_date,
+      payment_type: rateForm.payment_type,
+      hourly_rate: rateForm.payment_type === 'hourly' ? hourly : null,
+      monthly_rate: rateForm.payment_type === 'fixed' ? monthly : null,
+      currency: contractor.currency || 'PHP',
+      note: rateForm.note || null,
+    });
+
+    if (error) { setRateError(error.message); setRateSaving(false); return; }
+
+    // Update hub_users with new rate
+    await supabase.from('hub_users').update({
+      payment_type: rateForm.payment_type,
+      ...(rateForm.payment_type === 'fixed' ? { monthly_rate: monthly } : { hourly_rate: hourly }),
+    }).eq('id', id);
+
+    setRateSaving(false);
+    setShowRateModal(false);
+    await Promise.all([fetch(), fetchRateHistory()]);
+  };
+
+  useEffect(() => { fetch(); fetchRateHistory(); }, [id]);
 
   useEffect(() => {
     if (activeTab === 'payslip' && id) fetchPayslip();
@@ -280,7 +352,26 @@ export default function ContractorDetailPage() {
             </div>
 
             <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-[#111827]">Pay Info</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#111827]">Pay Info</h3>
+                <button
+                  onClick={() => {
+                    setRateForm({
+                      payment_type: contractor.payment_type || 'fixed',
+                      monthly_rate: contractor.monthly_rate ? String(contractor.monthly_rate) : '',
+                      hourly_rate: contractor.hourly_rate ? String(contractor.hourly_rate) : '',
+                      effective_date: new Date().toISOString().slice(0, 10),
+                      note: '',
+                    });
+                    setRateError('');
+                    setShowRateModal(true);
+                  }}
+                  className="flex items-center gap-1 text-xs text-[#FF6B35] hover:underline cursor-pointer"
+                >
+                  <i className="ri-arrow-up-circle-line text-sm"></i>
+                  Update Rate
+                </button>
+              </div>
               {[
                 { label: 'Payment Type', value: contractor.payment_type ? (contractor.payment_type === 'fixed' ? 'Fixed Monthly' : 'Hourly') : undefined, icon: 'ri-bank-card-line' },
                 { label: 'Rate', value: contractor.payment_type === 'fixed' ? (contractor.monthly_rate ? `₱${contractor.monthly_rate.toLocaleString()}/mo` : undefined) : (contractor.hourly_rate ? `₱${contractor.hourly_rate}/hr ${contractor.currency || ''}` : undefined), icon: 'ri-money-dollar-circle-line' },
@@ -298,6 +389,29 @@ export default function ContractorDetailPage() {
                   </div>
                 </div>
               ) : null)}
+
+              {/* Rate History */}
+              {rateHistory.length > 0 && (
+                <div className="pt-2 border-t border-gray-50">
+                  <p className="text-xs text-gray-400 font-medium mb-2">Rate History</p>
+                  <div className="space-y-1.5">
+                    {rateHistory.map((r, i) => (
+                      <div key={r.id} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${i === 0 ? 'bg-emerald-400' : 'bg-gray-300'}`}></span>
+                          <span className="text-gray-500">{new Date(r.effective_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          {r.note && <span className="text-gray-400 italic">· {r.note}</span>}
+                        </div>
+                        <span className={`font-medium ${i === 0 ? 'text-emerald-600' : 'text-gray-500'}`}>
+                          {r.payment_type === 'fixed'
+                            ? `₱${(r.monthly_rate || 0).toLocaleString()}/mo`
+                            : `₱${r.hourly_rate}/hr`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {contractor.notes && (
@@ -590,6 +704,115 @@ export default function ContractorDetailPage() {
           onClose={() => setShowEdit(false)}
           onSuccess={() => { setShowEdit(false); fetch(); }}
         />
+      )}
+
+      {showRateModal && contractor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <h2 className="font-semibold text-[#111827] text-sm">Update Rate</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{contractor.full_name}</p>
+              </div>
+              <button onClick={() => setShowRateModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <i className="ri-close-line text-lg"></i>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Current rate */}
+              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 rounded-lg">
+                <span className="text-xs text-gray-500">Current rate</span>
+                <span className="text-sm font-semibold text-gray-700">
+                  {contractor.payment_type === 'fixed'
+                    ? `₱${(contractor.monthly_rate || 0).toLocaleString()}/mo`
+                    : `₱${contractor.hourly_rate || 0}/hr`}
+                </span>
+              </div>
+
+              {/* Payment type */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700">Payment Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[{ v: 'fixed', label: 'Fixed Monthly' }, { v: 'hourly', label: 'Hourly' }].map(pt => (
+                    <button
+                      key={pt.v}
+                      onClick={() => setRateForm(f => ({ ...f, payment_type: pt.v }))}
+                      className={`py-2 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                        rateForm.payment_type === pt.v
+                          ? 'border-[#FF6B35] bg-orange-50 text-[#FF6B35]'
+                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}
+                    >{pt.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* New rate */}
+              {rateForm.payment_type === 'fixed' ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700">New Monthly Rate (₱)</label>
+                  <input
+                    type="number"
+                    value={rateForm.monthly_rate}
+                    onChange={e => setRateForm(f => ({ ...f, monthly_rate: e.target.value }))}
+                    placeholder="e.g. 30000"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-700">New Hourly Rate (₱)</label>
+                  <input
+                    type="number"
+                    value={rateForm.hourly_rate}
+                    onChange={e => setRateForm(f => ({ ...f, hourly_rate: e.target.value }))}
+                    placeholder="e.g. 200"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  />
+                </div>
+              )}
+
+              {/* Effective date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700">Effective Date</label>
+                <input
+                  type="date"
+                  value={rateForm.effective_date}
+                  onChange={e => setRateForm(f => ({ ...f, effective_date: e.target.value }))}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                />
+                <p className="text-[10px] text-gray-400">If this falls mid-period, payroll will be prorated automatically.</p>
+              </div>
+
+              {/* Note */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700">Note <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="text"
+                  value={rateForm.note}
+                  onChange={e => setRateForm(f => ({ ...f, note: e.target.value }))}
+                  placeholder="e.g. Annual raise, promotion"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                />
+              </div>
+
+              {rateError && <p className="text-xs text-red-500">{rateError}</p>}
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setShowRateModal(false)} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  Cancel
+                </button>
+                <button
+                  onClick={saveRate}
+                  disabled={rateSaving}
+                  className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-50 cursor-pointer"
+                >
+                  {rateSaving ? 'Saving…' : 'Save Rate'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </AdminLayout>
   );

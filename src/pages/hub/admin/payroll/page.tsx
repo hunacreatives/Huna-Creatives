@@ -14,6 +14,13 @@ interface Contractor {
   start_date: string | null;
 }
 
+interface RateEntry {
+  effective_date: string;
+  payment_type: string;
+  hourly_rate: number | null;
+  monthly_rate: number | null;
+}
+
 interface PayRow {
   contractor: Contractor;
   hours: number;
@@ -23,6 +30,8 @@ interface PayRow {
   derivedHourlyRate: number;
   pay: number;
   days: number;
+  prorated: boolean;
+  proratedNote?: string;
 }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -118,52 +127,132 @@ export default function AdminPayrollPage() {
   const fetchPayroll = async () => {
     setLoading(true);
 
-    // Get all active contractors with pay info + start_date
-    const { data: contractors } = await supabase
-      .from('hub_users')
-      .select('id, full_name, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date')
-      .eq('status', 'active')
-      .in('role', ['contractor', 'admin']);
+    const [contractorsRes, hoursRes] = await Promise.all([
+      supabase
+        .from('hub_users')
+        .select('id, full_name, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date')
+        .eq('status', 'active')
+        .in('role', ['contractor', 'admin']),
+      supabase
+        .from('hub_daily_hours')
+        .select('user_id, hours_capped, hours_raw, overtime_hours, date')
+        .gte('date', selectedPeriod.start)
+        .lte('date', selectedPeriod.end),
+    ]);
 
-    // Filter out contractors who hadn't started yet during this period
-    const eligibleContractors = (contractors || []).filter((c: any) =>
+    const eligibleContractors = (contractorsRes.data || []).filter((c: any) =>
       !c.start_date || c.start_date <= selectedPeriod.end
     );
 
-    // Get hours for this period
-    const { data: hoursData } = await supabase
-      .from('hub_daily_hours')
-      .select('user_id, hours_capped, hours_raw, overtime_hours, date')
-      .gte('date', selectedPeriod.start)
-      .lte('date', selectedPeriod.end);
-
-    // Aggregate hours per user
+    // Per-user per-date hours map (for hourly proration)
+    const hoursByDate: Record<string, Record<string, number>> = {};
     const hoursMap: Record<string, { capped: number; raw: number; overtime: number; days: number }> = {};
-    for (const h of hoursData || []) {
+    for (const h of hoursRes.data || []) {
       if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, raw: 0, overtime: 0, days: 0 };
       hoursMap[h.user_id].capped += h.hours_capped;
       hoursMap[h.user_id].raw += h.hours_raw;
       hoursMap[h.user_id].overtime += h.overtime_hours || 0;
       hoursMap[h.user_id].days += 1;
+      if (!hoursByDate[h.user_id]) hoursByDate[h.user_id] = {};
+      hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + h.hours_capped;
+    }
+
+    // Fetch all rate history for eligible contractors up to period end
+    const ids = eligibleContractors.map((c: any) => c.id);
+    const { data: rateHistoryAll } = ids.length > 0
+      ? await supabase
+          .from('hub_rate_history')
+          .select('contractor_id, effective_date, payment_type, hourly_rate, monthly_rate')
+          .in('contractor_id', ids)
+          .lte('effective_date', selectedPeriod.end)
+          .order('effective_date', { ascending: true })
+      : { data: [] };
+
+    // Group rate history by contractor
+    const rateHistoryMap: Record<string, RateEntry[]> = {};
+    for (const r of rateHistoryAll || []) {
+      if (!rateHistoryMap[r.contractor_id]) rateHistoryMap[r.contractor_id] = [];
+      rateHistoryMap[r.contractor_id].push(r);
     }
 
     const result: PayRow[] = eligibleContractors.map((c: any) => {
       const hrs = hoursMap[c.id] || { capped: 0, raw: 0, overtime: 0, days: 0 };
       const payType = c.payment_type || 'hourly';
+      const history = rateHistoryMap[c.id] || [];
+
+      // Rate change that occurred DURING this period (first one only)
+      const changeInPeriod = history.find(r =>
+        r.effective_date >= selectedPeriod.start && r.effective_date <= selectedPeriod.end
+      );
+
+      // Rate in effect at the START of the period = most recent entry before period start
+      const rateAtStart = [...history]
+        .filter(r => r.effective_date < selectedPeriod.start)
+        .pop() || null;
+
       let pay = 0;
-
       let overtimePay = 0;
-      // For fixed: derive hourly from monthly / 176 (22 working days × 8hrs)
-      const derivedHourlyRate = payType === 'fixed'
-        ? (c.monthly_rate || 0) / 176
-        : (c.hourly_rate || 0);
+      let derivedHourlyRate = 0;
+      let prorated = false;
+      let proratedNote = '';
 
-      if (payType === 'hourly') {
-        overtimePay = hrs.overtime * derivedHourlyRate;
-        pay = hrs.capped * derivedHourlyRate + overtimePay;
+      if (changeInPeriod) {
+        prorated = true;
+        // Old rate = rateAtStart if it exists, else the contractor's current rate
+        // (current rate in hub_users = new rate after the change was saved)
+        // We need the rate BEFORE changeInPeriod — look at entry just before it
+        const beforeChange = [...history]
+          .filter(r => r.effective_date < changeInPeriod.effective_date)
+          .pop();
+
+        const oldMonthly = beforeChange ? (beforeChange.monthly_rate || 0) : (c.monthly_rate || 0);
+        const oldHourly  = beforeChange ? (beforeChange.hourly_rate  || 0) : (c.hourly_rate  || 0);
+        const newMonthly = changeInPeriod.monthly_rate || 0;
+        const newHourly  = changeInPeriod.hourly_rate  || 0;
+
+        const periodStart = new Date(selectedPeriod.start);
+        const periodEnd   = new Date(selectedPeriod.end);
+        const changeDate  = new Date(changeInPeriod.effective_date);
+
+        if (payType === 'fixed') {
+          const totalDays = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
+          const daysAtOld = Math.max(0, Math.round((changeDate.getTime() - periodStart.getTime()) / 86400000));
+          const daysAtNew = totalDays - daysAtOld;
+
+          const basePay = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
+          derivedHourlyRate = newMonthly / 176;
+          overtimePay = hrs.overtime * derivedHourlyRate;
+          pay = basePay + overtimePay;
+          proratedNote = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
+        } else {
+          // Hourly: split hours by date
+          const datesMap = hoursByDate[c.id] || {};
+          let hrsAtOld = 0;
+          let hrsAtNew = 0;
+          for (const [date, h] of Object.entries(datesMap)) {
+            if (date < changeInPeriod.effective_date) hrsAtOld += h;
+            else hrsAtNew += h;
+          }
+          derivedHourlyRate = newHourly;
+          overtimePay = hrs.overtime * newHourly;
+          pay = hrsAtOld * oldHourly + hrsAtNew * newHourly + overtimePay;
+          proratedNote = `${hrsAtOld.toFixed(1)}h @ ₱${oldHourly}/hr · ${hrsAtNew.toFixed(1)}h @ ₱${newHourly}/hr`;
+        }
       } else {
-        overtimePay = hrs.overtime * derivedHourlyRate;
-        pay = (c.monthly_rate || 0) / 2 + overtimePay;
+        // No change in period — use rate in effect at period start (or current hub_users rate)
+        const effectiveRate = rateAtStart || null;
+        const monthly = effectiveRate?.monthly_rate ?? c.monthly_rate ?? 0;
+        const hourly  = effectiveRate?.hourly_rate  ?? c.hourly_rate  ?? 0;
+
+        derivedHourlyRate = payType === 'fixed' ? monthly / 176 : hourly;
+
+        if (payType === 'hourly') {
+          overtimePay = hrs.overtime * derivedHourlyRate;
+          pay = hrs.capped * derivedHourlyRate + overtimePay;
+        } else {
+          overtimePay = hrs.overtime * derivedHourlyRate;
+          pay = monthly / 2 + overtimePay;
+        }
       }
 
       return {
@@ -175,10 +264,11 @@ export default function AdminPayrollPage() {
         derivedHourlyRate: parseFloat(derivedHourlyRate.toFixed(2)),
         pay,
         days: hrs.days,
+        prorated,
+        proratedNote,
       };
     });
 
-    // Sort: highest pay first
     result.sort((a, b) => b.pay - a.pay);
     setRows(result);
     setLoading(false);
@@ -454,8 +544,18 @@ export default function AdminPayrollPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 font-semibold text-gray-900">
-                          {fmt(r.pay, 'PHP')}
-                          {isFixed && r.days === 0 && (
+                          <div className="flex items-center gap-1.5">
+                            {fmt(r.pay, 'PHP')}
+                            {r.prorated && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-medium whitespace-nowrap" title={r.proratedNote}>
+                                prorated
+                              </span>
+                            )}
+                          </div>
+                          {r.prorated && r.proratedNote && (
+                            <p className="text-[10px] text-sky-500 font-normal mt-0.5">{r.proratedNote}</p>
+                          )}
+                          {isFixed && r.days === 0 && !r.prorated && (
                             <p className="text-xs text-gray-400 font-normal">No attendance logged</p>
                           )}
                         </td>

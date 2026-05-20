@@ -177,7 +177,7 @@ export default function ContractorsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className="text-sm text-gray-700">
-                            {c.hourly_rate ? `$${c.hourly_rate}/hr` : '—'}
+                            {c.payment_type === 'fixed' && c.monthly_rate ? `₱${c.monthly_rate.toLocaleString()}/mo` : c.hourly_rate ? `₱${c.hourly_rate}/hr` : '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3">
