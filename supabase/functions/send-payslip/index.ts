@@ -26,17 +26,24 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Fetch payout + contractor
-    const { data: payout } = await supabase
+    // Fetch payout
+    const { data: payout, error: payoutErr } = await supabase
       .from('hub_payouts')
-      .select('*, hub_users!contractor_id(id, full_name, email, payment_type, hourly_rate, monthly_rate, department, currency)')
+      .select('*')
       .eq('id', payout_id)
       .single();
 
-    if (!payout) return new Response(JSON.stringify({ error: 'payout not found' }), { status: 404, headers: cors });
+    if (payoutErr || !payout) return new Response(JSON.stringify({ error: 'payout not found', detail: payoutErr }), { status: 404, headers: cors });
 
-    const contractor = payout.hub_users;
-    if (!contractor?.email) return new Response(JSON.stringify({ error: 'contractor has no email' }), { status: 400, headers: cors });
+    // Fetch contractor separately
+    const { data: contractor, error: contractorErr } = await supabase
+      .from('hub_users')
+      .select('id, full_name, email, payment_type, hourly_rate, monthly_rate, department, currency')
+      .eq('id', payout.contractor_id)
+      .single();
+
+    if (contractorErr || !contractor) return new Response(JSON.stringify({ error: 'contractor not found', detail: contractorErr }), { status: 404, headers: cors });
+    if (!contractor.email) return new Response(JSON.stringify({ error: 'contractor has no email' }), { status: 400, headers: cors });
 
     // Fetch daily hours for this period
     const { data: dailyHours } = await supabase
@@ -67,7 +74,7 @@ Deno.serve(async (req) => {
       ? `${months[periodStart.getMonth()]} ${periodStart.getDate()}–${periodEnd.getDate()}, ${periodStart.getFullYear()}`
       : `${months[periodStart.getMonth()]} ${periodStart.getDate()} – ${months[periodEnd.getMonth()]} ${periodEnd.getDate()}, ${periodStart.getFullYear()}`;
 
-    const issuedDate = new Date(payout.paid_at || new Date());
+    const issuedDate = new Date(payout.paid_at || payout.payment_date || new Date());
     const issuedLabel = `${shortMonths[issuedDate.getMonth()]} ${issuedDate.getDate()}, ${issuedDate.getFullYear()}`;
 
     // Invoice number: INV-YYYYMMDD-XXXX (last 4 of payout id)
