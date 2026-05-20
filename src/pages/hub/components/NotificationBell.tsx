@@ -192,7 +192,7 @@ export default function NotificationBell() {
       // Payout status updates
       const { data: payouts } = await supabase
         .from('hub_payouts')
-        .select('id, status, cutoff_start, approved_at, paid_at')
+        .select('id, status, cutoff_start, approved_at, paid_at, final_payout')
         .eq('contractor_id', hubUser.id)
         .gte('approved_at', since)
         .in('status', ['hr_approved', 'paid'])
@@ -210,6 +210,40 @@ export default function NotificationBell() {
           body: `Period starting ${new Date(p.cutoff_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
           time: new Date(isPaid ? p.paid_at : p.approved_at),
         });
+      }
+
+      // Owner-approved batch notifications (payment approved, transfer in progress)
+      const { data: approvedBatches } = await supabase
+        .from('hub_payroll_batches')
+        .select('id, period_label, approved_at, total_amount')
+        .gte('approved_at', since)
+        .eq('status', 'owner_approved')
+        .order('approved_at', { ascending: false })
+        .limit(5);
+
+      if (approvedBatches?.length) {
+        const batchIds = approvedBatches.map((b: any) => b.id);
+        const { data: myBatchPayouts } = await supabase
+          .from('hub_payouts')
+          .select('id, batch_id, cutoff_start, final_payout')
+          .eq('contractor_id', hubUser.id)
+          .in('batch_id', batchIds)
+          .neq('status', 'paid');
+
+        for (const p of myBatchPayouts || []) {
+          const batch = approvedBatches.find((b: any) => b.id === p.batch_id);
+          if (!batch) continue;
+          const pay = p.final_payout ? `· ₱${Number(p.final_payout).toLocaleString()}` : '';
+          items.push({
+            id: `batchapproved-${p.id}`,
+            icon: 'ri-money-dollar-circle-line',
+            iconBg: 'bg-emerald-50',
+            iconColor: 'text-emerald-500',
+            title: 'Payment approved — transfer in progress',
+            body: `${batch.period_label} ${pay}`,
+            time: new Date(batch.approved_at),
+          });
+        }
       }
 
       // Time off decisions
