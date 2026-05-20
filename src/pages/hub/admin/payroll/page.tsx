@@ -160,9 +160,10 @@ export default function AdminPayrollPage() {
 
   const addEditAdjItem = () => {
     const amt = parseFloat(editAdjAmount);
-    if (!editAdjLabel.trim() || isNaN(amt)) return;
+    if (isNaN(amt)) return;
+    const label = editAdjLabel.trim() || ADJ_TYPES.find(t => t.value === editAdjType)?.label || editAdjType;
     const signedAmt = editAdjSign === '-' ? -Math.abs(amt) : Math.abs(amt);
-    setEditAdjItems(prev => [...prev, { label: editAdjLabel.trim(), amount: signedAmt, type: editAdjType }]);
+    setEditAdjItems(prev => [...prev, { label, amount: signedAmt, type: editAdjType }]);
     setEditAdjLabel('');
     setEditAdjAmount('');
     setEditAdjSign('+');
@@ -174,13 +175,10 @@ export default function AdminPayrollPage() {
     // Auto-flush any unsaved adj item in the input fields
     let finalAdjItems = [...editAdjItems];
     const pendingAmt = parseFloat(editAdjAmount);
-    if (editAdjLabel.trim() && !isNaN(pendingAmt)) {
+    if (!isNaN(pendingAmt)) {
+      const label = editAdjLabel.trim() || ADJ_TYPES.find(t => t.value === editAdjType)?.label || editAdjType;
       const signedAmt = editAdjSign === '-' ? -Math.abs(pendingAmt) : Math.abs(pendingAmt);
-      finalAdjItems = [...finalAdjItems, {
-        label: editAdjLabel.trim(),
-        amount: signedAmt,
-        type: editAdjType,
-      }];
+      finalAdjItems = [...finalAdjItems, { label, amount: signedAmt, type: editAdjType }];
     }
 
     const h = parseFloat(editHours);
