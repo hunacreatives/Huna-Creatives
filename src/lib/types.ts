@@ -165,6 +165,29 @@ export interface HubDocRequest {
   hub_users?: HubUser;
 }
 
+export interface HubSignDocument {
+  id: string;
+  title: string;
+  description?: string;
+  file_url: string;
+  file_name: string;
+  uploaded_by?: string;
+  created_at?: string;
+  hub_sign_assignments?: HubSignAssignment[];
+}
+
+export interface HubSignAssignment {
+  id: string;
+  document_id: string;
+  contractor_id: string;
+  status: 'pending' | 'signed';
+  signed_at?: string;
+  signed_name?: string;
+  created_at?: string;
+  hub_users?: HubUser;
+  hub_sign_documents?: HubSignDocument;
+}
+
 export interface HubAuditLog {
   id: number;
   actor_id?: string;

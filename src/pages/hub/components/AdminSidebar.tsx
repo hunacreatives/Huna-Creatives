@@ -11,6 +11,7 @@ const navItems = [
   { divider: true, label: 'Finance' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
   { to: '/hub/admin/docrequests', label: 'Doc Requests', icon: 'ri-file-list-3-line' },
+  { to: '/hub/admin/documents', label: 'Contracts', icon: 'ri-pen-nib-line' },
   { divider: true, label: 'Content' },
   { to: '/hub/admin/sop', label: 'SOP Library', icon: 'ri-book-open-line' },
   { to: '/hub/admin/announcements', label: 'Announcements', icon: 'ri-megaphone-line' },
