@@ -180,11 +180,16 @@ Deno.serve(async (req) => {
         // Hourly contractor: use hours from thread reply
         hoursRaw = threadHours;
         hoursCapped = Math.min(threadHours, MAX_HOURS);
-        // Once hours are logged, treat as clocked out
         effectiveStatus = 'off';
       } else if (firstOn && lastOff && lastOff.ts > firstOn.ts) {
+        // Standard on/off punch
         hoursRaw = (lastOff.ts - firstOn.ts) / 3600;
         hoursCapped = Math.min(hoursRaw, MAX_HOURS);
+      } else if (!isHourly && threadHours != null && firstOn) {
+        // Fixed contractor replied with hours under "on" but didn't type "off"
+        hoursRaw = threadHours;
+        hoursCapped = Math.min(threadHours, MAX_HOURS);
+        effectiveStatus = 'off';
       }
 
       const overtimeHours = overtimeBySlackId[slackId] || 0;
