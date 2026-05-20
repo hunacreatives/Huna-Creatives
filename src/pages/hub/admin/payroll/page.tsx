@@ -1085,7 +1085,18 @@ export default function AdminPayrollPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600">Billed Hours</label>
-                      <input type="number" value={editHours} onChange={e => setEditHours(e.target.value)} step="0.5"
+                      <input type="number" value={editHours} onChange={e => {
+                        const h = parseFloat(e.target.value) || 0;
+                        setEditHours(e.target.value);
+                        // Auto-compute pay when hours change
+                        const c = editRow.contractor;
+                        if (c.payment_type === 'hourly' && c.hourly_rate) {
+                          const isUSD = c.currency === 'USD';
+                          const rawPay = h * c.hourly_rate;
+                          const phpPay = isUSD ? rawPay * usdRate : rawPay;
+                          setEditPay(phpPay.toFixed(2));
+                        }
+                      }} step="0.5"
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                       <p className="text-[10px] text-gray-400">Slack: {editRow.cappedHours.toFixed(2)}h</p>
                     </div>
