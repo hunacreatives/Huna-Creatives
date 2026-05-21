@@ -379,7 +379,7 @@ export default function AdminAttendancePage() {
 
   const histCounts = {
     worked: histRows.filter(r => r.worked).length,
-    absent: histRows.filter(r => !r.worked && !r.isDayOff).length,
+    absent: histRows.filter(r => !r.worked && !r.isDayOff && !(r.first_on && !r.last_off)).length,
     totalHours: histRows.reduce((s, r) => s + (r.hours_capped || 0), 0),
   };
 
@@ -714,10 +714,11 @@ export default function AdminAttendancePage() {
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             r.worked ? 'bg-emerald-100 text-emerald-700' :
+                            r.first_on && !r.last_off ? 'bg-sky-100 text-sky-700' :
                             r.isDayOff ? 'bg-gray-100 text-gray-400' :
                             'bg-amber-100 text-amber-700'
                           }`}>
-                            {r.worked ? 'Worked' : r.isDayOff ? 'Day Off' : 'Absent'}
+                            {r.worked ? 'Worked' : r.first_on && !r.last_off ? 'In Progress' : r.isDayOff ? 'Day Off' : 'Absent'}
                           </span>
                         </td>
                       </tr>

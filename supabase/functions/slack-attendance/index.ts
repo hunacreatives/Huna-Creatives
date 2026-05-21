@@ -4,7 +4,7 @@ const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const CHANNEL_ID = 'C0830PCGQK1';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const MAX_HOURS_FIXED = 24; // wall-clock cap for on/off punch sessions
+const MAX_HOURS_FIXED = 8; // billable cap for fixed-rate contractors (hourly contractors self-report, no cap)
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -61,13 +61,9 @@ Deno.serve(async (req) => {
     let latest: string | null = null;
 
     if (backfillDate) {
-      // Start at midnight PH, end at noon next day — covers overnight shifts
+      // Start at midnight PH — no latest filter so overnight off punches are always captured
       const dayStart = new Date(`${backfillDate}T00:00:00+08:00`);
-      const dayEndOvernight = new Date(`${backfillDate}T00:00:00+08:00`);
-      dayEndOvernight.setDate(dayEndOvernight.getDate() + 1);
-      dayEndOvernight.setHours(dayEndOvernight.getHours() + 12); // noon next day PH
       oldest = String(dayStart.getTime() / 1000);
-      latest = String(dayEndOvernight.getTime() / 1000);
     } else {
       // Rolling 18h window for live mode
       const windowStart = new Date(now.getTime() - 18 * 60 * 60 * 1000);
@@ -209,6 +205,11 @@ Deno.serve(async (req) => {
       const firstOn = punches.find(p => p.status === 'on');
       const lastOff = [...punches].reverse().find(p => p.status === 'off');
 
+      // Record hours under the date the shift STARTED (on punch), not when the function runs
+      const shiftDate = firstOn
+        ? new Date(firstOn.ts * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+        : todayDate;
+
       const isHourly = hubUser?.payment_type === 'hourly';
       const threadHours = hourlyHoursBySlackId[slackId];
 
@@ -234,10 +235,10 @@ Deno.serve(async (req) => {
 
       const overtimeHours = overtimeBySlackId[slackId] || 0;
 
-      if (hubUser && (hoursRaw > 0 || overtimeHours > 0)) {
+      if (hubUser && (firstOn || overtimeHours > 0)) {
         hoursUpserts.push({
           user_id: hubUser.id,
-          date: todayDate,
+          date: shiftDate,
           hours_raw: parseFloat(hoursRaw.toFixed(4)),
           hours_capped: parseFloat(hoursCapped.toFixed(4)),
           overtime_hours: parseFloat(overtimeHours.toFixed(2)),
