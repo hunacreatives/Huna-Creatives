@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
           hours_capped: parseFloat(hoursCapped.toFixed(4)),
           overtime_hours: parseFloat(overtimeHours.toFixed(2)),
           first_on: firstOn ? new Date(firstOn.ts * 1000).toISOString() : null,
-          last_off: lastOff ? new Date(lastOff.ts * 1000).toISOString() : null,
+          last_off: (lastOff && firstOn && lastOff.ts > firstOn.ts) ? new Date(lastOff.ts * 1000).toISOString() : null,
           updated_at: new Date().toISOString(),
         });
       }
