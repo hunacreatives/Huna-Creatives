@@ -27,6 +27,7 @@ interface HistoricalRow {
   first_on: string | null;
   last_off: string | null;
   worked: boolean;
+  isDayOff?: boolean;
 }
 
 interface HubUser {
@@ -279,6 +280,7 @@ export default function AdminAttendancePage() {
   // Shared
   const [filter, setFilter] = useState<'all' | 'worked' | 'absent'>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   // ----- Live fetch -----
   const fetchLive = useCallback(async (showRefreshing = false) => {
@@ -300,6 +302,8 @@ export default function AdminAttendancePage() {
   const fetchHistorical = useCallback(async (date: string) => {
     setHistLoading(true);
 
+    const dayOfWeek = ['sun','mon','tue','wed','thu','fri','sat'][new Date(date + 'T00:00:00').getDay()];
+
     const { data: hoursData } = await supabase
       .from('hub_daily_hours')
       .select('user_id, hours_raw, hours_capped, overtime_hours, first_on, last_off')
@@ -307,7 +311,7 @@ export default function AdminAttendancePage() {
 
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, department, start_date')
+      .select('id, full_name, avatar_url, department, start_date, shift_start, shift_end, work_days')
       .eq('status', 'active')
       .in('role', ['contractor', 'admin']);
 
@@ -322,6 +326,8 @@ export default function AdminAttendancePage() {
 
     const rows: HistoricalRow[] = eligible.map((c: any) => {
       const h = hoursMap[c.id] as any;
+      const hasSchedule = c.work_days && c.work_days.length > 0;
+      const isDayOff = hasSchedule && !c.work_days.includes(dayOfWeek);
       return {
         id: c.id,
         full_name: c.full_name,
@@ -333,6 +339,7 @@ export default function AdminAttendancePage() {
         first_on: h?.first_on ?? null,
         last_off: h?.last_off ?? null,
         worked: !!h,
+        isDayOff: !h && isDayOff,
       };
     });
 
@@ -372,7 +379,7 @@ export default function AdminAttendancePage() {
 
   const histCounts = {
     worked: histRows.filter(r => r.worked).length,
-    absent: histRows.filter(r => !r.worked).length,
+    absent: histRows.filter(r => !r.worked && !r.isDayOff).length,
     totalHours: histRows.reduce((s, r) => s + (r.hours_capped || 0), 0),
   };
 
@@ -386,7 +393,7 @@ export default function AdminAttendancePage() {
     ? histRows
     : filter === 'worked'
     ? histRows.filter(r => r.worked)
-    : histRows.filter(r => !r.worked);
+    : histRows.filter(r => !r.worked && !r.isDayOff);
 
   const displayDateLabel = isToday
     ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -517,9 +524,24 @@ export default function AdminAttendancePage() {
             <p className="text-xs text-gray-500">Live from Slack — contractors type <span className="font-mono bg-white border border-gray-200 px-1 rounded">On</span> or <span className="font-mono bg-white border border-gray-200 px-1 rounded">Off</span> in the attendance channel. Auto-refreshes every minute.</p>
           </div>
         ) : (
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg">
-            <i className="ri-database-2-line text-gray-400 text-sm"></i>
-            <p className="text-xs text-gray-500">Showing logged hours from <strong>hub_daily_hours</strong> for {displayDateLabel}. Contractors with no record are marked Absent.</p>
+          <div className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg">
+            <div className="flex items-center gap-2">
+              <i className="ri-database-2-line text-gray-400 text-sm"></i>
+              <p className="text-xs text-gray-500">Showing logged hours from <strong>hub_daily_hours</strong> for {displayDateLabel}. Contractors with no record are marked Absent.</p>
+            </div>
+            <button
+              onClick={async () => {
+                setSyncing(true);
+                await supabase.functions.invoke('slack-attendance', { body: { date: selectedDate } });
+                await fetchHistorical(selectedDate);
+                setSyncing(false);
+              }}
+              disabled={syncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors cursor-pointer flex-shrink-0 disabled:opacity-50"
+            >
+              <i className={`ri-slack-line text-sm ${syncing ? 'animate-pulse' : ''}`}></i>
+              {syncing ? 'Syncing…' : 'Sync from Slack'}
+            </button>
           </div>
         )}
 
@@ -691,9 +713,11 @@ export default function AdminAttendancePage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            r.worked ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                            r.worked ? 'bg-emerald-100 text-emerald-700' :
+                            r.isDayOff ? 'bg-gray-100 text-gray-400' :
+                            'bg-amber-100 text-amber-700'
                           }`}>
-                            {r.worked ? 'Worked' : 'Absent'}
+                            {r.worked ? 'Worked' : r.isDayOff ? 'Day Off' : 'Absent'}
                           </span>
                         </td>
                       </tr>

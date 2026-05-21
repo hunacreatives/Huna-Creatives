@@ -25,20 +25,58 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Today's date in PH time (UTC+8) — used for DB records
+    // Check for backfill date: query param (?date=2026-05-20) or request body ({ date })
+    const url = new URL(req.url);
+    let backfillDate = url.searchParams.get('date');
+    let slackEventText = '';
+
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+
+        // Slack URL verification challenge
+        if (body?.type === 'url_verification') {
+          return new Response(JSON.stringify({ challenge: body.challenge }), { headers: cors });
+        }
+
+        // Slack event callback — only process message events with "off" text
+        if (body?.type === 'event_callback') {
+          slackEventText = (body?.event?.text || '').trim().toLowerCase();
+          // Only run full sync when someone types "on" or "off"
+          if (slackEventText !== 'on' && slackEventText !== 'off') {
+            return new Response(JSON.stringify({ ok: true }), { headers: cors });
+          }
+        }
+
+        if (body?.date) backfillDate = body.date;
+      } catch { /* no body */ }
+    }
+
+    const phOffset = 8 * 60;
     const now = new Date();
-    const phOffset = 8 * 60; // minutes
     const phNow = new Date(now.getTime() + phOffset * 60 * 1000);
-    const todayDate = phNow.toISOString().split('T')[0]; // YYYY-MM-DD in PH time
+    const todayDate = backfillDate ?? phNow.toISOString().split('T')[0];
 
-    // Look back 18 hours rolling — covers overnight shifts (e.g. 11pm–7am)
-    // so punches from the previous evening aren't dropped when midnight rolls over
-    const windowStart = new Date(now.getTime() - 18 * 60 * 60 * 1000);
-    const oldest = String(windowStart.getTime() / 1000);
+    let oldest: string;
+    let latest: string | null = null;
 
-    // Fetch today's messages
+    if (backfillDate) {
+      // Start at midnight PH, end at noon next day — covers overnight shifts
+      const dayStart = new Date(`${backfillDate}T00:00:00+08:00`);
+      const dayEndOvernight = new Date(`${backfillDate}T00:00:00+08:00`);
+      dayEndOvernight.setDate(dayEndOvernight.getDate() + 1);
+      dayEndOvernight.setHours(dayEndOvernight.getHours() + 12); // noon next day PH
+      oldest = String(dayStart.getTime() / 1000);
+      latest = String(dayEndOvernight.getTime() / 1000);
+    } else {
+      // Rolling 18h window for live mode
+      const windowStart = new Date(now.getTime() - 18 * 60 * 60 * 1000);
+      oldest = String(windowStart.getTime() / 1000);
+    }
+
+    // Fetch messages
     const slack = await slackGet(
-      `conversations.history?channel=${CHANNEL_ID}&oldest=${oldest}&limit=500`
+      `conversations.history?channel=${CHANNEL_ID}&oldest=${oldest}${latest ? `&latest=${latest}` : ''}&limit=500`
     );
 
     if (!slack.ok) {
@@ -196,7 +234,7 @@ Deno.serve(async (req) => {
 
       const overtimeHours = overtimeBySlackId[slackId] || 0;
 
-      if (hubUser && (firstOn || overtimeHours > 0 || (isHourly && threadHours != null))) {
+      if (hubUser && (hoursRaw > 0 || overtimeHours > 0)) {
         hoursUpserts.push({
           user_id: hubUser.id,
           date: todayDate,

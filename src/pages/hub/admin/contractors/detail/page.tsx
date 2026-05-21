@@ -57,6 +57,11 @@ export default function ContractorDetailPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'requests' | 'assets' | 'payslip' | 'contracts'>('overview');
   const [contracts, setContracts] = useState<any[]>([]);
 
+  // Schedule
+  const [scheduleForm, setScheduleForm] = useState({ shift_start: '', shift_end: '', work_days: [] as string[] });
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleEditing, setScheduleEditing] = useState(false);
+
   // Rate history
   const [rateHistory, setRateHistory] = useState<any[]>([]);
   const [showRateModal, setShowRateModal] = useState(false);
@@ -92,13 +97,35 @@ export default function ContractorDetailPage() {
       supabase.from('hub_clients').select('*').eq('contractor_id', id),
       supabase.from('hub_assets').select('*').eq('contractor_id', id),
     ]);
-    setContractor(u.data as HubUser ?? null);
+    const user = u.data as HubUser ?? null;
+    setContractor(user);
+    if (user) {
+      setScheduleForm({
+        shift_start: user.shift_start || '',
+        shift_end: user.shift_end || '',
+        work_days: user.work_days || [],
+      });
+    }
     setAttendance((att.data as HubAttendance[]) ?? []);
+
     setTimeOff((to.data as HubTimeOff[]) ?? []);
     setRequests((req.data as HubRequest[]) ?? []);
     setClients((cl.data as HubClient[]) ?? []);
     setAssets((ast.data as HubAsset[]) ?? []);
     setLoading(false);
+  };
+
+  const saveSchedule = async () => {
+    if (!id) return;
+    setScheduleSaving(true);
+    await supabase.from('hub_users').update({
+      shift_start: scheduleForm.shift_start || null,
+      shift_end: scheduleForm.shift_end || null,
+      work_days: scheduleForm.work_days,
+    }).eq('id', id);
+    setScheduleSaving(false);
+    setScheduleEditing(false);
+    await fetch();
   };
 
   const saveRate = async () => {
@@ -467,6 +494,89 @@ export default function ContractorDetailPage() {
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* Schedule */}
+            <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#111827]">Work Schedule</h3>
+                {!scheduleEditing ? (
+                  <button onClick={() => setScheduleEditing(true)} className="text-xs text-[#FF6B35] hover:underline cursor-pointer flex items-center gap-1">
+                    <i className="ri-edit-line text-sm"></i> Edit
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button onClick={saveSchedule} disabled={scheduleSaving} className="text-xs text-emerald-600 hover:underline cursor-pointer font-medium">
+                      {scheduleSaving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button onClick={() => { setScheduleEditing(false); setScheduleForm({ shift_start: contractor.shift_start || '', shift_end: contractor.shift_end || '', work_days: contractor.work_days || [] }); }} className="text-xs text-gray-400 hover:underline cursor-pointer">Cancel</button>
+                  </div>
+                )}
+              </div>
+
+              {scheduleEditing ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Shift Start</p>
+                      <input type="time" value={scheduleForm.shift_start} onChange={e => setScheduleForm(f => ({ ...f, shift_start: e.target.value }))}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#FF6B35]" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Shift End</p>
+                      <input type="time" value={scheduleForm.shift_end} onChange={e => setScheduleForm(f => ({ ...f, shift_end: e.target.value }))}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#FF6B35]" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1.5">Work Days</p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {['mon','tue','wed','thu','fri','sat','sun'].map(d => (
+                        <button key={d} onClick={() => setScheduleForm(f => ({ ...f, work_days: f.work_days.includes(d) ? f.work_days.filter(x => x !== d) : [...f.work_days, d] }))}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-colors ${scheduleForm.work_days.includes(d) ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                          {d.charAt(0).toUpperCase() + d.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : contractor.shift_start ? (
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <i className="ri-time-line text-gray-400 text-xs"></i>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Shift Hours</p>
+                      <p className="text-sm text-gray-700 mt-0.5">
+                        {contractor.shift_start} → {contractor.shift_end || '—'}
+                        {contractor.shift_end && contractor.shift_end < contractor.shift_start && (
+                          <span className="ml-1.5 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">Overnight</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  {contractor.work_days && contractor.work_days.length > 0 && (
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-6 h-6 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <i className="ri-calendar-line text-gray-400 text-xs"></i>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Work Days</p>
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {['mon','tue','wed','thu','fri','sat','sun'].map(d => (
+                            <span key={d} className={`text-xs px-2 py-0.5 rounded-full font-medium ${contractor.work_days!.includes(d) ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              {d.charAt(0).toUpperCase() + d.slice(1)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">No schedule set</p>
               )}
             </div>
 

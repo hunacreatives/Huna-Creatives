@@ -28,6 +28,9 @@ export interface HubUser {
   bank_account_type?: string;
   notes?: string;
   onboarding_completed?: boolean;
+  shift_start?: string;
+  shift_end?: string;
+  work_days?: string[];
   created_at?: string;
   updated_at?: string;
 }
