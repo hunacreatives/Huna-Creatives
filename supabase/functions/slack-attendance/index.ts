@@ -1,3 +1,4 @@
+// v2
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
