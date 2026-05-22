@@ -16,12 +16,13 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   const {
     contractorName, effectiveDate, role, primaryClient, responsibilities,
     additionalSupport, hoursPerDay, daysPerWeek, shiftTime, monthlyRate,
-    paymentSchedule, tools, ptaDays, sickDays, hasCommission, commissionClient,
-    commissionPercent, termDate,
+    hourlyRate, paymentType, paymentSchedule, tools, ptaDays, sickDays,
+    hasCommission, commissionClient, commissionPercent, termDate,
   } = fields;
 
+  const isHourly = paymentType === 'hourly';
   const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  const rate = Number(monthlyRate).toLocaleString();
+  const rate = isHourly ? Number(hourlyRate).toLocaleString() : Number(monthlyRate).toLocaleString();
   const respItems = responsibilities.filter(r => r.trim()).map(r => `<li>${r}</li>`).join('\n');
   const addItems = additionalSupport.filter(r => r.trim()).map(r => `<li>${r}</li>`).join('\n');
   const toolItems = tools.filter(t => t.trim()).map(t => `<li>${t}</li>`).join('\n');
@@ -102,12 +103,28 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <hr class="divider" />
 
   <div class="section-title">2. Work Schedule &amp; Availability</div>
+  ${isHourly ? `
+  <p>2.1 The Contractor shall work on a <strong>flexible, as-needed basis</strong>, rendering services based on project requirements and mutual availability. There is no fixed minimum number of hours per day or days per week.</p>
+  <p>2.2 The Contractor is expected to communicate availability in advance and remain responsive via Slack or email during agreed working windows.</p>
+  <p>2.3 Specific project timelines, deadlines, and deliverable windows will be communicated by Huna Creatives as work arises.</p>
+  ` : `
   <p>2.1 The Contractor shall be <strong>primarily available</strong> to render services for up to <strong>${hoursPerDay} hours per day</strong>, <strong>${daysPerWeek} days per week</strong>, Monday through Friday, based on agreed priorities and deliverables.</p>
   <p>2.2 Standard working hours shall follow the <strong>${shiftTime}</strong>, unless otherwise agreed in writing.</p>
   <p>2.3 The Contractor is expected to remain responsive and available during scheduled working hours.</p>
+  `}
   <hr class="divider" />
 
   <div class="section-title">3. Compensation</div>
+  ${isHourly ? `
+  <div class="sub-title">3.1 Hourly Rate</div>
+  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall be compensated at a rate of <strong>₱${rate} PHP per hour</strong> for all approved hours rendered.</p>
+  <div class="sub-title">3.2 Hour Logging</div>
+  <p>The Contractor is responsible for accurately logging all hours worked through Huna Creatives' designated attendance system. Hours must be submitted and approved prior to payment processing.</p>
+  <div class="sub-title">3.3 Payment Schedule</div>
+  <p>Payments shall be made on a <strong>${paymentSchedule}</strong>, based on approved hours logged during the pay period.</p>
+  <div class="sub-title">3.4 Adjustments</div>
+  <p>Any changes to the hourly rate, scope of work, or engagement terms must be confirmed in writing by both parties.</p>
+  ` : `
   <div class="sub-title">3.1 Monthly Service Fee</div>
   <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall receive a fixed <strong>monthly service fee of ₱${rate} PHP</strong>, regardless of the number of working days in a given month.</p>
   <div class="sub-title">3.2 Payment Schedule</div>
@@ -117,6 +134,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <p>₱${rate} ÷ Total Working Days in the Month = Daily Rate</p>
   <div class="sub-title">3.4 Adjustments</div>
   <p>Any changes to the service fee, workload, or scope of work must be confirmed in writing by both parties.</p>
+  `}
   <hr class="divider" />
 
   <div class="section-title">4. Tools &amp; Resources</div>
@@ -212,6 +230,8 @@ interface ContractFields {
   daysPerWeek: string;
   shiftTime: string;
   monthlyRate: string;
+  hourlyRate: string;
+  paymentType: 'fixed' | 'hourly';
   paymentSchedule: string;
   tools: string[];
   ptaDays: string;
@@ -235,6 +255,8 @@ const BLANK: ContractFields = {
   daysPerWeek: '5',
   shiftTime: 'graveyard shift from 11:00 PM to 7:00 AM Philippine Time',
   monthlyRate: '',
+  hourlyRate: '',
+  paymentType: 'fixed',
   paymentSchedule: 'bi-monthly basis, on the 15th and the last working day of each month',
   tools: [...DEFAULT_TOOLS],
   ptaDays: '10',
@@ -302,7 +324,9 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
         content: html,
         is_generated: true,
         amendment_type: fields.amendmentType,
-        rate_snapshot: fields.monthlyRate ? Number(fields.monthlyRate) : null,
+        rate_snapshot: fields.paymentType === 'hourly'
+          ? (fields.hourlyRate ? Number(fields.hourlyRate) : null)
+          : (fields.monthlyRate ? Number(fields.monthlyRate) : null),
         uploaded_by: hubUser!.id,
       })
       .select('id')
@@ -372,6 +396,31 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
                 <option value="">Select contractor…</option>
                 {contractors.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
               </select>
+            </div>
+
+            {/* Payment type */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">Payment Structure *</label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { key: 'fixed',  label: 'Fixed Monthly Rate', icon: 'ri-calendar-line', desc: 'Set monthly fee regardless of hours' },
+                  { key: 'hourly', label: 'Hourly / Flexible',  icon: 'ri-time-line',     desc: 'Paid per approved hour logged' },
+                ] as const).map(t => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => set('paymentType', t.key)}
+                    className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border text-left cursor-pointer transition-all ${
+                      fields.paymentType === t.key
+                        ? 'bg-[#FF6B35] border-[#FF6B35] text-white'
+                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-medium"><i className={t.icon}></i>{t.label}</span>
+                    <span className={`text-[10px] ${fields.paymentType === t.key ? 'text-white/70' : 'text-gray-400'}`}>{t.desc}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Contract type */}
@@ -482,42 +531,70 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
             {/* Schedule */}
             <div>
               <p className="text-xs font-medium text-gray-600 mb-2">Work Schedule</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Hours/day</label>
-                  <input type="number" value={fields.hoursPerDay} onChange={e => set('hoursPerDay', e.target.value)} min={1} max={24}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+              {fields.paymentType === 'fixed' ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Hours/day</label>
+                      <input type="number" value={fields.hoursPerDay} onChange={e => set('hoursPerDay', e.target.value)} min={1} max={24}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Days/week</label>
+                      <input type="number" value={fields.daysPerWeek} onChange={e => set('daysPerWeek', e.target.value)} min={1} max={7}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">PTA days/year</label>
+                      <input type="number" value={fields.ptaDays} onChange={e => set('ptaDays', e.target.value)} min={0}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Sick days/year</label>
+                      <input type="number" value={fields.sickDays} onChange={e => set('sickDays', e.target.value)} min={0}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <label className="block text-xs text-gray-500 mb-1">Shift / Working Hours</label>
+                    <input type="text" value={fields.shiftTime} onChange={e => set('shiftTime', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">PTA days/year</label>
+                    <input type="number" value={fields.ptaDays} onChange={e => set('ptaDays', e.target.value)} min={0}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Sick days/year</label>
+                    <input type="number" value={fields.sickDays} onChange={e => set('sickDays', e.target.value)} min={0}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Days/week</label>
-                  <input type="number" value={fields.daysPerWeek} onChange={e => set('daysPerWeek', e.target.value)} min={1} max={7}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">PTA days/year</label>
-                  <input type="number" value={fields.ptaDays} onChange={e => set('ptaDays', e.target.value)} min={0}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Sick days/year</label>
-                  <input type="number" value={fields.sickDays} onChange={e => set('sickDays', e.target.value)} min={0}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                </div>
-              </div>
-              <div className="mt-2">
-                <label className="block text-xs text-gray-500 mb-1">Shift / Working Hours</label>
-                <input type="text" value={fields.shiftTime} onChange={e => set('shiftTime', e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-              </div>
+              )}
             </div>
 
             {/* Compensation */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Monthly Rate (₱) *</label>
-                <input type="number" value={fields.monthlyRate} onChange={e => set('monthlyRate', e.target.value)}
-                  placeholder="55000"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                {fields.paymentType === 'fixed' ? (
+                  <>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Monthly Rate (₱) *</label>
+                    <input type="number" value={fields.monthlyRate} onChange={e => set('monthlyRate', e.target.value)}
+                      placeholder="55000"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  </>
+                ) : (
+                  <>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Hourly Rate (₱) *</label>
+                    <input type="number" value={fields.hourlyRate} onChange={e => set('hourlyRate', e.target.value)}
+                      placeholder="250"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  </>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Payment Schedule</label>
@@ -602,7 +679,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
           {step === 'form' ? (
             <button
               onClick={handlePreview}
-              disabled={!fields.contractorId || !fields.role || !fields.primaryClient || !fields.monthlyRate || !fields.effectiveDate}
+              disabled={!fields.contractorId || !fields.role || !fields.primaryClient || !(fields.paymentType === 'hourly' ? fields.hourlyRate : fields.monthlyRate) || !fields.effectiveDate}
               className="flex-1 bg-[#111827] text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 cursor-pointer disabled:opacity-40"
             >
               Preview Contract →
