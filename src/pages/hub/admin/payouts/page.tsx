@@ -4,30 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { HubPayout, HubUser } from '@/lib/types';
 import PayoutEditModal from './PayoutEditModal';
 import { useAuth } from '@/contexts/AuthContext';
-
-function fmt(val: number) {
-  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val);
-}
-
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function getPeriods() {
-  const periods: { label: string; start: string; end: string }[] = [];
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const lastDay = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-  let year = 2026; let month = 0; let firstHalf = true;
-  while (true) {
-    const start = firstHalf ? `${year}-${pad(month+1)}-01` : `${year}-${pad(month+1)}-16`;
-    if (new Date(start) > now) break;
-    const endDay = firstHalf ? 15 : lastDay(year, month);
-    const end = `${year}-${pad(month+1)}-${pad(endDay)}`;
-    const label = firstHalf ? `${MONTHS[month]} 1–15, ${year}` : `${MONTHS[month]} 16–${endDay}, ${year}`;
-    periods.push({ label, start, end });
-    if (firstHalf) { firstHalf = false; } else { firstHalf = true; month += 1; if (month > 11) { month = 0; year += 1; } }
-  }
-  return periods;
-}
+import { getPeriods, fmtPHP as fmt } from '@/lib/formatUtils';
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-500',

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { MONTHS, FULL_MONTHS, getPeriods, fmtCurrency as fmt } from '@/lib/formatUtils';
 
 interface Contractor {
   id: string;
@@ -36,47 +37,6 @@ interface PayRow {
   proratedNote?: string;
 }
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function getPeriods() {
-  const periods: { label: string; start: string; end: string }[] = [];
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const lastDay = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-
-  let year = 2026;
-  let month = 0;
-  let firstHalf = true;
-
-  while (true) {
-    const start = firstHalf
-      ? `${year}-${pad(month + 1)}-01`
-      : `${year}-${pad(month + 1)}-16`;
-    if (new Date(start) > now) break;
-
-    const endDay = firstHalf ? 15 : lastDay(year, month);
-    const end = `${year}-${pad(month + 1)}-${pad(endDay)}`;
-    const label = firstHalf
-      ? `${MONTHS[month]} 1–15, ${year}`
-      : `${MONTHS[month]} 16–${endDay}, ${year}`;
-
-    periods.push({ label, start, end });
-
-    if (firstHalf) {
-      firstHalf = false;
-    } else {
-      firstHalf = true;
-      month += 1;
-      if (month > 11) { month = 0; year += 1; }
-    }
-  }
-  return periods;
-}
-
-function fmt(val: number, currency = 'PHP') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2 }).format(val);
-}
-
 function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null }) {
   if (avatar_url) return <img src={avatar_url} alt={name} className="w-8 h-8 rounded-full object-cover object-top flex-shrink-0" />;
   return (
@@ -85,8 +45,6 @@ function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null 
     </div>
   );
 }
-
-const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function AdminPayrollPage() {
   const { hubUser } = useAuth();
@@ -206,7 +164,7 @@ export default function AdminPayrollPage() {
       adjustments: finalAdjItems,
     }, { onConflict: 'contractor_id,cutoff_start' });
 
-    if (error) console.error('saveEditRow error:', error);
+    if (error) throw error;
 
     await fetchWorkflow();
     setEditSaving(false);
@@ -545,8 +503,7 @@ export default function AdminPayrollPage() {
 
     result.sort((a, b) => b.pay - a.pay);
     setRows(result);
-    } catch (e) {
-      console.error('[fetchPayroll] error:', e);
+    } catch (_e) {
     } finally {
       setLoading(false);
     }
