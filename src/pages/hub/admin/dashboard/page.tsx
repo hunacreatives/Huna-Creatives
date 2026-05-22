@@ -93,12 +93,16 @@ export default function AdminDashboardPage() {
 
   const today = new Date();
   const isFirstHalf = today.getDate() <= 15;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const y = today.getFullYear();
+  const m = today.getMonth();
   const cutoffStart = isFirstHalf
-    ? new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
-    : new Date(today.getFullYear(), today.getMonth(), 16).toISOString().split('T')[0];
+    ? `${y}-${pad(m + 1)}-01`
+    : `${y}-${pad(m + 1)}-16`;
+  const lastDayOfMonth = new Date(y, m + 1, 0).getDate();
   const cutoffEnd = isFirstHalf
-    ? new Date(today.getFullYear(), today.getMonth(), 15).toISOString().split('T')[0]
-    : new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+    ? `${y}-${pad(m + 1)}-15`
+    : `${y}-${pad(m + 1)}-${pad(lastDayOfMonth)}`;
 
   // Payroll period progress
   const periodStart = new Date(cutoffStart);
@@ -126,105 +130,101 @@ export default function AdminDashboardPage() {
         setAttendance(slackResult.data.attendance);
       }
 
+      let hrs = 0;
+      for (const h of (hoursResult.data as any[]) || []) hrs += h.hours_capped;
+
+      // --- payroll total: same computation as payroll page ---
+      const eligibleContractors = ((contractorsResult.data as any[]) || []).filter((c: any) =>
+        !c.start_date || c.start_date <= cutoffEnd
+      );
       const hoursMap: Record<string, { capped: number; overtime: number }> = {};
+      const hoursByDate: Record<string, Record<string, number>> = {};
       const overtimeByDate: Record<string, Record<string, number>> = {};
       for (const h of (hoursResult.data as any[]) || []) {
         if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, overtime: 0 };
         hoursMap[h.user_id].capped += h.hours_capped;
         hoursMap[h.user_id].overtime += h.overtime_hours || 0;
+        if (!hoursByDate[h.user_id]) hoursByDate[h.user_id] = {};
+        hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + h.hours_capped;
         if (h.overtime_hours) {
           if (!overtimeByDate[h.user_id]) overtimeByDate[h.user_id] = {};
           overtimeByDate[h.user_id][h.date] = (overtimeByDate[h.user_id][h.date] || 0) + h.overtime_hours;
         }
       }
-
-      // Fetch rate history + saved payout adjustments (same as payroll page totals)
-      const contractorIds = (contractorsResult.data || []).map((c: any) => c.id);
+      const ids = eligibleContractors.map((c: any) => c.id);
       const [{ data: rateHistoryAll }, { data: payoutsData }] = await Promise.all([
-        contractorIds.length > 0
-          ? supabase
-              .from('hub_rate_history')
-              .select('contractor_id, effective_date, payment_type, hourly_rate, monthly_rate')
-              .in('contractor_id', contractorIds)
-              .lte('effective_date', cutoffEnd)
-              .order('effective_date', { ascending: true })
-          : Promise.resolve({ data: [] }),
-        contractorIds.length > 0
-          ? supabase
-              .from('hub_payouts')
-              .select('contractor_id, adjustments')
-              .in('contractor_id', contractorIds)
-              .eq('cutoff_start', cutoffStart)
-          : Promise.resolve({ data: [] }),
+        ids.length > 0
+          ? supabase.from('hub_rate_history').select('contractor_id, effective_date, hourly_rate, monthly_rate').in('contractor_id', ids).lte('effective_date', cutoffEnd).order('effective_date', { ascending: true })
+          : Promise.resolve({ data: [] as any[] }),
+        ids.length > 0
+          ? supabase.from('hub_payouts').select('contractor_id, adjustments').in('contractor_id', ids).eq('cutoff_start', cutoffStart)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
-
-      const payoutsAdjMap: Record<string, number> = {};
-      for (const p of payoutsData || []) {
-        const adjs: any[] = p.adjustments || [];
-        payoutsAdjMap[p.contractor_id] = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
-      }
-
       const rateHistoryMap: Record<string, any[]> = {};
       for (const r of rateHistoryAll || []) {
         if (!rateHistoryMap[r.contractor_id]) rateHistoryMap[r.contractor_id] = [];
         rateHistoryMap[r.contractor_id].push(r);
       }
-
-      // Use a conservative PayPal-approximate rate for dashboard estimates
+      const adjMap: Record<string, number> = {};
+      for (const p of payoutsData || []) {
+        const adjs: any[] = p.adjustments || [];
+        adjMap[p.contractor_id] = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+      }
       const usdRate = 56;
-
-      let payroll = 0;
-      let hrs = 0;
-      for (const c of contractorsResult.data || []) {
+      let payrollTotal = 0;
+      for (const c of eligibleContractors) {
         const h = hoursMap[c.id] || { capped: 0, overtime: 0 };
-        hrs += h.capped;
+        const payType = c.payment_type || 'hourly';
         const history = rateHistoryMap[c.id] || [];
-        const changeInPeriod = history.find((r: any) =>
-          r.effective_date >= cutoffStart && r.effective_date <= cutoffEnd
-        );
+        const changeInPeriod = history.find((r: any) => r.effective_date >= cutoffStart && r.effective_date <= cutoffEnd);
         const rateAtStart = [...history].filter((r: any) => r.effective_date < cutoffStart).pop() || null;
-
         let pay = 0;
         if (changeInPeriod) {
           const beforeChange = [...history].filter((r: any) => r.effective_date < changeInPeriod.effective_date).pop();
-          const oldMonthly = beforeChange?.monthly_rate ?? c.monthly_rate ?? 0;
-          const oldHourly  = beforeChange?.hourly_rate  ?? c.hourly_rate  ?? 0;
+          const oldMonthly = beforeChange ? (beforeChange.monthly_rate || 0) : (c.monthly_rate || 0);
+          const oldHourly  = beforeChange ? (beforeChange.hourly_rate  || 0) : (c.hourly_rate  || 0);
           const newMonthly = changeInPeriod.monthly_rate || 0;
           const newHourly  = changeInPeriod.hourly_rate  || 0;
-          const pStart = new Date(cutoffStart);
-          const pEnd   = new Date(cutoffEnd);
-          const chDate = new Date(changeInPeriod.effective_date);
-          if (c.payment_type === 'fixed') {
-            const totalDays = Math.round((pEnd.getTime() - pStart.getTime()) / 86400000) + 1;
-            const daysAtOld = Math.max(0, Math.round((chDate.getTime() - pStart.getTime()) / 86400000));
-            const daysAtNew = totalDays - daysAtOld;
-            const base = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
-            const oldOT = oldHourly || oldMonthly / 176;
-            const newOT = newHourly || newMonthly / 176;
+          const pStart = new Date(cutoffStart + 'T00:00:00');
+          const pEnd   = new Date(cutoffEnd   + 'T00:00:00');
+          const chDate = new Date(changeInPeriod.effective_date + 'T00:00:00');
+          const totalD   = Math.round((pEnd.getTime() - pStart.getTime()) / 86400000) + 1;
+          const daysAtOld = Math.max(0, Math.round((chDate.getTime() - pStart.getTime()) / 86400000));
+          const daysAtNew = totalD - daysAtOld;
+          if (payType === 'fixed') {
+            const basePay = (oldMonthly / 2 / totalD * daysAtOld) + (newMonthly / 2 / totalD * daysAtNew);
+            const oldOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
+            const newOT = changeInPeriod.hourly_rate || newMonthly / 176;
             const otDates = overtimeByDate[c.id] || {};
             let otAtOld = 0, otAtNew = 0;
             for (const [date, ot] of Object.entries(otDates)) {
               if (date < changeInPeriod.effective_date) otAtOld += ot as number;
               else otAtNew += ot as number;
             }
-            pay = base + otAtOld * oldOT + otAtNew * newOT;
+            pay = basePay + otAtOld * oldOT + otAtNew * newOT;
           } else {
-            pay = h.capped * newHourly + h.overtime * newHourly;
+            const datesMap = hoursByDate[c.id] || {};
+            let hrsAtOld = 0, hrsAtNew = 0;
+            for (const [date, hv] of Object.entries(datesMap)) {
+              if (date < changeInPeriod.effective_date) hrsAtOld += hv as number;
+              else hrsAtNew += hv as number;
+            }
+            pay = hrsAtOld * oldHourly + hrsAtNew * newHourly + h.overtime * newHourly;
           }
         } else {
           const monthly = rateAtStart?.monthly_rate ?? c.monthly_rate ?? 0;
           const hourly  = rateAtStart?.hourly_rate  ?? c.hourly_rate  ?? 0;
-          if (c.payment_type === 'fixed') {
-            const otRate = hourly || monthly / 176;
+          const otRate  = payType === 'fixed' ? (hourly || monthly / 176) : hourly;
+          if (payType === 'fixed') {
             pay = monthly / 2 + h.overtime * otRate;
           } else {
             pay = h.capped * hourly + h.overtime * hourly;
           }
         }
-        const adj = payoutsAdjMap[c.id] || 0;
-        payroll += (c.currency === 'USD' ? pay * usdRate : pay) + adj;
+        const inPHP = c.currency === 'USD' ? pay * usdRate : pay;
+        payrollTotal += inPHP + (adjMap[c.id] || 0);
       }
-      setTotalPayroll(payroll);
+      setTotalPayroll(payrollTotal);
       setTotalHours(parseFloat(hrs.toFixed(1)));
       setBirthdays(getBirthdayAlerts(contractorsResult.data || []));
 

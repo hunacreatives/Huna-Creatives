@@ -286,12 +286,14 @@ export default function ContractorDashboard() {
 
   const today = new Date();
   const isFirstHalf = today.getDate() <= 15;
-  const cutoffStart = isFirstHalf
-    ? new Date(today.getFullYear(), today.getMonth(), 1)
-    : new Date(today.getFullYear(), today.getMonth(), 16);
-  const cutoffEnd = isFirstHalf
-    ? new Date(today.getFullYear(), today.getMonth(), 15)
-    : new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const _pad = (n: number) => String(n).padStart(2, '0');
+  const _y = today.getFullYear();
+  const _m = today.getMonth();
+  const _lastDay = new Date(_y, _m + 1, 0).getDate();
+  const cutoffStartStr = isFirstHalf ? `${_y}-${_pad(_m + 1)}-01` : `${_y}-${_pad(_m + 1)}-16`;
+  const cutoffEndStr   = isFirstHalf ? `${_y}-${_pad(_m + 1)}-15` : `${_y}-${_pad(_m + 1)}-${_pad(_lastDay)}`;
+  const cutoffStart = new Date(cutoffStartStr + 'T00:00:00');
+  const cutoffEnd   = new Date(cutoffEndStr   + 'T00:00:00');
 
   const periodTotal = Math.round((cutoffEnd.getTime() - cutoffStart.getTime()) / 86400000) + 1;
   const daysElapsed = Math.min(Math.round((today.getTime() - cutoffStart.getTime()) / 86400000) + 1, periodTotal);
@@ -308,8 +310,8 @@ export default function ContractorDashboard() {
     if (!user) return;
     setLoading(true);
 
-    const periodStartStr = cutoffStart.toISOString().split('T')[0];
-    const periodEndStr   = cutoffEnd.toISOString().split('T')[0];
+    const periodStartStr = cutoffStartStr;
+    const periodEndStr   = cutoffEndStr;
 
     const [attResult, annResult, reqResult, toResult, slackResult, rateRes] = await Promise.all([
       supabase
