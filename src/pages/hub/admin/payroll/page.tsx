@@ -376,15 +376,6 @@ export default function AdminPayrollPage() {
     fetchWorkflow();
   }, [selectedPeriod, usdRate]);
 
-  useEffect(() => {
-    if (rows.length > 0) {
-      supabase.from('hub_payroll_cache').upsert(
-        { period_start: selectedPeriod.start, computed_total: totalPay, updated_at: new Date().toISOString() },
-        { onConflict: 'period_start' }
-      );
-    }
-  }, [totalPay, selectedPeriod.start]);
-
   const fetchPayroll = async () => {
     setLoading(true);
     try {
@@ -569,6 +560,15 @@ export default function AdminPayrollPage() {
     const adjTotal = adjs.reduce((as: number, a: any) => as + (a.amount || 0), 0);
     return s + basePay + adjTotal;
   }, 0);
+
+  useEffect(() => {
+    if (rows.length > 0) {
+      supabase.from('hub_payroll_cache').upsert(
+        { period_start: selectedPeriod.start, computed_total: totalPay, updated_at: new Date().toISOString() },
+        { onConflict: 'period_start' }
+      );
+    }
+  }, [totalPay, selectedPeriod.start]);
   const totalHours = rows.reduce((s, r) => s + r.cappedHours, 0);
   const hourlyCount = rows.filter(r => r.contractor.payment_type === 'hourly').length;
   const fixedCount = rows.filter(r => r.contractor.payment_type === 'fixed').length;
