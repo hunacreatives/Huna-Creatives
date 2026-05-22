@@ -17,6 +17,12 @@ export default function AdminDocumentsPage() {
   const [toast, setToast] = useState('');
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Signing for admins who also have documents assigned to them
+  const [myAssignments, setMyAssignments] = useState<any[]>([]);
+  const [signModal, setSignModal] = useState<any | null>(null);
+  const [signName, setSignName] = useState('');
+  const [signing, setSigning] = useState(false);
+
   // Upload form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -33,7 +39,35 @@ export default function AdminDocumentsPage() {
   useEffect(() => {
     fetchDocs();
     fetchContractors();
-  }, []);
+    if (hubUser?.id) fetchMyAssignments();
+  }, [hubUser]);
+
+  const fetchMyAssignments = async () => {
+    const { data } = await supabase
+      .from('hub_sign_assignments')
+      .select('*, hub_sign_documents(id, title, description, content, file_url, is_generated, created_at)')
+      .eq('contractor_id', hubUser!.id)
+      .neq('status', 'signed')
+      .order('created_at', { ascending: false });
+    setMyAssignments(data ?? []);
+  };
+
+  const submitSign = async () => {
+    if (!signModal || !signName.trim()) return;
+    setSigning(true);
+    const signedAt = new Date().toISOString();
+    await supabase
+      .from('hub_sign_assignments')
+      .update({ status: 'signed', signed_name: signName.trim(), signed_at: signedAt })
+      .eq('id', signModal.id);
+    supabase.functions.invoke('send-signed-contract', { body: { assignment_id: signModal.id } }).catch(() => {});
+    setSigning(false);
+    setSignModal(null);
+    setSignName('');
+    fetchMyAssignments();
+    fetchDocs();
+    showToast('Document signed! A copy has been sent to your email.');
+  };
 
   const fetchDocs = async () => {
     setLoading(true);
@@ -154,6 +188,46 @@ export default function AdminDocumentsPage() {
             </button>
           </div>
         </div>
+
+        {/* Documents assigned to this admin for signing */}
+        {myAssignments.length > 0 && (
+          <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <i className="ri-pen-nib-line text-violet-500"></i>
+              <p className="text-sm font-semibold text-violet-800">You have {myAssignments.length} document{myAssignments.length > 1 ? 's' : ''} to sign</p>
+            </div>
+            {myAssignments.map((a: any) => {
+              const doc = a.hub_sign_documents;
+              return (
+                <div key={a.id} className="bg-white rounded-lg border border-violet-100 p-4 flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+                    <i className="ri-file-text-line text-violet-500 text-sm"></i>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{doc?.title}</p>
+                    {doc?.description && <p className="text-xs text-gray-400">{doc.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {doc?.content && (
+                      <button
+                        onClick={() => { const b = new Blob([doc.content], { type: 'text/html' }); window.open(URL.createObjectURL(b), '_blank'); }}
+                        className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 px-2.5 py-1.5 rounded-lg cursor-pointer"
+                      >
+                        <i className="ri-external-link-line mr-1"></i>Preview
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setSignModal(a); setSignName(hubUser?.full_name ?? ''); }}
+                      className="text-xs font-medium bg-violet-600 text-white px-3 py-1.5 rounded-lg hover:bg-violet-700 cursor-pointer"
+                    >
+                      <i className="ri-pen-nib-line mr-1"></i>Sign
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12 text-gray-400 text-sm">Loading…</div>
@@ -368,6 +442,43 @@ export default function AdminDocumentsPage() {
           onClose={() => setShowGenerator(false)}
           onDone={() => { setShowGenerator(false); fetchDocs(); showToast('Contract sent for signature!'); }}
         />
+      )}
+
+      {/* Sign modal for admins with pending assignments */}
+      {signModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Sign Document</h2>
+              <p className="text-sm text-gray-500 mt-0.5">{(signModal as any).hub_sign_documents?.title}</p>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-700">
+              By typing your full name below, you are applying your electronic signature to this document.
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Full name (as signature)</label>
+              <input
+                type="text"
+                value={signName}
+                onChange={e => setSignName(e.target.value)}
+                placeholder="Type your full name"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setSignModal(null)} className="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-50 cursor-pointer">
+                Cancel
+              </button>
+              <button
+                onClick={submitSign}
+                disabled={signing || !signName.trim()}
+                className="flex-1 bg-violet-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-violet-700 cursor-pointer disabled:opacity-40"
+              >
+                {signing ? 'Signing…' : 'Confirm Signature'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AdminLayout>
   );
