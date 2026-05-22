@@ -15,7 +15,7 @@ const DEFAULT_TOOLS = ['Canva Pro', 'Adobe Photoshop (if required)'];
 function generateContractHTML(fields: ContractFields, sigData: string, logoData: string): string {
   const {
     contractorName, effectiveDate, role, primaryClient, responsibilities,
-    additionalSupport, hoursPerDay, daysPerWeek, shiftTime, monthlyRate,
+    additionalSupport, hoursPerDay, workDays, shiftTime, monthlyRate,
     hourlyRate, paymentType, paymentSchedule, tools, ptaDays, sickDays,
     hasCommission, commissionClient, commissionPercent, termDate,
   } = fields;
@@ -109,7 +109,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <p>2.2 The Contractor is expected to communicate availability in advance and remain responsive via Slack or email during agreed working windows.</p>
   <p>2.3 Specific project timelines, deadlines, and deliverable windows will be communicated by Huna Creatives as work arises.</p>
   ` : `
-  <p>2.1 The Contractor shall be <strong>primarily available</strong> to render services for up to <strong>${hoursPerDay} hours per day</strong>, <strong>${daysPerWeek} days per week</strong>, Monday through Friday, based on agreed priorities and deliverables.</p>
+  <p>2.1 The Contractor shall be <strong>primarily available</strong> to render services for up to <strong>${hoursPerDay} hours per day</strong>, <strong>${workDays.length} days per week</strong> (${workDays.join(', ')}), based on agreed priorities and deliverables.</p>
   <p>2.2 Standard working hours shall follow the <strong>${shiftTime}</strong>, unless otherwise agreed in writing.</p>
   <p>2.3 The Contractor is expected to remain responsive and available during scheduled working hours.</p>
   `}
@@ -230,7 +230,7 @@ interface ContractFields {
   responsibilities: string[];
   additionalSupport: string[];
   hoursPerDay: string;
-  daysPerWeek: string;
+  workDays: string[];
   shiftTime: string;
   monthlyRate: string;
   hourlyRate: string;
@@ -255,7 +255,7 @@ const BLANK: ContractFields = {
   responsibilities: ['', '', ''],
   additionalSupport: [],
   hoursPerDay: '8',
-  daysPerWeek: '5',
+  workDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
   shiftTime: 'graveyard shift from 11:00 PM to 7:00 AM Philippine Time',
   monthlyRate: '',
   hourlyRate: '',
@@ -542,15 +542,28 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
               <p className="text-xs font-medium text-gray-600 mb-2">Work Schedule</p>
               {fields.paymentType === 'fixed' || fields.paymentType === 'fixed_flexible' ? (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1.5">Work Days</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(day => {
+                        const active = fields.workDays.includes(day);
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => set('workDays', active ? fields.workDays.filter(d => d !== day) : [...fields.workDays, day])}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-all border ${active ? 'bg-[#FF6B35] border-[#FF6B35] text-white' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                          >
+                            {day.slice(0, 3)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 mt-2">
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Hours/day</label>
                       <input type="number" value={fields.hoursPerDay} onChange={e => set('hoursPerDay', e.target.value)} min={1} max={24}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Days/week</label>
-                      <input type="number" value={fields.daysPerWeek} onChange={e => set('daysPerWeek', e.target.value)} min={1} max={7}
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                     </div>
                     <div>
