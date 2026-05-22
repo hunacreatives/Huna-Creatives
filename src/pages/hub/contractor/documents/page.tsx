@@ -187,65 +187,78 @@ export default function ContractorDocumentsPage() {
         </div>
 
         {/* --- TO SIGN TAB --- */}
-        {tab === 'sign' && (
-          <div className="space-y-3">
-            {assignments.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-100 py-14 text-center">
-                <i className="ri-pen-nib-line text-4xl text-gray-200 block mb-3"></i>
-                <p className="text-gray-400 text-sm">No documents to sign.</p>
-                <p className="text-gray-300 text-xs mt-1">HR will send contracts here when needed.</p>
-              </div>
-            ) : (
-              assignments.map(a => {
-                const doc = (a as any).hub_sign_documents;
-                return (
-                  <div key={a.id} className="bg-white rounded-xl border border-gray-100 p-5">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${a.status === 'signed' ? 'bg-emerald-50' : 'bg-[#FF6B35]/10'}`}>
-                        <i className={`text-lg ${a.status === 'signed' ? 'ri-checkbox-circle-line text-emerald-500' : 'ri-file-text-line text-[#FF6B35]'}`}></i>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 flex-wrap">
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">{doc?.title}</p>
+        {tab === 'sign' && (() => {
+          const pending = assignments.filter(a => a.status === 'pending');
+          const signed = assignments.filter(a => a.status === 'signed');
+          if (assignments.length === 0) return (
+            <div className="bg-white rounded-xl border border-gray-100 py-14 text-center">
+              <i className="ri-pen-nib-line text-4xl text-gray-200 block mb-3"></i>
+              <p className="text-gray-400 text-sm">No documents to sign.</p>
+              <p className="text-gray-300 text-xs mt-1">HR will send contracts here when needed.</p>
+            </div>
+          );
+          return (
+            <div className="space-y-6">
+              {/* Needs Signature */}
+              {pending.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Needs Your Signature</p>
+                  {pending.map(a => {
+                    const doc = (a as any).hub_sign_documents;
+                    return (
+                      <div key={a.id} className="bg-white rounded-xl border border-[#FF6B35]/20 p-5 shadow-sm">
+                        <div className="flex items-start gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
+                            <i className="ri-file-text-line text-[#FF6B35] text-lg"></i>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm">{doc?.title}</p>
                             {doc?.description && <p className="text-xs text-gray-400 mt-0.5">{doc.description}</p>}
-                            <p className="text-xs text-gray-400 mt-1">
-                              Sent {new Date(doc?.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            <p className="text-xs text-gray-400 mt-1">Sent {new Date(doc?.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                            <div className="flex items-center gap-3 mt-4">
+                              <button onClick={() => openDoc(doc)} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 cursor-pointer">
+                                <i className="ri-eye-line"></i> View
+                              </button>
+                              <button onClick={() => openSignModal(a)} className="flex items-center gap-1.5 text-sm bg-[#FF6B35] text-white px-4 py-2 rounded-lg hover:bg-[#e55a24] cursor-pointer font-medium">
+                                <i className="ri-pen-nib-line"></i> Sign Document
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Signed */}
+              {signed.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Signed</p>
+                  <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
+                    {signed.map(a => {
+                      const doc = (a as any).hub_sign_documents;
+                      return (
+                        <div key={a.id} className="flex items-center gap-3 px-4 py-3.5">
+                          <i className="ri-checkbox-circle-fill text-emerald-500 text-lg flex-shrink-0"></i>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-700 truncate">{doc?.title}</p>
+                            <p className="text-xs text-gray-400">
+                              Signed {a.signed_at ? new Date(a.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
                             </p>
                           </div>
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${a.status === 'signed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                            {a.status === 'signed' ? 'Signed' : 'Awaiting signature'}
-                          </span>
-                        </div>
-                        {a.status === 'signed' && a.signed_at && (
-                          <p className="text-xs text-gray-400 mt-1">Signed as "{a.signed_name}" on {new Date(a.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        )}
-                        <div className="flex items-center gap-3 mt-3">
-                          <button
-                            onClick={() => openDoc(doc)}
-                            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
-                          >
-                            <i className="ri-eye-line"></i>
-                            View document
+                          <button onClick={() => openDoc(doc)} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer flex items-center gap-1 flex-shrink-0">
+                            <i className="ri-eye-line"></i> View
                           </button>
-                          {a.status === 'pending' && (
-                            <button
-                              onClick={() => openSignModal(a)}
-                              className="flex items-center gap-1.5 text-xs bg-[#FF6B35] text-white px-3 py-1.5 rounded-lg hover:bg-[#e55a24] cursor-pointer"
-                            >
-                              <i className="ri-pen-nib-line"></i>
-                              Sign document
-                            </button>
-                          )}
                         </div>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })
-            )}
-          </div>
-        )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* --- DOC REQUESTS TAB --- */}
         {tab === 'requests' && (
