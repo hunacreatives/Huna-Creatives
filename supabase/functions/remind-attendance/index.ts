@@ -20,18 +20,6 @@ async function slackPost(method: string, body: Record<string, unknown>) {
   return res.json();
 }
 
-async function findSlackUserId(email: string): Promise<string | null> {
-  const byEmail = await slackPost('users.lookupByEmail', { email });
-  if (byEmail.ok && byEmail.user?.id) return byEmail.user.id;
-  // Fallback: scan users.list
-  const list = await fetch('https://slack.com/api/users.list?limit=200', {
-    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}` },
-  }).then(r => r.json());
-  const match = list.members?.find((m: any) =>
-    !m.deleted && m.profile?.email?.toLowerCase() === email.toLowerCase()
-  );
-  return match?.id ?? null;
-}
 
 function parseMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -50,6 +38,8 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    const url = new URL(req.url);
+    const testMode = url.searchParams.get('test') === 'true';
 
     // Current PHT time (UTC+8)
     const now = new Date();
@@ -67,7 +57,7 @@ Deno.serve(async (req) => {
     // Fetch active contractors with shift info
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, email, shift_start, shift_end, work_days')
+      .select('id, full_name, email, slack_id, shift_start, shift_end, work_days')
       .eq('status', 'active')
       .not('shift_start', 'is', null);
 
@@ -89,7 +79,7 @@ Deno.serve(async (req) => {
       hoursMap[h.user_id][h.date] = h;
     }
 
-    const reminders: { email: string; name: string; message: string }[] = [];
+    const reminders: { slackId: string; name: string; message: string }[] = [];
 
     for (const c of contractors) {
       if (!c.email || !c.shift_start) continue;
@@ -112,13 +102,16 @@ Deno.serve(async (req) => {
       const hoursRow = hoursMap[c.id]?.[shiftDate];
       const firstName = c.full_name.split(' ')[0];
 
+      // Require a stored slack_id to send DMs
+      if (!c.slack_id) continue;
+
       // ── Log-on reminder ───────────────────────────────────────────────────
       // Send once, 15–30 min after shift_start, if no punch-in recorded
       const minSinceStart = minutesSince(phCurrentMin, shiftStartMin);
-      if (minSinceStart >= 15 && minSinceStart < 30 && !hoursRow?.first_on) {
+      if ((testMode || (minSinceStart >= 15 && minSinceStart < 30)) && !hoursRow?.first_on) {
         const timeLabel = c.shift_start.slice(0, 5);
         reminders.push({
-          email: c.email,
+          slackId: c.slack_id,
           name: firstName,
           message: `Hey ${firstName}! Your shift started at *${timeLabel}* and you haven't logged in yet. Please type \`on\` in <#${ATTENDANCE_CHANNEL_ID}> to log in. 🕐`,
         });
@@ -128,10 +121,10 @@ Deno.serve(async (req) => {
       // Send once, 30–45 min after shift_end, if punched in but not out
       if (shiftEndMin !== null) {
         const minSinceEnd = minutesSince(phCurrentMin, shiftEndMin);
-        if (minSinceEnd >= 30 && minSinceEnd < 45 && hoursRow?.first_on && !hoursRow?.last_off) {
+        if ((testMode || (minSinceEnd >= 30 && minSinceEnd < 45)) && hoursRow?.first_on && !hoursRow?.last_off) {
           const timeLabel = c.shift_end!.slice(0, 5);
           reminders.push({
-            email: c.email,
+            slackId: c.slack_id,
             name: firstName,
             message: `Hey ${firstName}! Your shift ended at *${timeLabel}* — don't forget to type \`off\` in <#${ATTENDANCE_CHANNEL_ID}> to log out. 👋`,
           });
@@ -144,12 +137,7 @@ Deno.serve(async (req) => {
     // Send DMs
     let sent = 0;
     for (const r of reminders) {
-      const slackId = await findSlackUserId(r.email);
-      if (!slackId) {
-        console.log(`[remind-attendance] Could not find Slack ID for ${r.email}`);
-        continue;
-      }
-      const result = await slackPost('chat.postMessage', { channel: slackId, text: r.message });
+      const result = await slackPost('chat.postMessage', { channel: r.slackId, text: r.message });
       if (result.ok) {
         sent++;
         console.log(`[remind-attendance] Sent to ${r.name}`);
