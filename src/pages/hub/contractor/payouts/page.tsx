@@ -627,12 +627,15 @@ export default function ContractorPayoutsPage() {
               <div className="space-y-3">
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting || days.length === 0}
+                  disabled={submitting || days.length === 0 || new Date() <= new Date(selectedPeriod.end + 'T23:59:59')}
                   className="w-full flex items-center justify-center gap-2 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-40 text-white font-medium py-3 rounded-xl transition-colors cursor-pointer"
                 >
                   {submitting ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-send-plane-line"></i>}
                   {submitting ? 'Submitting...' : 'Submit for Payment'}
                 </button>
+                {new Date() <= new Date(selectedPeriod.end + 'T23:59:59') && (
+                  <p className="text-xs text-center text-gray-400">Available after pay period ends ({selectedPeriod.end})</p>
+                )}
                 <button
                   onClick={handleDownload}
                   className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl transition-colors cursor-pointer text-sm"
