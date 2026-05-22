@@ -351,7 +351,7 @@ export default function ContractorPayoutsPage() {
   const handleSubmit = async () => {
     if (!hubUser || submitting) return;
     setSubmitting(true);
-    const { data, error } = await supabase.from('hub_payouts').insert({
+    const { data, error } = await supabase.from('hub_payouts').upsert({
       contractor_id: hubUser.id,
       cutoff_start: selectedPeriod.start,
       cutoff_end: selectedPeriod.end,
@@ -368,7 +368,7 @@ export default function ContractorPayoutsPage() {
       status: 'submitted',
       submitted_at: new Date().toISOString(),
       locked: false,
-    }).select('id, status, final_payout, payment_date').single();
+    }, { onConflict: 'contractor_id,cutoff_start' }).select('id, status, final_payout, payment_date').single();
     if (!error && data) setExistingPayout(data);
     setSubmitting(false);
   };
