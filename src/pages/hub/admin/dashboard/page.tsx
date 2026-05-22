@@ -398,7 +398,7 @@ export default function AdminDashboardPage() {
         )}
 
         {/* KPI row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: 'Online Now', value: counts.on, icon: 'ri-user-follow-line', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
             { label: 'Logged Off', value: counts.off, icon: 'ri-user-unfollow-line', color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-100' },
@@ -415,9 +415,9 @@ export default function AdminDashboardPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Team status — 3 cols */}
-          <div className="lg:col-span-3 bg-white border border-gray-100 rounded-xl p-5">
+          <div className="md:col-span-3 bg-white border border-gray-100 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-[#111827] text-sm">Team Status</h3>
               <button onClick={() => navigate('/hub/admin/attendance')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Full view</button>
@@ -494,7 +494,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Right col — 2 cols */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="md:col-span-2 space-y-4">
             {/* Payroll estimate */}
             <div className="bg-[#FF6B35] rounded-xl p-4 text-white">
               <div className="flex items-center gap-2 mb-3">

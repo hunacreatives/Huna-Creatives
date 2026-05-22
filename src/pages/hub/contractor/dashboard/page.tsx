@@ -545,7 +545,7 @@ export default function ContractorDashboard() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-white border border-gray-100 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-gray-400">Hours This Cutoff</span>
@@ -645,7 +645,7 @@ export default function ContractorDashboard() {
             </div>
 
             {/* Quick links */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 { label: 'Attendance', icon: 'ri-time-line', path: '/hub/contractor/attendance' },
                 { label: 'Payslips', icon: 'ri-file-list-3-line', path: '/hub/contractor/payouts' },

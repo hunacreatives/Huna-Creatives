@@ -510,7 +510,7 @@ export default function ContractorPayoutsPage() {
               </div>
 
               {/* Stats row */}
-              <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-4 gap-3 text-center">
+              <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                 {[
                   { label: 'Days Worked', value: totalDaysWorked, color: 'text-gray-900' },
                   { label: 'Hours Logged', value: `${totalHoursRaw.toFixed(1)}h`, color: 'text-gray-900' },
@@ -530,11 +530,11 @@ export default function ContractorPayoutsPage() {
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Attendance Log</p>
                   <div className="space-y-1.5">
                     {days.map((d) => (
-                      <div key={d.date} className="flex items-center gap-3 text-sm py-1.5 border-b border-gray-50 last:border-0">
-                        <span className="text-gray-500 w-32 flex-shrink-0">{fmtDate(d.date)}</span>
-                        <span className="text-gray-400 text-xs w-20 flex-shrink-0 text-center">{fmtTime(d.first_on)}</span>
+                      <div key={d.date} className="flex items-center gap-2 text-sm py-1.5 border-b border-gray-50 last:border-0">
+                        <span className="text-gray-500 min-w-0 flex-1 truncate">{fmtDate(d.date)}</span>
+                        <span className="text-gray-400 text-xs w-16 flex-shrink-0 text-center">{fmtTime(d.first_on)}</span>
                         <i className="ri-arrow-right-line text-gray-300 text-xs flex-shrink-0"></i>
-                        <span className="text-gray-400 text-xs w-20 flex-shrink-0 text-center">{fmtTime(d.last_off)}</span>
+                        <span className="text-gray-400 text-xs w-16 flex-shrink-0 text-center">{fmtTime(d.last_off)}</span>
                         <span className="flex-1 text-right">
                           <span className="font-medium text-gray-800">{d.hours_capped.toFixed(2)}h</span>
                           {d.hours_raw > d.hours_capped && (
