@@ -25,36 +25,6 @@ async function slackPost(path: string, body: object) {
   return res.json();
 }
 
-async function findSlackUserId(email: string): Promise<string | null> {
-  // Try direct email lookup first
-  const byEmail = await slackPost('users.lookupByEmail', { email });
-  console.log('[notify-contract-assigned] users.lookupByEmail result:', JSON.stringify(byEmail));
-  if (byEmail.ok && byEmail.user?.id) return byEmail.user.id;
-
-  // Fallback: list all users and match by profile email
-  console.log('[notify-contract-assigned] email lookup failed, trying users.list fallback');
-  const list = await fetch('https://slack.com/api/users.list?limit=200', {
-    headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}` },
-  }).then(r => r.json());
-
-  if (!list.ok) {
-    console.error('[notify-contract-assigned] users.list failed:', list.error);
-    return null;
-  }
-
-  const match = list.members?.find((m: any) =>
-    !m.deleted &&
-    (m.profile?.email?.toLowerCase() === email.toLowerCase() ||
-     m.profile?.email?.toLowerCase() === email.toLowerCase())
-  );
-  if (match) {
-    console.log('[notify-contract-assigned] matched via users.list:', match.id);
-    return match.id;
-  }
-
-  console.error('[notify-contract-assigned] no Slack user found for email:', email);
-  return null;
-}
 
 async function run(assignment_id: string) {
   console.log('[notify-contract-assigned] running for assignment:', assignment_id);
@@ -62,7 +32,7 @@ async function run(assignment_id: string) {
 
   const { data: assignment, error: aErr } = await supabase
     .from('hub_sign_assignments')
-    .select('*, hub_sign_documents(title), hub_users!contractor_id(full_name, email)')
+    .select('*, hub_sign_documents(title), hub_users!contractor_id(full_name, email, slack_id)')
     .eq('id', assignment_id)
     .single();
 
@@ -79,10 +49,12 @@ async function run(assignment_id: string) {
   const firstName = contractor.full_name?.split(' ')[0] ?? contractor.full_name;
 
   // --- Slack DM ---
-  const slackUserId = await findSlackUserId(contractor.email);
+  const slackUserId = contractor.slack_id ?? null;
   if (slackUserId) {
+    const dmOpen = await slackPost('conversations.open', { users: slackUserId });
+    const dmChannel = dmOpen.ok ? dmOpen.channel?.id : slackUserId;
     const dmResult = await slackPost('chat.postMessage', {
-      channel: slackUserId,
+      channel: dmChannel,
       text: `Hi ${firstName}! You have a document waiting for your signature: *${doc?.title}*. Please sign it here: ${HUB_URL}`,
       blocks: [
         {
