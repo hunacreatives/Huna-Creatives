@@ -136,17 +136,28 @@ Deno.serve(async (req) => {
 
     // Send DMs
     let sent = 0;
+    const errors: string[] = [];
     for (const r of reminders) {
-      const result = await slackPost('chat.postMessage', { channel: r.slackId, text: r.message });
+      // Open DM channel first, then post
+      const dm = await slackPost('conversations.open', { users: r.slackId });
+      if (!dm.ok) {
+        const msg = `conversations.open failed for ${r.name} (${r.slackId}): ${dm.error}`;
+        console.log(`[remind-attendance] ${msg}`);
+        errors.push(msg);
+        continue;
+      }
+      const result = await slackPost('chat.postMessage', { channel: dm.channel.id, text: r.message });
       if (result.ok) {
         sent++;
         console.log(`[remind-attendance] Sent to ${r.name}`);
       } else {
-        console.log(`[remind-attendance] Failed for ${r.name}: ${result.error}`);
+        const msg = `chat.postMessage failed for ${r.name}: ${result.error}`;
+        console.log(`[remind-attendance] ${msg}`);
+        errors.push(msg);
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, total: reminders.length }), { headers: cors });
+    return new Response(JSON.stringify({ ok: true, sent, total: reminders.length, errors }), { headers: cors });
   } catch (err) {
     console.error('[remind-attendance] Error:', err);
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });

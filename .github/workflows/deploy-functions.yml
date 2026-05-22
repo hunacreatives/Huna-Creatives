@@ -16,6 +16,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: Deploy all edge functions
         run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
