@@ -369,7 +369,10 @@ export default function ContractorPayoutsPage() {
       submitted_at: new Date().toISOString(),
       locked: false,
     }, { onConflict: 'contractor_id,cutoff_start' }).select('id, status, final_payout, payment_date').single();
-    if (!error && data) setExistingPayout(data);
+    if (!error && data) {
+      setExistingPayout(data);
+      await supabase.functions.invoke('notify-payslip-submitted', { body: { payout_id: data.id } });
+    }
     setSubmitting(false);
   };
 
