@@ -387,6 +387,7 @@ export default function AdminPayrollPage() {
 
   const fetchPayroll = async () => {
     setLoading(true);
+    try {
 
     const [contractorsRes, hoursRes] = await Promise.all([
       supabase
@@ -553,7 +554,11 @@ export default function AdminPayrollPage() {
 
     result.sort((a, b) => b.pay - a.pay);
     setRows(result);
-    setLoading(false);
+    } catch (e) {
+      console.error('[fetchPayroll] error:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const totalPay = rows.reduce((s, r) => {
