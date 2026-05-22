@@ -62,9 +62,9 @@ Deno.serve(async (req) => {
     let latest: string | null = null;
 
     if (backfillDate) {
-      // midnight PH to 20h later — covers overnight offs (7 AM = 7h in) without spanning multiple days
+      // midnight PH to 36h later — covers overnight shifts (11 PM on) and their 7 AM off next day
       const dayStart = new Date(`${backfillDate}T00:00:00+08:00`);
-      const dayEnd = new Date(dayStart.getTime() + 20 * 60 * 60 * 1000);
+      const dayEnd = new Date(dayStart.getTime() + 36 * 60 * 60 * 1000);
       oldest = String(dayStart.getTime() / 1000);
       latest = String(dayEnd.getTime() / 1000);
     } else {
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     }
 
     // Resolve Slack user info (email + display name)
-    const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId), ...Object.keys(hourlyHoursBySlackId)])];
+    const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeEntries), ...Object.keys(hourlyHoursBySlackId)])];
     const slackEmailMap: Record<string, string> = {};
     const slackDisplayNameMap: Record<string, string> = {};
 
