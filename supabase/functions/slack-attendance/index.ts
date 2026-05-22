@@ -110,19 +110,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Resolve overtime hours per Slack user by reading thread replies
-    const overtimeBySlackId: Record<string, number> = {};
+    // Resolve overtime hours per Slack user — store with timestamp so we can bind to correct shift
+    const overtimeEntries: Record<string, { ts: number; hours: number }[]> = {};
 
     await Promise.all(
       overtimeMessages.map(async ({ slackId, ts }) => {
         const thread = await slackGet(`conversations.replies?channel=${CHANNEL_ID}&ts=${ts}`);
         if (!thread.ok) return;
         for (const reply of thread.messages || []) {
-          if (reply.ts === ts) continue; // skip parent
+          if (reply.ts === ts) continue;
           if (reply.user !== slackId) continue;
           const num = parseFloat((reply.text || '').trim());
           if (!isNaN(num) && num > 0) {
-            overtimeBySlackId[slackId] = (overtimeBySlackId[slackId] || 0) + num;
+            if (!overtimeEntries[slackId]) overtimeEntries[slackId] = [];
+            overtimeEntries[slackId].push({ ts: parseFloat(ts), hours: num });
             break;
           }
         }
@@ -185,7 +186,7 @@ Deno.serve(async (req) => {
     const hoursInProgress: any[] = [];
 
     // Collect all slackIds that punched, logged overtime, or logged hourly hours
-    const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId), ...Object.keys(hourlyHoursBySlackId)])];
+    const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeEntries), ...Object.keys(hourlyHoursBySlackId)])];
 
     for (const slackId of allSlackIds) {
       const punches = userPunches[slackId] || [];
@@ -206,11 +207,18 @@ Deno.serve(async (req) => {
 
       const firstOn = punches.find(p => p.status === 'on');
       const lastOff = [...punches].reverse().find(p => p.status === 'off');
+      // Next "on" after firstOn — used to bound overtime to this shift only
+      const nextOn = firstOn ? punches.find(p => p.status === 'on' && p.ts > firstOn.ts) : undefined;
 
       // Record hours under the date the shift STARTED (on punch), not when the function runs
       const shiftDate = firstOn
         ? new Date(firstOn.ts * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
         : todayDate;
+
+      // Only count overtime posted during THIS shift (after firstOn, before nextOn)
+      const overtimeHoursForShift = (overtimeEntries[slackId] || [])
+        .filter(e => !firstOn || (e.ts >= firstOn.ts && (!nextOn || e.ts < nextOn.ts)))
+        .reduce((s, e) => s + e.hours, 0);
 
       const isHourly = hubUser?.payment_type === 'hourly';
       const threadHours = hourlyHoursBySlackId[slackId];
@@ -235,7 +243,7 @@ Deno.serve(async (req) => {
         effectiveStatus = 'off';
       }
 
-      const overtimeHours = overtimeBySlackId[slackId] || 0;
+      const overtimeHours = overtimeHoursForShift;
 
       if (hubUser && (firstOn || overtimeHours > 0)) {
         const validLastOff = (lastOff && firstOn && lastOff.ts > firstOn.ts) ? new Date(lastOff.ts * 1000).toISOString() : null;
