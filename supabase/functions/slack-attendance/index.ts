@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
     const hoursInProgress: any[] = [];
 
     // Collect all slackIds that punched, logged overtime, or logged hourly hours
-    const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeEntries), ...Object.keys(hourlyHoursBySlackId)])];
+    const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeEntries)])];
 
     for (const slackId of allSlackIds) {
       const punches = userPunches[slackId] || [];
