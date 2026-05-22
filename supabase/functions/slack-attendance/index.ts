@@ -62,9 +62,11 @@ Deno.serve(async (req) => {
     let latest: string | null = null;
 
     if (backfillDate) {
-      // Start at midnight PH — no latest filter so overnight off punches are always captured
+      // midnight PH to 20h later — covers overnight offs (7 AM = 7h in) without spanning multiple days
       const dayStart = new Date(`${backfillDate}T00:00:00+08:00`);
+      const dayEnd = new Date(dayStart.getTime() + 20 * 60 * 60 * 1000);
       oldest = String(dayStart.getTime() / 1000);
+      latest = String(dayEnd.getTime() / 1000);
     } else {
       // Rolling 18h window for live mode
       const windowStart = new Date(now.getTime() - 18 * 60 * 60 * 1000);
