@@ -16,6 +16,7 @@ export default function AdminDocumentsPage() {
   const [assignments, setAssignments] = useState<HubSignAssignment[]>([]);
   const [toast, setToast] = useState('');
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Signing for admins who also have documents assigned to them
   const [myAssignments, setMyAssignments] = useState<any[]>([]);
@@ -41,6 +42,15 @@ export default function AdminDocumentsPage() {
     fetchContractors();
     if (hubUser?.id) fetchMyAssignments();
   }, [hubUser]);
+
+  const deleteDoc = async (docId: string) => {
+    await supabase.from('hub_sign_assignments').delete().eq('document_id', docId);
+    await supabase.from('hub_sign_documents').delete().eq('id', docId);
+    setConfirmDeleteId(null);
+    if (selectedDoc?.id === docId) setSelectedDoc(null);
+    fetchDocs();
+    showToast('Contract deleted.');
+  };
 
   const fetchMyAssignments = async () => {
     const { data } = await supabase
@@ -246,10 +256,20 @@ export default function AdminDocumentsPage() {
               return (
                 <div
                   key={doc.id}
-                  onClick={() => openDetail(doc)}
-                  className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 hover:shadow-sm transition-all cursor-pointer"
+                  className="bg-white rounded-xl border border-gray-100 p-5 hover:border-gray-200 hover:shadow-sm transition-all"
                 >
-                  <div className="flex items-start gap-4">
+                  {confirmDeleteId === doc.id && (
+                    <div className="mb-4 flex items-center gap-3 bg-red-50 border border-red-100 rounded-lg px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                      <i className="ri-error-warning-line text-red-500 flex-shrink-0"></i>
+                      <p className="text-xs text-red-700 flex-1">
+                        {(doc.hub_sign_assignments?.some(a => a.status === 'signed')) ? 'This contract has already been signed. ' : ''}
+                        Delete permanently?
+                      </p>
+                      <button onClick={() => deleteDoc(doc.id)} className="text-xs font-semibold text-red-600 hover:text-red-800 cursor-pointer px-2 py-1 rounded hover:bg-red-100">Yes, delete</button>
+                      <button onClick={() => setConfirmDeleteId(null)} className="text-xs text-gray-500 hover:text-gray-700 cursor-pointer px-2 py-1 rounded hover:bg-gray-100">Cancel</button>
+                    </div>
+                  )}
+                  <div className="flex items-start gap-4 cursor-pointer" onClick={() => openDetail(doc)}>
                     <div className="w-10 h-10 bg-[#FF6B35]/10 rounded-xl flex items-center justify-center flex-shrink-0">
                       <i className="ri-file-text-line text-[#FF6B35] text-lg"></i>
                     </div>
@@ -259,9 +279,18 @@ export default function AdminDocumentsPage() {
                           <p className="font-medium text-gray-900 text-sm">{doc.title}</p>
                           {doc.description && <p className="text-xs text-gray-400 mt-0.5">{doc.description}</p>}
                         </div>
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${allSigned ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                          {allSigned ? 'All signed' : `${signed}/${total} signed`}
-                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${allSigned ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                            {allSigned ? 'All signed' : `${signed}/${total} signed`}
+                          </span>
+                          <button
+                            onClick={e => { e.stopPropagation(); setConfirmDeleteId(confirmDeleteId === doc.id ? null : doc.id); }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Delete contract"
+                          >
+                            <i className="ri-delete-bin-line text-sm"></i>
+                          </button>
+                        </div>
                       </div>
                       <div className="flex items-center gap-4 mt-3">
                         <div className="flex-1 bg-gray-100 rounded-full h-1.5">
