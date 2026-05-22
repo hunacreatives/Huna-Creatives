@@ -182,6 +182,7 @@ Deno.serve(async (req) => {
     const punchedEmails = new Set<string>();
     const attendance: any[] = [];
     const hoursUpserts: any[] = [];
+    const hoursInProgress: any[] = [];
 
     // Collect all slackIds that punched, logged overtime, or logged hourly hours
     const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeBySlackId), ...Object.keys(hourlyHoursBySlackId)])];
@@ -237,16 +238,24 @@ Deno.serve(async (req) => {
       const overtimeHours = overtimeBySlackId[slackId] || 0;
 
       if (hubUser && (firstOn || overtimeHours > 0)) {
-        hoursUpserts.push({
+        const validLastOff = (lastOff && firstOn && lastOff.ts > firstOn.ts) ? new Date(lastOff.ts * 1000).toISOString() : null;
+        const row = {
           user_id: hubUser.id,
           date: shiftDate,
           hours_raw: parseFloat(hoursRaw.toFixed(4)),
           hours_capped: parseFloat(hoursCapped.toFixed(4)),
           overtime_hours: parseFloat(overtimeHours.toFixed(2)),
           first_on: firstOn ? new Date(firstOn.ts * 1000).toISOString() : null,
-          last_off: (lastOff && firstOn && lastOff.ts > firstOn.ts) ? new Date(lastOff.ts * 1000).toISOString() : null,
+          last_off: validLastOff,
           updated_at: new Date().toISOString(),
-        });
+        };
+        if (hoursRaw > 0 || overtimeHours > 0) {
+          // Shift complete — always upsert with correct hours
+          hoursUpserts.push(row);
+        } else {
+          // Shift in progress — only insert if no row exists yet, never overwrite completed hours
+          hoursInProgress.push(row);
+        }
       }
 
       if (latestPunch) {
@@ -270,6 +279,13 @@ Deno.serve(async (req) => {
       await supabase
         .from('hub_daily_hours')
         .upsert(hoursUpserts, { onConflict: 'user_id,date' });
+    }
+
+    // In-progress (punched on, not off yet) — insert only, never overwrite completed hours
+    if (hoursInProgress.length > 0) {
+      await supabase
+        .from('hub_daily_hours')
+        .upsert(hoursInProgress, { onConflict: 'user_id,date', ignoreDuplicates: true });
     }
 
     // Add absent contractors
