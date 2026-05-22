@@ -582,10 +582,10 @@ export default function ContractorPayoutsPage() {
                       <p className="text-xs text-emerald-600 mt-0.5">Paid on {new Date(existingPayout.payment_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                     )}
                     {existingPayout.status === 'submitted' && (
-                      <p className="text-xs text-amber-600 mt-0.5">Your payslip is under review. Payment will be processed within 2 days of approval.</p>
+                      <p className="text-xs text-amber-600 mt-0.5">Your payslip is under review.</p>
                     )}
                     {existingPayout.status === 'approved' && (
-                      <p className="text-xs text-sky-600 mt-0.5">Approved! Payment will be processed within 2 days.</p>
+                      <p className="text-xs text-sky-600 mt-0.5">Approved! Payment will be sent within 2 days.</p>
                     )}
                   </div>
                   <span className="text-sm font-bold text-gray-800">{fmt(existingPayout.final_payout)}</span>
