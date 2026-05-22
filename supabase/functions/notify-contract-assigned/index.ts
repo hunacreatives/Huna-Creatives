@@ -25,29 +25,64 @@ async function slackPost(path: string, body: object) {
   return res.json();
 }
 
+async function findSlackUserId(email: string): Promise<string | null> {
+  // Try direct email lookup first
+  const byEmail = await slackPost('users.lookupByEmail', { email });
+  console.log('[notify-contract-assigned] users.lookupByEmail result:', JSON.stringify(byEmail));
+  if (byEmail.ok && byEmail.user?.id) return byEmail.user.id;
+
+  // Fallback: list all users and match by profile email
+  console.log('[notify-contract-assigned] email lookup failed, trying users.list fallback');
+  const list = await fetch('https://slack.com/api/users.list?limit=200', {
+    headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}` },
+  }).then(r => r.json());
+
+  if (!list.ok) {
+    console.error('[notify-contract-assigned] users.list failed:', list.error);
+    return null;
+  }
+
+  const match = list.members?.find((m: any) =>
+    !m.deleted &&
+    (m.profile?.email?.toLowerCase() === email.toLowerCase() ||
+     m.profile?.email?.toLowerCase() === email.toLowerCase())
+  );
+  if (match) {
+    console.log('[notify-contract-assigned] matched via users.list:', match.id);
+    return match.id;
+  }
+
+  console.error('[notify-contract-assigned] no Slack user found for email:', email);
+  return null;
+}
+
 async function run(assignment_id: string) {
+  console.log('[notify-contract-assigned] running for assignment:', assignment_id);
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-  const { data: assignment } = await supabase
+  const { data: assignment, error: aErr } = await supabase
     .from('hub_sign_assignments')
     .select('*, hub_sign_documents(title), hub_users!contractor_id(full_name, email)')
     .eq('id', assignment_id)
     .single();
 
-  if (!assignment) return;
+  if (aErr) console.error('[notify-contract-assigned] DB error:', aErr);
+  if (!assignment) { console.error('[notify-contract-assigned] no assignment found'); return; }
 
   const contractor = (assignment as any).hub_users;
   const doc = (assignment as any).hub_sign_documents;
 
-  if (!contractor?.email) return;
+  console.log('[notify-contract-assigned] contractor:', contractor?.full_name, contractor?.email);
+
+  if (!contractor?.email) { console.error('[notify-contract-assigned] no contractor email'); return; }
 
   const firstName = contractor.full_name?.split(' ')[0] ?? contractor.full_name;
 
   // --- Slack DM ---
-  const slackUser = await slackPost('users.lookupByEmail', { email: contractor.email });
-  if (slackUser.ok && slackUser.user?.id) {
-    await slackPost('chat.postMessage', {
-      channel: slackUser.user.id,
+  const slackUserId = await findSlackUserId(contractor.email);
+  if (slackUserId) {
+    const dmResult = await slackPost('chat.postMessage', {
+      channel: slackUserId,
       text: `Hi ${firstName}! You have a document waiting for your signature: *${doc?.title}*. Please sign it here: ${HUB_URL}`,
       blocks: [
         {
@@ -76,6 +111,7 @@ async function run(assignment_id: string) {
         },
       ],
     });
+    console.log('[notify-contract-assigned] chat.postMessage result:', JSON.stringify(dmResult));
   }
 
   // --- Email ---
@@ -109,7 +145,7 @@ async function run(assignment_id: string) {
 </body>
 </html>`;
 
-  await fetch('https://api.resend.com/emails', {
+  const emailResult = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -118,7 +154,8 @@ async function run(assignment_id: string) {
       subject: `Action Required: ${doc?.title} — Please Sign`,
       html,
     }),
-  });
+  }).then(r => r.json());
+  console.log('[notify-contract-assigned] email result:', JSON.stringify(emailResult));
 }
 
 Deno.serve(async (req) => {
