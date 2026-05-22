@@ -16,12 +16,16 @@ function buildSignedHtml(content: string, signedName: string, signedAt: string):
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
-  // Replace the blank contractor signature block with the actual signed name
-  return content
+  let result = content.replace(
+    '</head>',
+    `<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet"></head>`
+  );
+
+  return result
     .replace(
       /<div style="height:44pt;margin-top:16pt;border-bottom:1pt solid #111;"><\/div>\s*<p class="sig-label" style="margin-top:4pt;">Signature<\/p>/,
       `<div style="height:44pt;margin-top:16pt;display:flex;align-items:flex-end;padding-bottom:4pt;">
-        <p style="font-family:'Times New Roman',serif;font-size:22pt;font-style:italic;color:#111;margin:0;line-height:1;">${signedName}</p>
+        <p style="font-family:'Dancing Script',cursive;font-size:26pt;color:#111;margin:0;line-height:1;">${signedName}</p>
        </div>`
     )
     .replace(

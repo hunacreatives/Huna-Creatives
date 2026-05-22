@@ -81,9 +81,34 @@ export default function ContractorDocumentsPage() {
     setAssignments((data as HubSignAssignment[]) ?? []);
   };
 
-  const openDoc = (doc: any) => {
+  const buildSignedHtml = (content: string, signedName: string, signedAt: string): string => {
+    const dateLabel = new Date(signedAt).toLocaleDateString('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric',
+    });
+    let result = content.replace(
+      '</head>',
+      `<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet"></head>`
+    );
+    return result
+      .replace(
+        /<div style="height:44pt;margin-top:16pt;border-bottom:1pt solid #111;"><\/div>\s*<p class="sig-label" style="margin-top:4pt;">Signature<\/p>/,
+        `<div style="height:44pt;margin-top:16pt;display:flex;align-items:flex-end;padding-bottom:4pt;">
+          <p style="font-family:'Dancing Script',cursive;font-size:26pt;color:#111;margin:0;line-height:1;">${signedName}</p>
+         </div>`
+      )
+      .replace(
+        /(<p class="sig-label">)([^<]+ &nbsp;\|&nbsp; Date)(<\/p>)(?![\s\S]*<p class="sig-label">Francis)/,
+        `$1${signedName} &nbsp;|&nbsp; ${dateLabel}$3`
+      );
+  };
+
+  const openDoc = (doc: any, assignment?: HubSignAssignment) => {
     if (doc?.is_generated && doc?.content) {
-      const blob = new Blob([doc.content], { type: 'text/html' });
+      let content = doc.content;
+      if (assignment?.status === 'signed' && assignment.signed_name && assignment.signed_at) {
+        content = buildSignedHtml(content, assignment.signed_name, assignment.signed_at);
+      }
+      const blob = new Blob([content], { type: 'text/html' });
       window.open(URL.createObjectURL(blob), '_blank');
     } else if (doc?.file_url) {
       window.open(doc.file_url, '_blank');
@@ -247,7 +272,7 @@ export default function ContractorDocumentsPage() {
                               Signed {a.signed_at ? new Date(a.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
                             </p>
                           </div>
-                          <button onClick={() => openDoc(doc)} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => openDoc(doc, a)} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer flex items-center gap-1 flex-shrink-0">
                             <i className="ri-eye-line"></i> View
                           </button>
                         </div>
