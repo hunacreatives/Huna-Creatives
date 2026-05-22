@@ -21,6 +21,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   } = fields;
 
   const isHourly = paymentType === 'hourly';
+  const isFlexible = paymentType === 'hourly' || paymentType === 'fixed_flexible';
   const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const rate = isHourly ? Number(hourlyRate).toLocaleString() : Number(monthlyRate).toLocaleString();
   const respItems = responsibilities.filter(r => r.trim()).map(r => `<li>${r}</li>`).join('\n');
@@ -103,7 +104,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <hr class="divider" />
 
   <div class="section-title">2. Work Schedule &amp; Availability</div>
-  ${isHourly ? `
+  ${isFlexible ? `
   <p>2.1 The Contractor shall work on a <strong>flexible, as-needed basis</strong>, rendering services based on project requirements and mutual availability. There is no fixed minimum number of hours per day or days per week.</p>
   <p>2.2 The Contractor is expected to communicate availability in advance and remain responsive via Slack or email during agreed working windows.</p>
   <p>2.3 Specific project timelines, deadlines, and deliverable windows will be communicated by Huna Creatives as work arises.</p>
@@ -126,13 +127,15 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <p>Any changes to the hourly rate, scope of work, or engagement terms must be confirmed in writing by both parties.</p>
   ` : `
   <div class="sub-title">3.1 Monthly Service Fee</div>
-  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall receive a fixed <strong>monthly service fee of ₱${rate} PHP</strong>, regardless of the number of working days in a given month.</p>
+  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall receive a fixed <strong>monthly service fee of ₱${rate} PHP</strong>${paymentType === 'fixed_flexible' ? ', covering services rendered on a flexible, as-needed basis during the pay period.' : ', regardless of the number of working days in a given month.'}</p>
   <div class="sub-title">3.2 Payment Schedule</div>
   <p>Payments shall be made on a <strong>${paymentSchedule}</strong>.</p>
+  ${paymentType === 'fixed_flexible' ? '' : `
   <div class="sub-title">3.3 Absences and Deductions</div>
   <p>In the event of approved absences or non-rendered workdays, a proportional deduction may be applied based on the following formula:</p>
   <p>₱${rate} ÷ Total Working Days in the Month = Daily Rate</p>
-  <div class="sub-title">3.4 Adjustments</div>
+  `}
+  <div class="sub-title">${paymentType === 'fixed_flexible' ? '3.3' : '3.4'} Adjustments</div>
   <p>Any changes to the service fee, workload, or scope of work must be confirmed in writing by both parties.</p>
   `}
   <hr class="divider" />
@@ -231,7 +234,7 @@ interface ContractFields {
   shiftTime: string;
   monthlyRate: string;
   hourlyRate: string;
-  paymentType: 'fixed' | 'hourly';
+  paymentType: 'fixed' | 'hourly' | 'fixed_flexible';
   paymentSchedule: string;
   tools: string[];
   ptaDays: string;
@@ -327,6 +330,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
         rate_snapshot: fields.paymentType === 'hourly'
           ? (fields.hourlyRate ? Number(fields.hourlyRate) : null)
           : (fields.monthlyRate ? Number(fields.monthlyRate) : null),
+
         uploaded_by: hubUser!.id,
       })
       .select('id')
@@ -401,10 +405,11 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
             {/* Payment type */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Payment Structure *</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {([
-                  { key: 'fixed',  label: 'Fixed Monthly Rate', icon: 'ri-calendar-line', desc: 'Set monthly fee regardless of hours' },
-                  { key: 'hourly', label: 'Hourly / Flexible',  icon: 'ri-time-line',     desc: 'Paid per approved hour logged' },
+                  { key: 'fixed',          label: 'Fixed Monthly Rate',    icon: 'ri-calendar-line',  desc: 'Set monthly fee, fixed schedule' },
+                  { key: 'fixed_flexible', label: 'Fixed + Flexible',      icon: 'ri-shield-line',    desc: 'Set monthly fee, flexible schedule' },
+                  { key: 'hourly',         label: 'Hourly / Flexible',     icon: 'ri-time-line',      desc: 'Paid per approved hour logged' },
                 ] as const).map(t => (
                   <button
                     key={t.key}
@@ -531,7 +536,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
             {/* Schedule */}
             <div>
               <p className="text-xs font-medium text-gray-600 mb-2">Work Schedule</p>
-              {fields.paymentType === 'fixed' ? (
+              {fields.paymentType === 'fixed' || fields.paymentType === 'fixed_flexible' ? (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
@@ -555,11 +560,13 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                     </div>
                   </div>
-                  <div className="mt-2">
-                    <label className="block text-xs text-gray-500 mb-1">Shift / Working Hours</label>
-                    <input type="text" value={fields.shiftTime} onChange={e => set('shiftTime', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  </div>
+                  {fields.paymentType === 'fixed' && (
+                    <div className="mt-2">
+                      <label className="block text-xs text-gray-500 mb-1">Shift / Working Hours</label>
+                      <input type="text" value={fields.shiftTime} onChange={e => set('shiftTime', e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
@@ -580,7 +587,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
             {/* Compensation */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                {fields.paymentType === 'fixed' ? (
+                {fields.paymentType !== 'hourly' ? (
                   <>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Monthly Rate (₱) *</label>
                     <input type="number" value={fields.monthlyRate} onChange={e => set('monthlyRate', e.target.value)}
@@ -680,6 +687,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
             <button
               onClick={handlePreview}
               disabled={!fields.contractorId || !fields.role || !fields.primaryClient || !(fields.paymentType === 'hourly' ? fields.hourlyRate : fields.monthlyRate) || !fields.effectiveDate}
+
               className="flex-1 bg-[#111827] text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 cursor-pointer disabled:opacity-40"
             >
               Preview Contract →
