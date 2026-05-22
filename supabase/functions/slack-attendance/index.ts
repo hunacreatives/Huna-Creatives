@@ -297,11 +297,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Upsert daily hours
+    // Upsert daily hours — preserve existing overtime_hours if higher (prevents re-sync overwriting accumulated OT)
     if (hoursUpserts.length > 0) {
+      const upsertKeys = hoursUpserts.map(r => ({ user_id: r.user_id, date: r.date }));
+      const { data: existingRows } = await supabase
+        .from('hub_daily_hours')
+        .select('user_id, date, overtime_hours')
+        .or(upsertKeys.map(k => `and(user_id.eq.${k.user_id},date.eq.${k.date})`).join(','));
+
+      const existingMap: Record<string, number> = {};
+      for (const row of existingRows || []) {
+        existingMap[`${row.user_id}:${row.date}`] = row.overtime_hours || 0;
+      }
+
+      const mergedUpserts = hoursUpserts.map(r => ({
+        ...r,
+        overtime_hours: Math.max(r.overtime_hours, existingMap[`${r.user_id}:${r.date}`] ?? 0),
+      }));
+
       await supabase
         .from('hub_daily_hours')
-        .upsert(hoursUpserts, { onConflict: 'user_id,date' });
+        .upsert(mergedUpserts, { onConflict: 'user_id,date' });
     }
 
     // In-progress (punched on, not off yet) — insert only, never overwrite completed hours
