@@ -206,7 +206,8 @@ Deno.serve(async (req) => {
       }));
 
       const firstOn = punches.find(p => p.status === 'on');
-      const lastOff = [...punches].reverse().find(p => p.status === 'off');
+      // First off AFTER firstOn — prevents spanning multiple overnight shifts
+      const lastOff = firstOn ? punches.find(p => p.status === 'off' && p.ts > firstOn.ts) : undefined;
       // Next "on" after firstOn — used to bound overtime to this shift only
       const nextOn = firstOn ? punches.find(p => p.status === 'on' && p.ts > firstOn.ts) : undefined;
 
