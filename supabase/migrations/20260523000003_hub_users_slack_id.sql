@@ -6,5 +6,5 @@ update hub_users set slack_id = 'U09NUQFTZL6' where email = 'angelalouiseando@gm
 update hub_users set slack_id = 'U083FB0N0PL' where email = 'nellaskatleen@gmail.com';
 update hub_users set slack_id = 'U091BL9PQ77' where email = 'duterteabigaile@gmail.com';
 update hub_users set slack_id = 'U0ADHQPTR25' where email = 'claudettemaytahil@gmail.com';
-update hub_users set slack_id = 'U08SRTTLLF9' where email = 'reevajumawan@gmail.com';
+update hub_users set slack_id = 'U08SRTTLLF9' where email = 'janreesepj@gmail.com';
 update hub_users set slack_id = 'U0838LWSY4E' where email = 'ffroble@icloud.com';
