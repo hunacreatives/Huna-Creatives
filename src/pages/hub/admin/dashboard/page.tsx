@@ -138,16 +138,31 @@ export default function AdminDashboardPage() {
         }
       }
 
-      // Fetch rate history for all contractors (same proration logic as payroll page)
+      // Fetch rate history + saved payout adjustments (same as payroll page totals)
       const contractorIds = (contractorsResult.data || []).map((c: any) => c.id);
-      const { data: rateHistoryAll } = contractorIds.length > 0
-        ? await supabase
-            .from('hub_rate_history')
-            .select('contractor_id, effective_date, payment_type, hourly_rate, monthly_rate')
-            .in('contractor_id', contractorIds)
-            .lte('effective_date', cutoffEnd)
-            .order('effective_date', { ascending: true })
-        : { data: [] };
+      const [{ data: rateHistoryAll }, { data: payoutsData }] = await Promise.all([
+        contractorIds.length > 0
+          ? supabase
+              .from('hub_rate_history')
+              .select('contractor_id, effective_date, payment_type, hourly_rate, monthly_rate')
+              .in('contractor_id', contractorIds)
+              .lte('effective_date', cutoffEnd)
+              .order('effective_date', { ascending: true })
+          : Promise.resolve({ data: [] }),
+        contractorIds.length > 0
+          ? supabase
+              .from('hub_payouts')
+              .select('contractor_id, adjustments')
+              .in('contractor_id', contractorIds)
+              .eq('cutoff_start', cutoffStart)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const payoutsAdjMap: Record<string, number> = {};
+      for (const p of payoutsData || []) {
+        const adjs: any[] = p.adjustments || [];
+        payoutsAdjMap[p.contractor_id] = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+      }
 
       const rateHistoryMap: Record<string, any[]> = {};
       for (const r of rateHistoryAll || []) {
@@ -206,7 +221,8 @@ export default function AdminDashboardPage() {
             pay = h.capped * hourly + h.overtime * hourly;
           }
         }
-        payroll += c.currency === 'USD' ? pay * usdRate : pay;
+        const adj = payoutsAdjMap[c.id] || 0;
+        payroll += (c.currency === 'USD' ? pay * usdRate : pay) + adj;
       }
       setTotalPayroll(payroll);
       setTotalHours(parseFloat(hrs.toFixed(1)));
