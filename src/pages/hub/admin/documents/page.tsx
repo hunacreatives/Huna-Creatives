@@ -49,7 +49,7 @@ export default function AdminDocumentsPage() {
     const { data } = await supabase
       .from('hub_users')
       .select('id, full_name, avatar_url, role, status')
-      .eq('role', 'contractor')
+      .in('role', ['contractor', 'admin'])
       .eq('status', 'active')
       .order('full_name');
     setContractors((data as HubUser[]) ?? []);
