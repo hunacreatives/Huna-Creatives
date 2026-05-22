@@ -398,6 +398,7 @@ export default function AdminPayrollPage() {
 
     // Per-user per-date hours map (for hourly proration)
     const hoursByDate: Record<string, Record<string, number>> = {};
+    const overtimeByDate: Record<string, Record<string, number>> = {};
     const hoursMap: Record<string, { capped: number; raw: number; overtime: number; days: number }> = {};
     for (const h of hoursRes.data || []) {
       if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, raw: 0, overtime: 0, days: 0 };
@@ -407,6 +408,10 @@ export default function AdminPayrollPage() {
       hoursMap[h.user_id].days += 1;
       if (!hoursByDate[h.user_id]) hoursByDate[h.user_id] = {};
       hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + h.hours_capped;
+      if (h.overtime_hours) {
+        if (!overtimeByDate[h.user_id]) overtimeByDate[h.user_id] = {};
+        overtimeByDate[h.user_id][h.date] = (overtimeByDate[h.user_id][h.date] || 0) + h.overtime_hours;
+      }
     }
 
     // Fetch all rate history for eligible contractors up to period end
@@ -472,9 +477,19 @@ export default function AdminPayrollPage() {
           const daysAtNew = totalDays - daysAtOld;
 
           const basePay = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
-          const newHourlyForOT = changeInPeriod.hourly_rate || 0;
-          derivedHourlyRate = newHourlyForOT || newMonthly / 176;
-          overtimePay = hrs.overtime * derivedHourlyRate;
+
+          // Split OT by date so pre-raise OT uses old OT rate, post-raise uses new
+          const oldHourlyForOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
+          const newHourlyForOT = changeInPeriod.hourly_rate || newMonthly / 176;
+          const otDates = overtimeByDate[c.id] || {};
+          let otAtOld = 0;
+          let otAtNew = 0;
+          for (const [date, ot] of Object.entries(otDates)) {
+            if (date < changeInPeriod.effective_date) otAtOld += ot;
+            else otAtNew += ot;
+          }
+          derivedHourlyRate = newHourlyForOT;
+          overtimePay = otAtOld * oldHourlyForOT + otAtNew * newHourlyForOT;
           pay = basePay + overtimePay;
           proratedNote = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
         } else {
