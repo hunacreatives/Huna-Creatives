@@ -4,8 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { HubTimeOff } from '@/lib/types';
 
-const VL_LIMIT = 5;
-const SL_LIMIT = 5;
+const VL_LIMIT = 6;
+const SL_LIMIT = 4;
 const PTO_LIMIT = VL_LIMIT;
 const SICK_LIMIT = SL_LIMIT;
 const ADVANCE_DAYS = 30;
@@ -120,6 +120,7 @@ export default function ContractorTimeOffPage() {
     }
 
     if (type === 'sick') {
+      if (!isEligibleForPTO) return 'Sick leave is available 6 months after your start date.';
       if (sickLeft <= 0) return 'You have no sick leave days remaining for this year.';
       if (effectiveDays > sickLeft) return `You only have ${sickLeft} sick day${sickLeft !== 1 ? 's' : ''} left.`;
     }
@@ -214,8 +215,8 @@ export default function ContractorTimeOffPage() {
         <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-1.5">
           <p className="text-xs font-semibold text-gray-500 flex items-center gap-1.5"><i className="ri-information-line"></i>Leave Policy</p>
           <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
-            <li>PTO: 6 days/year · available 6 months after start date · no carryover</li>
-            <li>Sick leave: 4 days/year · separate from PTO</li>
+            <li>VL: 6 days/year · available 6 months after start date · no carryover</li>
+            <li>SL: 4 days/year · available 6 months after start date · separate from VL</li>
             <li>PTO must be filed <strong className="text-gray-500">30 days in advance</strong> · max 3 consecutive days per month</li>
             <li>Emergencies: notify HR immediately</li>
             <li>Unpaid leave: subject to approval based on workload</li>

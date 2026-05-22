@@ -72,8 +72,8 @@ export default function AdminTimeOffPage() {
       supabase.from('hub_time_off').select('contractor_id, type, status, start_date, end_date, half_day').gte('start_date', yearStart).lte('start_date', yearEnd).eq('status', 'approved'),
     ]);
 
-    const PTO_LIMIT = 5;
-    const SICK_LIMIT = 5;
+    const PTO_LIMIT = 6;
+    const SICK_LIMIT = 4;
 
     const leavesByUser: Record<string, any[]> = {};
     for (const l of leavesRes.data || []) {
@@ -384,9 +384,9 @@ export default function AdminTimeOffPage() {
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2">
                             <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${Math.min(100, (b.ptoUsed / 5) * 100)}%` }} />
+                              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${Math.min(100, (b.ptoUsed / 6) * 100)}%` }} />
                             </div>
-                            <span className="text-xs text-gray-600">{b.ptoUsed}<span className="text-gray-400">/5</span></span>
+                            <span className="text-xs text-gray-600">{b.ptoUsed}<span className="text-gray-400">/6</span></span>
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
@@ -395,9 +395,9 @@ export default function AdminTimeOffPage() {
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-rose-400 rounded-full" style={{ width: `${Math.min(100, (b.sickUsed / 5) * 100)}%` }} />
+                              <div className="h-full bg-rose-400 rounded-full" style={{ width: `${Math.min(100, (b.sickUsed / 4) * 100)}%` }} />
                             </div>
-                            <span className="text-xs text-gray-600">{b.sickUsed}<span className="text-gray-400">/5</span></span>
+                            <span className="text-xs text-gray-600">{b.sickUsed}<span className="text-gray-400">/4</span></span>
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
