@@ -4,14 +4,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { HubTimeOff } from '@/lib/types';
 
-const PTO_LIMIT = 6;
-const SICK_LIMIT = 4;
+const VL_LIMIT = 5;
+const SL_LIMIT = 5;
+const PTO_LIMIT = VL_LIMIT;
+const SICK_LIMIT = SL_LIMIT;
 const ADVANCE_DAYS = 30;
 const MAX_CONSECUTIVE = 3;
 
 const typeLabels: Record<string, string> = {
-  pto: 'Paid Time Off',
-  sick: 'Sick Leave',
+  pto: 'Vacation Leave (VL)',
+  sick: 'Sick Leave (SL)',
   emergency: 'Emergency Leave',
   unpaid: 'Unpaid Leave',
 };
@@ -175,23 +177,23 @@ export default function ContractorTimeOffPage() {
         {/* Balance cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className={`border border-gray-100 rounded-xl p-4 ${isEligibleForPTO ? 'bg-sky-50' : 'bg-gray-50'}`}>
-            <p className="text-xs text-gray-400 mb-1">PTO Remaining</p>
+            <p className="text-xs text-gray-400 mb-1">VL Remaining</p>
             {isEligibleForPTO
-              ? <p className="text-2xl font-bold text-sky-600">{ptoLeft}<span className="text-sm font-normal text-gray-300">/{PTO_LIMIT}</span></p>
+              ? <p className="text-2xl font-bold text-sky-600">{ptoLeft}<span className="text-sm font-normal text-gray-300">/{VL_LIMIT}</span></p>
               : <p className="text-sm font-semibold text-gray-400">Unlocks {ptoEligibleLabel}</p>
             }
           </div>
           <div className="bg-white border border-gray-100 rounded-xl p-4">
-            <p className="text-xs text-gray-400 mb-1">PTO Used</p>
-            <p className="text-2xl font-bold text-sky-400">{ptoUsed}<span className="text-sm font-normal text-gray-300">/{PTO_LIMIT}</span></p>
+            <p className="text-xs text-gray-400 mb-1">VL Used</p>
+            <p className="text-2xl font-bold text-sky-400">{ptoUsed}<span className="text-sm font-normal text-gray-300">/{VL_LIMIT}</span></p>
           </div>
           <div className="bg-rose-50 border border-gray-100 rounded-xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Sick Remaining</p>
-            <p className="text-2xl font-bold text-rose-600">{sickLeft}<span className="text-sm font-normal text-gray-300">/{SICK_LIMIT}</span></p>
+            <p className="text-xs text-gray-400 mb-1">SL Remaining</p>
+            <p className="text-2xl font-bold text-rose-600">{sickLeft}<span className="text-sm font-normal text-gray-300">/{SL_LIMIT}</span></p>
           </div>
           <div className="bg-white border border-gray-100 rounded-xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Sick Used</p>
-            <p className="text-2xl font-bold text-rose-400">{sickUsed}<span className="text-sm font-normal text-gray-300">/{SICK_LIMIT}</span></p>
+            <p className="text-xs text-gray-400 mb-1">SL Used</p>
+            <p className="text-2xl font-bold text-rose-400">{sickUsed}<span className="text-sm font-normal text-gray-300">/{SL_LIMIT}</span></p>
           </div>
         </div>
 

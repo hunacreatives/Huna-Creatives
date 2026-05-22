@@ -1,10 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FROM_EMAIL = 'payroll@hunacreatives.com';
 const NOTIFY_EMAILS = ['francisfielroble@gmail.com', 'duterteabigaile@gmail.com'];
+const ABIGAIL_SLACK_ID = 'U091BL9PQ77';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -105,6 +107,23 @@ async function sendNotification(payout_id: string) {
       html,
     }),
   });
+
+  // Slack DM to Abigail
+  const slackPost = async (path: string, body: object) => {
+    const res = await fetch(`https://slack.com/api/${path}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  };
+  const dm = await slackPost('conversations.open', { users: ABIGAIL_SLACK_ID });
+  if (dm.ok) {
+    await slackPost('chat.postMessage', {
+      channel: dm.channel.id,
+      text: `💰 *Payslip submitted* — *${contractor.full_name}* has submitted their payslip for *${periodLabel}* (${fmt(payout.final_payout)}). Review it here: ${payrollUrl}`,
+    });
+  }
 }
 
 Deno.serve(async (req) => {
