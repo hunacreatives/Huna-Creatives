@@ -396,6 +396,28 @@ export default function NotificationBell() {
           });
         }
       }
+
+      // Pending contract signatures
+      const { data: pendingDocs } = await supabase
+        .from('hub_sign_assignments')
+        .select('id, created_at, hub_sign_documents(title)')
+        .eq('contractor_id', hubUser.id)
+        .neq('status', 'signed')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      for (const a of pendingDocs || []) {
+        const doc = (a as any).hub_sign_documents;
+        items.push({
+          id: `sign-${a.id}`,
+          icon: 'ri-pen-nib-line',
+          iconBg: 'bg-violet-50',
+          iconColor: 'text-violet-500',
+          title: 'Document awaiting your signature',
+          body: doc?.title ?? 'Contract',
+          time: new Date(a.created_at),
+        });
+      }
     }
 
     // Sort by newest

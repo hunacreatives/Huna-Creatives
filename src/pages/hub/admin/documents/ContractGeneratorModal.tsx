@@ -342,10 +342,14 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
       return;
     }
 
-    await supabase.from('hub_sign_assignments').insert({
+    const { data: assignment } = await supabase.from('hub_sign_assignments').insert({
       document_id: doc.id,
       contractor_id: fields.contractorId,
-    });
+    }).select('id').single();
+
+    if (assignment?.id) {
+      await supabase.functions.invoke('notify-contract-assigned', { body: { assignment_id: assignment.id } });
+    }
 
     setSaving(false);
     onDone();
