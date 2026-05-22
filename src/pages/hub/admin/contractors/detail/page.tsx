@@ -652,8 +652,8 @@ export default function ContractorDetailPage() {
 
         {activeTab === 'payslip' && (() => {
           const paymentType = (contractor as any)?.payment_type || 'hourly';
-          const hourlyRate = Number((contractor as any)?.hourly_rate || 0);
-          const monthlyRate = Number((contractor as any)?.monthly_rate || 0);
+          const currentHourlyRate = Number((contractor as any)?.hourly_rate || 0);
+          const currentMonthlyRate = Number((contractor as any)?.monthly_rate || 0);
           const currency = (contractor as any)?.currency || 'PHP';
           const isUSD = currency === 'USD';
           const fmt = (val: number) => isUSD
@@ -667,9 +667,74 @@ export default function ContractorDetailPage() {
           const totalHoursRaw = payslipDays.reduce((s, d) => s + d.hours_raw, 0);
           const totalHoursBillable = payslipDays.reduce((s, d) => s + d.hours_capped, 0);
           const totalOvertime = payslipDays.reduce((s, d) => s + (d.overtime_hours || 0), 0);
-          const basePay = paymentType === 'fixed' ? monthlyRate / 2 : totalHoursBillable * hourlyRate;
-          const otRate = paymentType === 'fixed' ? (hourlyRate || monthlyRate / 176) : hourlyRate;
-          const overtimePay = totalOvertime * otRate;
+
+          // Use rate history for accurate prorated pay (same logic as admin payroll page)
+          const history = [...rateHistory].sort((a, b) => a.effective_date.localeCompare(b.effective_date));
+          const changeInPeriod = history.find(r =>
+            r.effective_date >= selectedPeriod.start && r.effective_date <= selectedPeriod.end
+          );
+          const rateAtStart = [...history].filter(r => r.effective_date < selectedPeriod.start).pop() || null;
+
+          let basePay: number;
+          let overtimePay: number;
+          let otRate: number;
+          let isProrated = false;
+          let displayMonthlyRate: number;
+          let displayHourlyRate: number;
+          let proratedLabel = '';
+
+          if (changeInPeriod) {
+            isProrated = true;
+            const beforeChange = [...history].filter(r => r.effective_date < changeInPeriod.effective_date).pop();
+            const oldMonthly = beforeChange?.monthly_rate ?? currentMonthlyRate;
+            const oldHourly  = beforeChange?.hourly_rate  ?? currentHourlyRate;
+            const newMonthly = changeInPeriod.monthly_rate || 0;
+            const newHourly  = changeInPeriod.hourly_rate  || 0;
+            displayMonthlyRate = newMonthly;
+            displayHourlyRate  = newHourly;
+            const periodStart = new Date(selectedPeriod.start);
+            const periodEnd   = new Date(selectedPeriod.end);
+            const changeDate  = new Date(changeInPeriod.effective_date);
+            if (paymentType === 'fixed') {
+              const totalDays = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
+              const daysAtOld = Math.max(0, Math.round((changeDate.getTime() - periodStart.getTime()) / 86400000));
+              const daysAtNew = totalDays - daysAtOld;
+              basePay = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
+              const oldOT = oldHourly || oldMonthly / 176;
+              const newOT = newHourly || newMonthly / 176;
+              let otAtOld = 0, otAtNew = 0;
+              for (const d of payslipDays) {
+                if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
+                else otAtNew += d.overtime_hours || 0;
+              }
+              overtimePay = otAtOld * oldOT + otAtNew * newOT;
+              otRate = newOT;
+              proratedLabel = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
+            } else {
+              let hrsAtOld = 0, hrsAtNew = 0;
+              for (const d of payslipDays) {
+                if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped;
+                else hrsAtNew += d.hours_capped;
+              }
+              basePay = hrsAtOld * oldHourly + hrsAtNew * newHourly;
+              otRate = newHourly;
+              overtimePay = totalOvertime * newHourly;
+            }
+          } else {
+            const eff = rateAtStart;
+            const monthly = eff?.monthly_rate ?? currentMonthlyRate;
+            const hourly  = eff?.hourly_rate  ?? currentHourlyRate;
+            displayMonthlyRate = monthly;
+            displayHourlyRate  = hourly;
+            if (paymentType === 'fixed') {
+              basePay = monthly / 2;
+              otRate = hourly || monthly / 176;
+            } else {
+              basePay = totalHoursBillable * hourly;
+              otRate = hourly;
+            }
+            overtimePay = totalOvertime * otRate;
+          }
           const totalPay = basePay + overtimePay;
 
           return (
@@ -722,9 +787,9 @@ export default function ContractorDetailPage() {
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">Rate</p>
                         <p className="text-sm font-semibold text-gray-900">
-                          {paymentType === 'fixed' ? `₱${monthlyRate.toLocaleString()}/mo` : `${isUSD ? '$' : '₱'}${hourlyRate}/hr`}
+                          {isProrated ? 'Prorated' : paymentType === 'fixed' ? `₱${displayMonthlyRate.toLocaleString()}/mo` : `${isUSD ? '$' : '₱'}${displayHourlyRate}/hr`}
                         </p>
-                        <p className="text-xs text-gray-400 capitalize">{paymentType}</p>
+                        <p className="text-xs text-gray-400">{isProrated ? proratedLabel : paymentType}</p>
                       </div>
                     </div>
 
@@ -777,9 +842,11 @@ export default function ContractorDetailPage() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-500">
-                            {paymentType === 'fixed'
-                              ? `Fixed rate (${fmt(monthlyRate)}/mo ÷ 2)`
-                              : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${hourlyRate})`}
+                            {isProrated
+                              ? `Prorated base (${proratedLabel})`
+                              : paymentType === 'fixed'
+                                ? `Fixed rate (${fmt(displayMonthlyRate)}/mo ÷ 2)`
+                                : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${displayHourlyRate})`}
                           </span>
                           <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>
                         </div>

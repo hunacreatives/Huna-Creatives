@@ -12,6 +12,13 @@ interface DayRow {
   last_off: string | null;
 }
 
+interface RateEntry {
+  effective_date: string;
+  payment_type: string;
+  hourly_rate: number | null;
+  monthly_rate: number | null;
+}
+
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -288,6 +295,7 @@ export default function ContractorPayoutsPage() {
   const [days, setDays] = useState<DayRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [existingPayout, setExistingPayout] = useState<any>(null);
+  const [rateHistory, setRateHistory] = useState<RateEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [disputeModal, setDisputeModal] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
@@ -300,7 +308,7 @@ export default function ContractorPayoutsPage() {
 
   const fetchDays = async () => {
     setLoading(true);
-    const [daysRes, payoutRes] = await Promise.all([
+    const [daysRes, payoutRes, rateRes] = await Promise.all([
       supabase
         .from('hub_daily_hours')
         .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
@@ -314,9 +322,16 @@ export default function ContractorPayoutsPage() {
         .eq('contractor_id', hubUser!.id)
         .eq('cutoff_start', selectedPeriod.start)
         .maybeSingle(),
+      supabase
+        .from('hub_rate_history')
+        .select('effective_date, payment_type, hourly_rate, monthly_rate')
+        .eq('contractor_id', hubUser!.id)
+        .lte('effective_date', selectedPeriod.end)
+        .order('effective_date', { ascending: true }),
     ]);
     const payout = payoutRes.data ?? null;
     setDays((daysRes.data as DayRow[]) ?? []);
+    setRateHistory((rateRes.data as RateEntry[]) ?? []);
     setExistingPayout(payout);
 
     if (payout?.id) {
@@ -333,8 +348,8 @@ export default function ContractorPayoutsPage() {
   };
 
   const paymentType = (hubUser as any)?.payment_type || 'hourly';
-  const hourlyRate = Number((hubUser as any)?.hourly_rate || 0);
-  const monthlyRate = Number((hubUser as any)?.monthly_rate || 0);
+  const currentHourlyRate = Number((hubUser as any)?.hourly_rate || 0);
+  const currentMonthlyRate = Number((hubUser as any)?.monthly_rate || 0);
   const currency = (hubUser as any)?.currency || 'PHP';
   const isUSD = currency === 'USD';
 
@@ -343,9 +358,72 @@ export default function ContractorPayoutsPage() {
   const totalHoursBillable = days.reduce((s, d) => s + d.hours_capped, 0);
   const totalOvertime = days.reduce((s, d) => s + (d.overtime_hours || 0), 0);
 
-  const basePay = paymentType === 'fixed' ? monthlyRate / 2 : totalHoursBillable * hourlyRate;
-  const otRate = paymentType === 'fixed' ? monthlyRate / 176 : hourlyRate;
-  const overtimePay = totalOvertime * otRate;
+  // Prorated pay calculation using rate history (same logic as admin payroll page)
+  const changeInPeriod = rateHistory.find(r =>
+    r.effective_date >= selectedPeriod.start && r.effective_date <= selectedPeriod.end
+  );
+  const rateAtStart = [...rateHistory].filter(r => r.effective_date < selectedPeriod.start).pop() || null;
+
+  let basePay: number;
+  let overtimePay: number;
+  let otRate: number;
+  let isProrated = false;
+  let displayMonthlyRate: number;
+  let displayHourlyRate: number;
+  let proratedLabel = '';
+
+  if (changeInPeriod) {
+    isProrated = true;
+    const beforeChange = [...rateHistory].filter(r => r.effective_date < changeInPeriod.effective_date).pop();
+    const oldMonthly = beforeChange?.monthly_rate ?? currentMonthlyRate;
+    const oldHourly  = beforeChange?.hourly_rate  ?? currentHourlyRate;
+    const newMonthly = changeInPeriod.monthly_rate || 0;
+    const newHourly  = changeInPeriod.hourly_rate  || 0;
+    displayMonthlyRate = newMonthly;
+    displayHourlyRate  = newHourly;
+    const periodStart = new Date(selectedPeriod.start);
+    const periodEnd   = new Date(selectedPeriod.end);
+    const changeDate  = new Date(changeInPeriod.effective_date);
+    if (paymentType === 'fixed') {
+      const totalDays = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
+      const daysAtOld = Math.max(0, Math.round((changeDate.getTime() - periodStart.getTime()) / 86400000));
+      const daysAtNew = totalDays - daysAtOld;
+      basePay = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
+      const oldOT = oldHourly || oldMonthly / 176;
+      const newOT = newHourly || newMonthly / 176;
+      let otAtOld = 0, otAtNew = 0;
+      for (const d of days) {
+        if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
+        else otAtNew += d.overtime_hours || 0;
+      }
+      overtimePay = otAtOld * oldOT + otAtNew * newOT;
+      otRate = newOT;
+      proratedLabel = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
+    } else {
+      let hrsAtOld = 0, hrsAtNew = 0;
+      for (const d of days) {
+        if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped;
+        else hrsAtNew += d.hours_capped;
+      }
+      basePay = hrsAtOld * oldHourly + hrsAtNew * newHourly;
+      otRate = newHourly;
+      overtimePay = totalOvertime * newHourly;
+    }
+  } else {
+    const eff = rateAtStart;
+    const monthly = eff?.monthly_rate ?? currentMonthlyRate;
+    const hourly  = eff?.hourly_rate  ?? currentHourlyRate;
+    displayMonthlyRate = monthly;
+    displayHourlyRate  = hourly;
+    if (paymentType === 'fixed') {
+      basePay = monthly / 2;
+      otRate = hourly || monthly / 176;
+    } else {
+      basePay = totalHoursBillable * hourly;
+      otRate = hourly;
+    }
+    overtimePay = totalOvertime * otRate;
+  }
   const totalPay = basePay + overtimePay;
 
   const handleSubmit = async () => {
@@ -401,8 +479,8 @@ export default function ContractorPayoutsPage() {
       period: selectedPeriod,
       days,
       paymentType,
-      hourlyRate,
-      monthlyRate,
+      hourlyRate: displayHourlyRate,
+      monthlyRate: displayMonthlyRate,
       currency,
       totalDaysWorked,
       totalHoursRaw,
@@ -477,11 +555,9 @@ export default function ContractorPayoutsPage() {
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">Rate</p>
                   <p className="text-sm font-semibold text-gray-900">
-                    {paymentType === 'fixed'
-                      ? `₱${monthlyRate.toLocaleString()}/mo`
-                      : `${isUSD ? '$' : '₱'}${hourlyRate}/hr`}
+                    {isProrated ? 'Prorated' : paymentType === 'fixed' ? `₱${displayMonthlyRate.toLocaleString()}/mo` : `${isUSD ? '$' : '₱'}${displayHourlyRate}/hr`}
                   </p>
-                  <p className="text-xs text-gray-400 capitalize">{paymentType}</p>
+                  <p className="text-xs text-gray-400">{isProrated ? proratedLabel : paymentType}</p>
                 </div>
               </div>
 
@@ -537,9 +613,11 @@ export default function ContractorPayoutsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">
-                      {paymentType === 'fixed'
-                        ? `Fixed rate (${fmt(monthlyRate)}/mo ÷ 2)`
-                        : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${hourlyRate})`}
+                      {isProrated
+                        ? `Prorated base (${proratedLabel})`
+                        : paymentType === 'fixed'
+                          ? `Fixed rate (${fmt(displayMonthlyRate)}/mo ÷ 2)`
+                          : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${displayHourlyRate})`}
                     </span>
                     <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>
                   </div>
