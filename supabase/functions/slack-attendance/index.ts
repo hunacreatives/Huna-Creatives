@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     // Get all active contractors
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, department, email, status, slack_username, payment_type')
+      .select('id, full_name, avatar_url, department, email, status, slack_username, payment_type, shift_start')
       .eq('status', 'active');
 
     const emailMap: Record<string, any> = {};
@@ -213,10 +213,22 @@ Deno.serve(async (req) => {
       // Next "on" after firstOn — used to bound overtime to this shift only
       const nextOn = firstOn ? punches.find(p => p.status === 'on' && p.ts > firstOn.ts) : undefined;
 
-      // Record hours under the date the shift STARTED (on punch), not when the function runs
-      const shiftDate = firstOn
-        ? new Date(firstOn.ts * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
-        : todayDate;
+      // Record hours under the date the shift STARTED (on punch), not when the function runs.
+      // For overnight shifts (shift_start >= 20:00), a punch-in between midnight and noon
+      // belongs to the previous calendar day.
+      const shiftDate = (() => {
+        if (!firstOn) return todayDate;
+        const punchMs = firstOn.ts * 1000;
+        const punchDate = new Date(punchMs).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+        const punchHour = parseInt(new Date(punchMs).toLocaleString('en-US', { timeZone: 'Asia/Manila', hour: '2-digit', hour12: false }));
+        const shiftStartHour = hubUser?.shift_start ? parseInt(hubUser.shift_start.split(':')[0]) : null;
+        // Overnight shift: starts at/after 8 PM, and punch-in is before noon → previous day
+        if (shiftStartHour !== null && shiftStartHour >= 20 && punchHour < 12) {
+          const prev = new Date(punchMs - 24 * 60 * 60 * 1000);
+          return prev.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+        }
+        return punchDate;
+      })();
 
       // Only count overtime posted during THIS shift (after firstOn, before nextOn)
       const overtimeHoursForShift = (overtimeEntries[slackId] || [])
