@@ -132,8 +132,8 @@ Deno.serve(async (req) => {
       })
     );
 
-    // Resolve hourly hours from "on" thread replies (hourly contractors type hours in thread)
-    const hourlyHoursBySlackId: Record<string, number> = {};
+    // Resolve hourly hours from "on" thread replies — keyed by on-message ts so each shift is isolated
+    const hourlyHoursByTs: Record<number, number> = {};
 
     await Promise.all(
       hourlyOnMessages.map(async ({ slackId, ts }) => {
@@ -144,8 +144,8 @@ Deno.serve(async (req) => {
           if (reply.user !== slackId) continue;
           const num = parseFloat((reply.text || '').trim());
           if (!isNaN(num) && num > 0) {
-            hourlyHoursBySlackId[slackId] = num;
-            break; // use the first numeric reply
+            hourlyHoursByTs[parseFloat(ts)] = num;
+            break;
           }
         }
       })
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     }
 
     // Resolve Slack user info (email + display name)
-    const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeEntries), ...Object.keys(hourlyHoursBySlackId)])];
+    const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeEntries)])];
     const slackEmailMap: Record<string, string> = {};
     const slackDisplayNameMap: Record<string, string> = {};
 
@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
         .reduce((s, e) => s + e.hours, 0);
 
       const isHourly = hubUser?.payment_type === 'hourly';
-      const threadHours = hourlyHoursBySlackId[slackId];
+      const threadHours = firstOn ? hourlyHoursByTs[firstOn.ts] : undefined;
 
       let hoursRaw = 0;
       let hoursCapped = 0;
