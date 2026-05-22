@@ -308,27 +308,73 @@ export default function ContractorDashboard() {
     if (!user) return;
     setLoading(true);
 
-    const [attResult, annResult, reqResult, toResult, slackResult] = await Promise.all([
+    const periodStartStr = cutoffStart.toISOString().split('T')[0];
+    const periodEndStr   = cutoffEnd.toISOString().split('T')[0];
+
+    const [attResult, annResult, reqResult, toResult, slackResult, rateRes] = await Promise.all([
       supabase
         .from('hub_daily_hours')
-        .select('hours_capped')
+        .select('hours_capped, overtime_hours, date')
         .eq('user_id', user.id)
-        .gte('date', cutoffStart.toISOString().split('T')[0])
-        .lte('date', cutoffEnd.toISOString().split('T')[0]),
+        .gte('date', periodStartStr)
+        .lte('date', periodEndStr),
       supabase.from('hub_announcements').select('*, hub_users(full_name, avatar_url)').eq('published', true).order('created_at', { ascending: false }).limit(10),
       supabase.from('hub_requests').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
       supabase.from('hub_time_off').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
       supabase.functions.invoke('slack-attendance'),
+      supabase.from('hub_rate_history')
+        .select('effective_date, payment_type, hourly_rate, monthly_rate')
+        .eq('contractor_id', user.id)
+        .lte('effective_date', periodEndStr)
+        .order('effective_date', { ascending: true }),
     ]);
 
-    const totalHours = (attResult.data ?? []).reduce((s: number, r: any) => s + (r.hours_capped || 0), 0);
+    const days = attResult.data ?? [];
+    const totalHours = days.reduce((s: number, r: any) => s + (r.hours_capped || 0), 0);
+    const totalOT    = days.reduce((s: number, r: any) => s + (r.overtime_hours || 0), 0);
     setHoursThisCutoff(parseFloat(totalHours.toFixed(2)));
 
-    if (isFixed) {
-      setEstimatedPayout(((user as any).monthly_rate || 0) / 2);
+    // Prorated pay using rate history (same logic as payroll page)
+    const currentMonthly = (user as any).monthly_rate || 0;
+    const currentHourly  = (user as any).hourly_rate  || 0;
+    const history: any[] = rateRes.data ?? [];
+    const changeInPeriod = history.find(r => r.effective_date >= periodStartStr && r.effective_date <= periodEndStr);
+    const rateAtStart = [...history].filter(r => r.effective_date < periodStartStr).pop() || null;
+
+    let estimated = 0;
+    if (changeInPeriod) {
+      const before = [...history].filter(r => r.effective_date < changeInPeriod.effective_date).pop();
+      const oldMonthly = before?.monthly_rate ?? currentMonthly;
+      const oldHourly  = before?.hourly_rate  ?? currentHourly;
+      const newMonthly = changeInPeriod.monthly_rate || 0;
+      const newHourly  = changeInPeriod.hourly_rate  || 0;
+      if (isFixed) {
+        const totalD = Math.round((cutoffEnd.getTime() - cutoffStart.getTime()) / 86400000) + 1;
+        const chDate = new Date(changeInPeriod.effective_date);
+        const dAtOld = Math.max(0, Math.round((chDate.getTime() - cutoffStart.getTime()) / 86400000));
+        const dAtNew = totalD - dAtOld;
+        const base = (oldMonthly / 2 / totalD * dAtOld) + (newMonthly / 2 / totalD * dAtNew);
+        const oldOT = oldHourly || oldMonthly / 176;
+        const newOT = newHourly || newMonthly / 176;
+        let otAtOld = 0, otAtNew = 0;
+        for (const d of days as any[]) {
+          if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
+          else otAtNew += d.overtime_hours || 0;
+        }
+        estimated = base + otAtOld * oldOT + otAtNew * newOT;
+      } else {
+        estimated = totalHours * newHourly + totalOT * newHourly;
+      }
     } else {
-      setEstimatedPayout(totalHours * ((user as any).hourly_rate || 0));
+      const monthly = rateAtStart?.monthly_rate ?? currentMonthly;
+      const hourly  = rateAtStart?.hourly_rate  ?? currentHourly;
+      if (isFixed) {
+        estimated = monthly / 2 + totalOT * (hourly || monthly / 176);
+      } else {
+        estimated = totalHours * hourly + totalOT * hourly;
+      }
     }
+    setEstimatedPayout(parseFloat(estimated.toFixed(2)));
 
     if (!slackResult.error && slackResult.data?.attendance) {
       const all: any[] = slackResult.data.attendance;
