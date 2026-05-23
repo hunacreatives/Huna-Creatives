@@ -11,10 +11,11 @@ interface Contractor {
   avatar_url: string | null;
   department: string | null;
   currency: string;
-  payment_type: 'hourly' | 'fixed';
+  payment_type: 'hourly' | 'fixed' | 'fixed_flexible';
   hourly_rate: number | null;
   monthly_rate: number | null;
   start_date: string | null;
+  work_days: string[] | null;
 }
 
 interface RateEntry {
@@ -36,6 +37,25 @@ interface PayRow {
   days: number;
   prorated: boolean;
   proratedNote?: string;
+  accruing?: boolean;
+  accrualDays?: number;
+  accrualTotal?: number;
+}
+
+const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function countWorkingDays(startDate: string, endDate: string, workDays: string[]): number {
+  const scheduled = workDays.length > 0
+    ? new Set(workDays.map(d => DAY_MAP[d]))
+    : new Set([1, 2, 3, 4, 5]);
+  let count = 0;
+  const end = new Date(endDate + 'T00:00:00');
+  const cur = new Date(startDate + 'T00:00:00');
+  while (cur <= end) {
+    if (scheduled.has(cur.getDay())) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
 }
 
 function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null }) {
@@ -345,7 +365,7 @@ export default function AdminPayrollPage() {
     const [contractorsRes, hoursRes] = await Promise.all([
       supabase
         .from('hub_users')
-        .select('id, full_name, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date')
+        .select('id, full_name, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days')
         .eq('status', 'active')
         .in('role', ['contractor', 'admin']),
       supabase
@@ -483,13 +503,25 @@ export default function AdminPayrollPage() {
           pay = hrs.capped * derivedHourlyRate + overtimePay;
         } else {
           overtimePay = hrs.overtime * derivedHourlyRate;
-          pay = monthly / 2 + overtimePay;
+          const today = new Date().toISOString().slice(0, 10);
+          const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+          // Accrual logic only for June 1+ periods (prior periods show full amount)
+          if (isCurrentPeriod && selectedPeriod.start >= '2026-06-01') {
+            const totalWorkDays = countWorkingDays(selectedPeriod.start, selectedPeriod.end, c.work_days || []);
+            const accrualRatio = totalWorkDays > 0 ? Math.min(hrs.days / totalWorkDays, 1) : 0;
+            pay = (monthly / 2) * accrualRatio + overtimePay;
+            prorated = true;
+            proratedNote = `${hrs.days}/${totalWorkDays} days · accruing`;
+          } else {
+            pay = monthly / 2 + overtimePay;
+          }
         }
       }
 
       const isUSD = c.currency === 'USD';
       const payInPHP = isUSD ? pay * usdRate : pay;
 
+      const isAccruing = prorated && proratedNote?.includes('accruing');
       return {
         contractor: c as Contractor,
         hours: parseFloat(hrs.raw.toFixed(2)),
@@ -502,6 +534,8 @@ export default function AdminPayrollPage() {
         days: hrs.days,
         prorated,
         proratedNote,
+        accruing: isAccruing,
+        accrualTotal: isAccruing ? (isUSD ? ((c.monthly_rate ?? 0) / 2) * usdRate : (c.monthly_rate ?? 0) / 2) : undefined,
       };
     });
 
@@ -893,7 +927,12 @@ export default function AdminPayrollPage() {
                                       )}
                                     </span>
                                   )}
-                                  {r.prorated && (
+                                  {r.accruing && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium whitespace-nowrap" title={r.proratedNote}>
+                                      accruing
+                                    </span>
+                                  )}
+                                  {r.prorated && !r.accruing && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 font-medium whitespace-nowrap" title={r.proratedNote}>
                                       prorated
                                     </span>
@@ -909,7 +948,12 @@ export default function AdminPayrollPage() {
                                     Base {fmt(displayPay, 'PHP')} + adj {adjTotal > 0 ? '+' : ''}{fmt(adjTotal, 'PHP')}
                                   </p>
                                 )}
-                                {r.prorated && r.proratedNote && (
+                                {r.accruing && r.accrualTotal !== undefined && (
+                                  <p className="text-[10px] text-amber-500 font-normal mt-0.5">
+                                    {r.proratedNote} · full {fmt(r.accrualTotal, 'PHP')}
+                                  </p>
+                                )}
+                                {r.prorated && !r.accruing && r.proratedNote && (
                                   <p className="text-[10px] text-sky-500 font-normal mt-0.5">{r.proratedNote}</p>
                                 )}
                                 {isFixed && r.days === 0 && !r.prorated && (
