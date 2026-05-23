@@ -50,7 +50,7 @@ export default function ClientsPage() {
   const save = async () => {
     if (!form.client_name.trim()) return;
     setSaving(true);
-    const payload = { ...form, assigned_contractor_id: form.assigned_contractor_id ? Number(form.assigned_contractor_id) : null };
+    const payload = { ...form, assigned_contractor_id: form.assigned_contractor_id || null };
     if (editing) {
       await supabase.from('hub_clients').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editing.id);
     } else {
