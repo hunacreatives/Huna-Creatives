@@ -16,6 +16,8 @@ Deno.serve(async (req) => {
   try {
     const {
       to,
+      cc,
+      subject,
       client_name,
       project_name,
       service,
@@ -24,6 +26,7 @@ Deno.serve(async (req) => {
       deadline,
       payments,
       notes,
+      message,
       invoice_number,
     } = await req.json();
 
@@ -163,12 +166,51 @@ Deno.serve(async (req) => {
             </td>
           </tr>
 
+          ${message ? `
+          <tr>
+            <td style="padding:0 40px 8px;">
+              <div style="background:#fffbf5;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;">
+                <p style="margin:0;font-size:13px;color:#92400e;">${message}</p>
+              </div>
+            </td>
+          </tr>` : ''}
+
           ${notes ? `
           <tr>
-            <td style="padding:0 40px 24px;">
+            <td style="padding:0 40px 16px;">
               <div style="background:#f9fafb;border-radius:10px;padding:14px 16px;">
                 <p style="margin:0;font-size:12px;color:#6b7280;font-style:italic;">${notes}</p>
               </div>
+            </td>
+          </tr>` : ''}
+
+          <!-- Payment options -->
+          ${!isPaid ? `
+          <tr>
+            <td style="padding:0 40px 28px;">
+              <p style="margin:0 0 14px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Pay via</p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="text-align:center;padding:0 8px;">
+                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px 10px;">
+                      <img src="https://www.hunacreatives.com/images/qr-gcash.jpg" alt="GCash QR" width="110" height="110" style="display:block;margin:0 auto;border-radius:6px;" />
+                      <p style="margin:8px 0 0;font-size:12px;font-weight:700;color:#111827;">GCash</p>
+                    </div>
+                  </td>
+                  <td style="text-align:center;padding:0 8px;">
+                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px 10px;">
+                      <img src="https://www.hunacreatives.com/images/qr-bdo.jpg" alt="BDO QR" width="110" height="110" style="display:block;margin:0 auto;border-radius:6px;" />
+                      <p style="margin:8px 0 0;font-size:12px;font-weight:700;color:#111827;">BDO InstaPay</p>
+                    </div>
+                  </td>
+                  <td style="text-align:center;padding:0 8px;">
+                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px 10px;">
+                      <img src="https://www.hunacreatives.com/images/qr-gotyme.jpg" alt="GoTyme QR" width="110" height="110" style="display:block;margin:0 auto;border-radius:6px;" />
+                      <p style="margin:8px 0 0;font-size:12px;font-weight:700;color:#111827;">GoTyme</p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>` : ''}
 
@@ -192,7 +234,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: [to],
-        subject: `Invoice #${String(invoice_number).padStart(4, '0')} — ${project_name}`,
+        ...(cc ? { cc: [cc] } : {}),
+        subject: subject ?? `Invoice #${String(invoice_number).padStart(4, '0')} — ${project_name}`,
         html,
       }),
     });
