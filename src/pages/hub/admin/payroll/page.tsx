@@ -686,7 +686,7 @@ export default function AdminPayrollPage() {
 
   return (
     <AdminLayout title="Payroll">
-      <div className="max-w-7xl mx-auto space-y-5">
+      <div className="space-y-5">
 
         {/* Period selector + Download PDF */}
         <div className="flex items-center gap-3 flex-wrap">
