@@ -58,7 +58,8 @@ const TEMPLATES: Record<string, Question[]> = {
     q('references', 'paragraph', 'List 3–5 websites you like and what you like about them.'),
     q('content', 'single_choice', 'What is your content situation?', { options: ['We have all content ready', 'We have some content', 'We need help with content'] }),
     q('timeline', 'single_choice', 'What is your timeline?', { options: ['ASAP', 'Within 1 month', '1–3 months', '3–6 months', 'Flexible'] }),
-    q('budget', 'single_choice', 'What is your budget range?', { options: ['Under ₱15k', '₱15k–₱30k', '₱30k–₱60k', '₱60k+', "Let's discuss"] }),
+    q('budget', 'single_choice', 'What is your budget range?', { options: ['₱60k–₱100k', '₱100k–₱200k', '₱200k–₱500k', '₱500k+', "I have a specific budget in mind", "Let's discuss"] }),
+    q('budget_custom', 'short_text', 'If you have a specific budget in mind, please share it.', { placeholder: 'e.g. ₱150,000' }),
     q('other', 'paragraph', 'Anything else we should know?'),
   ],
   'Graphic Design / Flyer': [
