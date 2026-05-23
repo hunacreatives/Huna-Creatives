@@ -51,11 +51,16 @@ const HubAdminProjects = lazy(() => import('../pages/hub/admin/projects/page'));
 const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page'));
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
+const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
 
 const routes: RouteObject[] = [
   {
     path: '/',
     element: <HomePage />,
+  },
+  {
+    path: '/for-agencies',
+    element: <ForAgenciesPage />,
   },
   {
     path: '/about',
