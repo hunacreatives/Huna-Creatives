@@ -686,7 +686,7 @@ export default function AdminPayrollPage() {
 
   return (
     <AdminLayout title="Payroll">
-      <div className="max-w-5xl mx-auto space-y-5">
+      <div className="max-w-7xl space-y-5">
 
         {/* Period selector + Download PDF */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -830,8 +830,8 @@ export default function AdminPayrollPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    {['Contractor', 'Type', 'Rate', 'Days Worked', 'Raw Hours', 'Billed Hours', 'Overtime', 'Pay', 'Status', ''].map(h => (
-                      <th key={h} className="text-left text-xs text-gray-400 font-medium px-4 py-3">{h}</th>
+                    {['Contractor', 'Type', 'Rate', 'Days', 'Raw Hrs', 'Billed Hrs', 'Overtime', 'Pay', 'Status', ''].map(h => (
+                      <th key={h} className="text-left text-xs text-gray-400 font-medium px-3 py-3 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -858,7 +858,7 @@ export default function AdminPayrollPage() {
 
                     return (
                       <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-2.5">
                             <Avatar name={c.full_name} avatar_url={c.avatar_url} />
                             <div className="flex-1 min-w-0">
@@ -879,16 +879,16 @@ export default function AdminPayrollPage() {
                             </button>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             isFixed ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'
                           }`}>
                             {isFixed ? 'Fixed' : 'Hourly'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-gray-600 text-xs">{rate}</td>
-                        <td className="px-4 py-3 text-gray-600">{r.days}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 text-gray-600 text-xs">{rate}</td>
+                        <td className="px-3 py-3 text-gray-600">{r.days}</td>
+                        <td className="px-3 py-3">
                           <span className={hoursExceeded ? 'text-amber-600 font-medium' : 'text-gray-600'}>
                             {r.hours.toFixed(2)}h
                             {hoursExceeded && (
@@ -896,13 +896,13 @@ export default function AdminPayrollPage() {
                             )}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-medium text-gray-800">
+                        <td className="px-3 py-3 font-medium text-gray-800">
                           {displayHours.toFixed(2)}h
                           {override?.hours !== undefined && (
                             <span className="ml-1 text-[10px] text-gray-400 line-through">{r.cappedHours.toFixed(2)}h</span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           {r.overtimeHours > 0 ? (
                             <div className="space-y-0.5">
                               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">+{r.overtimeHours}h OT</span>
@@ -916,7 +916,7 @@ export default function AdminPayrollPage() {
                             <span className="text-gray-400">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 font-semibold text-gray-900">
+                        <td className="px-3 py-3 font-semibold text-gray-900">
                           {(() => {
                             const p = payoutsMap[c.id];
                             const adjs: { label: string; amount: number }[] = p?.adjustments || [];
@@ -990,7 +990,7 @@ export default function AdminPayrollPage() {
                           })()}
                         </td>
                         {/* Status */}
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           {(() => {
                             const p = payoutsMap[c.id];
                             if (!p || p.status === 'pending') return <span className="text-xs text-gray-400">Pending</span>;
@@ -1003,7 +1003,7 @@ export default function AdminPayrollPage() {
                           })()}
                         </td>
                         {/* Action */}
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           {confirmCancelId === c.id ? (
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-xs text-gray-500 whitespace-nowrap">Undo?</span>
@@ -1070,11 +1070,11 @@ export default function AdminPayrollPage() {
                 {rows.length > 0 && (
                   <tfoot>
                     <tr className="border-t border-gray-200 bg-gray-50">
-                      <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
-                      <td className="px-4 py-3 font-semibold text-gray-800">{totalHours.toFixed(2)}h</td>
-                      <td className="px-4 py-3"></td>
-                      <td className="px-4 py-3 font-bold text-gray-900">{fmt(totalPay, 'PHP')}</td>
-                      <td colSpan={2} className="px-4 py-3"></td>
+                      <td colSpan={5} className="px-3 py-3 text-sm font-semibold text-gray-700">Total</td>
+                      <td className="px-3 py-3 font-semibold text-gray-800">{totalHours.toFixed(2)}h</td>
+                      <td className="px-3 py-3"></td>
+                      <td className="px-3 py-3 font-bold text-gray-900">{fmt(totalPay, 'PHP')}</td>
+                      <td colSpan={2} className="px-3 py-3"></td>
                     </tr>
                   </tfoot>
                 )}
