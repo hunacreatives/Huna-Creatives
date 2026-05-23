@@ -46,6 +46,8 @@ const HubAdminOvertime = lazy(() => import('../pages/hub/admin/overtime/page'));
 const HubContractorOvertime = lazy(() => import('../pages/hub/contractor/overtime/page'));
 const HubContractorOnboarding = lazy(() => import('../pages/hub/contractor/onboarding/page'));
 const HubContractorClients = lazy(() => import('../pages/hub/contractor/clients/page'));
+const HubContractorProjects = lazy(() => import('../pages/hub/contractor/projects/page'));
+const HubAdminProjects = lazy(() => import('../pages/hub/admin/projects/page'));
 const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page'));
 
 const routes: RouteObject[] = [
@@ -122,6 +124,8 @@ const routes: RouteObject[] = [
   { path: '/hub/contractor/overtime', element: <HubContractorOvertime /> },
   { path: '/hub/contractor/onboarding', element: <HubContractorOnboarding /> },
   { path: '/hub/contractor/clients', element: <HubContractorClients /> },
+  { path: '/hub/contractor/projects', element: <HubContractorProjects /> },
+  { path: '/hub/admin/projects', element: <HubAdminProjects /> },
   { path: '/hub/admin/overtime', element: <HubAdminOvertime /> },
   { path: '/hub/admin/documents', element: <HubAdminDocuments /> },
   {
