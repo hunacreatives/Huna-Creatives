@@ -179,8 +179,10 @@ export default function HomePage() {
       <Hero />
 
       {/* ── Sentro OS Spotlight ── */}
-      <section className="relative z-10 px-6 py-20 border-t border-white/5 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(255,107,53,0.07) 0%, transparent 70%)' }} />
+      <section className="relative z-10 px-6 pt-28 pb-20 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(255,107,53,0.04) 40%, rgba(255,107,53,0.07) 100%)' }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 70% at 85% 60%, rgba(255,107,53,0.08) 0%, transparent 70%)' }} />
+        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,107,53,0.2) 40%, rgba(255,107,53,0.2) 60%, transparent 100%)' }} />
         <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-10 lg:gap-16 relative">
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Now available</p>
