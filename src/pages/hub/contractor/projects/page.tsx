@@ -12,7 +12,7 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-500' },
 };
 
-interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; }
+interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null; }
 
 interface ProjectRow {
   id: number;
@@ -41,12 +41,13 @@ export default function ContractorProjectsPage() {
   const { hubUser } = useAuth();
   const [rows, setRows] = useState<ProjectRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hubUser) return;
     supabase
       .from('hub_project_contractors')
-      .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, hub_project_payments(amount), hub_project_costs(amount))')
+      .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, hub_project_payments(amount), hub_project_costs(amount))')
       .eq('contractor_id', hubUser.id)
       .then(({ data }) => {
         setRows((data as ProjectRow[]) ?? []);
@@ -75,23 +76,37 @@ export default function ContractorProjectsPage() {
             {active.length > 0 && (
               <div className="space-y-3">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Active</p>
-                {active.map(r => <ProjectCard key={r.id} row={r} />)}
+                {active.map(r => <ProjectCard key={r.id} row={r} onReceiptClick={setLightboxUrl} />)}
               </div>
             )}
             {other.length > 0 && (
               <div className="space-y-3">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Other</p>
-                {other.map(r => <ProjectCard key={r.id} row={r} />)}
+                {other.map(r => <ProjectCard key={r.id} row={r} onReceiptClick={setLightboxUrl} />)}
               </div>
             )}
           </>
         )}
       </div>
+
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
+          <div className="relative max-w-3xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <img src={lightboxUrl} alt="Receipt" className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl" />
+            <button onClick={() => setLightboxUrl(null)} className="absolute top-2 right-2 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black cursor-pointer">
+              <i className="ri-close-line text-sm"></i>
+            </button>
+            <a href={lightboxUrl} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black">
+              <i className="ri-external-link-line text-xs"></i> Open full size
+            </a>
+          </div>
+        </div>
+      )}
     </ContractorLayout>
   );
 }
 
-function ProjectCard({ row }: { row: ProjectRow }) {
+function ProjectCard({ row, onReceiptClick }: { row: ProjectRow; onReceiptClick: (url: string) => void }) {
   const p = row.hub_projects;
   if (!p) return null;
 
@@ -163,11 +178,17 @@ function ProjectCard({ row }: { row: ProjectRow }) {
         {payouts.length > 0 && (
           <div className="mt-2 space-y-1">
             {payouts.map(pp => (
-              <div key={pp.id} className="flex items-center gap-2 text-[11px] text-gray-400">
+              <div key={pp.id} className="flex items-center gap-2 text-[11px] text-gray-400 flex-wrap">
                 <i className="ri-check-line text-emerald-400 text-[10px]"></i>
                 <span className="font-medium text-gray-600">{fmt(pp.amount)}</span>
                 <span>· {new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 {pp.notes && <span>· {pp.notes}</span>}
+                {pp.receipt_url && (
+                  <button onClick={() => onReceiptClick(pp.receipt_url!)} className="cursor-pointer flex-shrink-0 flex items-center gap-1 text-sky-500 hover:text-sky-700">
+                    <i className="ri-image-line text-[10px]"></i>
+                    <span>View receipt</span>
+                  </button>
+                )}
               </div>
             ))}
           </div>
