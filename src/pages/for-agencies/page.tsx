@@ -4,33 +4,33 @@ import Footer from '../home/components/Footer';
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const FEATURES = [
-  { icon: 'ri-time-line', title: 'Attendance & Time Tracking', desc: 'Contractors punch in and out from their phone. Real-time logs, late flags, and daily summaries — no spreadsheets.' },
-  { icon: 'ri-money-dollar-circle-line', title: 'Payroll & Payouts', desc: 'Auto-calculated pay per period for hourly, fixed, and project-based contractors. Approve and log payouts in one click.' },
-  { icon: 'ri-file-list-3-line', title: 'Contracts & Documents', desc: 'Generate contractor agreements, NDAs, and offer letters from templates. Sign and store — all in one place.' },
-  { icon: 'ri-inbox-line', title: 'Requests & Approvals', desc: 'Time-off, overtime, and resource requests flow through a single approval queue. No more chasing people on Slack.' },
-  { icon: 'ri-building-line', title: 'Client & Project Management', desc: "Assign contractors to clients and projects. Track who's working on what and log payouts per project." },
-  { icon: 'ri-questionnaire-line', title: 'Client Questionnaires', desc: 'Send branded intake forms to new clients. Responses come straight into your dashboard — ready for proposals.' },
+  { icon: 'ri-time-line', title: 'Attendance & Time Tracking', desc: 'Your team punches in and out from any device. Real-time logs, late flags, and daily summaries — no spreadsheets, no guesswork.' },
+  { icon: 'ri-money-dollar-circle-line', title: 'Payroll & Payouts', desc: 'Auto-calculated pay per period for hourly, fixed, and project-based staff. Approve and log payouts in one click.' },
+  { icon: 'ri-file-list-3-line', title: 'Contracts & Documents', desc: 'Generate employment agreements, NDAs, and offer letters from templates. Sign and store — all in one place.' },
+  { icon: 'ri-inbox-line', title: 'Requests & Approvals', desc: 'Leave requests, overtime, and resource requests flow through a single approval queue. No more chasing people on chat.' },
+  { icon: 'ri-building-line', title: 'Client & Project Tracking', desc: 'Assign staff to clients and projects. See who is working on what, track progress, and log payouts per project.' },
+  { icon: 'ri-questionnaire-line', title: 'Intake Forms & Questionnaires', desc: 'Send branded intake forms to new clients or leads. Responses come straight into your dashboard — ready for action.' },
 ];
 
 const PLANS = [
   {
     name: 'Starter', setup: '₱15,000', price: '₱4,999', per: '/month',
     perSeat: '+ per seat', seats: '5 seats included',
-    desc: 'For small agencies ready to stop running on spreadsheets.',
-    features: ['Custom hub built for your workflow', 'Attendance & time tracking', 'Payroll calculation', 'Document generation', 'Client management', 'Onboarding & setup included', 'Email support'],
+    desc: 'For small teams ready to stop running on spreadsheets.',
+    features: ['Custom hub built for your workflow', 'Attendance & time tracking', 'Payroll calculation', 'Document generation', 'Client & project management', 'Onboarding & setup included', 'Email support'],
     cta: 'Book a Demo', highlight: false,
   },
   {
     name: 'Growth', setup: '₱30,000', price: '₱9,999', per: '/month',
     perSeat: '+ per seat', seats: '10 seats included',
-    desc: 'For growing agencies with multiple teams and clients to manage.',
+    desc: 'For growing teams managing multiple departments, clients, and projects.',
     features: ['Everything in Starter', 'Project-based payouts', 'Client questionnaires', 'Overtime & time-off approvals', 'Audit log', '2 rounds of workflow revisions', 'Priority support'],
     cta: 'Book a Demo', highlight: true,
   },
   {
     name: 'Enterprise', setup: 'Custom', price: 'Custom', per: '',
     perSeat: 'Negotiated per seat', seats: 'Unlimited seats',
-    desc: 'Full white-label build tailored to your firm from the ground up.',
+    desc: 'Fully custom build tailored to your organization from the ground up.',
     features: ['Everything in Growth', 'Your branding & domain', 'Custom integrations & modules', 'Dedicated onboarding', 'Dedicated account manager', 'SLA & priority escalation'],
     cta: 'Talk to Us', highlight: false,
   },
@@ -286,20 +286,20 @@ export default function ForAgenciesPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs text-gray-300 mb-8 backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] animate-pulse"></span>
-            A custom operations hub — built for your agency, your workflow
+            A custom operations hub — built for your team, your workflow
           </div>
 
           {/* Headline */}
           <h1 className="text-5xl sm:text-7xl font-black leading-[1.05] tracking-tight mb-6">
-            Your agency.<br />
+            Your team.<br />
             <span style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #ff9a6c 50%, #FF6B35 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
               One hub.
             </span>
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Crewly is built around <em className="text-white not-italic font-medium">your</em> workflow — not a generic template.
-            Attendance, payroll, contracts, clients, and approvals. All in one place, under your brand.
+            Crewly is a custom internal hub built around <em className="text-white not-italic font-medium">your</em> workflow — not a generic template.
+            Attendance, payroll, documents, clients, and approvals. All in one place, under your brand.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
@@ -345,7 +345,7 @@ export default function ForAgenciesPage() {
           <div className="text-center mb-16">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The Platform</p>
             <h2 className="text-4xl sm:text-5xl font-black mb-5 tracking-tight">Built to run your whole team</h2>
-            <p className="text-gray-400 max-w-xl mx-auto text-lg">Every screen is designed around how agency work actually flows — not how enterprise software thinks it does.</p>
+            <p className="text-gray-400 max-w-xl mx-auto text-lg">Every screen is designed around how your team actually works — not how enterprise software thinks it does.</p>
           </div>
 
           <div className="flex flex-wrap gap-2 justify-center mb-10">
@@ -396,7 +396,7 @@ export default function ForAgenciesPage() {
           </div>
           <div className="grid sm:grid-cols-3 gap-8">
             {[
-              { step: '01', icon: 'ri-chat-3-line', title: 'We learn your workflow', desc: 'A discovery call to map how your agency actually operates — roles, schedules, payment types, clients.' },
+              { step: '01', icon: 'ri-chat-3-line', title: 'We learn your workflow', desc: 'A discovery call to map how your organization actually operates — roles, schedules, payment types, departments.' },
               { step: '02', icon: 'ri-tools-line', title: 'We build your hub', desc: 'We configure and customize Crewly around your exact structure. Your brand, your rules, your modules.' },
               { step: '03', icon: 'ri-rocket-line', title: 'Your team goes live', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on through go-live.' },
             ].map(s => (
@@ -470,9 +470,9 @@ export default function ForAgenciesPage() {
         <div className="max-w-4xl mx-auto">
           <div className="grid sm:grid-cols-3 gap-10 text-center">
             {[
-              { icon: 'ri-tools-line', title: 'Built by an agency', desc: 'We run our own team on this. Every feature exists because we needed it first.' },
-              { icon: 'ri-shield-check-line', title: 'Your brand on it', desc: 'White-labeled on the Agency plan — your logo, your colors, your domain.' },
-              { icon: 'ri-customer-service-2-line', title: 'We set it up with you', desc: 'No onboarding headache. We configure it for your team structure and workflow.' },
+              { icon: 'ri-tools-line', title: 'Built by a team that uses it', desc: 'We run our own operations on Crewly. Every feature exists because we needed it first.' },
+              { icon: 'ri-shield-check-line', title: 'Your brand on it', desc: 'Your logo, your colors, your domain. It looks like it was built in-house — because it was.' },
+              { icon: 'ri-customer-service-2-line', title: 'We set it up with you', desc: 'No onboarding headache. We map your workflow, configure everything, and train your team.' },
             ].map(w => (
               <div key={w.title}>
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(255,107,53,0.1)' }}>
@@ -492,11 +492,11 @@ export default function ForAgenciesPage() {
         <div className="relative max-w-2xl mx-auto">
           <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">Get started</p>
           <h2 className="text-4xl sm:text-6xl font-black mb-6 tracking-tight leading-tight">
-            Ready to give your<br />agency its hub?
+            Ready to give your<br />team its hub?
           </h2>
           <p className="text-gray-400 mb-10 text-lg leading-relaxed">
-            Book a 30-minute demo. We walk through the full platform, understand your workflow,
-            and show you exactly what we would build for you.
+            Book a 30-minute demo. We walk through the platform, understand your workflow,
+            and show you exactly what we would build for your organization.
           </p>
           <a href="https://calendly.com/hunacreatives" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-10 py-5 font-bold rounded-xl text-lg text-white transition-all"
