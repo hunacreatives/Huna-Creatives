@@ -66,7 +66,7 @@ function MockBrowser({ label, children }: { label: string; children: React.React
 
 function DashboardScreen() {
   return (
-    <MockBrowser label="crewly.app / dashboard">
+    <MockBrowser label="sentro.app / dashboard">
       <div className="flex-1 p-5 overflow-hidden">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -116,7 +116,7 @@ function DashboardScreen() {
 
 function PayrollScreen() {
   return (
-    <MockBrowser label="crewly.app / payroll">
+    <MockBrowser label="sentro.app / payroll">
       <div className="flex-1 p-5 overflow-hidden">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -161,7 +161,7 @@ function PayrollScreen() {
 
 function AttendanceScreen() {
   return (
-    <MockBrowser label="crewly.app / attendance">
+    <MockBrowser label="sentro.app / attendance">
       <div className="flex-1 p-5 overflow-hidden">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -204,7 +204,7 @@ function AttendanceScreen() {
 
 function ContractsScreen() {
   return (
-    <MockBrowser label="crewly.app / documents">
+    <MockBrowser label="sentro.app / documents">
       <div className="flex-1 p-5 overflow-hidden">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -265,7 +265,7 @@ export default function ForAgenciesPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#080c14]/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex flex-col leading-none">
-            <span className="text-xl font-bold text-white tracking-tight">Crewly</span>
+            <span className="text-xl font-black text-white tracking-tight">Sentro OS</span>
             <span className="text-[10px] text-gray-600">by Huna Creatives</span>
           </div>
           <div className="flex items-center gap-6">
@@ -290,16 +290,18 @@ export default function ForAgenciesPage() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl sm:text-7xl font-black leading-[1.05] tracking-tight mb-6">
-            Your team.<br />
-            <span style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #ff9a6c 50%, #FF6B35 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              One hub.
+          <h1 className="text-6xl sm:text-8xl font-black leading-[1.0] tracking-tight mb-4">
+            <span style={{ background: 'linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              Sentro OS
             </span>
           </h1>
+          <p className="text-lg sm:text-xl text-gray-500 mb-3 font-medium tracking-wide">by Huna Creatives</p>
 
-          <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Crewly is a custom internal hub built around <em className="text-white not-italic font-medium">your</em> workflow — not a generic template.
-            Attendance, payroll, documents, clients, and approvals. All in one place, under your brand.
+          <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-3 leading-relaxed mt-6">
+            A custom internal operations hub built around <em className="text-white not-italic font-medium">your</em> team's workflow.
+          </p>
+          <p className="text-sm text-gray-500 max-w-xl mx-auto mb-10">
+            Manage HR, attendance, payroll, documents, credentials, SOPs, and internal operations — all in one branded system.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
@@ -318,7 +320,6 @@ export default function ForAgenciesPage() {
 
         {/* Hero mockup */}
         <div className="relative max-w-5xl mx-auto mt-16">
-          {/* Glow under mockup */}
           <div className="absolute -inset-x-10 top-1/2 h-32 pointer-events-none" style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(255,107,53,0.2) 0%, transparent 70%)' }} />
           <div className="relative" style={{ transform: 'perspective(1200px) rotateX(4deg)', transformOrigin: 'bottom center' }}>
             <DashboardScreen />
@@ -376,7 +377,7 @@ export default function ForAgenciesPage() {
             {FEATURES.map(f => (
               <div key={f.title} className="bg-white/3 border border-white/8 rounded-2xl p-6 hover:bg-white/5 hover:border-white/15 transition-all group">
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 transition-all"
-                  style={{ background: 'rgba(255,107,53,0.1)', boxShadow: '0 0 0 0 rgba(255,107,53,0)' }}>
+                  style={{ background: 'rgba(255,107,53,0.1)' }}>
                   <i className={`${f.icon} text-[#FF6B35] text-xl`}></i>
                 </div>
                 <h3 className="font-bold text-white mb-2 text-base">{f.title}</h3>
@@ -397,7 +398,7 @@ export default function ForAgenciesPage() {
           <div className="grid sm:grid-cols-3 gap-8">
             {[
               { step: '01', icon: 'ri-chat-3-line', title: 'We learn your workflow', desc: 'A discovery call to map how your organization actually operates — roles, schedules, payment types, departments.' },
-              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', desc: 'We configure and customize Crewly around your exact structure. Your brand, your rules, your modules.' },
+              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', desc: 'We configure and customize Sentro OS around your exact structure. Your brand, your rules, your modules.' },
               { step: '03', icon: 'ri-rocket-line', title: 'Your team goes live', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on through go-live.' },
             ].map(s => (
               <div key={s.step} className="text-center">
@@ -470,7 +471,7 @@ export default function ForAgenciesPage() {
         <div className="max-w-4xl mx-auto">
           <div className="grid sm:grid-cols-3 gap-10 text-center">
             {[
-              { icon: 'ri-tools-line', title: 'Built by a team that uses it', desc: 'We run our own operations on Crewly. Every feature exists because we needed it first.' },
+              { icon: 'ri-tools-line', title: 'Built by a team that uses it', desc: 'We run our own operations on Sentro OS every day. Every feature exists because we needed it first.' },
               { icon: 'ri-shield-check-line', title: 'Your brand on it', desc: 'Your logo, your colors, your domain. It looks like it was built in-house — because it was.' },
               { icon: 'ri-customer-service-2-line', title: 'We set it up with you', desc: 'No onboarding headache. We map your workflow, configure everything, and train your team.' },
             ].map(w => (

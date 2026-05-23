@@ -67,6 +67,14 @@ const routes: RouteObject[] = [
     element: <ForAgenciesPage />,
   },
   {
+    path: '/sentro',
+    element: <ForAgenciesPage />,
+  },
+  {
+    path: '/sentro-os',
+    element: <ForAgenciesPage />,
+  },
+  {
     path: '/about',
     element: <AboutPage />,
   },
