@@ -1330,7 +1330,7 @@ export default function ForAgenciesPage() {
             Book a 30-minute demo. We walk through the platform, understand your workflow,
             and show you exactly what we would build for your organization.
           </p>
-          <a href="https://calendly.com/hunacreatives" target="_blank" rel="noopener noreferrer"
+          <a href="https://calendly.com/hunacreatives/30min" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-10 py-5 font-bold rounded-xl text-lg text-white transition-all"
             style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 60px rgba(255,107,53,0.4)' }}>
             <i className="ri-calendar-check-line"></i>
