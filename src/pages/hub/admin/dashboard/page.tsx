@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 
 function useClock() {
@@ -82,14 +83,18 @@ function formatTime(iso: string | null) {
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
+  const { hubUser } = useAuth();
   const [attendance, setAttendance] = useState<SlackRecord[]>([]);
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>([]);
   const [pendingRequests, setPendingRequests] = useState<HubRequest[]>([]);
   const [pendingTimeOff, setPendingTimeOff] = useState<HubTimeOff[]>([]);
   const [totalPayroll, setTotalPayroll] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
+  const [totalNetProfit, setTotalNetProfit] = useState(0);
+  const [activeProjectCount, setActiveProjectCount] = useState(0);
   const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
   const [loading, setLoading] = useState(true);
+  const isOwnerOrAdmin = hubUser?.role === 'owner' || hubUser?.role === 'admin' || hubUser?.role === 'hr';
 
   const today = new Date();
   const isFirstHalf = today.getDate() <= 15;
@@ -117,13 +122,14 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult] = await Promise.all([
+      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult] = await Promise.all([
         supabase.functions.invoke('slack-attendance'),
         supabase.from('hub_announcements').select('*, hub_users(full_name)').order('created_at', { ascending: false }).limit(4),
         supabase.from('hub_requests').select('*, hub_users(full_name, avatar_url)').in('status', ['open', 'in_review']).order('created_at', { ascending: false }),
         supabase.from('hub_time_off').select('*, hub_users(full_name, avatar_url)').eq('status', 'pending').order('created_at', { ascending: false }),
         supabase.from('hub_users').select('id, full_name, avatar_url, payment_type, hourly_rate, monthly_rate, currency, birthday').eq('status', 'active').in('role', ['contractor', 'admin']),
         supabase.from('hub_daily_hours').select('user_id, hours_capped, overtime_hours, date').gte('date', cutoffStart).lte('date', cutoffEnd),
+        supabase.from('hub_projects').select('contract_price, status, hub_project_costs(amount)'),
       ]);
 
       if (!slackResult.error && slackResult.data?.attendance) {
@@ -227,6 +233,17 @@ export default function AdminDashboardPage() {
       setTotalPayroll(payrollTotal);
       setTotalHours(parseFloat(hrs.toFixed(1)));
       setBirthdays(getBirthdayAlerts(contractorsResult.data || []));
+
+      // Net profit across all projects
+      let netProfitTotal = 0;
+      let activeCount = 0;
+      for (const p of (projectsResult.data as any[]) || []) {
+        const costs = ((p.hub_project_costs as any[]) || []).reduce((s: number, c: any) => s + c.amount, 0);
+        netProfitTotal += p.contract_price - costs;
+        if (p.status === 'ongoing') activeCount++;
+      }
+      setTotalNetProfit(netProfitTotal);
+      setActiveProjectCount(activeCount);
 
       setAnnouncements((annResult.data as HubAnnouncement[]) ?? []);
       setPendingRequests((reqResult.data as HubRequest[]) ?? []);
@@ -512,6 +529,26 @@ export default function AdminDashboardPage() {
                 View Payroll
               </button>
             </div>
+
+            {/* Project Net Profit — owner/admin only */}
+            {isOwnerOrAdmin && (
+              <div className="bg-white border border-gray-100 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <i className="ri-folder-chart-line text-gray-400 text-sm"></i>
+                  <p className="text-xs text-gray-500 font-medium">Projects Net Profit</p>
+                </div>
+                <p className="text-2xl font-bold text-emerald-600">
+                  ₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">across all projects · {activeProjectCount} active</p>
+                <button
+                  onClick={() => navigate('/hub/admin/projects')}
+                  className="mt-3 w-full bg-gray-50 hover:bg-gray-100 rounded-lg py-1.5 text-xs font-medium text-gray-600 transition-colors cursor-pointer"
+                >
+                  View Projects
+                </button>
+              </div>
+            )}
 
             {/* Pending requests */}
             <div className="bg-white border border-gray-100 rounded-xl p-4">
