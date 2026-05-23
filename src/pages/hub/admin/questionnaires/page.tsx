@@ -91,7 +91,7 @@ const TEMPLATES: Record<string, Question[]> = {
     q('deliverables', 'multi_choice', 'What deliverables do you need?', { options: ['Primary logo', 'Logo variations (horizontal, stacked, icon)', 'Brand color palette', 'Typography system', 'Business cards', 'Letterhead', 'Brand guide / style guide', 'Social media profile graphics', 'Other'] }),
     q('existing_brand', 'single_choice', 'Do you have existing brand assets?', { options: ['Yes – full branding', 'Partial – just a logo', 'No – starting from scratch'] }),
     q('timeline', 'single_choice', 'What is your timeline?', { options: ['1–2 weeks', '1 month', '1–3 months', 'Flexible'] }),
-    q('budget', 'single_choice', 'What is your budget range?', { options: ['Under ₱10k', '₱10k–₱25k', '₱25k–₱50k', '₱50k+', "Let's discuss"] }),
+    q('budget', 'single_choice', 'What is your budget range?', { options: ['₱15k–₱25k', '₱25k–₱50k', '₱50k+', "Let's discuss"] }),
     q('other', 'paragraph', 'Anything else?'),
   ],
   'Social Media Management': [
@@ -103,6 +103,7 @@ const TEMPLATES: Record<string, Question[]> = {
     q('tone', 'single_choice', 'What is your brand\'s tone of voice?', { options: ['Professional', 'Conversational / friendly', 'Humorous', 'Inspirational', 'Educational', 'Bold / edgy'] }),
     q('existing_content', 'single_choice', 'Do you have existing content (photos, videos, graphics)?', { options: ['Yes – plenty', 'Some', 'No – need content creation too'] }),
     q('frequency', 'single_choice', 'How many posts per week do you want?', { options: ['3x per week', '5x per week', 'Daily', 'Custom – specify below'] }),
+    q('mgmt_budget', 'single_choice', 'What is your monthly budget for social media management?', { options: ['₱12k–₱20k / month', '₱20k–₱35k / month', '₱35k+ / month', "Let's discuss"] }),
     q('paid_ads', 'single_choice', 'Do you need paid ads management?', { options: ['Yes', 'No', 'Maybe later'] }),
     q('ad_budget', 'single_choice', 'What is your monthly ad budget?', { options: ['Under ₱5k / month', '₱5k–₱15k / month', '₱15k–₱30k / month', '₱30k+ / month', 'No budget yet'] }),
     q('competitors', 'short_text', 'Who are your competitors?'),

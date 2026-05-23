@@ -26,6 +26,7 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
     payment_type: (contractor as any).payment_type || 'hourly',
     hourly_rate: contractor.hourly_rate?.toString() || '',
     monthly_rate: (contractor as any).monthly_rate?.toString() || '',
+    project_percentage: (contractor as any).project_percentage?.toString() || '',
     currency: contractor.currency || 'PHP',
     payment_method: contractor.payment_method || '',
     bank_name: contractor.bank_name || '',
@@ -47,6 +48,7 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
       ...form,
       hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
       monthly_rate: form.monthly_rate ? parseFloat(form.monthly_rate) : null,
+      project_percentage: form.project_percentage ? parseFloat(form.project_percentage) : null,
       updated_at: new Date().toISOString(),
     }).eq('id', contractor.id);
     setLoading(false);
@@ -93,28 +95,49 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
             {/* Payment type + rate */}
             <div className="col-span-2 pt-1">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Compensation</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Payment Type</label>
                   <select value={form.payment_type} onChange={(e) => set('payment_type', e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
                     <option value="hourly">Hourly</option>
                     <option value="fixed">Fixed Monthly</option>
+                    <option value="fixed_flexible">Fixed Flexible</option>
+                    <option value="project_based">Project Based</option>
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">
-                    {form.payment_type === 'hourly' ? 'Hourly Rate' : 'Monthly Rate'}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.payment_type === 'hourly' ? form.hourly_rate : form.monthly_rate}
-                    onChange={(e) => set(form.payment_type === 'hourly' ? 'hourly_rate' : 'monthly_rate', e.target.value)}
-                    placeholder={form.payment_type === 'hourly' ? 'e.g. 5.00' : 'e.g. 20000'}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                  />
-                </div>
+                {form.payment_type === 'project_based' ? (
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Their Cut (% of project) *</label>
+                    <div className="relative">
+                      <input type="number" step="0.5" min="1" max="100"
+                        value={form.project_percentage} onChange={(e) => set('project_percentage', e.target.value)}
+                        placeholder="e.g. 40"
+                        className="w-full px-3 py-2 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">%</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400">They earn this % of the project fee after operational costs are deducted.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {(form.payment_type === 'fixed' || form.payment_type === 'fixed_flexible') && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-700">Monthly Rate (PHP)</label>
+                        <input type="number" step="0.01" value={form.monthly_rate} onChange={(e) => set('monthly_rate', e.target.value)}
+                          placeholder="e.g. 20000"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      </div>
+                    )}
+                    {(form.payment_type === 'hourly' || form.payment_type === 'fixed_flexible') && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-700">Hourly Rate (PHP)</label>
+                        <input type="number" step="0.01" value={form.hourly_rate} onChange={(e) => set('hourly_rate', e.target.value)}
+                          placeholder="e.g. 5.00"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
