@@ -54,12 +54,14 @@ export default function AdminProjectsPage() {
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [payNotes, setPayNotes] = useState('');
   const [paySaving, setPaySaving] = useState(false);
+  const [payError, setPayError] = useState('');
 
   // Cost log
   const [costLabel, setCostLabel] = useState('');
   const [costAmount, setCostAmount] = useState('');
   const [costDate, setCostDate] = useState(new Date().toISOString().slice(0, 10));
   const [costSaving, setCostSaving] = useState(false);
+  const [costError, setCostError] = useState('');
 
   // Contractor assignment
   const [addCtxId, setAddCtxId] = useState('');
@@ -112,17 +114,25 @@ export default function AdminProjectsPage() {
 
   const logPayment = async () => {
     if (!activeId || !payAmount) return;
-    setPaySaving(true);
-    await supabase.from('hub_project_payments').insert({ project_id: activeId, amount: parseFloat(payAmount), paid_at: payDate, notes: payNotes || null });
-    setPayAmount(''); setPayNotes(''); setPaySaving(false);
+    setPaySaving(true); setPayError('');
+    const { error } = await supabase.from('hub_project_payments').insert({
+      project_id: activeId, amount: parseFloat(payAmount), paid_at: payDate, notes: payNotes || null,
+    });
+    setPaySaving(false);
+    if (error) { setPayError(error.message); return; }
+    setPayAmount(''); setPayNotes('');
     fetchAll();
   };
 
   const logCost = async () => {
     if (!activeId || !costLabel.trim() || !costAmount) return;
-    setCostSaving(true);
-    await supabase.from('hub_project_costs').insert({ project_id: activeId, label: costLabel.trim(), amount: parseFloat(costAmount), date: costDate });
-    setCostLabel(''); setCostAmount(''); setCostSaving(false);
+    setCostSaving(true); setCostError('');
+    const { error } = await supabase.from('hub_project_costs').insert({
+      project_id: activeId, label: costLabel.trim(), amount: parseFloat(costAmount), date: costDate,
+    });
+    setCostSaving(false);
+    if (error) { setCostError(error.message); return; }
+    setCostLabel(''); setCostAmount('');
     fetchAll();
   };
 
@@ -303,9 +313,10 @@ export default function AdminProjectsPage() {
                         className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
                       <button onClick={logPayment} disabled={!payAmount || paySaving}
                         className="px-3 py-1.5 bg-emerald-500 text-white text-xs rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap">
-                        + Log
+                        {paySaving ? '...' : '+ Log'}
                       </button>
                     </div>
+                    {payError && <p className="text-xs text-red-500">{payError}</p>}
                   </div>
                 </div>
 
@@ -340,9 +351,10 @@ export default function AdminProjectsPage() {
                         className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
                       <button onClick={logCost} disabled={!costLabel.trim() || !costAmount || costSaving}
                         className="flex-1 px-3 py-1.5 bg-rose-500 text-white text-xs rounded-lg hover:bg-rose-600 cursor-pointer disabled:opacity-40">
-                        + Log Cost
+                        {costSaving ? '...' : '+ Log Cost'}
                       </button>
                     </div>
+                    {costError && <p className="text-xs text-red-500">{costError}</p>}
                   </div>
                 </div>
               </div>
