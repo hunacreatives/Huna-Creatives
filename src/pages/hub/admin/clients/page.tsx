@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { HubClient, HubUser } from '@/lib/types';
+import { HubClient, HubClientAssignment, HubUser } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { logAudit } from '@/lib/audit';
 
@@ -11,9 +11,17 @@ const statusColors: Record<string, string> = {
   ended: 'bg-gray-100 text-gray-500',
 };
 
-const emptyForm = {
-  client_name: '', assigned_contractor_id: '', role: '', platform: '', status: 'active', notes: '',
-};
+const emptyForm = { client_name: '', platform: '', status: 'active', notes: '' };
+
+function Avatar({ name, avatar_url, size = 7 }: { name: string; avatar_url?: string | null; size?: number }) {
+  const s = `w-${size} h-${size}`;
+  if (avatar_url) return <img src={avatar_url} alt={name} className={`${s} rounded-full object-cover object-top flex-shrink-0`} />;
+  return (
+    <div className={`${s} rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0`}>
+      <span className="text-white text-xs font-bold">{name.charAt(0).toUpperCase()}</span>
+    </div>
+  );
+}
 
 export default function ClientsPage() {
   const { hubUser } = useAuth();
@@ -21,16 +29,28 @@ export default function ClientsPage() {
   const [contractors, setContractors] = useState<HubUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  // Client modal
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<HubClient | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  // Assignment modal (manage team for a client)
+  const [assignClient, setAssignClient] = useState<HubClient | null>(null);
+  const [assignments, setAssignments] = useState<HubClientAssignment[]>([]);
+  const [addContractorId, setAddContractorId] = useState('');
+  const [addRole, setAddRole] = useState('');
+  const [assignSaving, setAssignSaving] = useState(false);
+
   const fetchData = async () => {
     setLoading(true);
     const [{ data: c }, { data: u }] = await Promise.all([
-      supabase.from('hub_clients').select('*, hub_users(full_name, avatar_url, role)').order('client_name'),
-      supabase.from('hub_users').select('id, full_name, avatar_url, role').eq('status', 'active').order('full_name'),
+      supabase
+        .from('hub_clients')
+        .select('*, hub_client_assignments(id, contractor_id, role, hub_users(id, full_name, avatar_url, department))')
+        .order('client_name'),
+      supabase.from('hub_users').select('id, full_name, avatar_url, department, role').eq('status', 'active').order('full_name'),
     ]);
     setClients((c as HubClient[]) ?? []);
     setContractors((u as HubUser[]) ?? []);
@@ -39,26 +59,25 @@ export default function ClientsPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const filtered = clients.filter((c) =>
-    !search || c.client_name.toLowerCase().includes(search.toLowerCase()) || c.role?.toLowerCase().includes(search.toLowerCase())
+  const filtered = clients.filter(c =>
+    !search || c.client_name.toLowerCase().includes(search.toLowerCase())
   );
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
   const openEdit = (c: HubClient) => {
     setEditing(c);
-    setForm({ client_name: c.client_name, assigned_contractor_id: String(c.assigned_contractor_id || ''), role: c.role || '', platform: c.platform || '', status: c.status, notes: c.notes || '' });
+    setForm({ client_name: c.client_name, platform: c.platform || '', status: c.status, notes: c.notes || '' });
     setShowModal(true);
   };
 
   const save = async () => {
     if (!form.client_name.trim()) return;
     setSaving(true);
-    const payload = { ...form, assigned_contractor_id: form.assigned_contractor_id || null };
     if (editing) {
-      await supabase.from('hub_clients').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editing.id);
+      await supabase.from('hub_clients').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id);
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'client', entity_id: String(editing.id), description: `Updated client "${form.client_name}"` });
     } else {
-      await supabase.from('hub_clients').insert({ ...payload });
+      await supabase.from('hub_clients').insert({ ...form });
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'client', description: `Added client "${form.client_name}"` });
     }
     setSaving(false);
@@ -66,13 +85,53 @@ export default function ClientsPage() {
     fetchData();
   };
 
+  const openManageTeam = (c: HubClient) => {
+    setAssignClient(c);
+    setAssignments((c.hub_client_assignments as HubClientAssignment[]) ?? []);
+    setAddContractorId('');
+    setAddRole('');
+  };
+
+  const addAssignment = async () => {
+    if (!assignClient || !addContractorId) return;
+    setAssignSaving(true);
+    await supabase.from('hub_client_assignments').insert({
+      client_id: assignClient.id,
+      contractor_id: addContractorId,
+      role: addRole.trim() || null,
+    });
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'client_assignment', entity_id: String(assignClient.id), description: `Assigned ${contractors.find(c => c.id === addContractorId)?.full_name} to "${assignClient.client_name}"` });
+    setAddContractorId('');
+    setAddRole('');
+    setAssignSaving(false);
+    // Refresh
+    const { data } = await supabase
+      .from('hub_client_assignments')
+      .select('id, contractor_id, role, hub_users(id, full_name, avatar_url, department)')
+      .eq('client_id', assignClient.id);
+    setAssignments((data as HubClientAssignment[]) ?? []);
+    fetchData();
+  };
+
+  const removeAssignment = async (assignmentId: number, contractorName: string) => {
+    if (!assignClient) return;
+    await supabase.from('hub_client_assignments').delete().eq('id', assignmentId);
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'delete', entity_type: 'client_assignment', entity_id: String(assignClient.id), description: `Removed ${contractorName} from "${assignClient.client_name}"` });
+    setAssignments(prev => prev.filter(a => a.id !== assignmentId));
+    fetchData();
+  };
+
+  const unassignedContractors = contractors.filter(c =>
+    !assignments.some(a => a.contractor_id === c.id)
+  );
+
   return (
     <AdminLayout title="Client Assignments">
       <div className="space-y-4 max-w-5xl">
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
             <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search clients..."
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients..."
               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
           </div>
           <button onClick={openNew} className="flex items-center gap-1.5 px-4 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
@@ -82,59 +141,81 @@ export default function ClientsPage() {
 
         {loading ? (
           <div className="flex justify-center py-12"><i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i></div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 text-sm">No clients found</div>
         ) : (
-          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left text-xs font-medium text-gray-400 px-5 py-3">Client</th>
-                  <th className="text-left text-xs font-medium text-gray-400 px-5 py-3">Assigned To</th>
-                  <th className="text-left text-xs font-medium text-gray-400 px-5 py-3">Role</th>
-                  <th className="text-left text-xs font-medium text-gray-400 px-5 py-3">Platform</th>
-                  <th className="text-left text-xs font-medium text-gray-400 px-5 py-3">Status</th>
-                  <th className="px-5 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-gray-400">No clients found</td></tr>
-                ) : filtered.map((c) => {
-                  const user = c.hub_users as HubUser;
-                  return (
-                    <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 bg-[#FF6B35]/10 rounded-lg flex items-center justify-center">
-                            <i className="ri-building-line text-[#FF6B35] text-sm"></i>
-                          </div>
-                          <p className="text-sm font-medium text-[#111827]">{c.client_name}</p>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {user ? (
-                          <div className="flex items-center gap-2">
-                            <img src={user.avatar_url || ''} alt="" className="w-6 h-6 rounded-full object-cover object-top" />
-                            <span className="text-sm text-gray-700">{user.full_name}</span>
-                          </div>
-                        ) : <span className="text-sm text-gray-400">Unassigned</span>}
-                      </td>
-                      <td className="px-5 py-3.5 text-sm text-gray-600">{c.role || '—'}</td>
-                      <td className="px-5 py-3.5 text-sm text-gray-600">{c.platform || '—'}</td>
-                      <td className="px-5 py-3.5">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColors[c.status]}`}>{c.status}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <button onClick={() => openEdit(c)} className="text-xs text-gray-500 hover:text-[#FF6B35] cursor-pointer font-medium transition-colors">Edit</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid gap-3">
+            {filtered.map(c => {
+              const team = (c.hub_client_assignments ?? []) as HubClientAssignment[];
+              return (
+                <div key={c.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                  {/* Client header */}
+                  <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
+                    <div className="w-9 h-9 bg-[#FF6B35]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <i className="ri-building-line text-[#FF6B35] text-sm"></i>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[#111827] text-sm">{c.client_name}</p>
+                      {c.platform && <p className="text-xs text-gray-400">{c.platform}</p>}
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${statusColors[c.status]}`}>{c.status}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => openManageTeam(c)} className="text-xs text-gray-400 hover:text-[#FF6B35] cursor-pointer transition-colors flex items-center gap-1">
+                        <i className="ri-user-add-line text-sm"></i>
+                        <span className="hidden sm:inline">Manage Team</span>
+                      </button>
+                      <button onClick={() => openEdit(c)} className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer transition-colors flex items-center gap-1">
+                        <i className="ri-edit-line text-sm"></i>
+                        <span className="hidden sm:inline">Edit</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Team members */}
+                  <div className="px-5 py-3">
+                    {team.length === 0 ? (
+                      <div className="flex items-center gap-2 py-1">
+                        <p className="text-xs text-gray-400">No team members assigned.</p>
+                        <button onClick={() => openManageTeam(c)} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">
+                          Add someone
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-3">
+                        {team.map(a => {
+                          const u = a.hub_users as any;
+                          if (!u) return null;
+                          return (
+                            <div key={a.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                              <Avatar name={u.full_name} avatar_url={u.avatar_url} size={6} />
+                              <div>
+                                <p className="text-xs font-medium text-gray-800">{u.full_name}</p>
+                                {a.role && <p className="text-[11px] text-gray-400">{a.role}</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <button onClick={() => openManageTeam(c)}
+                          className="flex items-center gap-1.5 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-400 hover:text-[#FF6B35] hover:border-[#FF6B35]/40 cursor-pointer transition-colors">
+                          <i className="ri-add-line text-sm"></i> Add
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {c.notes && (
+                    <div className="px-5 pb-3">
+                      <p className="text-xs text-gray-400 italic">{c.notes}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
+      {/* Client details modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md">
@@ -147,51 +228,108 @@ export default function ClientsPage() {
             <div className="p-5 space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Client Name *</label>
-                <input value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })}
-                  placeholder="Client company name..." className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Assigned Contractor</label>
-                <select value={form.assigned_contractor_id} onChange={(e) => setForm({ ...form, assigned_contractor_id: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                  <option value="">Unassigned</option>
-                  {contractors.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
-                </select>
+                <input value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })}
+                  placeholder="Client company name..."
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Role</label>
-                  <input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-                    placeholder="e.g. Media Buyer" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
+                  <label className="text-xs font-medium text-gray-700">Platform</label>
+                  <input value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })}
+                    placeholder="e.g. Meta Ads"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Platform</label>
-                  <input value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}
-                    placeholder="e.g. Meta Ads" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
+                  <label className="text-xs font-medium text-gray-700">Status</label>
+                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
+                    <option value="active">Active</option>
+                    <option value="paused">Paused</option>
+                    <option value="ended">Ended</option>
+                  </select>
                 </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Status</label>
-                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
-                  <option value="ended">Ended</option>
-                </select>
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Notes</label>
-                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2}
+                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2}
                   placeholder="Any notes..." maxLength={500}
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none resize-none" />
               </div>
             </div>
             <div className="flex gap-2 p-5 pt-0">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors whitespace-nowrap">Cancel</button>
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer whitespace-nowrap">Cancel</button>
               <button onClick={save} disabled={saving || !form.client_name.trim()}
-                className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap">
+                className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 cursor-pointer whitespace-nowrap">
                 {saving ? 'Saving...' : editing ? 'Save Changes' : 'Add Client'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage team modal */}
+      {assignClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <h2 className="font-semibold text-[#111827]">Manage Team</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{assignClient.client_name}</p>
+              </div>
+              <button onClick={() => setAssignClient(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
+                <i className="ri-close-line text-lg"></i>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Current assignments */}
+              {assignments.length > 0 && (
+                <div className="space-y-2">
+                  {assignments.map(a => {
+                    const u = a.hub_users as any;
+                    if (!u) return null;
+                    return (
+                      <div key={a.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                        <Avatar name={u.full_name} avatar_url={u.avatar_url} size={8} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
+                          <p className="text-xs text-gray-400">{a.role || u.department || '—'}</p>
+                        </div>
+                        <button onClick={() => removeAssignment(a.id, u.full_name)}
+                          className="text-gray-300 hover:text-rose-400 cursor-pointer transition-colors p-1">
+                          <i className="ri-delete-bin-line text-sm"></i>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {assignments.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">No one assigned yet.</p>
+              )}
+
+              {/* Add new */}
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Team Member</p>
+                <div className="space-y-2">
+                  <select value={addContractorId} onChange={e => setAddContractorId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
+                    <option value="">Select contractor...</option>
+                    {unassignedContractors.map(u => (
+                      <option key={u.id} value={u.id}>{u.full_name}{u.department ? ` — ${u.department}` : ''}</option>
+                    ))}
+                  </select>
+                  <input value={addRole} onChange={e => setAddRole(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addAssignment()}
+                    placeholder="Their role on this account (e.g. Media Buyer)"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  <button onClick={addAssignment} disabled={!addContractorId || assignSaving}
+                    className="w-full py-2 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors">
+                    {assignSaving ? 'Adding...' : 'Add to Client'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

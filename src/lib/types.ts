@@ -103,10 +103,19 @@ export interface HubSop {
 // Keep old alias for compat
 export type HubSOPOld = HubSop;
 
+export interface HubClientAssignment {
+  id: number;
+  client_id: number;
+  contractor_id: string;
+  role: string | null;
+  created_at?: string;
+  hub_users?: Pick<HubUser, 'id' | 'full_name' | 'avatar_url' | 'department'>;
+}
+
 export interface HubClient {
   id: number;
   client_name: string;
-  assigned_contractor_id?: number;
+  assigned_contractor_id?: string;
   role?: string;
   platform?: string;
   status: 'active' | 'inactive' | 'paused' | 'ended';
@@ -114,6 +123,7 @@ export interface HubClient {
   created_at?: string;
   updated_at?: string;
   hub_users?: HubUser;
+  hub_client_assignments?: HubClientAssignment[];
 }
 
 export interface HubAsset {
