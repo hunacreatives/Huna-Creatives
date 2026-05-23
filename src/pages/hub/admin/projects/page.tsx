@@ -18,7 +18,7 @@ interface ContractorPayout { id: number; amount: number; paid_at: string; notes:
 
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
-  contract_price: number; status: string; start_date: string | null; deadline: string | null; notes: string | null;
+  contract_price: number; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
   hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
   hub_project_contractors: {
@@ -46,7 +46,7 @@ export default function AdminProjectsPage() {
 
   // Project form
   const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Other'];
-  const emptyForm = { client_name: '', project_name: '', service: 'Website Design', contract_price: '', status: 'ongoing', start_date: '', deadline: '', notes: '' };
+  const emptyForm = { client_name: '', project_name: '', service: 'Website Design', contract_price: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -80,6 +80,12 @@ export default function AdminProjectsPage() {
   const [ctxPayError, setCtxPayError] = useState<Record<number, string>>({});
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+  // Invoice
+  const [invoiceModal, setInvoiceModal] = useState<Project | null>(null);
+  const [invoiceEmail, setInvoiceEmail] = useState('');
+  const [invoiceSending, setInvoiceSending] = useState(false);
+  const [invoiceMsg, setInvoiceMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const fetchAll = async () => {
     const [pRes, cRes] = await Promise.all([
       supabase.from('hub_projects')
@@ -109,7 +115,7 @@ export default function AdminProjectsPage() {
   const saveProject = async () => {
     if (!form.client_name.trim() || !form.project_name.trim() || !form.contract_price) { setFormError('Client, project name and contract price are required.'); return; }
     setFormSaving(true); setFormError('');
-    const payload = { client_name: form.client_name.trim(), project_name: form.project_name.trim(), service: form.service || null, contract_price: parseFloat(form.contract_price), status: form.status, start_date: form.start_date || null, deadline: form.deadline || null, notes: form.notes || null };
+    const payload = { client_name: form.client_name.trim(), project_name: form.project_name.trim(), service: form.service || null, contract_price: parseFloat(form.contract_price), status: form.status, start_date: form.start_date || null, deadline: form.deadline || null, notes: form.notes || null, contact_email: form.contact_email.trim() || null };
     if (editingProject) {
       const { error } = await supabase.from('hub_projects').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editingProject.id);
       if (error) { setFormError(error.message); setFormSaving(false); return; }
@@ -221,6 +227,116 @@ export default function AdminProjectsPage() {
   const deleteContractorPayout = async (payoutId: number) => {
     await supabase.from('hub_project_contractor_payouts').delete().eq('id', payoutId);
     fetchAll();
+  };
+
+  const sendInvoice = async (project: Project) => {
+    setInvoiceSending(true);
+    setInvoiceMsg(null);
+    const { data, error } = await supabase.functions.invoke('send-invoice', {
+      body: {
+        to: invoiceEmail,
+        client_name: project.client_name,
+        project_name: project.project_name,
+        service: project.service,
+        contract_price: project.contract_price,
+        start_date: project.start_date,
+        deadline: project.deadline,
+        payments: project.hub_project_payments,
+        notes: project.notes,
+        invoice_number: project.id,
+      },
+    });
+    setInvoiceSending(false);
+    if (error || data?.error) {
+      setInvoiceMsg({ ok: false, text: data?.error ?? error?.message ?? 'Failed to send' });
+    } else {
+      setInvoiceMsg({ ok: true, text: 'Invoice sent!' });
+      // Save email back to project if new
+      if (invoiceEmail !== project.contact_email) {
+        await supabase.from('hub_projects').update({ contact_email: invoiceEmail }).eq('id', project.id);
+        fetchAll();
+      }
+    }
+  };
+
+  const printInvoice = (project: Project) => {
+    const d = derived(project);
+    const fmt2 = (n: number) => '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const balance = project.contract_price - d.totalPaid;
+    const logoUrl = `${window.location.origin}/images/fc04818c74ad69bdfb22b93a6a0c6a72.png`;
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) return;
+    const paymentRows = project.hub_project_payments.map(p => `
+      <tr>
+        <td>${new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+        <td>${p.notes ?? 'Payment received'}</td>
+        <td class="amount paid">+ ${fmt2(p.amount)}</td>
+      </tr>`).join('');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Invoice #${String(project.id).padStart(4,'0')} — ${project.project_name}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827;background:#fff;padding:48px}
+  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:36px;padding-bottom:24px;border-bottom:3px solid #FF6B35}
+  .header img{height:36px}
+  .header-right{text-align:right}
+  .header-right h1{font-size:13px;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em}
+  .header-right .inv{font-size:22px;font-weight:800;color:#111827}
+  .meta{display:flex;justify-content:space-between;margin-bottom:28px}
+  .meta .to p:first-child{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .meta .to p:last-child{font-size:17px;font-weight:700}
+  .meta .dates{text-align:right;font-size:13px;color:#6b7280;line-height:1.8}
+  .project-box{background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:28px}
+  .project-box .name{font-size:14px;font-weight:600}
+  .project-box .sub{font-size:12px;color:#6b7280;margin-top:3px}
+  table{width:100%;border-collapse:collapse;margin-bottom:20px}
+  th{background:#111827;color:#fff;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:.04em}
+  td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px}
+  td.amount{text-align:right;font-weight:600}
+  td.paid{color:#059669}
+  .totals{margin-left:auto;width:280px}
+  .totals tr td{padding:6px 0;font-size:13px;color:#6b7280;border:none}
+  .totals tr td:last-child{text-align:right}
+  .totals .balance td{font-size:16px;font-weight:800;color:#111827;border-top:2px solid #e5e7eb;padding-top:10px}
+  .totals .balance td:last-child{color:${balance <= 0 ? '#059669' : '#FF6B35'}}
+  .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af}
+  @media print{body{padding:24px}}
+</style></head><body>
+<div class="header">
+  <img src="${logoUrl}" onerror="this.style.display='none'" />
+  <div class="header-right"><h1>Invoice</h1><div class="inv">#${String(project.id).padStart(4,'0')}</div></div>
+</div>
+<div class="meta">
+  <div class="to"><p>Billed to</p><p>${project.client_name}</p></div>
+  <div class="dates">
+    <div>Date: <strong>${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</strong></div>
+    ${project.deadline ? `<div>Due: <strong>${new Date(project.deadline).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</strong></div>` : ''}
+  </div>
+</div>
+<div class="project-box">
+  <div class="name">${project.project_name}</div>
+  ${project.service ? `<div class="sub">${project.service}</div>` : ''}
+  ${project.start_date ? `<div class="sub">Started ${new Date(project.start_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>` : ''}
+</div>
+<table>
+  <thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
+  <tbody><tr><td>${project.service ?? project.project_name}</td><td class="amount">${fmt2(project.contract_price)}</td></tr></tbody>
+</table>
+${project.hub_project_payments.length > 0 ? `
+<table>
+  <thead><tr><th>Date</th><th>Note</th><th style="text-align:right">Payment</th></tr></thead>
+  <tbody>${paymentRows}</tbody>
+</table>` : ''}
+<table class="totals">
+  <tr><td>Total contract</td><td>${fmt2(project.contract_price)}</td></tr>
+  <tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>
+  <tr class="balance"><td>Balance due</td><td>${balance <= 0 ? 'Paid in full' : fmt2(balance)}</td></tr>
+</table>
+${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;margin-top:16px">${project.notes}</p>` : ''}
+<div class="footer">Huna Creatives · billing@hunacreatives.com</div>
+<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\/script>
+</body></html>`);
+    win.document.close();
   };
 
   const filtered = projects.filter(p =>
@@ -367,10 +483,20 @@ export default function AdminProjectsPage() {
                       </p>
                     )}
                   </div>
-                  <button onClick={() => { setEditingProject(activeProject); setForm({ client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '' }); setShowForm(true); }}
-                    className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer flex items-center gap-1 flex-shrink-0">
-                    <i className="ri-edit-line"></i> Edit
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button onClick={() => printInvoice(activeProject)}
+                      className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer flex items-center gap-1">
+                      <i className="ri-printer-line"></i> Print
+                    </button>
+                    <button onClick={() => { setInvoiceModal(activeProject); setInvoiceEmail(activeProject.contact_email ?? ''); setInvoiceMsg(null); }}
+                      className="text-xs px-2.5 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer flex items-center gap-1">
+                      <i className="ri-mail-send-line"></i> Send Invoice
+                    </button>
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '' }); setShowForm(true); }}
+                      className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer flex items-center gap-1">
+                      <i className="ri-edit-line"></i> Edit
+                    </button>
+                  </div>
                 </div>
 
                 {/* Financials */}
@@ -728,6 +854,11 @@ export default function AdminProjectsPage() {
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Any notes..."
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none resize-none" />
               </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Client Contact Email <span className="text-gray-400 font-normal">(for invoices)</span></label>
+                <input type="email" value={form.contact_email} onChange={e => setForm({ ...form, contact_email: e.target.value })} placeholder="client@email.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+              </div>
               {formError && <p className="text-xs text-red-500">{formError}</p>}
             </div>
             <div className="flex gap-2 p-5 pt-0">
@@ -741,6 +872,57 @@ export default function AdminProjectsPage() {
         </div>
       )}
       </div>
+
+      {/* Send Invoice modal */}
+      {invoiceModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setInvoiceModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-[#111827]">Send Invoice</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{invoiceModal.project_name} · {invoiceModal.client_name}</p>
+              </div>
+              <button onClick={() => setInvoiceModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-600">Send to</label>
+                <input
+                  type="email"
+                  value={invoiceEmail}
+                  onChange={e => setInvoiceEmail(e.target.value)}
+                  placeholder="client@email.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  autoFocus
+                />
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-xs text-gray-500">
+                <div className="flex justify-between"><span>Contract</span><span className="font-medium text-gray-700">{fmt(invoiceModal.contract_price)}</span></div>
+                <div className="flex justify-between"><span>Paid</span><span className="font-medium text-emerald-600">{fmt(invoiceModal.hub_project_payments.reduce((s,p)=>s+p.amount,0))}</span></div>
+                <div className="flex justify-between border-t border-gray-200 pt-1 mt-1">
+                  <span className="font-semibold text-gray-700">Balance</span>
+                  <span className="font-bold text-[#FF6B35]">{fmt(invoiceModal.contract_price - invoiceModal.hub_project_payments.reduce((s,p)=>s+p.amount,0))}</span>
+                </div>
+              </div>
+              {invoiceMsg && (
+                <p className={`text-xs font-medium ${invoiceMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {invoiceMsg.ok ? <><i className="ri-check-line mr-1"></i>{invoiceMsg.text}</> : invoiceMsg.text}
+                </p>
+              )}
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={() => setInvoiceModal(null)} className="flex-1 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
+              <button
+                onClick={() => sendInvoice(invoiceModal)}
+                disabled={invoiceSending || !invoiceEmail.trim()}
+                className="flex-1 py-2 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {invoiceSending ? <><i className="ri-loader-4-line animate-spin"></i> Sending…</> : <><i className="ri-mail-send-line"></i> Send</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Receipt lightbox */}
       {lightboxUrl && (
