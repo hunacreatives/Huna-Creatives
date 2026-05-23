@@ -45,6 +45,13 @@ export default function ContractorDetailPage() {
   // Payslip tab state
   const allPeriods = getPeriods();
   const [selectedPeriod, setSelectedPeriod] = useState(allPeriods[allPeriods.length - 1]);
+
+  // Attendance tab state
+  const reversedPeriods = [...allPeriods].reverse();
+  const [attPeriodIdx, setAttPeriodIdx] = useState(0);
+  const attPeriod = reversedPeriods[attPeriodIdx];
+  const [attDays, setAttDays] = useState<DayRow[]>([]);
+  const [attLoading, setAttLoading] = useState(false);
   const [payslipDays, setPayslipDays] = useState<DayRow[]>([]);
   const [payslipPayout, setPayslipPayout] = useState<any>(null);
   const [payslipLoading, setPayslipLoading] = useState(false);
@@ -178,10 +185,25 @@ export default function ContractorDetailPage() {
 
   useEffect(() => { fetch(); fetchRateHistory(); }, [id]);
 
+  const fetchAttendanceDays = async () => {
+    if (!id || !attPeriod) return;
+    setAttLoading(true);
+    const { data } = await supabase
+      .from('hub_daily_hours')
+      .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
+      .eq('user_id', id)
+      .gte('date', attPeriod.start)
+      .lte('date', attPeriod.end)
+      .order('date', { ascending: false });
+    setAttDays((data as DayRow[]) ?? []);
+    setAttLoading(false);
+  };
+
   useEffect(() => {
     if (activeTab === 'payslip' && id) fetchPayslip();
     if (activeTab === 'contracts' && id) fetchContracts();
-  }, [activeTab, selectedPeriod, id]);
+    if (activeTab === 'attendance' && id) fetchAttendanceDays();
+  }, [activeTab, selectedPeriod, attPeriodIdx, id]);
 
   const fetchContracts = async () => {
     const { data } = await supabase
@@ -563,6 +585,18 @@ export default function ContractorDetailPage() {
 
         {activeTab === 'attendance' && (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <p className="text-sm font-semibold text-gray-800">Attendance</p>
+              <select
+                value={attPeriodIdx}
+                onChange={e => setAttPeriodIdx(Number(e.target.value))}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none bg-white cursor-pointer"
+              >
+                {reversedPeriods.map((p, i) => (
+                  <option key={p.start} value={i}>{p.label}</option>
+                ))}
+              </select>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[500px]">
                 <thead>
@@ -575,21 +609,29 @@ export default function ContractorDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {attendance.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center text-sm text-gray-400 py-8">No attendance records</td></tr>
-                  ) : attendance.map((a) => (
-                    <tr key={a.id}>
-                      <td className="px-4 py-3 text-sm text-gray-700">{new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{a.on_time || '—'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{a.off_time || '—'}</td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-700">{a.total_hours ? `${a.total_hours}h` : '—'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap capitalize ${statusColors[a.status]}`}>
-                          {a.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {attLoading ? (
+                    <tr><td colSpan={5} className="text-center py-8"><i className="ri-loader-4-line animate-spin text-gray-300 text-xl"></i></td></tr>
+                  ) : attDays.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center text-sm text-gray-400 py-8">No attendance records for this period</td></tr>
+                  ) : attDays.map((a) => {
+                    const present = a.hours_raw > 0;
+                    const status = !a.first_on ? 'absent' : !a.last_off ? 'missing off' : 'complete';
+                    const statusCls = status === 'complete' ? 'bg-emerald-100 text-emerald-700' : status === 'missing off' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500';
+                    return (
+                      <tr key={a.date} className="hover:bg-gray-50/40">
+                        <td className="px-4 py-3 text-sm text-gray-700">{fmtDate(a.date)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{fmtTime(a.first_on)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{fmtTime(a.last_off)}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700">
+                          {present ? `${a.hours_capped.toFixed(1)}h` : '—'}
+                          {a.overtime_hours > 0 && <span className="ml-1 text-xs text-purple-500">+{a.overtime_hours}h OT</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap capitalize ${statusCls}`}>{status}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
