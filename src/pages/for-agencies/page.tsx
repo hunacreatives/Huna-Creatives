@@ -12,24 +12,59 @@ const FEATURES = [
 
 const PLANS = [
   {
-    name: 'Starter', price: '₱2,999', per: '/month',
-    desc: 'Perfect for small agencies just getting organized.',
-    seats: 'Up to 10 contractors',
-    features: ['Attendance & time tracking', 'Payroll calculation', 'Document generation', 'Client management', 'Email support'],
+    name: 'Starter',
+    setup: '₱15,000',
+    price: '₱4,999',
+    per: '/month',
+    perSeat: '+ ₱299/seat',
+    seats: '5 seats included',
+    desc: 'For small agencies ready to stop running on spreadsheets.',
+    features: [
+      'Custom hub built for your workflow',
+      'Attendance & time tracking',
+      'Payroll calculation',
+      'Document generation',
+      'Client management',
+      'Onboarding & setup included',
+      'Email support',
+    ],
     cta: 'Book a Demo', highlight: false,
   },
   {
-    name: 'Growth', price: '₱5,499', per: '/month',
-    desc: 'For growing agencies managing multiple teams and clients.',
-    seats: 'Up to 30 contractors',
-    features: ['Everything in Starter', 'Project-based payouts', 'Client questionnaires', 'Overtime & time-off approvals', 'Audit log', 'Priority support'],
+    name: 'Growth',
+    setup: '₱30,000',
+    price: '₱9,999',
+    per: '/month',
+    perSeat: '+ ₱249/seat',
+    seats: '10 seats included',
+    desc: 'For growing agencies with multiple teams and clients to manage.',
+    features: [
+      'Everything in Starter',
+      'Project-based payouts',
+      'Client questionnaires',
+      'Overtime & time-off approvals',
+      'Audit log',
+      '2 rounds of workflow revisions',
+      'Priority support',
+    ],
     cta: 'Book a Demo', highlight: true,
   },
   {
-    name: 'Agency', price: 'Custom', per: '',
-    desc: 'White-labeled and built around how your agency works.',
-    seats: 'Unlimited contractors',
-    features: ['Everything in Growth', 'Your branding & domain', 'Custom integrations', 'Onboarding support', 'Dedicated account manager'],
+    name: 'Enterprise',
+    setup: 'Custom',
+    price: 'Custom',
+    per: '',
+    perSeat: 'Negotiated per seat',
+    seats: 'Unlimited seats',
+    desc: 'Full white-label build tailored to your firm from the ground up.',
+    features: [
+      'Everything in Growth',
+      'Your branding & domain',
+      'Custom integrations & modules',
+      'Dedicated onboarding',
+      'Dedicated account manager',
+      'SLA & priority escalation',
+    ],
     cta: 'Talk to Us', highlight: false,
   },
 ];
@@ -363,20 +398,29 @@ export default function ForAgenciesPage() {
       <section id="pricing" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Simple, flat monthly pricing</h2>
-            <p className="text-gray-400">No per-seat surprises. Cancel anytime.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">One-time setup. Monthly base. Per seat.</h2>
+            <p className="text-gray-400">You pay to have it built right, then a flat base + per contractor. No surprises.</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-6">
             {PLANS.map(p => (
               <div key={p.name} className={`rounded-2xl p-7 border flex flex-col ${p.highlight ? 'bg-[#FF6B35] border-[#FF6B35]' : 'bg-white/3 border-white/10'}`}>
                 {p.highlight && <span className="text-xs font-bold uppercase tracking-widest text-white/70 mb-4">Most Popular</span>}
-                <h3 className="font-bold text-lg mb-1 text-white">{p.name}</h3>
+                <h3 className="font-bold text-lg mb-3 text-white">{p.name}</h3>
+
+                {/* Setup fee */}
+                <div className={`text-xs font-medium mb-3 px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 w-fit ${p.highlight ? 'bg-white/20 text-white' : 'bg-white/5 text-gray-400'}`}>
+                  <i className="ri-tools-line text-xs"></i>
+                  {p.setup === 'Custom' ? 'Custom setup fee' : `${p.setup} one-time setup`}
+                </div>
+
+                {/* Monthly price */}
                 <div className="flex items-end gap-1 mb-1">
                   <span className="text-4xl font-bold text-white">{p.price}</span>
                   <span className={`text-sm mb-1.5 ${p.highlight ? 'text-white/70' : 'text-gray-400'}`}>{p.per}</span>
                 </div>
-                <p className={`text-sm mb-1 ${p.highlight ? 'text-white/80' : 'text-gray-400'}`}>{p.seats}</p>
-                <p className={`text-sm mb-6 ${p.highlight ? 'text-white/70' : 'text-gray-500'}`}>{p.desc}</p>
+                <p className={`text-xs mb-1 ${p.highlight ? 'text-white/70' : 'text-gray-500'}`}>{p.seats} · <span className="italic">{p.perSeat}</span></p>
+                <p className={`text-sm mt-3 mb-6 ${p.highlight ? 'text-white/70' : 'text-gray-500'}`}>{p.desc}</p>
+
                 <ul className="space-y-2.5 mb-8 flex-1">
                   {p.features.map(f => (
                     <li key={f} className={`flex items-center gap-2 text-sm ${p.highlight ? 'text-white/90' : 'text-gray-300'}`}>
@@ -392,6 +436,7 @@ export default function ForAgenciesPage() {
               </div>
             ))}
           </div>
+          <p className="text-center text-xs text-gray-600 mt-6">Per-seat pricing discussed during your demo call based on team size.</p>
         </div>
       </section>
 
