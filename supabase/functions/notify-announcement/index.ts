@@ -21,9 +21,10 @@ const categoryEmoji: Record<string, string> = {
   general: '📌',
 };
 
-async function postToSlack(channel: string, title: string, body: string, priority: string, category: string) {
+async function postToSlack(channel: string, title: string, body: string, priority: string, category: string, posterName?: string) {
   const pEmoji = priorityEmoji[priority] ?? '📢';
   const cEmoji = categoryEmoji[category] ?? '📌';
+  const postedBy = posterName ? `Posted by *${posterName}*` : 'Posted via Huna Hub';
 
   const blocks = [
     {
@@ -37,7 +38,7 @@ async function postToSlack(channel: string, title: string, body: string, priorit
     {
       type: 'context',
       elements: [
-        { type: 'mrkdwn', text: `${cEmoji} *${category.charAt(0).toUpperCase() + category.slice(1)}* · Posted via Huna Hub` },
+        { type: 'mrkdwn', text: `${cEmoji} *${category.charAt(0).toUpperCase() + category.slice(1)}* · ${postedBy}` },
       ],
     },
   ];
@@ -56,12 +57,12 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const { title, body, priority = 'normal', category = 'general' } = await req.json();
+    const { title, body, priority = 'normal', category = 'general', poster_name } = await req.json();
     if (!title || !body) {
       return new Response(JSON.stringify({ error: 'title and body required' }), { status: 400, headers: cors });
     }
 
-    await Promise.all(CHANNELS.map(ch => postToSlack(ch, title, body, priority, category)));
+    await Promise.all(CHANNELS.map(ch => postToSlack(ch, title, body, priority, category, poster_name)));
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {

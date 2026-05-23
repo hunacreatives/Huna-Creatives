@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 const priorityColors: Record<string, string> = {
   normal: 'bg-gray-100 text-gray-600',
@@ -19,6 +20,7 @@ const categoryColors: Record<string, string> = {
 const emptyForm = { title: '', body: '', priority: 'normal', category: 'general', published: true };
 
 export default function AnnouncementsPage() {
+  const { hubUser } = useAuth();
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -27,15 +29,10 @@ export default function AnnouncementsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [detailAnn, setDetailAnn] = useState<HubAnnouncement | null>(null);
   const [detailComments, setDetailComments] = useState<any[]>([]);
   const [detailReactions, setDetailReactions] = useState<any[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
-  }, []);
 
   const openDetail = async (a: HubAnnouncement) => {
     setDetailAnn(a);
@@ -51,7 +48,7 @@ export default function AnnouncementsPage() {
 
   const fetchAnnouncements = async () => {
     setLoading(true);
-    const { data } = await supabase.from('hub_announcements').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('hub_announcements').select('*, hub_users(full_name, avatar_url)').order('created_at', { ascending: false });
     setAnnouncements((data as HubAnnouncement[]) ?? []);
     setLoading(false);
   };
@@ -74,10 +71,10 @@ export default function AnnouncementsPage() {
       if (editing) {
         ({ error } = await supabase.from('hub_announcements').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id));
       } else {
-        ({ error } = await supabase.from('hub_announcements').insert({ ...form, posted_by: currentUserId }));
+        ({ error } = await supabase.from('hub_announcements').insert({ ...form, posted_by: hubUser?.id }));
         if (!error && form.published) {
           supabase.functions.invoke('notify-announcement', {
-            body: { title: form.title, body: form.body, priority: form.priority, category: form.category },
+            body: { title: form.title, body: form.body, priority: form.priority, category: form.category, poster_name: hubUser?.full_name, poster_avatar: hubUser?.avatar_url },
           }).catch(() => {});
         }
       }
@@ -127,7 +124,13 @@ export default function AnnouncementsPage() {
                     </div>
                     <h3 className="text-sm font-semibold text-[#111827] mb-1">{a.title}</h3>
                     <p className="text-sm text-gray-500 line-clamp-2">{a.body}</p>
-                    <p className="text-xs text-gray-400 mt-2">{new Date(a.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      {(a as any).hub_users?.avatar_url
+                        ? <img src={(a as any).hub_users.avatar_url} className="w-5 h-5 rounded-full object-cover object-top" />
+                        : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center"><span className="text-white text-[9px] font-bold">{(a as any).hub_users?.full_name?.charAt(0) ?? '?'}</span></div>
+                      }
+                      <p className="text-xs text-gray-400">{(a as any).hub_users?.full_name ?? 'Unknown'} · {new Date(a.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                     <button onClick={() => openEdit(a)} className="p-1.5 text-gray-400 hover:text-gray-700 cursor-pointer transition-colors rounded-lg hover:bg-gray-100 w-7 h-7 flex items-center justify-center">
@@ -242,7 +245,13 @@ export default function AnnouncementsPage() {
               <div className="px-5 py-4 border-b border-gray-50">
                 <h2 className="text-base font-semibold text-[#111827] mb-2">{detailAnn.title}</h2>
                 <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{detailAnn.body}</p>
-                <p className="text-xs text-gray-400 mt-3">{new Date(detailAnn.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                <div className="flex items-center gap-2 mt-3">
+                  {(detailAnn as any).hub_users?.avatar_url
+                    ? <img src={(detailAnn as any).hub_users.avatar_url} className="w-6 h-6 rounded-full object-cover object-top" />
+                    : <div className="w-6 h-6 rounded-full bg-[#FF6B35] flex items-center justify-center"><span className="text-white text-[10px] font-bold">{(detailAnn as any).hub_users?.full_name?.charAt(0) ?? '?'}</span></div>
+                  }
+                  <p className="text-xs text-gray-400">{(detailAnn as any).hub_users?.full_name ?? 'Unknown'} · {new Date(detailAnn.created_at!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                </div>
               </div>
 
               {detailLoading ? (
