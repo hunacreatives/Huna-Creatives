@@ -1199,17 +1199,18 @@ export default function ForAgenciesPage() {
           <div className="text-center mb-10">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-2">What's included</p>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight">Everything. Out of the box.</h2>
+            <p className="text-gray-500 text-sm mt-3">No piecing together tools. One hub, one team, everything managed.</p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 rounded-2xl overflow-hidden border border-white/5">
             {FEATURES.map(f => (
-              <div key={f.title} className="bg-white/3 border border-white/8 rounded-xl p-4 hover:bg-white/5 hover:border-white/15 transition-all group flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5"
-                  style={{ background: 'rgba(255,107,53,0.1)' }}>
-                  <i className={`${f.icon} text-[#FF6B35] text-sm`}></i>
+              <div key={f.title} className="bg-[#080c14] p-5 hover:bg-white/3 transition-colors group flex items-start gap-4">
+                <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5 group-hover:scale-105 transition-transform"
+                  style={{ background: 'rgba(255,107,53,0.12)', boxShadow: '0 0 12px rgba(255,107,53,0.08)' }}>
+                  <i className={`${f.icon} text-[#FF6B35] text-base`}></i>
                 </div>
                 <div>
                   <h3 className="font-bold text-white mb-1 text-sm">{f.title}</h3>
-                  <p className="text-xs text-gray-400 leading-relaxed">{f.desc}</p>
+                  <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -1218,27 +1219,30 @@ export default function ForAgenciesPage() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section className="relative z-10 py-14 sm:py-20 px-6 border-y border-white/5">
+      <section className="relative z-10 py-14 sm:py-20 px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The process</p>
-            <h2 className="text-4xl sm:text-5xl font-black tracking-tight">How it works</h2>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">Up and running in weeks,<br className="hidden sm:block" /> not months.</h2>
           </div>
-          <div className="grid sm:grid-cols-3 gap-8">
+          <div className="relative grid sm:grid-cols-3 gap-8">
+            {/* Connector line (desktop only) */}
+            <div className="hidden sm:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px" style={{ background: 'linear-gradient(90deg, rgba(255,107,53,0.3), rgba(255,107,53,0.1) 50%, rgba(255,107,53,0.3))' }} />
             {[
-              { step: '01', icon: 'ri-chat-3-line', title: 'We learn your workflow', desc: 'A discovery call to map how your organization actually operates — roles, schedules, payment types, departments.' },
-              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', desc: 'We configure and customize Sentro OS around your exact structure. Your brand, your rules, your modules.' },
-              { step: '03', icon: 'ri-rocket-line', title: 'Your team goes live', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on through go-live.' },
+              { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
+              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Custom configured around your exact structure — your brand, your rules, your modules.' },
+              { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
             ].map(s => (
-              <div key={s.step} className="text-center">
-                <div className="relative inline-flex mb-5">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                    <i className={`${s.icon} text-[#FF6B35] text-2xl`}></i>
+              <div key={s.step} className="flex flex-col items-center text-center relative">
+                <div className="relative mb-5 z-10">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}>
+                    <i className={`${s.icon} text-[#FF6B35] text-xl`}></i>
                   </div>
-                  <span className="absolute -top-2 -right-2 text-[10px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/30 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
+                  <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
                 </div>
-                <h3 className="font-bold text-white mb-2">{s.title}</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">{s.desc}</p>
+                <span className="text-[10px] font-semibold text-[#FF6B35]/70 uppercase tracking-widest mb-1">{s.tag}</span>
+                <h3 className="font-bold text-white mb-2 text-base">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
