@@ -231,9 +231,43 @@ export default function AdminProjectsPage() {
     return null;
   };
 
+  const summaryTotals = (() => {
+    let contractValue = 0, costs = 0, collected = 0;
+    for (const p of projects) {
+      contractValue += p.contract_price;
+      costs += p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
+      collected += p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
+    }
+    const netProfit = contractValue - costs;
+    const collectionPct = contractValue > 0 ? Math.min((collected / contractValue) * 100, 100) : 0;
+    return { contractValue, costs, netProfit, collected, collectionPct };
+  })();
+
   return (
     <AdminLayout title="Projects">
-      <div className="flex gap-5 max-w-6xl h-[calc(100vh-120px)]">
+      <div className="max-w-6xl space-y-4">
+
+      {/* Summary strip */}
+      {!loading && projects.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Total Contract Value', value: fmt(summaryTotals.contractValue), icon: 'ri-file-list-3-line', color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-100' },
+            { label: 'Operational Costs', value: fmt(summaryTotals.costs), icon: 'ri-subtract-line', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
+            { label: 'Net Profit', value: fmt(summaryTotals.netProfit), icon: 'ri-line-chart-line', color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-100' },
+            { label: 'Collected from Clients', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, icon: 'ri-money-dollar-circle-line', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+          ].map(card => (
+            <div key={card.label} className={`bg-white border ${card.border} rounded-xl p-4`}>
+              <div className={`w-7 h-7 ${card.bg} rounded-lg flex items-center justify-center mb-2`}>
+                <i className={`${card.icon} ${card.color} text-sm`}></i>
+              </div>
+              <p className={`text-lg font-bold ${card.color}`}>{card.value}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{card.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-5 h-[calc(100vh-220px)]">
 
         {/* Left: project list */}
         <div className="w-80 flex-shrink-0 flex flex-col gap-3">
@@ -666,6 +700,7 @@ export default function AdminProjectsPage() {
           </div>
         </div>
       )}
+      </div>
     </AdminLayout>
   );
 }

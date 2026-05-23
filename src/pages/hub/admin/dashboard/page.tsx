@@ -92,6 +92,8 @@ export default function AdminDashboardPage() {
   const [totalPayroll, setTotalPayroll] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [totalNetProfit, setTotalNetProfit] = useState(0);
+  const [totalContractValue, setTotalContractValue] = useState(0);
+  const [totalCollected, setTotalCollected] = useState(0);
   const [activeProjectCount, setActiveProjectCount] = useState(0);
   const [monthlyRetainerTotal, setMonthlyRetainerTotal] = useState(0);
   const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
@@ -132,7 +134,7 @@ export default function AdminDashboardPage() {
         supabase.from('hub_time_off').select('*, hub_users(full_name, avatar_url)').eq('status', 'pending').order('created_at', { ascending: false }),
         supabase.from('hub_users').select('id, full_name, avatar_url, payment_type, hourly_rate, monthly_rate, currency, birthday').eq('status', 'active').in('role', ['contractor', 'admin']),
         supabase.from('hub_daily_hours').select('user_id, hours_capped, overtime_hours, date').gte('date', cutoffStart).lte('date', cutoffEnd),
-        supabase.from('hub_projects').select('contract_price, status, hub_project_costs(amount)'),
+        supabase.from('hub_projects').select('contract_price, status, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
       ]);
@@ -241,13 +243,20 @@ export default function AdminDashboardPage() {
 
       // Net profit across all projects
       let netProfitTotal = 0;
+      let contractValueTotal = 0;
+      let collectedTotal = 0;
       let activeCount = 0;
       for (const p of (projectsResult.data as any[]) || []) {
         const costs = ((p.hub_project_costs as any[]) || []).reduce((s: number, c: any) => s + c.amount, 0);
+        const collected = ((p.hub_project_payments as any[]) || []).reduce((s: number, x: any) => s + x.amount, 0);
         netProfitTotal += p.contract_price - costs;
+        contractValueTotal += p.contract_price;
+        collectedTotal += collected;
         if (p.status === 'ongoing') activeCount++;
       }
       setTotalNetProfit(netProfitTotal);
+      setTotalContractValue(contractValueTotal);
+      setTotalCollected(collectedTotal);
       setActiveProjectCount(activeCount);
 
       // Monthly retainer total (owner-only display, but we fetch regardless)
@@ -543,22 +552,34 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Project Net Profit — owner/admin only */}
-            {isOwnerOrAdmin && (
-              <div className="bg-teal-600 rounded-xl p-4 text-white">
-                <div className="flex items-center gap-2 mb-3">
-                  <i className="ri-folder-chart-line text-white/70 text-sm"></i>
-                  <p className="text-white/70 text-xs">Projects Net Profit</p>
+            {isOwnerOrAdmin && (() => {
+              const collectionPct = totalContractValue > 0 ? Math.min((totalCollected / totalContractValue) * 100, 100) : 0;
+              return (
+                <div className="bg-teal-600 rounded-xl p-4 text-white">
+                  <div className="flex items-center gap-2 mb-3">
+                    <i className="ri-folder-chart-line text-white/70 text-sm"></i>
+                    <p className="text-white/70 text-xs">Projects Net Profit</p>
+                  </div>
+                  <p className="text-2xl font-bold">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-white/60 text-xs mt-1">{activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
+                  <div className="mt-3">
+                    <div className="flex justify-between text-[10px] text-white/50 mb-1">
+                      <span>Client collections</span>
+                      <span>₱{totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 0 })} / ₱{totalContractValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })} ({collectionPct.toFixed(0)}%)</span>
+                    </div>
+                    <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-white/70 rounded-full transition-all" style={{ width: `${collectionPct}%` }} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigate('/hub/admin/projects')}
+                    className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                  >
+                    View Projects
+                  </button>
                 </div>
-                <p className="text-2xl font-bold">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                <p className="text-white/60 text-xs mt-1">across all projects · {activeProjectCount} active</p>
-                <button
-                  onClick={() => navigate('/hub/admin/projects')}
-                  className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
-                >
-                  View Projects
-                </button>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Monthly Retainer Total — owner only */}
             {isOwner && (
