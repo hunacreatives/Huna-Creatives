@@ -1,5 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const baseNavItems = [
   { to: '/hub/contractor/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
@@ -26,12 +28,23 @@ interface Props {
 export default function ContractorSidebar({ collapsed, onToggle }: Props) {
   const { hubUser, signOut } = useAuth();
   const navigate = useNavigate();
+  const [hasProjects, setHasProjects] = useState(false);
 
-  const navItems = hubUser?.payment_type === 'project_based'
+  useEffect(() => {
+    if (!hubUser) return;
+    supabase
+      .from('hub_project_contractors')
+      .select('id', { count: 'exact', head: true })
+      .eq('contractor_id', hubUser.id)
+      .then(({ count }) => setHasProjects((count ?? 0) > 0));
+  }, [hubUser?.id]);
+
+  const dividerIdx = baseNavItems.findIndex(i => (i as any).divider);
+  const navItems = hasProjects
     ? [
-        ...baseNavItems.slice(0, baseNavItems.findIndex(i => (i as any).divider)),
+        ...baseNavItems.slice(0, dividerIdx),
         { to: '/hub/contractor/projects', label: 'My Projects', icon: 'ri-folder-line' },
-        ...baseNavItems.slice(baseNavItems.findIndex(i => (i as any).divider)),
+        ...baseNavItems.slice(dividerIdx),
       ]
     : baseNavItems;
 
