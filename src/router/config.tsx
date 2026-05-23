@@ -63,6 +63,10 @@ const routes: RouteObject[] = [
     element: <ForAgenciesPage />,
   },
   {
+    path: '/crewly',
+    element: <ForAgenciesPage />,
+  },
+  {
     path: '/about',
     element: <AboutPage />,
   },
