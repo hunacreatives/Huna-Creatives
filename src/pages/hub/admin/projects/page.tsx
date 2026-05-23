@@ -74,7 +74,7 @@ export default function AdminProjectsPage() {
         .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
-        .eq('status', 'active').eq('payment_type', 'project_based').order('full_name'),
+        .eq('status', 'active').order('full_name'),
     ]);
     setProjects((pRes.data as Project[]) ?? []);
     setContractors((cRes.data as Contractor[]) ?? []);
