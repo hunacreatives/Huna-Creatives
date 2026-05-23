@@ -435,8 +435,8 @@ export default function ContractorDetailPage() {
                 </button>
               </div>
               {[
-                { label: 'Payment Type', value: contractor.payment_type ? (contractor.payment_type === 'fixed' ? 'Fixed Monthly' : 'Hourly') : undefined, icon: 'ri-bank-card-line' },
-                { label: 'Rate', value: contractor.payment_type === 'fixed' ? (contractor.monthly_rate ? `₱${contractor.monthly_rate.toLocaleString()}/mo` : undefined) : (contractor.hourly_rate ? `₱${contractor.hourly_rate}/hr ${contractor.currency || ''}` : undefined), icon: 'ri-money-dollar-circle-line' },
+                { label: 'Payment Type', value: contractor.payment_type ? ({ fixed: 'Fixed Monthly', hourly: 'Hourly', fixed_flexible: 'Fixed Flexible', project_based: 'Project Based' } as Record<string,string>)[contractor.payment_type] ?? contractor.payment_type : undefined, icon: 'ri-bank-card-line' },
+                { label: 'Rate', value: contractor.payment_type === 'project_based' ? ((contractor as any).project_percentage ? `${(contractor as any).project_percentage}% of project` : undefined) : contractor.payment_type === 'fixed' ? (contractor.monthly_rate ? `₱${contractor.monthly_rate.toLocaleString()}/mo` : undefined) : (contractor.hourly_rate ? `₱${contractor.hourly_rate}/hr ${contractor.currency || ''}` : undefined), icon: 'ri-money-dollar-circle-line' },
                 { label: 'OT Rate', value: contractor.payment_type === 'fixed' && contractor.hourly_rate ? `₱${contractor.hourly_rate}/hr` : undefined, icon: 'ri-time-line' },
                 { label: 'Bank', value: contractor.bank_name, icon: 'ri-building-line' },
                 { label: 'Account Name', value: contractor.bank_account_name, icon: 'ri-user-line' },
