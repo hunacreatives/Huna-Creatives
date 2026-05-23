@@ -251,10 +251,10 @@ export default function AdminDashboardPage() {
       setActiveProjectCount(activeCount);
 
       // Monthly retainer total (owner-only display, but we fetch regardless)
-      const usdRate = parseFloat(usdRateStr);
+      const clientUsdRate = parseFloat(usdRateStr);
       const retainerTotal = ((clientsResult.data as any[]) || [])
         .filter((c: any) => c.status === 'active' && c.contract_value)
-        .reduce((s: number, c: any) => s + (c.contract_currency === 'USD' ? c.contract_value * usdRate : c.contract_value), 0);
+        .reduce((s: number, c: any) => s + (c.contract_currency === 'USD' ? c.contract_value * clientUsdRate : c.contract_value), 0);
       setMonthlyRetainerTotal(retainerTotal);
 
       setAnnouncements((annResult.data as HubAnnouncement[]) ?? []);
