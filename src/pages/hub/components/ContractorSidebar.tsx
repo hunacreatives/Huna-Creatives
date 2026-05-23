@@ -39,14 +39,18 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
       .then(({ count }) => setHasProjects((count ?? 0) > 0));
   }, [hubUser?.id]);
 
-  const dividerIdx = baseNavItems.findIndex(i => (i as any).divider);
+  const isProjectBased = hubUser?.payment_type === 'project_based';
+  const filteredBase = isProjectBased
+    ? baseNavItems.filter(i => !['My Attendance', 'Time-Off', 'Overtime', 'Requests'].includes((i as any).label))
+    : baseNavItems;
+  const dividerIdx = filteredBase.findIndex(i => (i as any).divider);
   const navItems = hasProjects
     ? [
-        ...baseNavItems.slice(0, dividerIdx),
+        ...filteredBase.slice(0, dividerIdx),
         { to: '/hub/contractor/projects', label: 'My Projects', icon: 'ri-folder-line' },
-        ...baseNavItems.slice(dividerIdx),
+        ...filteredBase.slice(dividerIdx),
       ]
-    : baseNavItems;
+    : filteredBase;
 
   const handleSignOut = async () => {
     await signOut();

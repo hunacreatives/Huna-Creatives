@@ -102,6 +102,20 @@ export default function ContractorAttendancePage() {
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
+  if (hubUser?.payment_type === 'project_based') return (
+    <ContractorLayout title="My Attendance">
+      <div className="max-w-xl">
+        <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+            <i className="ri-time-line text-gray-400 text-xl"></i>
+          </div>
+          <p className="text-sm font-medium text-gray-500">Attendance tracking not applicable</p>
+          <p className="text-xs text-gray-400 mt-1">Project-based contractors don't log hours.</p>
+        </div>
+      </div>
+    </ContractorLayout>
+  );
+
   return (
     <ContractorLayout title="My Attendance">
       <div className="max-w-3xl space-y-5">

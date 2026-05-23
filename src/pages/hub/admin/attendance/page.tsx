@@ -109,9 +109,10 @@ async function generateAttendancePDF(start: string, end: string, label: string) 
   // Fetch contractors
   const { data: contractors } = await supabase
     .from('hub_users')
-    .select('id, full_name, department, start_date')
+    .select('id, full_name, department, start_date, payment_type')
     .eq('status', 'active')
-    .in('role', ['contractor', 'admin']);
+    .in('role', ['contractor', 'admin'])
+    .neq('payment_type', 'project_based');
 
   const userMap: Record<string, { full_name: string; department: string | null; start_date: string | null }> = {};
   for (const u of contractors || []) {
@@ -311,9 +312,10 @@ export default function AdminAttendancePage() {
 
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, department, start_date, shift_start, shift_end, work_days')
+      .select('id, full_name, avatar_url, department, start_date, shift_start, shift_end, work_days, payment_type')
       .eq('status', 'active')
-      .in('role', ['contractor', 'admin']);
+      .in('role', ['contractor', 'admin'])
+      .neq('payment_type', 'project_based');
 
     const hoursMap: Record<string, typeof hoursData extends (infer T)[] | null ? T : never> = {};
     for (const h of hoursData || []) {
