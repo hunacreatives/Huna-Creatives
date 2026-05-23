@@ -379,7 +379,8 @@ export default function AdminPayrollPage() {
     ]);
 
     const eligibleContractors = (contractorsRes.data || []).filter((c: any) =>
-      !c.start_date || c.start_date <= selectedPeriod.end
+      c.payment_type !== 'project_based' &&
+      (!c.start_date || c.start_date <= selectedPeriod.end)
     );
 
     // Per-user per-date hours map (for hourly proration)
@@ -844,10 +845,12 @@ export default function AdminPayrollPage() {
                     </tr>
                   ) : rows.map((r) => {
                     const c = r.contractor;
-                    const isFixed = c.payment_type === 'fixed';
+                    const isFixed = c.payment_type === 'fixed' || c.payment_type === 'fixed_flexible';
                     const isUSD = c.currency === 'USD';
                     const rate = isFixed
-                      ? `${fmt(c.monthly_rate || 0, 'PHP')}/mo · ${fmt(r.derivedHourlyRate, 'PHP')}/hr OT`
+                      ? isUSD
+                        ? `$${(c.monthly_rate || 0).toLocaleString()}/mo · $${r.derivedHourlyRate}/hr OT (USD)`
+                        : `${fmt(c.monthly_rate || 0, 'PHP')}/mo · ${fmt(r.derivedHourlyRate, 'PHP')}/hr OT`
                       : isUSD
                         ? `$${c.hourly_rate}/hr USD`
                         : `${fmt(c.hourly_rate || 0, 'PHP')}/hr`;
@@ -883,7 +886,7 @@ export default function AdminPayrollPage() {
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             isFixed ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'
                           }`}>
-                            {isFixed ? 'Fixed' : 'Hourly'}
+                            {c.payment_type === 'fixed' ? 'Fixed' : c.payment_type === 'fixed_flexible' ? 'Fixed Flex' : 'Hourly'}
                           </span>
                         </td>
                         <td className="px-3 py-3 text-gray-600 text-xs">{rate}</td>
