@@ -178,49 +178,19 @@ export default function HomePage() {
       {/* Hero Section */}
       <Hero />
 
-      {/* ── Sentro OS Spotlight ── */}
-      <section className="relative z-10 px-6 pt-28 pb-20 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, transparent 0%, rgba(255,107,53,0.04) 40%, rgba(255,107,53,0.07) 100%)' }} />
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 70% at 85% 60%, rgba(255,107,53,0.08) 0%, transparent 70%)' }} />
-        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,107,53,0.2) 40%, rgba(255,107,53,0.2) 60%, transparent 100%)' }} />
-        <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-10 lg:gap-16 relative">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Now available</p>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-4 leading-tight">
-              We also build internal ops<br className="hidden sm:block" /> hubs for other teams.
-            </h2>
-            <p className="text-gray-400 text-base leading-relaxed mb-6 max-w-lg">
-              <span className="text-white font-semibold">Sentro OS</span> is the same system we run our own team on — attendance, payroll, documents, credentials, and more. We build a custom version around your workflow.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <a href="/sentro-os"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all"
-                style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 24px rgba(255,107,53,0.35)' }}>
-                See Sentro OS →
-              </a>
-              <a href="/sentro-os#pricing"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-gray-400 border border-white/10 hover:bg-white/5 transition-all">
-                View pricing
-              </a>
-            </div>
-          </div>
-          <div className="flex-shrink-0 grid grid-cols-2 gap-3 w-full lg:w-auto lg:max-w-xs">
-            {[
-              { icon: 'ri-time-line', label: 'Attendance tracking' },
-              { icon: 'ri-money-dollar-circle-line', label: 'Payroll & payouts' },
-              { icon: 'ri-file-list-3-line', label: 'Document signing' },
-              { icon: 'ri-building-line', label: 'Client & projects' },
-              { icon: 'ri-shield-keyhole-line', label: 'Credentials vault' },
-              { icon: 'ri-calendar-check-line', label: 'Time-off & overtime' },
-            ].map(f => (
-              <div key={f.label} className="flex items-center gap-2.5 bg-white/3 border border-white/8 rounded-xl px-3 py-2.5">
-                <i className={`${f.icon} text-[#FF6B35] text-sm flex-shrink-0`}></i>
-                <span className="text-xs text-gray-300 font-medium">{f.label}</span>
-              </div>
-            ))}
-          </div>
+      {/* ── Sentro OS subtle nudge ── */}
+      <div className="relative z-10 px-6 py-6 border-t border-white/5">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-gray-500 text-center sm:text-left">
+            Need an internal ops hub for your team?{' '}
+            <span className="text-gray-400">We built one — attendance, payroll, docs & more.</span>
+          </p>
+          <a href="/sentro-os"
+            className="flex-shrink-0 text-sm font-semibold text-[#FF6B35] hover:text-white transition-colors whitespace-nowrap">
+            See Sentro OS →
+          </a>
         </div>
-      </section>
+      </div>
 
       {/* Footer */}
       <Footer isDark />
