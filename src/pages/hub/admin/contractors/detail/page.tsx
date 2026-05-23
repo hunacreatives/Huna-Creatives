@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
@@ -44,6 +44,26 @@ export default function ContractorDetailPage() {
   const [rateSaving, setRateSaving] = useState(false);
   const [rateError, setRateError] = useState('');
   const [confirmDeleteRateId, setConfirmDeleteRateId] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = async (file: File) => {
+    if (!contractor) return;
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${contractor.id}/avatar.${ext}`;
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+      const { error: dbErr } = await supabase.from('hub_users').update({ avatar_url: publicUrl, updated_at: new Date().toISOString() }).eq('id', contractor.id);
+      if (dbErr) throw dbErr;
+      setContractor(prev => prev ? { ...prev, avatar_url: publicUrl } : prev);
+    } catch (e: any) {
+      alert(e.message || 'Photo upload failed');
+    }
+    setUploadingPhoto(false);
+  };
 
   // Payslip tab state
   const allPeriods = getPeriods();
@@ -300,11 +320,24 @@ export default function ContractorDetailPage() {
       <div className="space-y-5">
         {/* Profile header */}
         <div className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col sm:flex-row gap-5 items-start">
-          <img
-            src={contractor.avatar_url || ''}
-            alt={contractor.full_name}
-            className="w-20 h-20 rounded-xl object-cover object-top flex-shrink-0"
-          />
+          <div className="relative flex-shrink-0">
+            {contractor.avatar_url ? (
+              <img src={contractor.avatar_url} alt={contractor.full_name} className="w-20 h-20 rounded-xl object-cover object-top" />
+            ) : (
+              <div className="w-20 h-20 rounded-xl bg-[#FF6B35] flex items-center justify-center">
+                <span className="text-white text-2xl font-bold">{contractor.full_name.charAt(0).toUpperCase()}</span>
+              </div>
+            )}
+            <button
+              onClick={() => photoRef.current?.click()}
+              disabled={uploadingPhoto}
+              className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-[#111827] text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-700 transition-colors"
+            >
+              {uploadingPhoto ? <i className="ri-loader-4-line animate-spin text-xs"></i> : <i className="ri-camera-line text-xs"></i>}
+            </button>
+            <input ref={photoRef} type="file" accept="image/*" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
+          </div>
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex flex-wrap items-start gap-2">
               <h2 className="text-lg font-bold text-[#111827]">{contractor.full_name}</h2>
