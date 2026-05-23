@@ -75,6 +75,11 @@ export default function AnnouncementsPage() {
         ({ error } = await supabase.from('hub_announcements').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id));
       } else {
         ({ error } = await supabase.from('hub_announcements').insert({ ...form, posted_by: currentUserId }));
+        if (!error && form.published) {
+          supabase.functions.invoke('notify-announcement', {
+            body: { title: form.title, body: form.body, priority: form.priority, category: form.category },
+          }).catch(() => {});
+        }
       }
       if (error) { setSaveError(error.message); return; }
       setShowModal(false);
