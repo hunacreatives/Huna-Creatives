@@ -1094,12 +1094,12 @@ export default function ForAgenciesPage() {
             <p className="text-[10px] sm:text-xs text-gray-600 tracking-[0.2em] uppercase">by Huna Creatives</p>
           </div>
         </div>
-        <div className="mt-8 sm:mt-12 text-center max-w-xl"
+        <div className="mt-8 sm:mt-12 text-center max-w-3xl"
           style={{ opacity: pageVisible ? 1 : 0, transform: pageVisible ? 'translateY(0)' : 'translateY(16px)', transition: 'opacity 1.2s ease-out, transform 1.2s ease-out' }}>
-          <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-2">
-            A custom internal operations hub built around <em className="not-italic font-black text-[#FF6B35] whitespace-nowrap" style={{ textShadow: '0 0 20px rgba(255,107,53,0.5)' }}>your</em> <span className="whitespace-nowrap">team's workflow.</span>
+          <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-2 whitespace-nowrap">
+            A custom internal operations hub built around <em className="not-italic font-black text-[#FF6B35]" style={{ textShadow: '0 0 20px rgba(255,107,53,0.5)' }}>your</em> team's workflow.
           </p>
-          <p className="text-sm text-gray-500 mb-8">
+          <p className="text-sm text-gray-500 mb-8 whitespace-nowrap">
             Manage HR, attendance, payroll, documents, credentials, SOPs, and internal operations — all in one branded system.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
