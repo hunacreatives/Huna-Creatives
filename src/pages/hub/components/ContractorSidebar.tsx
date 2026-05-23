@@ -1,14 +1,13 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
-const navItems = [
+const baseNavItems = [
   { to: '/hub/contractor/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
   { to: '/hub/contractor/attendance', label: 'My Attendance', icon: 'ri-time-line' },
   { to: '/hub/contractor/requests', label: 'Requests', icon: 'ri-inbox-line' },
   { to: '/hub/contractor/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
   { to: '/hub/contractor/overtime', label: 'Overtime', icon: 'ri-timer-flash-line' },
   { to: '/hub/contractor/clients', label: 'My Clients', icon: 'ri-building-line' },
-  { to: '/hub/contractor/projects', label: 'My Projects', icon: 'ri-folder-line' },
   { divider: true, label: 'Finance & Docs' },
   { to: '/hub/contractor/payouts', label: 'My Payouts', icon: 'ri-money-dollar-circle-line' },
   { to: '/hub/contractor/documents', label: 'Documents', icon: 'ri-file-list-3-line' },
@@ -27,6 +26,14 @@ interface Props {
 export default function ContractorSidebar({ collapsed, onToggle }: Props) {
   const { hubUser, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const navItems = hubUser?.payment_type === 'project_based'
+    ? [
+        ...baseNavItems.slice(0, baseNavItems.findIndex(i => (i as any).divider)),
+        { to: '/hub/contractor/projects', label: 'My Projects', icon: 'ri-folder-line' },
+        ...baseNavItems.slice(baseNavItems.findIndex(i => (i as any).divider)),
+      ]
+    : baseNavItems;
 
   const handleSignOut = async () => {
     await signOut();
