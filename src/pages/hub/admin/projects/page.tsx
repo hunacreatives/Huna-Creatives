@@ -41,6 +41,7 @@ export default function AdminProjectsPage() {
   const [activeId, setActiveId] = useState<number | null>(null);
 
   // Project form
+  const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Other'];
   const emptyForm = { client_name: '', project_name: '', service: 'Website Design', contract_price: '', status: 'ongoing', start_date: '', deadline: '', notes: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -447,8 +448,16 @@ export default function AdminProjectsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Service</label>
-                  <input value={form.service} onChange={e => setForm({ ...form, service: e.target.value })} placeholder="e.g. Website Design"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
+                  <select value={SERVICES.includes(form.service) ? form.service : 'Other'}
+                    onChange={e => setForm({ ...form, service: e.target.value === 'Other' ? '' : e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
+                    {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  {!SERVICES.slice(0, -1).includes(form.service) && (
+                    <input value={form.service} onChange={e => setForm({ ...form, service: e.target.value })}
+                      placeholder="Describe the service..."
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] mt-1.5" />
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Contract Price (PHP) *</label>
