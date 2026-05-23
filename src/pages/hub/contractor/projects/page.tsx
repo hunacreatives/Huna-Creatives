@@ -12,11 +12,14 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-500' },
 };
 
+interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; }
+
 interface ProjectRow {
   id: number;
   percentage: number;
   payout_status: string;
   paid_at: string | null;
+  hub_project_contractor_payouts: ContractorPayout[];
   hub_projects: {
     id: number;
     client_name: string;
@@ -41,7 +44,7 @@ export default function ContractorProjectsPage() {
     if (!hubUser) return;
     supabase
       .from('hub_project_contractors')
-      .select('id, percentage, payout_status, paid_at, hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, hub_project_payments(amount), hub_project_costs(amount))')
+      .select('id, percentage, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, hub_project_payments(amount), hub_project_costs(amount))')
       .eq('contractor_id', hubUser.id)
       .then(({ data }) => {
         setRows((data as ProjectRow[]) ?? []);
@@ -95,6 +98,10 @@ function ProjectCard({ row }: { row: ProjectRow }) {
   const netProfit = p.contract_price - totalCosts;
   const myCut = netProfit * (row.percentage / 100);
   const paidPct = p.contract_price > 0 ? Math.min((totalPaid / p.contract_price) * 100, 100) : 0;
+  const payouts = row.hub_project_contractor_payouts ?? [];
+  const totalPaidOut = payouts.reduce((s, x) => s + x.amount, 0);
+  const payoutPct = myCut > 0 ? Math.min((totalPaidOut / myCut) * 100, 100) : 0;
+  const isFullyPaid = totalPaidOut >= myCut && myCut > 0;
   const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
 
   return (
@@ -113,11 +120,12 @@ function ProjectCard({ row }: { row: ProjectRow }) {
             </p>
           )}
         </div>
-        {row.payout_status === 'paid' ? (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex-shrink-0">Paid</span>
-        ) : (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium flex-shrink-0">Pending payout</span>
-        )}
+        {isFullyPaid
+          ? <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex-shrink-0">Paid in full</span>
+          : totalPaidOut > 0
+            ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium flex-shrink-0">{fmt(totalPaidOut)} received</span>
+            : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium flex-shrink-0">Pending payout</span>
+        }
       </div>
 
       {/* Financials breakdown */}
@@ -138,6 +146,29 @@ function ProjectCard({ row }: { row: ProjectRow }) {
           <span className="text-gray-700 font-medium">Your cut ({row.percentage}%)</span>
           <span className="font-bold text-[#FF6B35]">{fmt(myCut)}</span>
         </div>
+      </div>
+
+      {/* Your payout progress */}
+      <div>
+        <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <span>Your payouts received</span>
+          <span>{fmt(totalPaidOut)} / {fmt(myCut)} ({payoutPct.toFixed(0)}%)</span>
+        </div>
+        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${isFullyPaid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${payoutPct}%` }} />
+        </div>
+        {payouts.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {payouts.map(pp => (
+              <div key={pp.id} className="flex items-center gap-2 text-[11px] text-gray-400">
+                <i className="ri-check-line text-emerald-400 text-[10px]"></i>
+                <span className="font-medium text-gray-600">{fmt(pp.amount)}</span>
+                <span>· {new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                {pp.notes && <span>· {pp.notes}</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Client collection progress */}

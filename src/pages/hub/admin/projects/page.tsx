@@ -14,6 +14,8 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-500' },
 };
 
+interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; }
+
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
   contract_price: number; status: string; start_date: string | null; deadline: string | null; notes: string | null;
@@ -22,6 +24,7 @@ interface Project {
   hub_project_contractors: {
     id: number; percentage: number; payout_status: string; paid_at: string | null; notes: string | null;
     hub_users: { id: string; full_name: string; avatar_url: string | null };
+    hub_project_contractor_payouts: ContractorPayout[];
   }[];
 }
 
@@ -68,10 +71,15 @@ export default function AdminProjectsPage() {
   const [addCtxPct, setAddCtxPct] = useState('');
   const [ctxSaving, setCtxSaving] = useState(false);
 
+  // Staged contractor payouts: keyed by hub_project_contractors.id
+  const [ctxPayForm, setCtxPayForm] = useState<Record<number, { amount: string; date: string; notes: string }>>({});
+  const [ctxPaySaving, setCtxPaySaving] = useState<Record<number, boolean>>({});
+  const [ctxPayError, setCtxPayError] = useState<Record<number, string>>({});
+
   const fetchAll = async () => {
     const [pRes, cRes] = await Promise.all([
       supabase.from('hub_projects')
-        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url))')
+        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url), hub_project_contractor_payouts(id, amount, paid_at, notes))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
@@ -159,9 +167,34 @@ export default function AdminProjectsPage() {
     fetchAll();
   };
 
-  const markPaid = async (pcId: number, contractorName: string) => {
-    await supabase.from('hub_project_contractors').update({ payout_status: 'paid', paid_at: new Date().toISOString() }).eq('id', pcId);
-    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'project_payout', description: `Marked ${contractorName} as paid on project` });
+  const logContractorPayout = async (pcId: number, cut: number, contractorName: string) => {
+    const form = ctxPayForm[pcId];
+    if (!form?.amount) return;
+    setCtxPaySaving(p => ({ ...p, [pcId]: true }));
+    setCtxPayError(p => ({ ...p, [pcId]: '' }));
+    const { error } = await supabase.from('hub_project_contractor_payouts').insert({
+      project_contractor_id: pcId,
+      amount: parseFloat(form.amount),
+      paid_at: form.date || new Date().toISOString().slice(0, 10),
+      notes: form.notes || null,
+    });
+    setCtxPaySaving(p => ({ ...p, [pcId]: false }));
+    if (error) { setCtxPayError(p => ({ ...p, [pcId]: error.message })); return; }
+    setCtxPayForm(p => ({ ...p, [pcId]: { amount: '', date: new Date().toISOString().slice(0, 10), notes: '' } }));
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'project_payout', description: `Logged payout of ₱${form.amount} to ${contractorName}` });
+    // auto-mark paid if fully paid
+    const pc = projects.flatMap(p => p.hub_project_contractors).find(x => x.id === pcId);
+    if (pc) {
+      const prev = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
+      if (prev + parseFloat(form.amount) >= cut) {
+        await supabase.from('hub_project_contractors').update({ payout_status: 'paid', paid_at: new Date().toISOString() }).eq('id', pcId);
+      }
+    }
+    fetchAll();
+  };
+
+  const deleteContractorPayout = async (payoutId: number) => {
+    await supabase.from('hub_project_contractor_payouts').delete().eq('id', payoutId);
     fetchAll();
   };
 
@@ -405,32 +438,76 @@ export default function AdminProjectsPage() {
                 {activeProject.hub_project_contractors.length === 0 ? (
                   <p className="text-xs text-gray-400">No contractors assigned to this project yet.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {activeProject.hub_project_contractors.map(pc => {
                       const u = pc.hub_users;
                       if (!u) return null;
                       const cut = d.netProfit * (pc.percentage / 100);
+                      const totalPaidOut = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
+                      const paidPct = cut > 0 ? Math.min((totalPaidOut / cut) * 100, 100) : 0;
+                      const isFullyPaid = totalPaidOut >= cut && cut > 0;
+                      const pf = ctxPayForm[pc.id] ?? { amount: '', date: new Date().toISOString().slice(0, 10), notes: '' };
+                      const setPf = (patch: Partial<typeof pf>) => setCtxPayForm(prev => ({ ...prev, [pc.id]: { ...pf, ...patch } }));
                       return (
-                        <div key={pc.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                          <Avatar name={u.full_name} url={u.avatar_url} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
-                              <span className="text-xs text-gray-400">{pc.percentage}% → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
+                        <div key={pc.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                          {/* Contractor header */}
+                          <div className="flex items-center gap-3 p-3 bg-gray-50">
+                            <Avatar name={u.full_name} url={u.avatar_url} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
+                                <span className="text-xs text-gray-400">{pc.percentage}% → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
+                                {isFullyPaid
+                                  ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Paid in full</span>
+                                  : totalPaidOut > 0
+                                    ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{fmt(totalPaidOut)} paid</span>
+                                    : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Unpaid</span>
+                                }
+                              </div>
+                              <div className="mt-1.5 h-1 bg-gray-200 rounded-full overflow-hidden w-full">
+                                <div className={`h-full rounded-full transition-all ${isFullyPaid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${paidPct}%` }} />
+                              </div>
                             </div>
-                            {pc.notes && <p className="text-xs text-gray-400">{pc.notes}</p>}
+                            <button onClick={() => removeContractor(pc.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0"><i className="ri-delete-bin-line text-xs"></i></button>
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {pc.payout_status === 'paid' ? (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Paid</span>
-                            ) : (
-                              <button onClick={() => markPaid(pc.id, u.full_name)}
-                                className="text-xs px-2.5 py-1 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer whitespace-nowrap">
-                                Mark Paid
-                              </button>
-                            )}
-                            <button onClick={() => removeContractor(pc.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer"><i className="ri-delete-bin-line text-xs"></i></button>
-                          </div>
+
+                          {/* Payout history */}
+                          {pc.hub_project_contractor_payouts.length > 0 && (
+                            <div className="px-3 py-2 space-y-1.5 border-t border-gray-100">
+                              {pc.hub_project_contractor_payouts.map(pp => (
+                                <div key={pp.id} className="flex items-center justify-between gap-2 text-xs">
+                                  <div className="flex items-center gap-2 text-gray-600">
+                                    <i className="ri-arrow-right-line text-gray-300 text-[10px]"></i>
+                                    <span className="font-semibold text-emerald-600">{fmt(pp.amount)}</span>
+                                    <span className="text-gray-400">{new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    {pp.notes && <span className="text-gray-400">· {pp.notes}</span>}
+                                  </div>
+                                  <button onClick={() => deleteContractorPayout(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer"><i className="ri-delete-bin-line text-[10px]"></i></button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Log payout form */}
+                          {!isFullyPaid && (
+                            <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
+                              <div className="flex gap-2">
+                                <input type="number" value={pf.amount} onChange={e => setPf({ amount: e.target.value })} placeholder={`Amount (of ${fmt(cut)})`}
+                                  className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                                <input type="date" value={pf.date} onChange={e => setPf({ date: e.target.value })}
+                                  className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                              </div>
+                              <div className="flex gap-2">
+                                <input value={pf.notes} onChange={e => setPf({ notes: e.target.value })} placeholder="Notes (optional)"
+                                  className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                                <button onClick={() => logContractorPayout(pc.id, cut, u.full_name)} disabled={!pf.amount || ctxPaySaving[pc.id]}
+                                  className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                                  {ctxPaySaving[pc.id] ? '...' : '+ Payout'}
+                                </button>
+                              </div>
+                              {ctxPayError[pc.id] && <p className="text-xs text-red-500">{ctxPayError[pc.id]}</p>}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
