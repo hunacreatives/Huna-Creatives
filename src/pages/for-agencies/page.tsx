@@ -1159,7 +1159,7 @@ export default function ForAgenciesPage() {
           </div>
 
           {/* Tab buttons — above both columns */}
-          <div className="flex flex-wrap gap-2 mb-8 justify-center">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-8 sm:justify-center">
             {SCREENS.map((s, i) => (
               <button key={s.label} onClick={() => setActiveScreen(i)}
                 className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeScreen === i ? 'text-white' : 'text-gray-400 hover:text-white border border-white/10 hover:bg-white/5'}`}
