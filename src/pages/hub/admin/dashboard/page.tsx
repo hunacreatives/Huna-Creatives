@@ -181,7 +181,7 @@ export default function AdminDashboardPage() {
         const adjs: any[] = p.adjustments || [];
         adjMap[p.contractor_id] = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
       }
-      const usdRate = 56;
+      const usdRate = parseFloat(usdRateStr);
       let payrollTotal = 0;
       for (const c of eligibleContractors) {
         const h = hoursMap[c.id] || { capped: 0, overtime: 0 };
