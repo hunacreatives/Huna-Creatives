@@ -85,21 +85,35 @@ export default function ContractorDocumentsPage() {
     const dateLabel = new Date(signedAt).toLocaleDateString('en-US', {
       month: 'long', day: 'numeric', year: 'numeric',
     });
-    let result = content.replace(
-      '</head>',
-      `<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet"></head>`
-    );
-    return result
-      .replace(
-        /<div style="height:44pt;margin-top:16pt;border-bottom:1pt solid #111;"><\/div>\s*<p class="sig-label" style="margin-top:4pt;">Signature<\/p>/,
-        `<div style="height:44pt;margin-top:16pt;display:flex;align-items:flex-end;padding-bottom:4pt;">
-          <p style="font-family:'Dancing Script',cursive;font-size:26pt;color:#111;margin:0;line-height:1;">${signedName}</p>
-         </div>`
-      )
-      .replace(
-        /(<p class="sig-label">)([^<]+ &nbsp;\|&nbsp; Date)(<\/p>)(?![\s\S]*<p class="sig-label">Francis)/,
-        `$1${signedName} &nbsp;|&nbsp; ${dateLabel}$3`
-      );
+    const dom = new DOMParser().parseFromString(content, 'text/html');
+
+    const link = dom.createElement('link');
+    link.setAttribute('href', 'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap');
+    link.setAttribute('rel', 'stylesheet');
+    dom.head.appendChild(link);
+
+    // "Signature" label has style="margin-top:4pt;" — replace preceding blank div with cursive name
+    const signatureLabel = dom.querySelector('p.sig-label[style*="margin-top"]');
+    if (signatureLabel) {
+      const blankDiv = signatureLabel.previousElementSibling as HTMLElement;
+      if (blankDiv) {
+        blankDiv.style.borderBottom = 'none';
+        blankDiv.style.display = 'flex';
+        blankDiv.style.alignItems = 'flex-end';
+        blankDiv.style.paddingBottom = '4pt';
+        blankDiv.innerHTML = `<p style="font-family:'Dancing Script',cursive;font-size:26pt;color:#111;margin:0;line-height:1;">${signedName}</p>`;
+      }
+      signatureLabel.remove();
+    }
+
+    // "Name | Date" placeholder — no style attribute, ends with "Date"
+    dom.querySelectorAll('p.sig-label:not([style])').forEach(p => {
+      if (p.innerHTML.trim().endsWith('Date')) {
+        p.innerHTML = `${signedName} &nbsp;|&nbsp; ${dateLabel}`;
+      }
+    });
+
+    return dom.documentElement.outerHTML;
   };
 
   const openDoc = (doc: any, assignment?: HubSignAssignment) => {
