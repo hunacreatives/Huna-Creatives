@@ -155,7 +155,7 @@ export default function ClientsPage() {
 
   return (
     <AdminLayout title="Client Assignments">
-      <div className="space-y-4 max-w-5xl">
+      <div className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
             <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>

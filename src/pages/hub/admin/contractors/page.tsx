@@ -93,7 +93,7 @@ export default function ContractorsPage() {
         </button>
       }
     >
-      <div className="space-y-4 max-w-6xl">
+      <div className="space-y-4">
         {/* Filters */}
         <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">

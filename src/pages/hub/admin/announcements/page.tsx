@@ -102,7 +102,7 @@ export default function AnnouncementsPage() {
 
   return (
     <AdminLayout title="Announcements">
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">{announcements.length} announcement{announcements.length !== 1 ? 's' : ''}</p>
           <button onClick={openNew} className="flex items-center gap-1.5 px-4 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">

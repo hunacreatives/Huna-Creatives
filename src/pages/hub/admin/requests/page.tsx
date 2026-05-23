@@ -40,7 +40,7 @@ export default function RequestsPage() {
 
   return (
     <AdminLayout title="Request Center">
-      <div className="space-y-4 max-w-5xl">
+      <div className="space-y-4">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
           {['all', 'open', 'in_review', 'resolved', 'closed'].map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}

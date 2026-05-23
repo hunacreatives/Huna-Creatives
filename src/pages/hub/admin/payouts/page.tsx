@@ -134,7 +134,7 @@ export default function AdminPayoutsPage() {
         </div>
       )}
 
-      <div className="max-w-5xl space-y-5">
+      <div className="space-y-5">
 
         {/* Period selector */}
         <div className="flex items-center gap-3 flex-wrap">

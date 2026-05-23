@@ -211,7 +211,7 @@ export default function CredentialsVaultPage() {
         </div>
       )}
 
-      <div className="space-y-5 max-w-5xl">
+      <div className="space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 flex-1">

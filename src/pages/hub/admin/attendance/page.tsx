@@ -401,7 +401,7 @@ export default function AdminAttendancePage() {
 
   return (
     <AdminLayout title="Attendance">
-      <div className="max-w-4xl mx-auto space-y-5">
+      <div className="space-y-5">
 
         {/* Header row */}
         <div className="flex items-start justify-between gap-4 flex-wrap">

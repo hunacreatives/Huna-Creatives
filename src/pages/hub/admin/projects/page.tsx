@@ -245,7 +245,7 @@ export default function AdminProjectsPage() {
 
   return (
     <AdminLayout title="Projects">
-      <div className="max-w-6xl space-y-4">
+      <div className="space-y-4">
 
       {/* Summary strip */}
       {!loading && projects.length > 0 && (

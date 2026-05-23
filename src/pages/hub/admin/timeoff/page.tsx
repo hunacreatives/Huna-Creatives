@@ -164,7 +164,7 @@ export default function AdminTimeOffPage() {
 
   return (
     <AdminLayout title="Time Off">
-      <div className="space-y-4 max-w-5xl">
+      <div className="space-y-4">
 
         {/* Tab: Requests / Blackouts / Balances */}
         <div className="flex gap-2 border-b border-gray-100 pb-0">

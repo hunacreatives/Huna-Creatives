@@ -317,7 +317,7 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminLayout title="Dashboard">
-      <div className="space-y-4 max-w-5xl">
+      <div className="space-y-4">
 
         {/* Header banner */}
         <div className="bg-[#111827] rounded-2xl p-5 text-white relative overflow-hidden">

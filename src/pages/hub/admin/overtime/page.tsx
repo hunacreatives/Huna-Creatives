@@ -58,7 +58,7 @@ export default function AdminOvertimePage() {
 
   return (
     <AdminLayout title="Overtime Requests">
-      <div className="space-y-4 max-w-4xl">
+      <div className="space-y-4">
 
         {/* Filters */}
         <div className="flex items-center justify-between">

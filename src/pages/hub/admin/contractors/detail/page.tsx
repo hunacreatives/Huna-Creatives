@@ -297,7 +297,7 @@ export default function ContractorDetailPage() {
         </div>
       }
     >
-      <div className="max-w-4xl space-y-5">
+      <div className="space-y-5">
         {/* Profile header */}
         <div className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col sm:flex-row gap-5 items-start">
           <img
