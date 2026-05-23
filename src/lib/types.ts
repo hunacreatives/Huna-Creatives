@@ -17,7 +17,8 @@ export interface HubUser {
   department?: string;
   start_date?: string;
   status: 'active' | 'inactive';
-  payment_type?: 'hourly' | 'fixed';
+  payment_type?: 'hourly' | 'fixed' | 'fixed_flexible' | 'project_based';
+  project_percentage?: number;
   hourly_rate?: number;
   monthly_rate?: number;
   currency?: string;

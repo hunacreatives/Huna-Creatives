@@ -14,9 +14,10 @@ const emptyForm = {
   role: 'contractor' as 'contractor' | 'admin',
   department: '',
   start_date: new Date().toISOString().slice(0, 10),
-  payment_type: 'fixed' as 'fixed' | 'hourly' | 'fixed_flexible',
+  payment_type: 'fixed' as 'fixed' | 'hourly' | 'fixed_flexible' | 'project_based',
   monthly_rate: '',
   hourly_rate: '',
+  project_percentage: '',
   currency: 'PHP',
   shift_start: '',
   shift_end: '',
@@ -39,6 +40,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
     if (!form.full_name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
     if (form.payment_type === 'hourly' && !form.hourly_rate) { setError('Hourly rate is required for hourly contractors.'); return; }
     if ((form.payment_type === 'fixed' || form.payment_type === 'fixed_flexible') && !form.monthly_rate) { setError('Monthly rate is required.'); return; }
+    if (form.payment_type === 'project_based' && !form.project_percentage) { setError('Project percentage is required.'); return; }
 
     setSaving(true);
     setError('');
@@ -53,6 +55,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
         payment_type: form.payment_type,
         hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
         monthly_rate: form.monthly_rate ? parseFloat(form.monthly_rate) : null,
+        project_percentage: form.project_percentage ? parseFloat(form.project_percentage) : null,
         currency: form.currency,
         shift_start: form.shift_start || null,
         shift_end: form.shift_end || null,
@@ -169,6 +172,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                     { value: 'fixed', label: 'Fixed Monthly' },
                     { value: 'hourly', label: 'Hourly' },
                     { value: 'fixed_flexible', label: 'Fixed Flexible' },
+                    { value: 'project_based', label: 'Project Based' },
                   ].map(opt => (
                     <button key={opt.value} type="button"
                       onClick={() => set('payment_type', opt.value)}
@@ -178,24 +182,39 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {(form.payment_type === 'fixed' || form.payment_type === 'fixed_flexible') && (
+              {form.payment_type === 'project_based' ? (
+                <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-700">Monthly Rate (PHP) *</label>
-                    <input type="number" value={form.monthly_rate} onChange={e => set('monthly_rate', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    <label className="text-xs font-medium text-gray-700">Their Cut (% of project) *</label>
+                    <div className="relative">
+                      <input type="number" value={form.project_percentage} onChange={e => set('project_percentage', e.target.value)}
+                        placeholder="e.g. 40" min="1" max="100" step="0.5"
+                        className="w-full px-3 py-2 pr-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">%</span>
+                    </div>
+                    <p className="text-[11px] text-gray-400">They earn this % of the project fee after operational costs are deducted.</p>
                   </div>
-                )}
-                {(form.payment_type === 'hourly' || form.payment_type === 'fixed_flexible') && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-700">Hourly Rate (PHP) *</label>
-                    <input type="number" value={form.hourly_rate} onChange={e => set('hourly_rate', e.target.value)}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {(form.payment_type === 'fixed' || form.payment_type === 'fixed_flexible') && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-700">Monthly Rate (PHP) *</label>
+                      <input type="number" value={form.monthly_rate} onChange={e => set('monthly_rate', e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                  )}
+                  {(form.payment_type === 'hourly' || form.payment_type === 'fixed_flexible') && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-700">Hourly Rate (PHP) *</label>
+                      <input type="number" value={form.hourly_rate} onChange={e => set('hourly_rate', e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

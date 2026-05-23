@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
 
     const {
       email, full_name, role = 'contractor', department, start_date,
-      payment_type, hourly_rate, monthly_rate, currency = 'PHP',
+      payment_type, hourly_rate, monthly_rate, project_percentage, currency = 'PHP',
       shift_start, shift_end, work_days, slack_id,
     } = await req.json();
 
@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
       payment_type: payment_type || null,
       hourly_rate: hourly_rate ? parseFloat(hourly_rate) : null,
       monthly_rate: monthly_rate ? parseFloat(monthly_rate) : null,
+      project_percentage: project_percentage ? parseFloat(project_percentage) : null,
       currency,
       shift_start: shift_start || null,
       shift_end: shift_end || null,
