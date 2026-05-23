@@ -17,7 +17,7 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
   contract_price: number; status: string; start_date: string | null; deadline: string | null; notes: string | null;
-  hub_project_payments: { amount: number }[];
+  hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
   hub_project_contractors: {
     id: number; percentage: number; payout_status: string; paid_at: string | null; notes: string | null;
@@ -71,7 +71,7 @@ export default function AdminProjectsPage() {
   const fetchAll = async () => {
     const [pRes, cRes] = await Promise.all([
       supabase.from('hub_projects')
-        .select('*, hub_project_payments(amount), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url))')
+        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').eq('payment_type', 'project_based').order('full_name'),
@@ -317,15 +317,24 @@ export default function AdminProjectsPage() {
                   {activeProject.hub_project_payments.length === 0 ? (
                     <p className="text-xs text-gray-400">No payments logged yet.</p>
                   ) : (
-                    <div className="space-y-1.5">
-                      {(activeProject.hub_project_payments as any[]).map((pp: any) => (
-                        <div key={pp.id} className="flex items-center justify-between gap-2 text-sm">
+                    <div className="space-y-2">
+                      {activeProject.hub_project_payments.map((pp) => (
+                        <div key={pp.id} className="flex items-start justify-between gap-2 p-2.5 bg-gray-50 rounded-lg">
                           <div>
-                            <span className="font-medium text-emerald-600">{fmt(pp.amount)}</span>
-                            <span className="text-xs text-gray-400 ml-2">{pp.paid_at ? new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
-                            {pp.notes && <span className="text-xs text-gray-400 ml-1">· {pp.notes}</span>}
+                            <span className="text-sm font-semibold text-emerald-600">{fmt(pp.amount)}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className="text-[11px] text-gray-400">
+                                <i className="ri-calendar-line text-[10px] mr-0.5"></i>
+                                {pp.paid_at ? new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                              </span>
+                              {pp.notes && (
+                                <span className="text-[11px] text-gray-500">
+                                  · <i className="ri-file-text-line text-[10px] mr-0.5"></i>{pp.notes}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <button onClick={() => deletePayment(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer"><i className="ri-delete-bin-line text-xs"></i></button>
+                          <button onClick={() => deletePayment(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0 mt-0.5"><i className="ri-delete-bin-line text-xs"></i></button>
                         </div>
                       ))}
                     </div>
