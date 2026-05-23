@@ -17,7 +17,7 @@ const categoryColors: Record<string, string> = {
   general: 'bg-gray-100 text-gray-600',
 };
 
-const emptyForm = { title: '', body: '', priority: 'normal', category: 'general', published: true };
+const emptyForm = { title: '', body: '', priority: 'normal', category: 'general', published: true, scheduled_at: '' };
 
 export default function AnnouncementsPage() {
   const { hubUser } = useAuth();
@@ -58,7 +58,7 @@ export default function AnnouncementsPage() {
   const openNew = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
   const openEdit = (a: HubAnnouncement) => {
     setEditing(a);
-    setForm({ title: a.title, body: a.body, priority: a.priority, category: a.category, published: a.published });
+    setForm({ title: a.title, body: a.body, priority: a.priority, category: a.category, published: a.published, scheduled_at: (a as any).scheduled_at ? new Date((a as any).scheduled_at).toISOString().slice(0, 16) : '' });
     setShowModal(true);
   };
 
@@ -68,11 +68,17 @@ export default function AnnouncementsPage() {
     setSaveError(null);
     try {
       let error;
+      const isScheduled = !form.published && !!form.scheduled_at;
+      const payload = {
+        title: form.title, body: form.body, priority: form.priority,
+        category: form.category, published: form.published,
+        scheduled_at: isScheduled ? new Date(form.scheduled_at).toISOString() : null,
+      };
       if (editing) {
-        ({ error } = await supabase.from('hub_announcements').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id));
+        ({ error } = await supabase.from('hub_announcements').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editing.id));
       } else {
-        ({ error } = await supabase.from('hub_announcements').insert({ ...form, posted_by: hubUser?.id }));
-        if (!error && form.published) {
+        ({ error } = await supabase.from('hub_announcements').insert({ ...payload, posted_by: hubUser?.id }));
+        if (!error && form.published && !isScheduled) {
           supabase.functions.invoke('notify-announcement', {
             body: { title: form.title, body: form.body, priority: form.priority, category: form.category, poster_name: hubUser?.full_name, poster_avatar: hubUser?.avatar_url },
           }).catch(() => {});
@@ -120,7 +126,8 @@ export default function AnnouncementsPage() {
                     <div className="flex items-center gap-2 flex-wrap mb-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${priorityColors[a.priority]}`}>{a.priority}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${categoryColors[a.category]}`}>{a.category}</span>
-                      {!a.published && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">Draft</span>}
+                      {!a.published && !(a as any).scheduled_at && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">Draft</span>}
+                      {!a.published && (a as any).scheduled_at && <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-600">🕐 {new Date((a as any).scheduled_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>}
                     </div>
                     <h3 className="text-sm font-semibold text-[#111827] mb-1">{a.title}</h3>
                     <p className="text-sm text-gray-500 line-clamp-2">{a.body}</p>
@@ -188,10 +195,36 @@ export default function AnnouncementsPage() {
                   </select>
                 </div>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} className="rounded" />
-                <span className="text-sm text-gray-600">Publish immediately</span>
-              </label>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-700">When to post</label>
+                <div className="flex gap-2">
+                  {[
+                    { label: 'Post now', value: 'now' },
+                    { label: 'Schedule', value: 'schedule' },
+                    { label: 'Save as draft', value: 'draft' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, published: opt.value === 'now', scheduled_at: opt.value !== 'schedule' ? '' : form.scheduled_at })}
+                      className={`flex-1 py-2 text-xs rounded-lg border transition-colors cursor-pointer ${
+                        (opt.value === 'now' && form.published) || (opt.value === 'schedule' && !form.published && !!form.scheduled_at) || (opt.value === 'draft' && !form.published && !form.scheduled_at)
+                          ? 'bg-[#111827] text-white border-[#111827]'
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+                {!form.published && (
+                  <input
+                    type="datetime-local"
+                    value={form.scheduled_at}
+                    onChange={e => setForm({ ...form, scheduled_at: e.target.value })}
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  />
+                )}
+              </div>
             </div>
             {saveError && (
               <p className="mx-5 mb-3 text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">{saveError}</p>
@@ -200,7 +233,7 @@ export default function AnnouncementsPage() {
               <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors whitespace-nowrap">Cancel</button>
               <button onClick={save} disabled={saving || !form.title.trim() || !form.body.trim()}
                 className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap">
-                {saving ? 'Saving...' : editing ? 'Save Changes' : 'Post Announcement'}
+                {saving ? 'Saving...' : editing ? 'Save Changes' : form.published ? 'Post Announcement' : form.scheduled_at ? 'Schedule' : 'Save Draft'}
               </button>
             </div>
           </div>
