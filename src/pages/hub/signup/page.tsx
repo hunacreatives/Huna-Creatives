@@ -12,16 +12,28 @@ export default function HubSignupPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Supabase exchanges the invite token from the URL hash automatically on load.
-    // Wait briefly for the session to be established, then verify.
+    // Only allow this page when arriving from a Supabase invite email.
+    // The invite link contains #type=invite in the hash — read it before Supabase clears it.
+    const hash = window.location.hash;
+    const isInvite = hash.includes('type=invite') || hash.includes('type=recovery');
+
+    if (!isInvite) {
+      // Not from an invite link — redirect based on session state
+      supabase.auth.getSession().then(({ data }) => {
+        navigate(data.session ? '/hub/dashboard' : '/hub/login', { replace: true });
+      });
+      return;
+    }
+
+    // Wait for Supabase to exchange the token from the hash
     const timer = setTimeout(async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        navigate('/hub/login');
+        navigate('/hub/login', { replace: true });
       } else {
         setReady(true);
       }
-    }, 500);
+    }, 800);
     return () => clearTimeout(timer);
   }, [navigate]);
 
