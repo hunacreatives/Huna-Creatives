@@ -11,7 +11,7 @@ const statusColors: Record<string, string> = {
   ended: 'bg-gray-100 text-gray-500',
 };
 
-const emptyForm = { client_name: '', platform: '', status: 'active', notes: '' };
+const emptyForm = { client_name: '', platform: '', status: 'active', notes: '', contract_value: '' };
 
 function Avatar({ name, avatar_url, size = 7 }: { name: string; avatar_url?: string | null; size?: number }) {
   const s = `w-${size} h-${size}`;
@@ -75,7 +75,7 @@ export default function ClientsPage() {
   const openNew = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
   const openEdit = (c: HubClient) => {
     setEditing(c);
-    setForm({ client_name: c.client_name, platform: c.platform || '', status: c.status, notes: c.notes || '' });
+    setForm({ client_name: c.client_name, platform: c.platform || '', status: c.status, notes: c.notes || '', contract_value: c.contract_value != null ? String(c.contract_value) : '' });
     setShowModal(true);
   };
 
@@ -83,12 +83,19 @@ export default function ClientsPage() {
     if (!form.client_name.trim()) return;
     setSaving(true);
     setSaveError('');
+    const payload = {
+      client_name: form.client_name.trim(),
+      platform: form.platform.trim() || null,
+      status: form.status,
+      notes: form.notes.trim() || null,
+      contract_value: form.contract_value ? parseFloat(form.contract_value) : null,
+    };
     if (editing) {
-      const { error } = await supabase.from('hub_clients').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id);
+      const { error } = await supabase.from('hub_clients').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editing.id);
       if (error) { setSaveError(error.message); setSaving(false); return; }
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'client', entity_id: String(editing.id), description: `Updated client "${form.client_name}"` });
     } else {
-      const { error } = await supabase.from('hub_clients').insert({ ...form });
+      const { error } = await supabase.from('hub_clients').insert(payload);
       if (error) { setSaveError(error.message); setSaving(false); return; }
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'client', description: `Added client "${form.client_name}"` });
     }
@@ -151,6 +158,25 @@ export default function ClientsPage() {
           </button>
         </div>
 
+        {/* Monthly total */}
+        {!loading && (() => {
+          const activeClients = clients.filter(c => c.status === 'active' && c.contract_value);
+          const monthlyTotal = activeClients.reduce((s, c) => s + (c.contract_value ?? 0), 0);
+          if (!monthlyTotal) return null;
+          return (
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <i className="ri-money-dollar-circle-line text-emerald-600 text-sm"></i>
+                <span className="text-sm font-medium text-emerald-700">Monthly Retainer Total</span>
+                <span className="text-xs text-emerald-500">({activeClients.length} active client{activeClients.length !== 1 ? 's' : ''})</span>
+              </div>
+              <span className="text-lg font-bold text-emerald-700">
+                ₱{monthlyTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          );
+        })()}
+
         {loading ? (
           <div className="flex justify-center py-12"><i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i></div>
         ) : filtered.length === 0 ? (
@@ -170,6 +196,11 @@ export default function ClientsPage() {
                       <p className="font-semibold text-[#111827] text-sm">{c.client_name}</p>
                       {c.platform && <p className="text-xs text-gray-400">{c.platform}</p>}
                     </div>
+                    {c.contract_value != null && (
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg flex-shrink-0">
+                        ₱{c.contract_value.toLocaleString('en-PH', { minimumFractionDigits: 0 })}/mo
+                      </span>
+                    )}
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${statusColors[c.status]}`}>{c.status}</span>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button onClick={() => openManageTeam(c)} className="text-xs text-gray-400 hover:text-[#FF6B35] cursor-pointer transition-colors flex items-center gap-1">
@@ -260,6 +291,16 @@ export default function ClientsPage() {
                     <option value="ended">Ended</option>
                   </select>
                 </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Monthly Contract Value (PHP)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₱</span>
+                  <input type="number" value={form.contract_value} onChange={e => setForm({ ...form, contract_value: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+                <p className="text-[11px] text-gray-400">Only visible to admin — not shown to contractors.</p>
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Notes</label>

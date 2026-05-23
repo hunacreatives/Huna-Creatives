@@ -121,6 +121,7 @@ export interface HubClient {
   platform?: string;
   status: 'active' | 'inactive' | 'paused' | 'ended';
   notes?: string;
+  contract_value?: number | null;
   created_at?: string;
   updated_at?: string;
   hub_users?: HubUser;
