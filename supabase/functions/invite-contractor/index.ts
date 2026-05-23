@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
-      return new Response(JSON.stringify({ error: 'A contractor with this email already exists.' }), { status: 409, headers: cors });
+      return new Response(JSON.stringify({ error: 'A contractor with this email already exists.' }), { status: 200, headers: cors });
     }
 
     // Generate invite link (creates auth.users entry without sending Supabase's default email)
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     });
 
     if (linkErr || !linkData?.user) {
-      return new Response(JSON.stringify({ error: linkErr?.message ?? 'Failed to generate invite link' }), { status: 500, headers: cors });
+      return new Response(JSON.stringify({ error: linkErr?.message ?? 'Failed to generate invite link' }), { status: 200, headers: cors });
     }
 
     const inviteUrl = linkData.properties?.action_link;
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 
     if (insertErr) {
       await supabase.auth.admin.deleteUser(linkData.user.id);
-      return new Response(JSON.stringify({ error: insertErr.message }), { status: 500, headers: cors });
+      return new Response(JSON.stringify({ error: insertErr.message }), { status: 200, headers: cors });
     }
 
     // Send branded welcome email via Resend
@@ -173,6 +173,6 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true, user_id: linkData.user.id }), { headers: cors });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });
   }
 });
