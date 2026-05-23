@@ -544,16 +544,16 @@ export default function AdminDashboardPage() {
 
             {/* Project Net Profit — owner/admin only */}
             {isOwnerOrAdmin && (
-              <div className="bg-emerald-600 rounded-xl p-4 text-white">
+              <div className="bg-[#111827] rounded-xl p-4 text-white">
                 <div className="flex items-center gap-2 mb-3">
-                  <i className="ri-folder-chart-line text-white/70 text-sm"></i>
-                  <p className="text-white/70 text-xs">Projects Net Profit</p>
+                  <i className="ri-folder-chart-line text-white/40 text-sm"></i>
+                  <p className="text-white/40 text-xs">Projects Net Profit</p>
                 </div>
                 <p className="text-2xl font-bold">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                <p className="text-white/60 text-xs mt-1">across all projects · {activeProjectCount} active</p>
+                <p className="text-white/40 text-xs mt-1">across all projects · {activeProjectCount} active</p>
                 <button
                   onClick={() => navigate('/hub/admin/projects')}
-                  className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                  className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
                 >
                   View Projects
                 </button>
@@ -562,16 +562,16 @@ export default function AdminDashboardPage() {
 
             {/* Monthly Retainer Total — owner only */}
             {isOwner && (
-              <div className="bg-indigo-600 rounded-xl p-4 text-white">
+              <div className="bg-[#111827] rounded-xl p-4 text-white">
                 <div className="flex items-center gap-2 mb-3">
-                  <i className="ri-calendar-check-line text-white/70 text-sm"></i>
-                  <p className="text-white/70 text-xs">Monthly Retainers</p>
+                  <i className="ri-calendar-check-line text-white/40 text-sm"></i>
+                  <p className="text-white/40 text-xs">Monthly Retainers</p>
                 </div>
                 <p className="text-2xl font-bold">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                <p className="text-white/60 text-xs mt-1">active client contracts · converted to PHP</p>
+                <p className="text-white/40 text-xs mt-1">active client contracts · converted to PHP</p>
                 <button
                   onClick={() => navigate('/hub/admin/clients')}
-                  className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                  className="mt-3 w-full bg-white/10 hover:bg-white/20 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
                 >
                   View Clients
                 </button>
