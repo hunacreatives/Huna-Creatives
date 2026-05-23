@@ -17,6 +17,8 @@ interface ContractorPayout { id: number; amount: number; paid_at: string; notes:
 interface ProjectRow {
   id: number;
   percentage: number;
+  payout_type: string;
+  fixed_amount: number | null;
   payout_status: string;
   paid_at: string | null;
   hub_project_contractor_payouts: ContractorPayout[];
@@ -44,7 +46,7 @@ export default function ContractorProjectsPage() {
     if (!hubUser) return;
     supabase
       .from('hub_project_contractors')
-      .select('id, percentage, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, hub_project_payments(amount), hub_project_costs(amount))')
+      .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, hub_project_payments(amount), hub_project_costs(amount))')
       .eq('contractor_id', hubUser.id)
       .then(({ data }) => {
         setRows((data as ProjectRow[]) ?? []);
@@ -96,7 +98,8 @@ function ProjectCard({ row }: { row: ProjectRow }) {
   const totalPaid = p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
   const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
   const netProfit = p.contract_price - totalCosts;
-  const myCut = netProfit * (row.percentage / 100);
+  const isFixed = row.payout_type === 'fixed';
+  const myCut = isFixed ? (row.fixed_amount ?? 0) : netProfit * (row.percentage / 100);
   const paidPct = p.contract_price > 0 ? Math.min((totalPaid / p.contract_price) * 100, 100) : 0;
   const payouts = row.hub_project_contractor_payouts ?? [];
   const totalPaidOut = payouts.reduce((s, x) => s + x.amount, 0);
@@ -143,7 +146,7 @@ function ProjectCard({ row }: { row: ProjectRow }) {
           <span className="font-semibold text-emerald-600">{fmt(netProfit)}</span>
         </div>
         <div className="border-t border-dashed border-gray-200 pt-2 flex justify-between text-sm">
-          <span className="text-gray-700 font-medium">Your cut ({row.percentage}%)</span>
+          <span className="text-gray-700 font-medium">{isFixed ? 'Your fee (fixed)' : `Your cut (${row.percentage}%)`}</span>
           <span className="font-bold text-[#FF6B35]">{fmt(myCut)}</span>
         </div>
       </div>

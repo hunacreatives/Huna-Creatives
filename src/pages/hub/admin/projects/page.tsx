@@ -22,7 +22,8 @@ interface Project {
   hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
   hub_project_contractors: {
-    id: number; percentage: number; payout_status: string; paid_at: string | null; notes: string | null;
+    id: number; percentage: number; payout_type: string; fixed_amount: number | null;
+    payout_status: string; paid_at: string | null; notes: string | null;
     hub_users: { id: string; full_name: string; avatar_url: string | null };
     hub_project_contractor_payouts: ContractorPayout[];
   }[];
@@ -68,7 +69,9 @@ export default function AdminProjectsPage() {
 
   // Contractor assignment
   const [addCtxId, setAddCtxId] = useState('');
+  const [addCtxPayoutType, setAddCtxPayoutType] = useState<'percentage' | 'fixed'>('percentage');
   const [addCtxPct, setAddCtxPct] = useState('');
+  const [addCtxFixed, setAddCtxFixed] = useState('');
   const [ctxSaving, setCtxSaving] = useState(false);
 
   // Staged contractor payouts: keyed by hub_project_contractors.id
@@ -79,7 +82,7 @@ export default function AdminProjectsPage() {
   const fetchAll = async () => {
     const [pRes, cRes] = await Promise.all([
       supabase.from('hub_projects')
-        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url), hub_project_contractor_payouts(id, amount, paid_at, notes))')
+        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url), hub_project_contractor_payouts(id, amount, paid_at, notes))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
@@ -155,10 +158,18 @@ export default function AdminProjectsPage() {
   };
 
   const addContractor = async () => {
-    if (!activeId || !addCtxId || !addCtxPct) return;
+    if (!activeId || !addCtxId) return;
+    if (addCtxPayoutType === 'percentage' && !addCtxPct) return;
+    if (addCtxPayoutType === 'fixed' && !addCtxFixed) return;
     setCtxSaving(true);
-    await supabase.from('hub_project_contractors').upsert({ project_id: activeId, contractor_id: addCtxId, percentage: parseFloat(addCtxPct) }, { onConflict: 'project_id,contractor_id' });
-    setAddCtxId(''); setAddCtxPct(''); setCtxSaving(false);
+    await supabase.from('hub_project_contractors').upsert({
+      project_id: activeId,
+      contractor_id: addCtxId,
+      payout_type: addCtxPayoutType,
+      percentage: addCtxPayoutType === 'percentage' ? parseFloat(addCtxPct) : 0,
+      fixed_amount: addCtxPayoutType === 'fixed' ? parseFloat(addCtxFixed) : null,
+    }, { onConflict: 'project_id,contractor_id' });
+    setAddCtxId(''); setAddCtxPct(''); setAddCtxFixed(''); setCtxSaving(false);
     fetchAll();
   };
 
@@ -442,7 +453,8 @@ export default function AdminProjectsPage() {
                     {activeProject.hub_project_contractors.map(pc => {
                       const u = pc.hub_users;
                       if (!u) return null;
-                      const cut = d.netProfit * (pc.percentage / 100);
+                      const isFixed = pc.payout_type === 'fixed';
+                      const cut = isFixed ? (pc.fixed_amount ?? 0) : d.netProfit * (pc.percentage / 100);
                       const totalPaidOut = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
                       const paidPct = cut > 0 ? Math.min((totalPaidOut / cut) * 100, 100) : 0;
                       const isFullyPaid = totalPaidOut >= cut && cut > 0;
@@ -456,7 +468,10 @@ export default function AdminProjectsPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
-                                <span className="text-xs text-gray-400">{pc.percentage}% → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
+                                {isFixed
+                                  ? <span className="text-xs text-gray-400">Fixed fee → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
+                                  : <span className="text-xs text-gray-400">{pc.percentage}% → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
+                                }
                                 {isFullyPaid
                                   ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Paid in full</span>
                                   : totalPaidOut > 0
@@ -515,25 +530,48 @@ export default function AdminProjectsPage() {
                 )}
 
                 {unassigned.length > 0 && (
-                  <div className="border-t border-gray-100 pt-3 flex gap-2">
-                    <select value={addCtxId} onChange={e => {
-                      setAddCtxId(e.target.value);
-                      const c = contractors.find(x => x.id === e.target.value);
-                      if (c?.project_percentage) setAddCtxPct(String(c.project_percentage));
-                    }}
-                      className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
-                      <option value="">Add contractor...</option>
-                      {unassigned.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.department ? ` — ${c.department}` : ''}</option>)}
-                    </select>
-                    <div className="relative w-20">
-                      <input type="number" value={addCtxPct} onChange={e => setAddCtxPct(e.target.value)} placeholder="%" min="1" max="100"
-                        className="w-full px-2.5 py-1.5 pr-6 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                  <div className="border-t border-gray-100 pt-3 space-y-2">
+                    <div className="flex gap-2">
+                      <select value={addCtxId} onChange={e => {
+                        setAddCtxId(e.target.value);
+                        const c = contractors.find(x => x.id === e.target.value);
+                        if (c?.project_percentage) setAddCtxPct(String(c.project_percentage));
+                      }}
+                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
+                        <option value="">Add contractor...</option>
+                        {unassigned.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.department ? ` — ${c.department}` : ''}</option>)}
+                      </select>
+                      {/* Payout type toggle */}
+                      <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">
+                        <button onClick={() => setAddCtxPayoutType('percentage')}
+                          className={`px-2.5 py-1.5 cursor-pointer transition-colors ${addCtxPayoutType === 'percentage' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                          %
+                        </button>
+                        <button onClick={() => setAddCtxPayoutType('fixed')}
+                          className={`px-2.5 py-1.5 cursor-pointer transition-colors border-l border-gray-200 ${addCtxPayoutType === 'fixed' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                          ₱
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={addContractor} disabled={!addCtxId || !addCtxPct || ctxSaving}
-                      className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
-                      Add
-                    </button>
+                    <div className="flex gap-2">
+                      {addCtxPayoutType === 'percentage' ? (
+                        <div className="relative flex-1">
+                          <input type="number" value={addCtxPct} onChange={e => setAddCtxPct(e.target.value)} placeholder="%" min="1" max="100"
+                            className="w-full px-2.5 py-1.5 pr-6 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                        </div>
+                      ) : (
+                        <div className="relative flex-1">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">₱</span>
+                          <input type="number" value={addCtxFixed} onChange={e => setAddCtxFixed(e.target.value)} placeholder="Fixed fee amount"
+                            className="w-full pl-6 pr-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                        </div>
+                      )}
+                      <button onClick={addContractor} disabled={!addCtxId || (addCtxPayoutType === 'percentage' ? !addCtxPct : !addCtxFixed) || ctxSaving}
+                        className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                        {ctxSaving ? '...' : 'Add'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
