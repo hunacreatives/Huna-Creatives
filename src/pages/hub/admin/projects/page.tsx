@@ -541,8 +541,17 @@ export default function AdminProjectsPage() {
                           {!isFullyPaid && (
                             <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
                               <div className="flex gap-2">
-                                <input type="number" value={pf.amount} onChange={e => setPf({ amount: e.target.value })} placeholder={`Amount (of ${fmt(cut)})`}
-                                  className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                                <div className="flex-1 flex gap-1">
+                                  <input type="number" value={pf.amount} onChange={e => setPf({ amount: e.target.value })} placeholder={`Amount (of ${fmt(cut)})`}
+                                    className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                                  <button
+                                    type="button"
+                                    onClick={() => setPf({ amount: String((cut - totalPaidOut).toFixed(2)) })}
+                                    className="px-2 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 hover:text-gray-700 cursor-pointer whitespace-nowrap"
+                                  >
+                                    Remaining
+                                  </button>
+                                </div>
                                 <input type="date" value={pf.date} onChange={e => setPf({ date: e.target.value })}
                                   className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
                               </div>
