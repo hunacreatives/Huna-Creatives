@@ -35,6 +35,7 @@ export default function ClientsPage() {
   const [editing, setEditing] = useState<HubClient | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   // Assignment modal (manage team for a client)
   const [assignClient, setAssignClient] = useState<HubClient | null>(null);
@@ -45,15 +46,23 @@ export default function ClientsPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: c }, { data: u }] = await Promise.all([
+    const [clientsRes, usersRes] = await Promise.all([
       supabase
         .from('hub_clients')
         .select('*, hub_client_assignments(id, contractor_id, role, hub_users(id, full_name, avatar_url, department))')
         .order('client_name'),
       supabase.from('hub_users').select('id, full_name, avatar_url, department, role').eq('status', 'active').order('full_name'),
     ]);
-    setClients((c as HubClient[]) ?? []);
-    setContractors((u as HubUser[]) ?? []);
+
+    // hub_client_assignments may not exist yet if migration hasn't been run — fall back gracefully
+    if (clientsRes.error?.message?.includes('hub_client_assignments')) {
+      const { data: fallback } = await supabase.from('hub_clients').select('*').order('client_name');
+      setClients((fallback as HubClient[]) ?? []);
+    } else {
+      setClients((clientsRes.data as HubClient[]) ?? []);
+    }
+
+    setContractors((usersRes.data as HubUser[]) ?? []);
     setLoading(false);
   };
 
@@ -73,11 +82,14 @@ export default function ClientsPage() {
   const save = async () => {
     if (!form.client_name.trim()) return;
     setSaving(true);
+    setSaveError('');
     if (editing) {
-      await supabase.from('hub_clients').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id);
+      const { error } = await supabase.from('hub_clients').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editing.id);
+      if (error) { setSaveError(error.message); setSaving(false); return; }
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'client', entity_id: String(editing.id), description: `Updated client "${form.client_name}"` });
     } else {
-      await supabase.from('hub_clients').insert({ ...form });
+      const { error } = await supabase.from('hub_clients').insert({ ...form });
+      if (error) { setSaveError(error.message); setSaving(false); return; }
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'client', description: `Added client "${form.client_name}"` });
     }
     setSaving(false);
@@ -256,6 +268,12 @@ export default function ClientsPage() {
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none resize-none" />
               </div>
             </div>
+            {saveError && (
+              <div className="mx-5 mb-3 flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-lg">
+                <i className="ri-error-warning-line text-red-500 text-sm flex-shrink-0"></i>
+                <p className="text-xs text-red-600">{saveError}</p>
+              </div>
+            )}
             <div className="flex gap-2 p-5 pt-0">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer whitespace-nowrap">Cancel</button>
               <button onClick={save} disabled={saving || !form.client_name.trim()}
