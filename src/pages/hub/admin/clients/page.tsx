@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { HubClient, HubClientAssignment, HubUser } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { logAudit } from '@/lib/audit';
+import { getSetting, setSetting } from '@/lib/settings';
 
 const statusColors: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -11,7 +12,6 @@ const statusColors: Record<string, string> = {
   ended: 'bg-gray-100 text-gray-500',
 };
 
-const USD_RATE = 56;
 const fmtPHP = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const emptyForm = { client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' };
 
@@ -27,10 +27,16 @@ function Avatar({ name, avatar_url, size = 7 }: { name: string; avatar_url?: str
 
 export default function ClientsPage() {
   const { hubUser } = useAuth();
+  const isOwner = hubUser?.role === 'owner';
+  const [usdRate, setUsdRate] = useState(56);
   const [clients, setClients] = useState<HubClient[]>([]);
   const [contractors, setContractors] = useState<HubUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v)));
+  }, []);
 
   // Client modal
   const [showModal, setShowModal] = useState(false);
@@ -161,12 +167,12 @@ export default function ClientsPage() {
           </button>
         </div>
 
-        {/* Monthly total */}
-        {!loading && (() => {
+        {/* Monthly total — owner only */}
+        {!loading && isOwner && (() => {
           const activeClients = clients.filter(c => c.status === 'active' && c.contract_value);
           const monthlyTotalPHP = activeClients.reduce((s, c) => {
             const val = c.contract_value ?? 0;
-            return s + (c.contract_currency === 'USD' ? val * USD_RATE : val);
+            return s + (c.contract_currency === 'USD' ? val * usdRate : val);
           }, 0);
           if (!monthlyTotalPHP) return null;
           return (
@@ -174,7 +180,7 @@ export default function ClientsPage() {
               <div className="flex items-center gap-2">
                 <i className="ri-money-dollar-circle-line text-emerald-600 text-sm"></i>
                 <span className="text-sm font-medium text-emerald-700">Monthly Retainer Total</span>
-                <span className="text-xs text-emerald-500">({activeClients.length} active client{activeClients.length !== 1 ? 's' : ''} · USD @ ₱{USD_RATE})</span>
+                <span className="text-xs text-emerald-500">({activeClients.length} active client{activeClients.length !== 1 ? 's' : ''} · USD @ ₱{usdRate})</span>
               </div>
               <span className="text-lg font-bold text-emerald-700">{fmtPHP(monthlyTotalPHP)}/mo</span>
             </div>
@@ -200,7 +206,7 @@ export default function ClientsPage() {
                       <p className="font-semibold text-[#111827] text-sm">{c.client_name}</p>
                       {c.platform && <p className="text-xs text-gray-400">{c.platform}</p>}
                     </div>
-                    {c.contract_value != null && (
+                    {isOwner && c.contract_value != null && (
                       <div className="flex flex-col items-end flex-shrink-0">
                         <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
                           {c.contract_currency === 'USD'
@@ -208,7 +214,7 @@ export default function ClientsPage() {
                             : fmtPHP(c.contract_value)}/mo
                         </span>
                         {c.contract_currency === 'USD' && (
-                          <span className="text-[10px] text-gray-400 mt-0.5">≈ {fmtPHP(c.contract_value * USD_RATE)}</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">≈ {fmtPHP(c.contract_value * usdRate)}</span>
                         )}
                       </div>
                     )}
@@ -303,31 +309,33 @@ export default function ClientsPage() {
                   </select>
                 </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Monthly Contract Value</label>
-                <div className="flex gap-2">
-                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">
-                    <button type="button" onClick={() => setForm({ ...form, contract_currency: 'PHP' })}
-                      className={`px-3 py-2 cursor-pointer transition-colors ${form.contract_currency === 'PHP' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                      ₱ PHP
-                    </button>
-                    <button type="button" onClick={() => setForm({ ...form, contract_currency: 'USD' })}
-                      className={`px-3 py-2 cursor-pointer transition-colors border-l border-gray-200 ${form.contract_currency === 'USD' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                      $ USD
-                    </button>
+              {isOwner && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Monthly Contract Value</label>
+                  <div className="flex gap-2">
+                    <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">
+                      <button type="button" onClick={() => setForm({ ...form, contract_currency: 'PHP' })}
+                        className={`px-3 py-2 cursor-pointer transition-colors ${form.contract_currency === 'PHP' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                        ₱ PHP
+                      </button>
+                      <button type="button" onClick={() => setForm({ ...form, contract_currency: 'USD' })}
+                        className={`px-3 py-2 cursor-pointer transition-colors border-l border-gray-200 ${form.contract_currency === 'USD' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                        $ USD
+                      </button>
+                    </div>
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">{form.contract_currency === 'USD' ? '$' : '₱'}</span>
+                      <input type="number" value={form.contract_value} onChange={e => setForm({ ...form, contract_value: e.target.value })}
+                        placeholder="0.00"
+                        className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
                   </div>
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">{form.contract_currency === 'USD' ? '$' : '₱'}</span>
-                    <input type="number" value={form.contract_value} onChange={e => setForm({ ...form, contract_value: e.target.value })}
-                      placeholder="0.00"
-                      className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  </div>
+                  {form.contract_currency === 'USD' && form.contract_value && (
+                    <p className="text-[11px] text-emerald-600">≈ {fmtPHP(parseFloat(form.contract_value) * usdRate)} at ₱{usdRate}/USD</p>
+                  )}
+                  <p className="text-[11px] text-gray-400">Only visible to owner.</p>
                 </div>
-                {form.contract_currency === 'USD' && form.contract_value && (
-                  <p className="text-[11px] text-emerald-600">≈ {fmtPHP(parseFloat(form.contract_value) * USD_RATE)} at ₱{USD_RATE}/USD</p>
-                )}
-                <p className="text-[11px] text-gray-400">Only visible to admin — not shown to contractors.</p>
-              </div>
+              )}
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Notes</label>
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2}

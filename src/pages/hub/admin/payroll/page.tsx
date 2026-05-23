@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { MONTHS, FULL_MONTHS, getPeriods, fmtCurrency as fmt } from '@/lib/formatUtils';
 import { logAudit } from '@/lib/audit';
+import { getSetting, setSetting } from '@/lib/settings';
 
 interface Contractor {
   id: string;
@@ -88,9 +89,11 @@ export default function AdminPayrollPage() {
 
   const [rows, setRows] = useState<PayRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usdRate, setUsdRate] = useState<number>(56); // fallback rate
+  const [usdRate, setUsdRate] = useState<number>(56);
 
-  // USD rate is entered manually — check PayPal's rate before processing payroll
+  useEffect(() => {
+    getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v)));
+  }, []);
 
   // Payout workflow state
   const [payoutsMap, setPayoutsMap] = useState<Record<string, any>>({});
@@ -789,14 +792,19 @@ export default function AdminPayrollPage() {
             <p className="text-xs text-sky-700 flex-shrink-0">PayPal rate: <strong>1 USD =</strong></p>
             <div className="flex items-center gap-1">
               <span className="text-xs text-sky-700 font-bold">₱</span>
-              <input
-                type="number"
-                value={usdRate}
-                onChange={e => setUsdRate(Number(e.target.value))}
-                step="0.01"
-                min="1"
-                className="w-20 text-xs font-bold text-sky-800 bg-white border border-sky-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-300"
-              />
+              {isOwner ? (
+                <input
+                  type="number"
+                  value={usdRate}
+                  onChange={e => setUsdRate(Number(e.target.value))}
+                  onBlur={e => setSetting('usd_rate', e.target.value)}
+                  step="0.01"
+                  min="1"
+                  className="w-20 text-xs font-bold text-sky-800 bg-white border border-sky-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-300"
+                />
+              ) : (
+                <span className="text-xs font-bold text-sky-800">₱{usdRate}</span>
+              )}
             </div>
             <p className="text-xs text-sky-600">— check <strong>paypal.com</strong> before processing. USD pay is converted at this rate.</p>
           </div>
