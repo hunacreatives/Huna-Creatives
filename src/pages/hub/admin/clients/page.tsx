@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubClient, HubUser } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { logAudit } from '@/lib/audit';
 
 const statusColors: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -14,6 +16,7 @@ const emptyForm = {
 };
 
 export default function ClientsPage() {
+  const { hubUser } = useAuth();
   const [clients, setClients] = useState<HubClient[]>([]);
   const [contractors, setContractors] = useState<HubUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,8 +56,10 @@ export default function ClientsPage() {
     const payload = { ...form, assigned_contractor_id: form.assigned_contractor_id || null };
     if (editing) {
       await supabase.from('hub_clients').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editing.id);
+      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'client', entity_id: String(editing.id), description: `Updated client "${form.client_name}"` });
     } else {
       await supabase.from('hub_clients').insert({ ...payload });
+      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'client', description: `Added client "${form.client_name}"` });
     }
     setSaving(false);
     setShowModal(false);

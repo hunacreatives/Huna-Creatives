@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { HubUser, HubAttendance, HubTimeOff, HubRequest, HubClient, HubAsset } from '@/lib/types';
 import EditContractorModal from './EditContractorModal';
 import { getPeriods, fmtTime, fmtDate } from '@/lib/formatUtils';
+import { logAudit } from '@/lib/audit';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DayRow {
   date: string;
@@ -18,6 +20,7 @@ interface DayRow {
 export default function ContractorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { hubUser: actor } = useAuth();
   const [contractor, setContractor] = useState<HubUser | null>(null);
   const [attendance, setAttendance] = useState<HubAttendance[]>([]);
   const [timeOff, setTimeOff] = useState<HubTimeOff[]>([]);
@@ -158,6 +161,9 @@ export default function ContractorDetailPage() {
       ...(hourly  !== null ? { hourly_rate:  hourly  } : {}),
     }).eq('id', id);
 
+    const rateDesc = monthly ? `₱${monthly.toLocaleString()}/mo` : `₱${hourly?.toLocaleString()}/hr`;
+    logAudit({ actor_id: actor?.id, actor_name: actor?.full_name, action: 'update', entity_type: 'contractor', entity_id: id, description: `Updated rate for ${contractor.full_name} to ${rateDesc} (effective ${rateForm.effective_date})` });
+
     setRateSaving(false);
     setShowRateModal(false);
     await Promise.all([fetch(), fetchRateHistory()]);
@@ -179,6 +185,7 @@ export default function ContractorDetailPage() {
         }).eq('id', id);
       }
     }
+    logAudit({ actor_id: actor?.id, actor_name: actor?.full_name, action: 'delete', entity_type: 'contractor', entity_id: id, description: `Deleted rate history entry for ${contractor.full_name}` });
     setConfirmDeleteRateId(null);
     await Promise.all([fetch(), fetchRateHistory()]);
   };

@@ -3,6 +3,7 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { HubTimeOff, HubUser } from '@/lib/types';
+import { logAudit } from '@/lib/audit';
 
 const typeLabels: Record<string, string> = {
   pto: 'PTO', vacation: 'PTO', sick: 'Sick', emergency: 'Emergency', unpaid: 'Unpaid', other: 'Other',
@@ -121,6 +122,7 @@ export default function AdminTimeOffPage() {
       admin_notes: hrNotes,
       forwarded_to_owner: true,
     }).eq('id', selected.id);
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'time_off', entity_id: selected.id, description: `Forwarded ${selected.type} request from ${(selected as any).hub_users?.full_name} to owner` });
     setUpdating(false);
     setSelected(null);
     fetchRequests();
@@ -135,6 +137,7 @@ export default function AdminTimeOffPage() {
       admin_notes: hrNotes,
       hr_notes: hrNotes,
     }).eq('id', selected.id);
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: status === 'approved' ? 'approve' : 'reject', entity_type: 'time_off', entity_id: selected.id, description: `${status === 'approved' ? 'Approved' : 'Rejected'} ${selected.type} request from ${(selected as any).hub_users?.full_name} (${selected.start_date} – ${selected.end_date})` });
     setUpdating(false);
     setSelected(null);
     fetchRequests();

@@ -3,6 +3,7 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { MONTHS, FULL_MONTHS, getPeriods, fmtCurrency as fmt } from '@/lib/formatUtils';
+import { logAudit } from '@/lib/audit';
 
 interface Contractor {
   id: string;
@@ -226,6 +227,7 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(true);
     const finalPay = rowOverrides[contractorId]?.pay ?? computedPay;
     const existing = payoutsMap[contractorId];
+    const contractorName = rows.find(r => r.contractor.id === contractorId)?.contractor.full_name ?? contractorId;
     if (existing) {
       await supabase.from('hub_payouts').update({ status: 'hr_approved', approved_at: new Date().toISOString(), final_payout: finalPay }).eq('id', existing.id);
     } else {
@@ -238,6 +240,7 @@ export default function AdminPayrollPage() {
         approved_at: new Date().toISOString(),
       });
     }
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'payout', entity_id: contractorId, description: `Approved payout of ${fmt(finalPay)} for ${contractorName} — ${selectedPeriod.label}` });
     await fetchWorkflow();
     setWorkflowLoading(false);
   };
@@ -279,6 +282,7 @@ export default function AdminPayrollPage() {
       approved_by: hubUser?.id,
       approved_at: new Date().toISOString(),
     }).eq('id', batch.id);
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'payroll_batch', entity_id: batch.id, description: `Approved fund transfer of ${fmt(batch.total_amount)} for ${batch.period_label} (${batch.contractor_count} contractors)` });
     supabase.functions.invoke('notify-owner', { body: { batch_id: batch.id, type: 'fund_approved' } }).catch(() => {});
     await fetchWorkflow();
     setWorkflowLoading(false);
