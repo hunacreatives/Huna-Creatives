@@ -169,6 +169,24 @@ export default function AdminProjectsPage() {
     !search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.project_name.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Group by service
+  const grouped = filtered.reduce<Record<string, Project[]>>((acc, p) => {
+    const key = p.service || 'Other';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(p);
+    return acc;
+  }, {});
+
+  const deadlineStatus = (deadline: string | null, status: string) => {
+    if (!deadline || status === 'completed' || status === 'cancelled') return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const due = new Date(deadline); due.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+    if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, cls: 'bg-red-100 text-red-600' };
+    if (diff <= 7) return { label: `${diff}d left`, cls: 'bg-amber-100 text-amber-600' };
+    return null;
+  };
+
   return (
     <AdminLayout title="Projects">
       <div className="flex gap-5 max-w-6xl h-[calc(100vh-120px)]">
@@ -187,37 +205,48 @@ export default function AdminProjectsPage() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
             {loading ? (
               <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-gray-300 text-xl"></i></div>
             ) : filtered.length === 0 ? (
               <p className="text-xs text-gray-400 text-center py-8">No projects yet.</p>
-            ) : filtered.map(p => {
-              const d = derived(p);
-              const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
-              return (
-                <button key={p.id} onClick={() => setActiveId(p.id)}
-                  className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${activeId === p.id ? 'border-[#FF6B35] bg-orange-50' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <div>
-                      <p className="text-xs font-semibold text-[#111827] leading-tight">{p.project_name}</p>
-                      <p className="text-[11px] text-gray-400">{p.client_name}</p>
-                    </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${cfg.cls}`}>{cfg.label}</span>
-                  </div>
-                  {/* Payment progress bar */}
-                  <div className="mt-2">
-                    <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                      <span>{fmt(d.totalPaid)} collected</span>
-                      <span>{fmtPct(d.paidPct)}</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+            ) : Object.entries(grouped).map(([service, items]) => (
+              <div key={service}>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-1 mb-1.5">{service}</p>
+                <div className="space-y-2">
+                  {items.map(p => {
+                    const d = derived(p);
+                    const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
+                    const dl = deadlineStatus(p.deadline, p.status);
+                    return (
+                      <button key={p.id} onClick={() => setActiveId(p.id)}
+                        className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${activeId === p.id ? 'border-[#FF6B35] bg-orange-50' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-[#111827] leading-tight truncate">{p.project_name}</p>
+                            <p className="text-[11px] text-gray-400">{p.client_name}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
+                            {dl && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${dl.cls}`}>{dl.label}</span>}
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                            <span>{fmt(d.totalPaid)} collected</span>
+                            <span>{fmtPct(d.paidPct)}</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${d.paidPct >= 100 ? 'bg-emerald-400' : dl?.cls.includes('red') ? 'bg-red-400' : 'bg-emerald-400'}`}
+                              style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
