@@ -73,22 +73,22 @@ const PLANS = [
 
 function MockBrowser({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-      <div className="bg-[#1a1f2e] px-4 py-3 flex items-center gap-2 border-b border-white/5">
-        <div className="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
-        <div className="w-2.5 h-2.5 rounded-full bg-amber-500/50"></div>
-        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50"></div>
-        <span className="ml-2 text-[11px] text-gray-600 font-mono">{label}</span>
+    <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-2xl shadow-black/10">
+      <div className="bg-gray-100 px-4 py-3 flex items-center gap-2 border-b border-gray-200">
+        <div className="w-2.5 h-2.5 rounded-full bg-red-400"></div>
+        <div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+        <span className="ml-2 text-[11px] text-gray-400 font-mono">{label}</span>
       </div>
-      <div className="bg-[#0f1623] flex" style={{ minHeight: 340 }}>
+      <div className="bg-gray-50 flex" style={{ minHeight: 340 }}>
         {/* Sidebar */}
-        <div className="w-14 bg-[#111827] flex flex-col items-center py-4 gap-3 border-r border-white/5 flex-shrink-0">
+        <div className="w-14 bg-[#111827] flex flex-col items-center py-4 gap-3 border-r border-gray-200 flex-shrink-0">
           <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center mb-2">
             <i className="ri-home-heart-line text-white text-xs"></i>
           </div>
           {['ri-layout-grid-line','ri-time-line','ri-money-dollar-circle-line','ri-file-list-3-line','ri-building-line','ri-inbox-line'].map((ic, i) => (
-            <div key={i} className={`w-8 h-8 rounded-lg flex items-center justify-center ${i === 0 ? 'bg-[#FF6B35]' : 'hover:bg-white/5'}`}>
-              <i className={`${ic} text-sm ${i === 0 ? 'text-white' : 'text-gray-600'}`}></i>
+            <div key={i} className={`w-8 h-8 rounded-lg flex items-center justify-center ${i === 0 ? 'bg-[#FF6B35]' : ''}`}>
+              <i className={`${ic} text-sm ${i === 0 ? 'text-white' : 'text-gray-500'}`}></i>
             </div>
           ))}
         </div>
@@ -104,42 +104,40 @@ function DashboardScreen() {
       <div className="flex-1 p-5 overflow-hidden">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider">Overview</p>
-            <p className="text-base font-bold text-white">Dashboard</p>
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider">Overview</p>
+            <p className="text-base font-bold text-gray-900">Dashboard</p>
           </div>
-          <div className="bg-white/5 rounded-lg px-3 py-1.5 text-xs text-gray-400 border border-white/5">May 2026</div>
+          <div className="bg-white rounded-lg px-3 py-1.5 text-xs text-gray-500 border border-gray-200">May 2026</div>
         </div>
-        {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
-            { label: 'Active Team', icon: 'ri-user-line', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Punched In', icon: 'ri-time-line', color: 'text-sky-400', bg: 'bg-sky-500/10' },
-            { label: 'Pending Approvals', icon: 'ri-inbox-line', color: 'text-amber-400', bg: 'bg-amber-500/10' },
-            { label: 'This Period', icon: 'ri-money-dollar-circle-line', color: 'text-[#FF6B35]', bg: 'bg-[#FF6B35]/10' },
+            { label: 'Active Team', icon: 'ri-user-line', color: 'text-emerald-500', bg: 'bg-emerald-50' },
+            { label: 'Punched In', icon: 'ri-time-line', color: 'text-sky-500', bg: 'bg-sky-50' },
+            { label: 'Pending Approvals', icon: 'ri-inbox-line', color: 'text-amber-500', bg: 'bg-amber-50' },
+            { label: 'This Period', icon: 'ri-money-dollar-circle-line', color: 'text-[#FF6B35]', bg: 'bg-orange-50' },
           ].map(s => (
-            <div key={s.label} className="bg-white/4 border border-white/5 rounded-xl p-3">
+            <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
               <div className={`w-7 h-7 ${s.bg} rounded-lg flex items-center justify-center mb-2`}>
                 <i className={`${s.icon} text-sm ${s.color}`}></i>
               </div>
-              <p className="text-[10px] text-gray-500">{s.label}</p>
-              <div className="h-4 w-10 bg-white/10 rounded mt-1 animate-pulse"></div>
+              <p className="text-[10px] text-gray-400">{s.label}</p>
+              <div className="h-4 w-10 bg-gray-100 rounded mt-1 animate-pulse"></div>
             </div>
           ))}
         </div>
-        {/* Team rows */}
         <div className="space-y-2">
           {[
-            { name: 'Angela Cruz', dept: 'Creative', status: 'On time', sc: 'text-emerald-400 bg-emerald-500/10' },
-            { name: 'Reese Jumawan', dept: 'Media Buying', status: 'Late', sc: 'text-amber-400 bg-amber-500/10' },
-            { name: 'Marco Dela Cruz', dept: 'Content', status: 'Time off', sc: 'text-sky-400 bg-sky-500/10' },
+            { name: 'Angela Cruz', dept: 'Creative', status: 'On time', sc: 'text-emerald-600 bg-emerald-50' },
+            { name: 'Reese Jumawan', dept: 'Media Buying', status: 'Late', sc: 'text-amber-600 bg-amber-50' },
+            { name: 'Marco Dela Cruz', dept: 'Content', status: 'Time off', sc: 'text-sky-600 bg-sky-50' },
           ].map(r => (
-            <div key={r.name} className="flex items-center gap-3 bg-white/3 border border-white/5 rounded-lg px-3 py-2">
-              <div className="w-7 h-7 rounded-full bg-[#FF6B35]/20 flex items-center justify-center flex-shrink-0">
+            <div key={r.name} className="flex items-center gap-3 bg-white border border-gray-100 rounded-lg px-3 py-2 shadow-sm">
+              <div className="w-7 h-7 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
                 <span className="text-[#FF6B35] text-xs font-bold">{r.name[0]}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white truncate">{r.name}</p>
-                <p className="text-[10px] text-gray-500">{r.dept}</p>
+                <p className="text-xs font-medium text-gray-800 truncate">{r.name}</p>
+                <p className="text-[10px] text-gray-400">{r.dept}</p>
               </div>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${r.sc}`}>{r.status}</span>
             </div>
@@ -156,40 +154,40 @@ function PayrollScreen() {
       <div className="flex-1 p-5 overflow-hidden">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider">Finance</p>
-            <p className="text-base font-bold text-white">Payroll</p>
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider">Finance</p>
+            <p className="text-base font-bold text-gray-900">Payroll</p>
           </div>
           <div className="flex gap-2">
-            <div className="bg-white/5 rounded-lg px-3 py-1.5 text-xs text-gray-400 border border-white/5">May 1–15</div>
+            <div className="bg-white rounded-lg px-3 py-1.5 text-xs text-gray-500 border border-gray-200">May 1–15</div>
             <div className="bg-[#FF6B35] rounded-lg px-3 py-1.5 text-xs text-white font-medium cursor-pointer">Process All</div>
           </div>
         </div>
         <div className="space-y-2">
           {[
-            { name: 'Angela Cruz', type: 'Fixed Monthly', status: 'Pending', approved: false },
-            { name: 'Reese Jumawan', type: 'Hourly · USD', status: 'Pending', approved: false },
-            { name: 'Marco Dela Cruz', type: 'Fixed Monthly', status: 'Approved', approved: true },
-            { name: 'Jay Santos', type: 'Project Based', status: 'Approved', approved: true },
+            { name: 'Angela Cruz', type: 'Fixed Monthly', approved: false },
+            { name: 'Reese Jumawan', type: 'Hourly · USD', approved: false },
+            { name: 'Marco Dela Cruz', type: 'Fixed Monthly', approved: true },
+            { name: 'Jay Santos', type: 'Project Based', approved: true },
           ].map(r => (
-            <div key={r.name} className="flex items-center gap-3 bg-white/3 border border-white/5 rounded-lg px-3 py-2.5">
-              <div className="w-7 h-7 rounded-full bg-[#FF6B35]/20 flex items-center justify-center flex-shrink-0">
+            <div key={r.name} className="flex items-center gap-3 bg-white border border-gray-100 rounded-lg px-3 py-2.5 shadow-sm">
+              <div className="w-7 h-7 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
                 <span className="text-[#FF6B35] text-xs font-bold">{r.name[0]}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white truncate">{r.name}</p>
-                <p className="text-[10px] text-gray-500">{r.type}</p>
+                <p className="text-xs font-medium text-gray-800 truncate">{r.name}</p>
+                <p className="text-[10px] text-gray-400">{r.type}</p>
               </div>
-              <div className="h-3 w-16 bg-white/10 rounded animate-pulse"></div>
+              <div className="h-3 w-16 bg-gray-100 rounded animate-pulse"></div>
               {r.approved
-                ? <span className="text-[10px] px-2 py-0.5 rounded-full font-medium text-emerald-400 bg-emerald-500/10">Approved</span>
+                ? <span className="text-[10px] px-2 py-0.5 rounded-full font-medium text-emerald-600 bg-emerald-50">Approved</span>
                 : <div className="bg-[#FF6B35] rounded-lg px-2.5 py-1 text-[10px] text-white font-medium cursor-pointer">Approve</div>
               }
             </div>
           ))}
         </div>
-        <div className="mt-4 bg-white/3 border border-white/5 rounded-xl px-4 py-3 flex items-center justify-between">
-          <span className="text-xs text-gray-400">Period Total</span>
-          <div className="h-4 w-20 bg-white/10 rounded animate-pulse"></div>
+        <div className="mt-4 bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm">
+          <span className="text-xs text-gray-500">Period Total</span>
+          <div className="h-4 w-20 bg-gray-100 rounded animate-pulse"></div>
         </div>
       </div>
     </MockBrowser>
@@ -202,36 +200,36 @@ function AttendanceScreen() {
       <div className="flex-1 p-5 overflow-hidden">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider">Team</p>
-            <p className="text-base font-bold text-white">Attendance</p>
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider">Team</p>
+            <p className="text-base font-bold text-gray-900">Attendance</p>
           </div>
-          <div className="bg-white/5 rounded-lg px-3 py-1.5 text-xs text-gray-400 border border-white/5">Today</div>
+          <div className="bg-white rounded-lg px-3 py-1.5 text-xs text-gray-500 border border-gray-200">Today</div>
         </div>
         <div className="space-y-2">
           {[
-            { name: 'Angela Cruz', time: '8:02 AM', hours: 'In progress', status: 'On time', sc: 'text-emerald-400 bg-emerald-500/10' },
-            { name: 'Reese Jumawan', time: '9:14 AM', hours: 'In progress', status: 'Late', sc: 'text-amber-400 bg-amber-500/10' },
-            { name: 'Marco Dela Cruz', time: '—', hours: 'Time Off', status: 'Approved', sc: 'text-sky-400 bg-sky-500/10' },
-            { name: 'Jay Santos', time: '—', hours: '—', status: 'Not in', sc: 'text-red-400 bg-red-500/10' },
+            { name: 'Angela Cruz', time: '8:02 AM', hours: 'In progress', status: 'On time', sc: 'text-emerald-600 bg-emerald-50' },
+            { name: 'Reese Jumawan', time: '9:14 AM', hours: 'In progress', status: 'Late', sc: 'text-amber-600 bg-amber-50' },
+            { name: 'Marco Dela Cruz', time: '—', hours: 'Time Off', status: 'Approved', sc: 'text-sky-600 bg-sky-50' },
+            { name: 'Jay Santos', time: '—', hours: '—', status: 'Not in', sc: 'text-red-500 bg-red-50' },
           ].map(r => (
-            <div key={r.name} className="flex items-center gap-3 bg-white/3 border border-white/5 rounded-lg px-3 py-2.5">
-              <div className="w-7 h-7 rounded-full bg-[#FF6B35]/20 flex items-center justify-center flex-shrink-0">
+            <div key={r.name} className="flex items-center gap-3 bg-white border border-gray-100 rounded-lg px-3 py-2.5 shadow-sm">
+              <div className="w-7 h-7 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
                 <span className="text-[#FF6B35] text-xs font-bold">{r.name[0]}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white truncate">{r.name}</p>
-                <p className="text-[10px] text-gray-500">Punch in: {r.time}</p>
+                <p className="text-xs font-medium text-gray-800 truncate">{r.name}</p>
+                <p className="text-[10px] text-gray-400">Punch in: {r.time}</p>
               </div>
-              <span className="text-[10px] text-gray-500 hidden sm:block">{r.hours}</span>
+              <span className="text-[10px] text-gray-400 hidden sm:block">{r.hours}</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${r.sc}`}>{r.status}</span>
             </div>
           ))}
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2">
-          {['On Time', 'Late', 'Time Off'].map((l, i) => (
-            <div key={l} className="bg-white/3 border border-white/5 rounded-lg px-3 py-2 text-center">
-              <div className="h-3 w-6 bg-white/10 rounded mx-auto mb-1 animate-pulse"></div>
-              <p className="text-[10px] text-gray-500">{l}</p>
+          {['On Time', 'Late', 'Time Off'].map(l => (
+            <div key={l} className="bg-white border border-gray-100 rounded-lg px-3 py-2 text-center shadow-sm">
+              <div className="h-3 w-6 bg-gray-100 rounded mx-auto mb-1 animate-pulse"></div>
+              <p className="text-[10px] text-gray-400">{l}</p>
             </div>
           ))}
         </div>
@@ -246,8 +244,8 @@ function ContractsScreen() {
       <div className="flex-1 p-5 overflow-hidden">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider">Legal</p>
-            <p className="text-base font-bold text-white">Contracts & Docs</p>
+            <p className="text-[11px] text-gray-400 uppercase tracking-wider">Legal</p>
+            <p className="text-base font-bold text-gray-900">Contracts & Docs</p>
           </div>
           <div className="bg-[#FF6B35] rounded-lg px-3 py-1.5 text-xs text-white font-medium cursor-pointer flex items-center gap-1">
             <i className="ri-add-line text-xs"></i> Generate
@@ -255,18 +253,18 @@ function ContractsScreen() {
         </div>
         <div className="space-y-2">
           {[
-            { name: 'Service Agreement', person: 'Angela Cruz', status: 'Signed', sc: 'text-emerald-400 bg-emerald-500/10', icon: 'ri-file-text-line' },
-            { name: 'NDA', person: 'Reese Jumawan', status: 'Signed', sc: 'text-emerald-400 bg-emerald-500/10', icon: 'ri-shield-line' },
-            { name: 'Offer Letter', person: 'Jay Santos', status: 'Pending', sc: 'text-amber-400 bg-amber-500/10', icon: 'ri-mail-open-line' },
-            { name: 'Service Agreement', person: 'Marco Dela Cruz', status: 'Signed', sc: 'text-emerald-400 bg-emerald-500/10', icon: 'ri-file-text-line' },
+            { name: 'Service Agreement', person: 'Angela Cruz', status: 'Signed', sc: 'text-emerald-600 bg-emerald-50', icon: 'ri-file-text-line' },
+            { name: 'NDA', person: 'Reese Jumawan', status: 'Signed', sc: 'text-emerald-600 bg-emerald-50', icon: 'ri-shield-line' },
+            { name: 'Offer Letter', person: 'Jay Santos', status: 'Pending', sc: 'text-amber-600 bg-amber-50', icon: 'ri-mail-open-line' },
+            { name: 'Service Agreement', person: 'Marco Dela Cruz', status: 'Signed', sc: 'text-emerald-600 bg-emerald-50', icon: 'ri-file-text-line' },
           ].map(r => (
-            <div key={r.person} className="flex items-center gap-3 bg-white/3 border border-white/5 rounded-lg px-3 py-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+            <div key={r.person} className="flex items-center gap-3 bg-white border border-gray-100 rounded-lg px-3 py-2.5 shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
                 <i className={`${r.icon} text-gray-400 text-sm`}></i>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white truncate">{r.name}</p>
-                <p className="text-[10px] text-gray-500">{r.person}</p>
+                <p className="text-xs font-medium text-gray-800 truncate">{r.name}</p>
+                <p className="text-[10px] text-gray-400">{r.person}</p>
               </div>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${r.sc}`}>{r.status}</span>
             </div>
