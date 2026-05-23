@@ -25,7 +25,7 @@ const FEATURES = [
   {
     icon: 'ri-building-line',
     title: 'Client & Project Management',
-    desc: 'Assign contractors to clients and projects. Track who's working on what and log payouts per project.',
+    desc: "Assign contractors to clients and projects. Track who's working on what and log payouts per project.",
   },
   {
     icon: 'ri-questionnaire-line',
