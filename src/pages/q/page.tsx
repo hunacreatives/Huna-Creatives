@@ -81,6 +81,9 @@ export default function PublicQuestionnairePage() {
       .eq('status', 'sent');
     setSubmitting(false);
     if (error) { setErrors({ _form: 'Something went wrong. Please try again.' }); return; }
+    supabase.functions.invoke('notify-questionnaire-submitted', {
+      body: { client_name: q!.client_name, service_type: q!.service_type },
+    });
     setSubmitted(true);
   };
 
