@@ -7,7 +7,19 @@ const cors = {
   'Content-Type': 'application/json',
 };
 
+async function slackPost(path: string, body: object) {
+  const res = await fetch(`https://slack.com/api/${path}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
 async function dm(userId: string, client_name: string, service_type: string) {
+  const opened = await slackPost('conversations.open', { users: userId });
+  const channel = opened.ok ? opened.channel?.id : userId;
+
   const blocks = [
     {
       type: 'section',
@@ -29,14 +41,8 @@ async function dm(userId: string, client_name: string, service_type: string) {
     },
   ];
 
-  await fetch('https://slack.com/api/chat.postMessage', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${SLACK_BOT_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ channel: userId, blocks }),
-  });
+  const result = await slackPost('chat.postMessage', { channel, blocks });
+  console.log(`DM to ${userId}:`, JSON.stringify(result));
 }
 
 Deno.serve(async (req) => {
