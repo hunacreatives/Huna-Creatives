@@ -14,7 +14,7 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
   cancelled: { label: 'Cancelled', cls: 'bg-gray-100 text-gray-500' },
 };
 
-interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; }
+interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null; }
 
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
@@ -75,14 +75,15 @@ export default function AdminProjectsPage() {
   const [ctxSaving, setCtxSaving] = useState(false);
 
   // Staged contractor payouts: keyed by hub_project_contractors.id
-  const [ctxPayForm, setCtxPayForm] = useState<Record<number, { amount: string; date: string; notes: string }>>({});
+  const [ctxPayForm, setCtxPayForm] = useState<Record<number, { amount: string; date: string; notes: string; receipt: File | null }>>({});
   const [ctxPaySaving, setCtxPaySaving] = useState<Record<number, boolean>>({});
   const [ctxPayError, setCtxPayError] = useState<Record<number, string>>({});
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const fetchAll = async () => {
     const [pRes, cRes] = await Promise.all([
       supabase.from('hub_projects')
-        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url), hub_project_contractor_payouts(id, amount, paid_at, notes))')
+        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
@@ -183,15 +184,28 @@ export default function AdminProjectsPage() {
     if (!form?.amount) return;
     setCtxPaySaving(p => ({ ...p, [pcId]: true }));
     setCtxPayError(p => ({ ...p, [pcId]: '' }));
+
+    let receipt_url: string | null = null;
+    if (form.receipt) {
+      const ext = form.receipt.name.split('.').pop();
+      const path = `payouts/${pcId}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('payout-receipts').upload(path, form.receipt, { upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('payout-receipts').getPublicUrl(path);
+        receipt_url = urlData.publicUrl;
+      }
+    }
+
     const { error } = await supabase.from('hub_project_contractor_payouts').insert({
       project_contractor_id: pcId,
       amount: parseFloat(form.amount),
       paid_at: form.date || new Date().toISOString().slice(0, 10),
       notes: form.notes || null,
+      receipt_url,
     });
     setCtxPaySaving(p => ({ ...p, [pcId]: false }));
     if (error) { setCtxPayError(p => ({ ...p, [pcId]: error.message })); return; }
-    setCtxPayForm(p => ({ ...p, [pcId]: { amount: '', date: new Date().toISOString().slice(0, 10), notes: '' } }));
+    setCtxPayForm(p => ({ ...p, [pcId]: { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null } }));
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'project_payout', description: `Logged payout of ₱${form.amount} to ${contractorName}` });
     // auto-mark paid if fully paid
     const pc = projects.flatMap(p => p.hub_project_contractors).find(x => x.id === pcId);
@@ -492,7 +506,7 @@ export default function AdminProjectsPage() {
                       const totalPaidOut = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
                       const paidPct = cut > 0 ? Math.min((totalPaidOut / cut) * 100, 100) : 0;
                       const isFullyPaid = totalPaidOut >= cut && cut > 0;
-                      const pf = ctxPayForm[pc.id] ?? { amount: '', date: new Date().toISOString().slice(0, 10), notes: '' };
+                      const pf = ctxPayForm[pc.id] ?? { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null };
                       const setPf = (patch: Partial<typeof pf>) => setCtxPayForm(prev => ({ ...prev, [pc.id]: { ...pf, ...patch } }));
                       return (
                         <div key={pc.id} className="border border-gray-100 rounded-xl overflow-hidden">
@@ -525,11 +539,16 @@ export default function AdminProjectsPage() {
                             <div className="px-3 py-2 space-y-1.5 border-t border-gray-100">
                               {pc.hub_project_contractor_payouts.map(pp => (
                                 <div key={pp.id} className="flex items-center justify-between gap-2 text-xs">
-                                  <div className="flex items-center gap-2 text-gray-600">
+                                  <div className="flex items-center gap-2 text-gray-600 flex-wrap">
                                     <i className="ri-arrow-right-line text-gray-300 text-[10px]"></i>
                                     <span className="font-semibold text-emerald-600">{fmt(pp.amount)}</span>
                                     <span className="text-gray-400">{new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                                     {pp.notes && <span className="text-gray-400">· {pp.notes}</span>}
+                                    {pp.receipt_url && (
+                                      <button onClick={() => setLightboxUrl(pp.receipt_url)} className="cursor-pointer flex-shrink-0">
+                                        <img src={pp.receipt_url} alt="receipt" className="h-6 w-9 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
+                                      </button>
+                                    )}
                                   </div>
                                   <button onClick={() => deleteContractorPayout(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer"><i className="ri-delete-bin-line text-[10px]"></i></button>
                                 </div>
@@ -562,6 +581,18 @@ export default function AdminProjectsPage() {
                                   className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
                                   {ctxPaySaving[pc.id] ? '...' : '+ Payout'}
                                 </button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                                  <i className="ri-image-add-line text-gray-400 text-sm"></i>
+                                  <span className="text-xs text-gray-400">{pf.receipt ? pf.receipt.name : 'Attach receipt (optional)'}</span>
+                                  <input type="file" accept="image/*" className="hidden" onChange={e => setPf({ receipt: e.target.files?.[0] ?? null })} />
+                                </label>
+                                {pf.receipt && (
+                                  <button onClick={() => setPf({ receipt: null })} className="text-gray-300 hover:text-rose-400 cursor-pointer text-xs">
+                                    <i className="ri-close-line"></i>
+                                  </button>
+                                )}
                               </div>
                               {ctxPayError[pc.id] && <p className="text-xs text-red-500">{ctxPayError[pc.id]}</p>}
                             </div>
@@ -710,6 +741,21 @@ export default function AdminProjectsPage() {
         </div>
       )}
       </div>
+
+      {/* Receipt lightbox */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
+          <div className="relative max-w-3xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <img src={lightboxUrl} alt="Receipt" className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl" />
+            <button onClick={() => setLightboxUrl(null)} className="absolute top-2 right-2 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black cursor-pointer">
+              <i className="ri-close-line text-sm"></i>
+            </button>
+            <a href={lightboxUrl} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black">
+              <i className="ri-external-link-line text-xs"></i> Open full size
+            </a>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
