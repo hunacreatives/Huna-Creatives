@@ -4,6 +4,7 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
+import { getSetting } from '@/lib/settings';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -92,9 +93,11 @@ export default function AdminDashboardPage() {
   const [totalHours, setTotalHours] = useState(0);
   const [totalNetProfit, setTotalNetProfit] = useState(0);
   const [activeProjectCount, setActiveProjectCount] = useState(0);
+  const [monthlyRetainerTotal, setMonthlyRetainerTotal] = useState(0);
   const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
   const [loading, setLoading] = useState(true);
-  const isOwnerOrAdmin = hubUser?.role === 'owner' || hubUser?.role === 'admin' || hubUser?.role === 'hr';
+  const isOwner = hubUser?.role === 'owner';
+  const isOwnerOrAdmin = isOwner || hubUser?.role === 'admin' || hubUser?.role === 'hr';
 
   const today = new Date();
   const isFirstHalf = today.getDate() <= 15;
@@ -122,7 +125,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult] = await Promise.all([
+      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr] = await Promise.all([
         supabase.functions.invoke('slack-attendance'),
         supabase.from('hub_announcements').select('*, hub_users(full_name)').order('created_at', { ascending: false }).limit(4),
         supabase.from('hub_requests').select('*, hub_users(full_name, avatar_url)').in('status', ['open', 'in_review']).order('created_at', { ascending: false }),
@@ -130,6 +133,8 @@ export default function AdminDashboardPage() {
         supabase.from('hub_users').select('id, full_name, avatar_url, payment_type, hourly_rate, monthly_rate, currency, birthday').eq('status', 'active').in('role', ['contractor', 'admin']),
         supabase.from('hub_daily_hours').select('user_id, hours_capped, overtime_hours, date').gte('date', cutoffStart).lte('date', cutoffEnd),
         supabase.from('hub_projects').select('contract_price, status, hub_project_costs(amount)'),
+        supabase.from('hub_clients').select('contract_value, contract_currency, status'),
+        getSetting('usd_rate', '56'),
       ]);
 
       if (!slackResult.error && slackResult.data?.attendance) {
@@ -244,6 +249,13 @@ export default function AdminDashboardPage() {
       }
       setTotalNetProfit(netProfitTotal);
       setActiveProjectCount(activeCount);
+
+      // Monthly retainer total (owner-only display, but we fetch regardless)
+      const usdRate = parseFloat(usdRateStr);
+      const retainerTotal = ((clientsResult.data as any[]) || [])
+        .filter((c: any) => c.status === 'active' && c.contract_value)
+        .reduce((s: number, c: any) => s + (c.contract_currency === 'USD' ? c.contract_value * usdRate : c.contract_value), 0);
+      setMonthlyRetainerTotal(retainerTotal);
 
       setAnnouncements((annResult.data as HubAnnouncement[]) ?? []);
       setPendingRequests((reqResult.data as HubRequest[]) ?? []);
@@ -532,20 +544,36 @@ export default function AdminDashboardPage() {
 
             {/* Project Net Profit — owner/admin only */}
             {isOwnerOrAdmin && (
-              <div className="bg-white border border-gray-100 rounded-xl p-4">
+              <div className="bg-emerald-600 rounded-xl p-4 text-white">
                 <div className="flex items-center gap-2 mb-3">
-                  <i className="ri-folder-chart-line text-gray-400 text-sm"></i>
-                  <p className="text-xs text-gray-500 font-medium">Projects Net Profit</p>
+                  <i className="ri-folder-chart-line text-white/70 text-sm"></i>
+                  <p className="text-white/70 text-xs">Projects Net Profit</p>
                 </div>
-                <p className="text-2xl font-bold text-emerald-600">
-                  ₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">across all projects · {activeProjectCount} active</p>
+                <p className="text-2xl font-bold">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                <p className="text-white/60 text-xs mt-1">across all projects · {activeProjectCount} active</p>
                 <button
                   onClick={() => navigate('/hub/admin/projects')}
-                  className="mt-3 w-full bg-gray-50 hover:bg-gray-100 rounded-lg py-1.5 text-xs font-medium text-gray-600 transition-colors cursor-pointer"
+                  className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
                 >
                   View Projects
+                </button>
+              </div>
+            )}
+
+            {/* Monthly Retainer Total — owner only */}
+            {isOwner && (
+              <div className="bg-indigo-600 rounded-xl p-4 text-white">
+                <div className="flex items-center gap-2 mb-3">
+                  <i className="ri-calendar-check-line text-white/70 text-sm"></i>
+                  <p className="text-white/70 text-xs">Monthly Retainers</p>
+                </div>
+                <p className="text-2xl font-bold">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                <p className="text-white/60 text-xs mt-1">active client contracts · converted to PHP</p>
+                <button
+                  onClick={() => navigate('/hub/admin/clients')}
+                  className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                >
+                  View Clients
                 </button>
               </div>
             )}
