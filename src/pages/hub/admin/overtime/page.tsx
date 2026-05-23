@@ -84,6 +84,7 @@ export default function AdminOvertimePage() {
           </div>
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
@@ -138,14 +139,15 @@ export default function AdminOvertimePage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
 
       {/* Review modal */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-semibold text-[#111827]">{selected.hub_users?.full_name}</h2>

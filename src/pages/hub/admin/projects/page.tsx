@@ -24,7 +24,7 @@ interface Project {
   hub_project_contractors: {
     id: number; percentage: number; payout_type: string; fixed_amount: number | null;
     payout_status: string; paid_at: string | null; notes: string | null;
-    hub_users: { id: string; full_name: string; avatar_url: string | null };
+    hub_users: { id: string; full_name: string; avatar_url: string | null; email: string | null };
     hub_project_contractor_payouts: ContractorPayout[];
   }[];
 }
@@ -75,7 +75,7 @@ export default function AdminProjectsPage() {
   const [ctxSaving, setCtxSaving] = useState(false);
 
   // Staged contractor payouts: keyed by hub_project_contractors.id
-  const [ctxPayForm, setCtxPayForm] = useState<Record<number, { amount: string; date: string; notes: string; receipt: File | null }>>({});
+  const [ctxPayForm, setCtxPayForm] = useState<Record<number, { amount: string; date: string; notes: string; receipt: File | null; notify: boolean }>>({});
   const [ctxPaySaving, setCtxPaySaving] = useState<Record<number, boolean>>({});
   const [ctxPayError, setCtxPayError] = useState<Record<number, string>>({});
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export default function AdminProjectsPage() {
   const fetchAll = async () => {
     const [pRes, cRes] = await Promise.all([
       supabase.from('hub_projects')
-        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
+        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
@@ -187,7 +187,7 @@ export default function AdminProjectsPage() {
     fetchAll();
   };
 
-  const logContractorPayout = async (pcId: number, cut: number, contractorName: string) => {
+  const logContractorPayout = async (pcId: number, cut: number, contractorName: string, contractorEmail: string | null, project: Project) => {
     const form = ctxPayForm[pcId];
     if (!form?.amount) return;
     setCtxPaySaving(p => ({ ...p, [pcId]: true }));
@@ -204,25 +204,47 @@ export default function AdminProjectsPage() {
       }
     }
 
+    const amount = parseFloat(form.amount);
+    const paid_at = form.date || new Date().toISOString().slice(0, 10);
     const { error } = await supabase.from('hub_project_contractor_payouts').insert({
       project_contractor_id: pcId,
-      amount: parseFloat(form.amount),
-      paid_at: form.date || new Date().toISOString().slice(0, 10),
+      amount,
+      paid_at,
       notes: form.notes || null,
       receipt_url,
     });
     setCtxPaySaving(p => ({ ...p, [pcId]: false }));
     if (error) { setCtxPayError(p => ({ ...p, [pcId]: error.message })); return; }
-    setCtxPayForm(p => ({ ...p, [pcId]: { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null } }));
+    setCtxPayForm(p => ({ ...p, [pcId]: { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null, notify: true } }));
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'project_payout', description: `Logged payout of ₱${form.amount} to ${contractorName}` });
+
     // auto-mark paid if fully paid
     const pc = projects.flatMap(p => p.hub_project_contractors).find(x => x.id === pcId);
-    if (pc) {
-      const prev = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
-      if (prev + parseFloat(form.amount) >= cut) {
-        await supabase.from('hub_project_contractors').update({ payout_status: 'paid', paid_at: new Date().toISOString() }).eq('id', pcId);
-      }
+    const prev = pc?.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0) ?? 0;
+    const newTotal = prev + amount;
+    if (pc && newTotal >= cut) {
+      await supabase.from('hub_project_contractors').update({ payout_status: 'paid', paid_at: new Date().toISOString() }).eq('id', pcId);
     }
+
+    // Send email notification
+    if (form.notify && contractorEmail) {
+      supabase.functions.invoke('notify-contractor-payment', {
+        body: {
+          to: contractorEmail,
+          contractor_name: contractorName,
+          project_name: project.project_name,
+          client_name: project.client_name,
+          amount,
+          paid_at,
+          notes: form.notes || null,
+          receipt_url,
+          total_paid: newTotal,
+          total_cut: cut,
+          is_fully_paid: newTotal >= cut,
+        },
+      });
+    }
+
     fetchAll();
   };
 
@@ -421,10 +443,10 @@ ${balance > 0 ? `
         </div>
       )}
 
-      <div className="flex gap-5 h-[calc(100vh-220px)]">
+      <div className="flex flex-col md:flex-row gap-5 md:h-[calc(100vh-220px)]">
 
         {/* Left: project list */}
-        <div className="w-80 flex-shrink-0 flex flex-col gap-3">
+        <div className={`w-full md:w-80 flex-shrink-0 flex flex-col gap-3 ${activeId ? 'hidden md:flex' : 'flex'}`}>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -437,7 +459,7 @@ ${balance > 0 ? `
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          <div className="md:flex-1 md:overflow-y-auto space-y-4 pr-1">
             {loading ? (
               <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-gray-300 text-xl"></i></div>
             ) : filtered.length === 0 ? (
@@ -490,6 +512,10 @@ ${balance > 0 ? `
 
           return (
             <div className="flex-1 overflow-y-auto space-y-4 min-w-0">
+              {/* Mobile back button */}
+              <button onClick={() => setActiveId(null)} className="md:hidden flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 cursor-pointer">
+                <i className="ri-arrow-left-line"></i> All Projects
+              </button>
               {/* Header */}
               <div className="bg-white border border-gray-100 rounded-xl p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -656,7 +682,7 @@ ${balance > 0 ? `
                       const totalPaidOut = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
                       const paidPct = cut > 0 ? Math.min((totalPaidOut / cut) * 100, 100) : 0;
                       const isFullyPaid = totalPaidOut >= cut && cut > 0;
-                      const pf = ctxPayForm[pc.id] ?? { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null };
+                      const pf = ctxPayForm[pc.id] ?? { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null, notify: true };
                       const setPf = (patch: Partial<typeof pf>) => setCtxPayForm(prev => ({ ...prev, [pc.id]: { ...pf, ...patch } }));
                       return (
                         <div key={pc.id} className="border border-gray-100 rounded-xl overflow-hidden">
@@ -727,7 +753,7 @@ ${balance > 0 ? `
                               <div className="flex gap-2">
                                 <input value={pf.notes} onChange={e => setPf({ notes: e.target.value })} placeholder="Notes (optional)"
                                   className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                                <button onClick={() => logContractorPayout(pc.id, cut, u.full_name)} disabled={!pf.amount || ctxPaySaving[pc.id]}
+                                <button onClick={() => logContractorPayout(pc.id, cut, u.full_name, u.email, activeProject)} disabled={!pf.amount || ctxPaySaving[pc.id]}
                                   className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
                                   {ctxPaySaving[pc.id] ? '...' : '+ Payout'}
                                 </button>
@@ -744,6 +770,14 @@ ${balance > 0 ? `
                                   </button>
                                 )}
                               </div>
+                              <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+                                <input type="checkbox" checked={pf.notify} onChange={e => setPf({ notify: e.target.checked })}
+                                  className="w-3.5 h-3.5 accent-[#FF6B35]" />
+                                <span className="text-xs text-gray-400">
+                                  Notify {u.email ? u.full_name.split(' ')[0] : 'contractor'} via email
+                                  {!u.email && <span className="text-amber-500 ml-1">(no email on file)</span>}
+                                </span>
+                              </label>
                               {ctxPayError[pc.id] && <p className="text-xs text-red-500">{ctxPayError[pc.id]}</p>}
                             </div>
                           )}
@@ -815,8 +849,8 @@ ${balance > 0 ? `
 
       {/* Project form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-[#111827]">{editingProject ? 'Edit Project' : 'New Project'}</h2>
               <button onClick={() => { setShowForm(false); setEditingProject(null); }} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>
@@ -899,8 +933,8 @@ ${balance > 0 ? `
 
       {/* Send Invoice modal */}
       {invoiceModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setInvoiceModal(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setInvoiceModal(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-[#111827]">Send Invoice</h3>
@@ -910,7 +944,7 @@ ${balance > 0 ? `
             </div>
             <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
               {/* Recipient */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-600">Send to <span className="text-red-400">*</span></label>
                   <input type="email" value={invoiceForm.email} onChange={e => setIf({ email: e.target.value })} placeholder="client@email.com"
@@ -929,7 +963,7 @@ ${balance > 0 ? `
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
               </div>
               {/* Invoice # and Due date */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-600">Invoice #</label>
                   <input type="text" value={invoiceForm.invoice_number} onChange={e => setIf({ invoice_number: e.target.value })}

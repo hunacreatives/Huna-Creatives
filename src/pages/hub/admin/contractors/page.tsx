@@ -260,7 +260,7 @@ export default function ContractorsPage() {
       )}
 
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${confirm.type === 'delete' ? 'bg-rose-100' : 'bg-amber-100'}`}>
               <i className={`text-xl ${confirm.type === 'delete' ? 'ri-delete-bin-line text-rose-600' : 'ri-user-forbid-line text-amber-600'}`}></i>

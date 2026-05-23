@@ -226,6 +226,7 @@ export default function AdminTimeOffPage() {
               </div>
             ) : (
               <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-100">
@@ -283,6 +284,7 @@ export default function AdminTimeOffPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </>
@@ -362,6 +364,7 @@ export default function AdminTimeOffPage() {
               </div>
             ) : (
               <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
@@ -417,6 +420,7 @@ export default function AdminTimeOffPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </div>
@@ -425,8 +429,8 @@ export default function AdminTimeOffPage() {
 
       {/* Review modal */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-semibold text-[#111827]">{(selected.hub_users as HubUser)?.full_name}</h2>

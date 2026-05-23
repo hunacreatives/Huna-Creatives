@@ -188,7 +188,7 @@ export default function ContractorCredentialsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
             { label: 'Total Platforms', value: credentials.length, icon: 'ri-global-line', color: 'text-gray-600', bg: 'bg-gray-50' },
             { label: 'My Access', value: myApproved, icon: 'ri-shield-check-line', color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -360,8 +360,8 @@ export default function ContractorCredentialsPage() {
 
       {/* Request Access Modal */}
       {requestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-semibold text-[#111827]">Request Access</h2>

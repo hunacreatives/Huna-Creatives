@@ -155,8 +155,8 @@ export default function AnnouncementsPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-[#111827]">{editing ? 'Edit Announcement' : 'New Announcement'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
@@ -241,7 +241,7 @@ export default function AnnouncementsPage() {
       )}
 
       {deleteConfirm !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center space-y-4">
             <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mx-auto">
               <i className="ri-delete-bin-line text-rose-500 text-xl"></i>
@@ -261,7 +261,7 @@ export default function AnnouncementsPage() {
       {/* Detail Modal */}
       {detailAnn && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={() => setDetailAnn(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-2 flex-wrap">

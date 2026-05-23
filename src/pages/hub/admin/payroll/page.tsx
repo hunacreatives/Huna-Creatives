@@ -1171,8 +1171,8 @@ export default function AdminPayrollPage() {
         const basePay = parseFloat(editPay) || editRow.pay;
         const grandTotal = basePay + adjTotal;
         return (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditRowId(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setEditRowId(null)}>
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div>
                   <h3 className="text-sm font-semibold text-[#111827]">Edit Payroll</h3>
