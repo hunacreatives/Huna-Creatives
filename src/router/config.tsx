@@ -52,9 +52,6 @@ const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page')
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
-const AdPreviewPage = lazy(() => import('../pages/ad-preview/page'));
-const ReelPage = lazy(() => import('../pages/reel/page'));
-const AiVideoPage = lazy(() => import('../pages/ai-video/page'));
 
 const routes: RouteObject[] = [
   {
@@ -64,18 +61,6 @@ const routes: RouteObject[] = [
   {
     path: '/for-agencies',
     element: <ForAgenciesPage />,
-  },
-  {
-    path: '/ad-preview',
-    element: <AdPreviewPage />,
-  },
-  {
-    path: '/reel',
-    element: <ReelPage />,
-  },
-  {
-    path: '/ai-video',
-    element: <AiVideoPage />,
   },
   {
     path: '/crewly',
