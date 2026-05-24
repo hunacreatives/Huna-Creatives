@@ -1019,6 +1019,123 @@ export default function ForAgenciesPage() {
     return () => [t1, t2, t3].forEach(clearTimeout);
   }, []);
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sentroTextRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    type P = {
+      x: number; y: number; vx: number; vy: number;
+      trail: { x: number; y: number }[];
+      trailLen: number; alpha: number; color: string;
+    };
+
+    const COLORS = ['255,255,255', '255,180,100', '180,160,255'];
+
+    const spawn = (): P => {
+      const edge = Math.floor(Math.random() * 4);
+      let x = 0, y = 0;
+      if (edge === 0) { x = Math.random() * canvas.width; y = -10; }
+      else if (edge === 1) { x = canvas.width + 10; y = Math.random() * canvas.height; }
+      else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + 10; }
+      else { x = -10; y = Math.random() * canvas.height; }
+      const speed = 0.5 + Math.random() * 1.4;
+      const angle = Math.random() * Math.PI * 2;
+      return {
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        trail: [],
+        trailLen: 25 + Math.floor(Math.random() * 55),
+        alpha: 0.2 + Math.random() * 0.35,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      };
+    };
+
+    let particles: P[] = Array.from({ length: 22 }, spawn);
+
+    let animId: number;
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const canvasRect = canvas.getBoundingClientRect();
+      const textEl = sentroTextRef.current;
+      let box: { l: number; r: number; t: number; b: number } | null = null;
+      if (textEl) {
+        const r = textEl.getBoundingClientRect();
+        const pad = 16;
+        box = {
+          l: r.left - canvasRect.left - pad,
+          r: r.right - canvasRect.left + pad,
+          t: r.top - canvasRect.top - pad,
+          b: r.bottom - canvasRect.top + pad,
+        };
+      }
+
+      particles = particles.map(p => {
+        if (box) {
+          const nx = p.x + p.vx;
+          const ny = p.y + p.vy;
+          if (nx > box.l && nx < box.r && ny > box.t && ny < box.b) {
+            const fromLeft = p.x <= box.l;
+            const fromRight = p.x >= box.r;
+            const fromTop = p.y <= box.t;
+            const fromBottom = p.y >= box.b;
+            if (fromLeft || fromRight) p.vx *= -1;
+            else if (fromTop || fromBottom) p.vy *= -1;
+            else { p.vx *= -1; p.vy *= -1; }
+          }
+        }
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.trail.push({ x: p.x, y: p.y });
+        if (p.trail.length > p.trailLen) p.trail.shift();
+
+        if (p.x < -200 || p.x > canvas.width + 200 || p.y < -200 || p.y > canvas.height + 200) {
+          return spawn();
+        }
+
+        for (let i = 1; i < p.trail.length; i++) {
+          const t = i / p.trail.length;
+          ctx.beginPath();
+          ctx.moveTo(p.trail[i - 1].x, p.trail[i - 1].y);
+          ctx.lineTo(p.trail[i].x, p.trail[i].y);
+          ctx.strokeStyle = `rgba(${p.color},${(t * p.alpha).toFixed(3)})`;
+          ctx.lineWidth = t * 1.4;
+          ctx.stroke();
+        }
+
+        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 4);
+        grd.addColorStop(0, `rgba(${p.color},${p.alpha})`);
+        grd.addColorStop(1, `rgba(${p.color},0)`);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+
+        return p;
+      });
+
+      animId = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
   return (
     <div className="bg-[#080c14] text-white min-h-screen font-sans overflow-x-hidden">
 
@@ -1076,8 +1193,10 @@ export default function ForAgenciesPage() {
           transition: 'background 2s ease-out',
         }}
       >
-        <div className="relative flex flex-col items-center">
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }} />
+        <div className="relative flex flex-col items-center" style={{ zIndex: 1 }}>
           <div
+            ref={sentroTextRef}
             className={`flex items-baseline select-none${lit ? ' sentro-lit' : ''}`}
             style={{ gap: '0.18em', opacity: lit ? undefined : 0 }}
           >
@@ -1095,8 +1214,7 @@ export default function ForAgenciesPage() {
             <p className="text-[10px] sm:text-xs text-gray-600 tracking-[0.2em] uppercase">by Huna Creatives</p>
           </div>
         </div>
-        <div className="mt-8 sm:mt-12 text-center max-w-3xl"
-          style={{ opacity: pageVisible ? 1 : 0, transform: pageVisible ? 'translateY(0)' : 'translateY(16px)', transition: 'opacity 1.2s ease-out, transform 1.2s ease-out' }}>
+        <div className="mt-8 sm:mt-12 text-center max-w-3xl" style={{ zIndex: 1, position: 'relative', opacity: pageVisible ? 1 : 0, transform: pageVisible ? 'translateY(0)' : 'translateY(16px)', transition: 'opacity 1.2s ease-out, transform 1.2s ease-out' }}>
           <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-2 sm:whitespace-nowrap">
             A custom internal operations hub built around <em className="not-italic font-black text-[#FF6B35]" style={{ textShadow: '0 0 20px rgba(255,107,53,0.5)' }}>your</em> team's workflow.
           </p>
