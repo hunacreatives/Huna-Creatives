@@ -56,36 +56,39 @@ interface ClipState {
 
 // ─── Replicate API ─────────────────────────────────────────────────────────────
 
+const HEADERS = {
+  Authorization: `Bearer ${API_KEY}`,
+  'Content-Type': 'application/json',
+};
+
+async function testConnection(): Promise<string> {
+  const res = await fetch('https://api.replicate.com/v1/account', { headers: HEADERS });
+  if (!res.ok) throw new Error(`Auth failed: HTTP ${res.status}`);
+  const data = await res.json() as { username?: string };
+  return data.username ?? 'connected';
+}
+
 async function createPrediction(prompt: string): Promise<string> {
   const res = await fetch('https://api.replicate.com/v1/models/minimax/video-01/predictions', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
+    headers: HEADERS,
     body: JSON.stringify({
-      input: {
-        prompt,
-        duration: 5,
-        aspect_ratio: '9:16',
-      },
+      input: { prompt, prompt_optimizer: true },
     }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { detail?: string }).detail || `HTTP ${res.status}`);
-  }
-  const data = await res.json() as { id: string };
+  const data = await res.json() as { id?: string; detail?: string; error?: string };
+  if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
+  if (!data.id) throw new Error('No prediction ID returned');
   return data.id;
 }
 
-async function pollPrediction(id: string, onProgress?: (pct: number) => void): Promise<string> {
-  for (let attempt = 0; attempt < 120; attempt++) {
+async function pollPrediction(id: string, onProgress?: (status: string) => void): Promise<string> {
+  for (let attempt = 0; attempt < 180; attempt++) {
     await new Promise(r => setTimeout(r, 3000));
-    const res = await fetch(`https://api.replicate.com/v1/predictions/${id}`, {
-      headers: { Authorization: `Bearer ${API_KEY}` },
-    });
+    const res = await fetch(`https://api.replicate.com/v1/predictions/${id}`, { headers: HEADERS });
     const data = await res.json() as { status: string; output?: string | string[]; error?: string; logs?: string };
+
+    if (onProgress) onProgress(data.status);
 
     if (data.status === 'succeeded') {
       const out = Array.isArray(data.output) ? data.output[0] : data.output;
@@ -93,12 +96,10 @@ async function pollPrediction(id: string, onProgress?: (pct: number) => void): P
       return out;
     }
     if (data.status === 'failed' || data.status === 'canceled') {
-      throw new Error(data.error || 'Generation failed');
+      throw new Error(data.error || `Prediction ${data.status}`);
     }
-    // estimate rough progress from logs or attempt count
-    if (onProgress) onProgress(Math.min(attempt / 40, 0.9));
   }
-  throw new Error('Timed out waiting for video');
+  throw new Error('Timed out after 9 minutes');
 }
 
 // ─── Scene card ────────────────────────────────────────────────────────────────
@@ -182,11 +183,15 @@ function SceneCard({
       {/* Progress bar */}
       {clip.status === 'generating' && (
         <div className="px-5 pb-3">
-          <div className="h-1 rounded-full bg-white/5 overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${progress * 100}%`, background: 'linear-gradient(90deg, #FF6B35, #f97316)' }} />
+          <div className="h-1 rounded-full bg-white/5 overflow-hidden mb-1.5">
+            <div className="h-full rounded-full animate-pulse"
+              style={{ width: clip.predictionId ? '60%' : '15%', background: 'linear-gradient(90deg, #FF6B35, #f97316)', transition: 'width 1s ease' }} />
           </div>
-          <p className="text-[9px] text-gray-700 mt-1">This takes ~60–90s per clip…</p>
+          <p className="text-[9px] text-orange-500/70 font-mono">
+            {clip.predictionId
+              ? (clip.error?.startsWith('Replicate:') ? clip.error : `Replicate: processing… (~2–3 min)`)
+              : 'Sending to Replicate…'}
+          </p>
         </div>
       )}
 
@@ -239,21 +244,32 @@ export default function AiVideoPage() {
   const [stitchProgress, setStitchProgress] = useState('');
   const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
   const ffmpegRef = useRef<ReturnType<typeof createFFmpeg> | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const setClip = (id: number, update: Partial<ClipState>) =>
     setClips(prev => ({ ...prev, [id]: { ...prev[id], ...update } }));
 
+  const runTest = async () => {
+    setTestResult('Testing…');
+    try {
+      const username = await testConnection();
+      setTestResult(`✓ Connected as @${username}`);
+    } catch (err) {
+      setTestResult(`✗ ${String(err)}`);
+    }
+  };
+
   const generateClip = async (id: number, prompt: string) => {
-    setClip(id, { status: 'generating', videoUrl: undefined, error: undefined });
-
-    const updateProgress = (_pct: number) => {};
-    progressRefs.current[id] = updateProgress;
-
+    setClip(id, { status: 'generating', videoUrl: undefined, error: undefined, predictionId: undefined });
     try {
       const predictionId = await createPrediction(prompt);
       setClip(id, { predictionId });
-      const videoUrl = await pollPrediction(predictionId, updateProgress);
-      setClip(id, { status: 'done', videoUrl });
+      const videoUrl = await pollPrediction(predictionId, (status) => {
+        setClip(id, { predictionId, status: 'generating', error: undefined, videoUrl: undefined });
+        // store live status in error field temporarily for display
+        setClips(prev => ({ ...prev, [id]: { ...prev[id], error: `Replicate: ${status}…` } }));
+      });
+      setClip(id, { status: 'done', videoUrl, error: undefined });
     } catch (err) {
       setClip(id, { status: 'error', error: String(err) });
     }
@@ -327,6 +343,24 @@ export default function AiVideoPage() {
           <p className="text-[10px] text-gray-700 uppercase tracking-widest mb-2">Sentro OS · AI Video</p>
           <h1 className="text-2xl font-black text-white mb-1">25s Reel Generator</h1>
           <p className="text-sm text-gray-600">5 scenes · 5s each · powered by Minimax via Replicate</p>
+        </div>
+
+        {/* Connection test */}
+        <div className="rounded-2xl p-4 mb-4 flex items-center justify-between"
+          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div>
+            <p className="text-xs font-semibold text-gray-400">Replicate connection</p>
+            {testResult && (
+              <p className={`text-[11px] mt-0.5 font-mono ${testResult.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>
+                {testResult}
+              </p>
+            )}
+          </div>
+          <button onClick={runTest}
+            className="px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#9ca3af' }}>
+            Test API
+          </button>
         </div>
 
         {/* Progress overview */}
