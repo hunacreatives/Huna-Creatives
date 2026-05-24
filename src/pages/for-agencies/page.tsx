@@ -1005,6 +1005,7 @@ export default function ForAgenciesPage() {
   });
 
   const [activeScreen, setActiveScreen] = useState(0);
+  const [openFeature, setOpenFeature] = useState<number | null>(null);
   const demoRef = useRef<HTMLDivElement>(null);
   const scrollToDemo = () => demoRef.current?.scrollIntoView({ behavior: 'smooth' });
 
@@ -1264,19 +1265,29 @@ export default function ForAgenciesPage() {
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight">Everything. Out of the box.</h2>
             <p className="text-gray-500 text-sm mt-3">No piecing together tools. One hub, one team, everything managed.</p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 rounded-2xl overflow-hidden border border-white/5">
-            {FEATURES.map(f => (
-              <div key={f.title} className="bg-[#080c14] p-5 hover:bg-white/3 transition-colors group flex items-start gap-4">
-                <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5 group-hover:scale-105 transition-transform"
-                  style={{ background: 'rgba(255,107,53,0.12)', boxShadow: '0 0 12px rgba(255,107,53,0.08)' }}>
-                  <i className={`${f.icon} text-[#FF6B35] text-base`}></i>
+          <div className="border border-white/8 rounded-2xl overflow-hidden divide-y divide-white/5">
+            {FEATURES.map((f, i) => {
+              const isOpen = openFeature === i;
+              return (
+                <div key={f.title}>
+                  <button
+                    onClick={() => setOpenFeature(isOpen ? null : i)}
+                    className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-white/3 transition-colors cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                      <i className={`${f.icon} text-[#FF6B35] text-sm`}></i>
+                    </div>
+                    <span className="flex-1 font-semibold text-white text-sm">{f.title}</span>
+                    <i className={`ri-arrow-down-s-line text-gray-500 text-base transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-4 pl-[3.25rem]">
+                      <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <h3 className="font-bold text-white mb-1 text-sm">{f.title}</h3>
-                  <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
