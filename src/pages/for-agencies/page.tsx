@@ -1193,7 +1193,7 @@ export default function ForAgenciesPage() {
       {/* ── WHAT IS SENTRO OS ── */}
       <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 items-start">
+          <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 items-center">
             <div className="flex-1 min-w-0 text-center lg:text-left">
               <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">What is Sentro OS</p>
               <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-5 leading-tight">
@@ -1202,51 +1202,26 @@ export default function ForAgenciesPage() {
               <p className="text-gray-400 text-sm leading-relaxed mb-3">
                 Sentro OS is a custom internal operations platform built around how your organization actually runs. Not a generic tool you squeeze your team into — a system that fits your workflow from day one.
               </p>
-              <p className="text-gray-400 text-sm leading-relaxed mb-8">
+              <p className="text-gray-400 text-sm leading-relaxed">
                 You get your own instance: your people, payroll, documents, credentials, and projects — all managed in one place. Configured by us. Maintained by us.
               </p>
-              <div className="grid grid-cols-1 gap-3">
-                {[
-                  { label: 'Built from scratch', sub: 'No templates. Every hub is configured around your org structure.', icon: 'ri-hammer-line' },
-                  { label: 'We use it ourselves', sub: 'We run Huna Creatives on Sentro OS. Every feature earned its place.', icon: 'ri-tools-line' },
-                  { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as your team grows.', icon: 'ri-shield-check-line' },
-                ].map(p => (
-                  <div key={p.label} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
-                    <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                      <i className={`${p.icon} text-[#FF6B35] text-sm`}></i>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">{p.label}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{p.sub}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
-            <div className="flex-shrink-0 w-full lg:w-80">
-              <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-6 text-center lg:text-left">The process</p>
-              <div className="relative flex flex-col gap-8">
-                <div className="absolute left-7 top-14 bottom-14 w-px" style={{ background: 'linear-gradient(180deg, rgba(255,107,53,0.3), rgba(255,107,53,0.05))' }} />
-                {[
-                  { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
-                  { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Your Sentro OS instance, configured around your exact structure — your rules, your roles, your modules.' },
-                  { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
-                ].map(s => (
-                  <div key={s.step} className="flex items-start gap-4 relative">
-                    <div className="relative z-10 flex-shrink-0">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}>
-                        <i className={`${s.icon} text-[#FF6B35] text-xl`}></i>
-                      </div>
-                      <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
-                    </div>
-                    <div className="pt-1">
-                      <span className="text-[10px] font-semibold text-[#FF6B35]/60 uppercase tracking-widest block mb-1">{s.tag}</span>
-                      <h3 className="font-bold text-white mb-1 text-sm">{s.title}</h3>
-                      <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
-                    </div>
+            <div className="flex-shrink-0 w-full lg:w-72 grid grid-cols-1 gap-3">
+              {[
+                { label: 'Built from scratch', sub: 'No templates. Every hub is configured around your org structure.', icon: 'ri-hammer-line' },
+                { label: 'We use it ourselves', sub: 'We run Huna Creatives on Sentro OS. Every feature earned its place.', icon: 'ri-tools-line' },
+                { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as your team grows.', icon: 'ri-shield-check-line' },
+              ].map(p => (
+                <div key={p.label} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
+                  <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                    <i className={`${p.icon} text-[#FF6B35] text-sm`}></i>
                   </div>
-                ))}
-              </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">{p.label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{p.sub}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1282,37 +1257,68 @@ export default function ForAgenciesPage() {
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
+      {/* ── FEATURES + PROCESS ── */}
       <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10">
-            <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-2">What's included</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">Everything. Out of the box.</h2>
-            <p className="text-gray-500 text-sm mt-3">No piecing together tools. One hub, one team, everything managed.</p>
-          </div>
-          <div className="border border-white/8 rounded-2xl overflow-hidden divide-y divide-white/5">
-            {FEATURES.map((f, i) => {
-              const isOpen = openFeature === i;
-              return (
-                <div key={f.title}>
-                  <button
-                    onClick={() => setOpenFeature(isOpen ? null : i)}
-                    className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-white/3 transition-colors cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                      <i className={`${f.icon} text-[#FF6B35] text-sm`}></i>
+          <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-start">
+            {/* Features accordion */}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-2">What's included</p>
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Everything. Out of the box.</h2>
+              <p className="text-gray-500 text-sm mb-8">No piecing together tools. One hub, one team, everything managed.</p>
+              <div className="border border-white/8 rounded-2xl overflow-hidden divide-y divide-white/5">
+                {FEATURES.map((f, i) => {
+                  const isOpen = openFeature === i;
+                  return (
+                    <div key={f.title}>
+                      <button
+                        onClick={() => setOpenFeature(isOpen ? null : i)}
+                        className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-white/3 transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                          <i className={`${f.icon} text-[#FF6B35] text-sm`}></i>
+                        </div>
+                        <span className="flex-1 font-semibold text-white text-sm">{f.title}</span>
+                        <i className={`ri-arrow-down-s-line text-gray-500 text-base transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
+                      </button>
+                      {isOpen && (
+                        <div className="px-5 pb-4 pl-[3.25rem]">
+                          <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
+                        </div>
+                      )}
                     </div>
-                    <span className="flex-1 font-semibold text-white text-sm">{f.title}</span>
-                    <i className={`ri-arrow-down-s-line text-gray-500 text-base transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-4 pl-[3.25rem]">
-                      <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Process steps */}
+            <div className="flex-shrink-0 w-full lg:w-80">
+              <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-2">The process</p>
+              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Up and running in weeks.</h2>
+              <p className="text-gray-500 text-sm mb-8">Not months. We handle the build, you focus on running your team.</p>
+              <div className="relative flex flex-col gap-8">
+                <div className="absolute left-7 top-14 bottom-14 w-px" style={{ background: 'linear-gradient(180deg, rgba(255,107,53,0.3), rgba(255,107,53,0.05))' }} />
+                {[
+                  { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
+                  { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Your Sentro OS instance, configured around your exact structure — your rules, your roles, your modules.' },
+                  { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
+                ].map(s => (
+                  <div key={s.step} className="flex items-start gap-4 relative">
+                    <div className="relative z-10 flex-shrink-0">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}>
+                        <i className={`${s.icon} text-[#FF6B35] text-xl`}></i>
+                      </div>
+                      <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                    <div className="pt-1">
+                      <span className="text-[10px] font-semibold text-[#FF6B35]/60 uppercase tracking-widest block mb-1">{s.tag}</span>
+                      <h3 className="font-bold text-white mb-1 text-sm">{s.title}</h3>
+                      <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
