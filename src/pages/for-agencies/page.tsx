@@ -1097,6 +1097,7 @@ export default function ForAgenciesPage() {
         </div>
         <div className="mt-8 sm:mt-12 text-center max-w-3xl"
           style={{ opacity: pageVisible ? 1 : 0, transform: pageVisible ? 'translateY(0)' : 'translateY(16px)', transition: 'opacity 1.2s ease-out, transform 1.2s ease-out' }}>
+          {/* hidden temporarily
           <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-2 sm:whitespace-nowrap">
             A custom internal operations hub built around <em className="not-italic font-black text-[#FF6B35]" style={{ textShadow: '0 0 20px rgba(255,107,53,0.5)' }}>your</em> team's workflow.
           </p>
@@ -1115,6 +1116,7 @@ export default function ForAgenciesPage() {
             </a>
           </div>
           <p className="text-xs text-gray-700 mt-4">No credit card required · We set it up with you · Your own Sentro OS instance</p>
+          */}
         </div>
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
           style={{ opacity: pageVisible ? 1 : 0, transition: 'opacity 1s ease-out' }}>
