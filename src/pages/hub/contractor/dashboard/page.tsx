@@ -567,22 +567,22 @@ export default function ContractorDashboard() {
                 )}
               </div>
 
-              <div className="bg-white border border-gray-100 rounded-xl p-4">
+              <div className="bg-[#FF6B35] rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-400">Est. Payout</span>
+                  <span className="text-xs text-white/70">Est. Payout</span>
                   <button
                     onClick={() => setShowPayout(v => !v)}
-                    className="w-7 h-7 bg-[#FF6B35]/10 rounded-lg flex items-center justify-center hover:bg-[#FF6B35]/20 transition-colors cursor-pointer"
+                    className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center hover:bg-white/30 transition-colors cursor-pointer"
                   >
-                    <i className={`${showPayout ? 'ri-eye-line' : 'ri-eye-off-line'} text-[#FF6B35] text-sm`}></i>
+                    <i className={`${showPayout ? 'ri-eye-line' : 'ri-eye-off-line'} text-white text-sm`}></i>
                   </button>
                 </div>
-                <p className="text-xl font-bold text-[#111827] tracking-wider">
+                <p className="text-xl font-bold text-white tracking-wider">
                   {showPayout
                     ? `${isUSD ? '$' : '₱'}${estimatedPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                     : '••••••'}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">{isFixed ? 'Fixed cutoff rate' : 'Based on hours logged'}</p>
+                <p className="text-xs text-white/60 mt-1">{isFixed ? 'Fixed cutoff rate' : 'Based on hours logged'}</p>
               </div>
             </div>
 
