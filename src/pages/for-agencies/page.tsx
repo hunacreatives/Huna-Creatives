@@ -1081,11 +1081,11 @@ export default function ForAgenciesPage() {
             style={{ gap: '0.18em', opacity: lit ? undefined : 0 }}
           >
             <span className="font-black text-white"
-              style={{ fontSize: 'clamp(3rem, 12vw, 12rem)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+              style={{ fontSize: 'clamp(4.5rem, 12vw, 12rem)', letterSpacing: '-0.03em', lineHeight: 1 }}>
               SENTRO
             </span>
             <span className="font-black text-white/70"
-              style={{ fontSize: 'clamp(1.4rem, 5vw, 5rem)', letterSpacing: '-0.02em', lineHeight: 1, marginBottom: '0.5vw', marginLeft: '0.3em' }}>
+              style={{ fontSize: 'clamp(2rem, 5vw, 5rem)', letterSpacing: '-0.02em', lineHeight: 1, marginBottom: '0.5vw', marginLeft: '0.3em' }}>
               OS
             </span>
           </div>
