@@ -1154,7 +1154,9 @@ export default function ForAgenciesPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The Platform</p>
-            <h2 className="text-4xl sm:text-5xl font-black mb-5 tracking-tight">Built to run your whole team</h2>
+            <h2 className="text-4xl sm:text-5xl font-black mb-5 tracking-tight leading-tight">
+              Built to run<br /><span className="text-[#FF6B35]" style={{ textShadow: '0 0 30px rgba(255,107,53,0.4)' }}>your whole team</span>
+            </h2>
             <p className="text-gray-400 max-w-xl mx-auto text-lg">Every screen is designed around how your team actually works — not how enterprise software thinks it does.</p>
           </div>
 
