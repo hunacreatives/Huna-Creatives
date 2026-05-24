@@ -36,11 +36,22 @@ Deno.serve(async (req) => {
 
     const { email, full_name } = contractor;
 
-    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+    let linkData, linkErr;
+
+    ({ data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: 'invite',
       email: email.toLowerCase(),
       options: { redirectTo: 'https://hub.hunacreatives.com/hub/signup' },
-    });
+    }));
+
+    // If user already exists in auth, fall back to a recovery (password reset) link
+    if (linkErr || !linkData?.properties?.action_link) {
+      ({ data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email: email.toLowerCase(),
+        options: { redirectTo: 'https://hub.hunacreatives.com/hub/reset-password' },
+      }));
+    }
 
     if (linkErr || !linkData?.properties?.action_link) {
       return new Response(JSON.stringify({ error: linkErr?.message ?? 'Failed to generate invite link' }), { status: 200, headers: cors });
