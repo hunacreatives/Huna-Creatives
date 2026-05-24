@@ -732,9 +732,9 @@ export default function ContractorDashboard() {
               </div>
             </div>
 
-          </div>{/* end right col */}
-          </div>{/* end two-col grid */}
-        </div>{/* end max-w wrapper */}
+          </div>
+          </div>
+        </div>
       )}
     </ContractorLayout>
   );
