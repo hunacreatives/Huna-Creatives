@@ -53,6 +53,7 @@ const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnai
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
 const AdPreviewPage = lazy(() => import('../pages/ad-preview/page'));
+const ReelPage = lazy(() => import('../pages/reel/page'));
 
 const routes: RouteObject[] = [
   {
@@ -66,6 +67,10 @@ const routes: RouteObject[] = [
   {
     path: '/ad-preview',
     element: <AdPreviewPage />,
+  },
+  {
+    path: '/reel',
+    element: <ReelPage />,
   },
   {
     path: '/crewly',
