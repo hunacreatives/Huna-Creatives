@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const REPLICATE_API = 'https://api.replicate.com/v1';
-const API_KEY = process.env.VITE_REPLICATE_API_KEY!;
+const API_KEY = process.env.REPLICATE_API_KEY || process.env.VITE_REPLICATE_API_KEY || '';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -15,8 +15,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).set(CORS).end();
   }
 
+  if (!API_KEY) return res.status(500).set(CORS).json({ error: 'REPLICATE_API_KEY not set in Vercel environment variables' });
+
   const { path } = req.query;
-  if (!path) return res.status(400).json({ error: 'Missing path' });
+  if (!path) return res.status(400).set(CORS).json({ error: 'Missing path' });
 
   const upstreamPath = Array.isArray(path) ? path.join('/') : path;
   const url = `${REPLICATE_API}/${upstreamPath}`;
