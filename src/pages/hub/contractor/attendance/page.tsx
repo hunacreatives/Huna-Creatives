@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -45,7 +45,7 @@ function getDatesInRange(start: string, end: string): string[] {
 export default function ContractorAttendancePage() {
   const { hubUser } = useAuth();
 
-  const periods = getPeriods().reverse();
+  const periods = useMemo(() => getPeriods().reverse(), []);
   const [selectedPeriodIdx, setSelectedPeriodIdx] = useState(0);
   const selectedPeriod = periods[selectedPeriodIdx];
 
@@ -82,7 +82,7 @@ export default function ContractorAttendancePage() {
       .order('date', { ascending: false });
     setDailyRecords((data as DailyRecord[]) ?? []);
     setLoadingHistory(false);
-  }, [hubUser, selectedPeriod]);
+  }, [hubUser?.id, selectedPeriod?.start, selectedPeriod?.end]);
 
   useEffect(() => {
     fetchToday();
