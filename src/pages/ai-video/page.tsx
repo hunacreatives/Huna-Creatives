@@ -285,7 +285,7 @@ export default function AiVideoPage() {
         const ff = new FFmpeg();
         ff.on('log', ({ message }) => setStitchProgress(message));
         ff.on('progress', ({ progress }) => setStitchProgress(`Encoding… ${Math.round(progress * 100)}%`));
-        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+        const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.4/dist/esm';
         await ff.load({
           coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
           wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
