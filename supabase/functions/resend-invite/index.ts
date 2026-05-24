@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     ({ data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: 'invite',
       email: email.toLowerCase(),
-      options: { redirectTo: 'https://hub.hunacreatives.com/hub/signup' },
+      options: { redirectTo: 'https://www.hunacreatives.com/hub/signup' },
     }));
 
     // If user already exists in auth, fall back to a recovery (password reset) link
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       ({ data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
         type: 'recovery',
         email: email.toLowerCase(),
-        options: { redirectTo: 'https://hub.hunacreatives.com/hub/reset-password' },
+        options: { redirectTo: 'https://www.hunacreatives.com/hub/reset-password' },
       }));
     }
 

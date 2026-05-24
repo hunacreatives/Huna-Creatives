@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: 'invite',
       email: email.toLowerCase(),
-      options: { redirectTo: 'https://hunacreatives.com/hub/signup' },
+      options: { redirectTo: 'https://www.hunacreatives.com/hub/signup' },
     });
 
     if (linkErr || !linkData?.user) {
