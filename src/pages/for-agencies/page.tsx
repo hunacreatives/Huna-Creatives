@@ -1227,11 +1227,12 @@ export default function ForAgenciesPage() {
         </div>
       </section>
 
-      {/* ── WHY IT WAS MADE — light break ── */}
-      <section className="relative z-10 py-16 sm:py-24 px-6 overflow-hidden" style={{ background: '#f9f7f4' }}>
+      {/* ── WHY IT WAS MADE ── */}
+      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 80% at 15% 50%, rgba(255,107,53,0.04) 0%, transparent 70%)' }} />
         <div className="max-w-4xl mx-auto relative">
           <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3 text-center">Why it was made</p>
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-10 text-center leading-tight">
+          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-10 text-center leading-tight">
             We built it for ourselves first.
           </h2>
           <div className="grid sm:grid-cols-3 gap-6 mb-8">
@@ -1240,18 +1241,18 @@ export default function ForAgenciesPage() {
               { num: '02', heading: 'What we built', body: 'We built one hub for our team. Attendance, payroll, contracts, credentials, requests — everything in one place. It worked.' },
               { num: '03', heading: 'Why we\'re sharing it', body: 'Other firms have the same problem. So we started building Sentro OS instances for them — same foundation, configured around their workflow.' },
             ].map(s => (
-              <div key={s.num} className="relative pl-4 border-l-2 border-[#FF6B35]/30">
-                <span className="text-[10px] font-black text-[#FF6B35] uppercase tracking-widest block mb-2">{s.num}</span>
-                <h3 className="font-bold text-gray-900 text-sm mb-2">{s.heading}</h3>
+              <div key={s.num} className="relative pl-4 border-l border-white/10">
+                <span className="text-[10px] font-black text-[#FF6B35]/40 uppercase tracking-widest block mb-2">{s.num}</span>
+                <h3 className="font-bold text-white text-sm mb-2">{s.heading}</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">{s.body}</p>
               </div>
             ))}
           </div>
-          <div className="rounded-2xl p-6 text-center" style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)' }}>
-            <p className="text-gray-600 text-sm leading-relaxed italic mb-3">
+          <div className="border border-white/8 rounded-xl p-5 bg-white/2">
+            <p className="text-gray-400 text-sm leading-relaxed italic text-center">
               "We didn't build Sentro OS to sell software. We built it because we needed it — and it turned out everyone else needed it too."
             </p>
-            <p className="text-xs text-gray-400">— Francis, Founder of Huna Creatives</p>
+            <p className="text-xs text-gray-600 mt-3 text-center">— Francis, Founder of Huna Creatives</p>
           </div>
         </div>
       </section>
@@ -1311,64 +1312,65 @@ export default function ForAgenciesPage() {
         </div>
       </section>
 
-      {/* ── PRICING — light break ── */}
-      <section id="pricing" className="relative z-10 py-16 sm:py-24 px-6" style={{ background: '#f9f7f4' }}>
+      {/* ── PRICING ── */}
+      <section id="pricing" className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Pricing</p>
-            <h2 className="text-3xl sm:text-4xl font-black mb-3 tracking-tight text-gray-900">One-time setup. Monthly base. Per seat.</h2>
+            <h2 className="text-3xl sm:text-4xl font-black mb-3 tracking-tight">One-time setup. Monthly base. Per seat.</h2>
             <p className="text-gray-500 text-sm">You pay to have it built right, then a flat base + per seat. No surprises.</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-4">
             {PLANS.map(p => (
-              <div key={p.name} className={`rounded-2xl p-6 flex flex-col relative overflow-hidden ${p.highlight ? '' : 'bg-white border border-gray-100'}`}
-                style={p.highlight
-                  ? { background: '#111827', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }
-                  : { boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)' }}>
+              <div key={p.name} className={`rounded-2xl p-6 border flex flex-col relative overflow-hidden ${p.highlight ? 'border-[#FF6B35]/50' : 'bg-white/3 border-white/10'}`}
+                style={p.highlight ? { background: 'linear-gradient(135deg, rgba(255,107,53,0.12) 0%, rgba(255,107,53,0.04) 100%)', boxShadow: '0 0 40px rgba(255,107,53,0.12)' } : {}}>
                 {p.highlight && (
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B35] mb-3">Most Popular</span>
+                  <>
+                    <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #FF6B35, transparent)' }} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B35] mb-3">Most Popular</span>
+                  </>
                 )}
-                <h3 className={`font-black text-lg mb-2 ${p.highlight ? 'text-white' : 'text-gray-900'}`}>{p.name}</h3>
-                <div className={`inline-flex items-center gap-1.5 text-xs font-medium mb-4 px-2.5 py-1 rounded-lg w-fit ${p.highlight ? 'bg-white/10 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+                <h3 className="font-black text-lg mb-2 text-white">{p.name}</h3>
+                <div className="inline-flex items-center gap-1.5 text-xs font-medium mb-4 px-2.5 py-1 rounded-lg w-fit bg-white/5 text-gray-500">
                   <i className="ri-tools-line text-xs"></i>
                   {p.setup === 'Custom' ? 'Custom setup fee' : `${p.setup} one-time setup`}
                 </div>
                 <div className="flex items-end gap-1 mb-1">
-                  <span className={`text-3xl font-black ${p.highlight ? 'text-white' : 'text-gray-900'}`}>{p.price}</span>
-                  <span className={`text-sm mb-1 ${p.highlight ? 'text-gray-400' : 'text-gray-400'}`}>{p.per}</span>
+                  <span className="text-3xl font-black text-white">{p.price}</span>
+                  <span className="text-sm mb-1 text-gray-400">{p.per}</span>
                 </div>
-                <p className={`text-xs mb-1 ${p.highlight ? 'text-gray-500' : 'text-gray-400'}`}>{p.seats} · <span className="italic">{p.perSeat}</span></p>
-                <p className={`text-xs mt-3 mb-5 ${p.highlight ? 'text-gray-400' : 'text-gray-500'}`}>{p.desc}</p>
+                <p className="text-xs text-gray-600 mb-1">{p.seats} · <span className="italic">{p.perSeat}</span></p>
+                <p className="text-xs mt-3 mb-5 text-gray-500">{p.desc}</p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {p.features.map(f => (
-                    <li key={f} className={`flex items-center gap-2 text-xs ${p.highlight ? 'text-gray-300' : 'text-gray-500'}`}>
+                    <li key={f} className="flex items-center gap-2 text-xs text-gray-400">
                       <i className="ri-check-line flex-shrink-0 text-[#FF6B35]"></i>{f}
                     </li>
                   ))}
                 </ul>
                 <button onClick={scrollToDemo}
-                  className="w-full py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer"
+                  className="w-full py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer text-white"
                   style={p.highlight
-                    ? { background: 'linear-gradient(135deg, #FF6B35, #e55a27)', color: 'white', boxShadow: '0 0 24px rgba(255,107,53,0.3)' }
-                    : { background: '#111827', color: 'white' }}>
+                    ? { background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 24px rgba(255,107,53,0.3)' }
+                    : { background: 'rgba(255,107,53,0.12)', border: '1px solid rgba(255,107,53,0.25)' }}>
                   {p.cta} →
                 </button>
               </div>
             ))}
           </div>
-          <p className="text-center text-xs text-gray-400 mt-5">Per-seat pricing discussed during your demo call based on team size.</p>
+          <p className="text-center text-xs text-gray-600 mt-5">Per-seat pricing discussed during your demo call based on team size.</p>
         </div>
       </section>
 
       {/* ── CTA ── */}
       <section ref={demoRef} className="relative z-10 py-16 sm:py-24 px-6 text-center border-t border-white/5">
-        <div style={{ background: 'radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255,107,53,0.12) 0%, transparent 70%)' }} className="absolute inset-0 pointer-events-none" />
+        <div style={{ background: 'radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255,107,53,0.1) 0%, transparent 70%)' }} className="absolute inset-0 pointer-events-none" />
         <div className="relative max-w-xl mx-auto">
           <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">Get started</p>
           <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight">
             Ready to give<br />your team its hub?
           </h2>
-          <p className="text-gray-400 text-sm mb-8 leading-relaxed">
+          <p className="text-gray-500 text-sm mb-8 leading-relaxed">
             Book a 30-minute demo. We walk through the platform, understand your workflow, and show you exactly what we'd build for your org.
           </p>
           <a href="https://calendly.com/hunacreatives/30min" target="_blank" rel="noopener noreferrer"
