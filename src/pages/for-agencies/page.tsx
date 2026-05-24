@@ -1191,7 +1191,7 @@ export default function ForAgenciesPage() {
       </section>
 
       {/* ── WHAT IS SENTRO OS ── */}
-      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
+      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5" style={{ background: '#0e1420' }}>
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 items-center">
             <div className="flex-1 min-w-0 text-center lg:text-left">
@@ -1227,11 +1227,11 @@ export default function ForAgenciesPage() {
         </div>
       </section>
 
-      {/* ── WHY IT WAS MADE ── */}
-      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 80% at 15% 50%, rgba(255,107,53,0.04) 0%, transparent 70%)' }} />
+      {/* ── WHY IT WAS MADE — orange break ── */}
+      <section className="relative z-10 py-16 sm:py-24 px-6 overflow-hidden" style={{ background: '#FF6B35' }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,0,0,0.15) 0%, transparent 70%)' }} />
         <div className="max-w-4xl mx-auto relative">
-          <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3 text-center">Why it was made</p>
+          <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3 text-center">Why it was made</p>
           <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-10 text-center leading-tight">
             We built it for ourselves first.
           </h2>
@@ -1241,24 +1241,24 @@ export default function ForAgenciesPage() {
               { num: '02', heading: 'What we built', body: 'We built one hub for our team. Attendance, payroll, contracts, credentials, requests — everything in one place. It worked.' },
               { num: '03', heading: 'Why we\'re sharing it', body: 'Other firms have the same problem. So we started building Sentro OS instances for them — same foundation, configured around their workflow.' },
             ].map(s => (
-              <div key={s.num} className="relative pl-4 border-l border-white/10">
-                <span className="text-[10px] font-black text-[#FF6B35]/40 uppercase tracking-widest block mb-2">{s.num}</span>
+              <div key={s.num} className="relative pl-4 border-l border-white/30">
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2">{s.num}</span>
                 <h3 className="font-bold text-white text-sm mb-2">{s.heading}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{s.body}</p>
+                <p className="text-xs text-white/70 leading-relaxed">{s.body}</p>
               </div>
             ))}
           </div>
-          <div className="border border-white/8 rounded-xl p-5 bg-white/2">
-            <p className="text-gray-400 text-sm leading-relaxed italic text-center">
+          <div className="rounded-xl p-5 bg-black/10 border border-white/20">
+            <p className="text-white/90 text-sm leading-relaxed italic text-center">
               "We didn't build Sentro OS to sell software. We built it because we needed it — and it turned out everyone else needed it too."
             </p>
-            <p className="text-xs text-gray-600 mt-3 text-center">— Francis, Founder of Huna Creatives</p>
+            <p className="text-xs text-white/50 mt-3 text-center">— Francis, Founder of Huna Creatives</p>
           </div>
         </div>
       </section>
 
       {/* ── FEATURES + PROCESS ── */}
-      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
+      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5" style={{ background: '#080c14' }}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Everything you need, ready to go</p>
@@ -1313,7 +1313,7 @@ export default function ForAgenciesPage() {
       </section>
 
       {/* ── PRICING ── */}
-      <section id="pricing" className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
+      <section id="pricing" className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5" style={{ background: '#0d1829' }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Pricing</p>
