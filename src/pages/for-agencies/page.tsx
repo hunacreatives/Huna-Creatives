@@ -1259,66 +1259,55 @@ export default function ForAgenciesPage() {
 
       {/* ── FEATURES + PROCESS ── */}
       <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-start">
-            {/* Features accordion */}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-2">What's included</p>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Everything. Out of the box.</h2>
-              <p className="text-gray-500 text-sm mb-8">No piecing together tools. One hub, one team, everything managed.</p>
-              <div className="border border-white/8 rounded-2xl overflow-hidden divide-y divide-white/5">
-                {FEATURES.map((f, i) => {
-                  const isOpen = openFeature === i;
-                  return (
-                    <div key={f.title}>
-                      <button
-                        onClick={() => setOpenFeature(isOpen ? null : i)}
-                        className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-white/3 transition-colors cursor-pointer"
-                      >
-                        <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                          <i className={`${f.icon} text-[#FF6B35] text-sm`}></i>
-                        </div>
-                        <span className="flex-1 font-semibold text-white text-sm">{f.title}</span>
-                        <i className={`ri-arrow-down-s-line text-gray-500 text-base transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
-                      </button>
-                      {isOpen && (
-                        <div className="px-5 pb-4 pl-[3.25rem]">
-                          <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Everything you need, ready to go</p>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Built complete. Launched fast.</h2>
+            <p className="text-gray-500 text-sm">Here's what's inside your hub — and how we get it into your hands.</p>
+          </div>
+
+          {/* Features grid */}
+          <div className="grid sm:grid-cols-2 gap-3 mb-12">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
+                <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                  <i className={`${f.icon} text-[#FF6B35] text-sm`}></i>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{f.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{f.desc}</p>
+                </div>
               </div>
-            </div>
-            {/* Process steps */}
-            <div className="flex-shrink-0 w-full lg:w-80">
-              <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-2">The process</p>
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Up and running in weeks.</h2>
-              <p className="text-gray-500 text-sm mb-8">Not months. We handle the build, you focus on running your team.</p>
-              <div className="relative flex flex-col gap-8">
-                <div className="absolute left-7 top-14 bottom-14 w-px" style={{ background: 'linear-gradient(180deg, rgba(255,107,53,0.3), rgba(255,107,53,0.05))' }} />
-                {[
-                  { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
-                  { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Your Sentro OS instance, configured around your exact structure — your rules, your roles, your modules.' },
-                  { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
-                ].map(s => (
-                  <div key={s.step} className="flex items-start gap-4 relative">
-                    <div className="relative z-10 flex-shrink-0">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}>
-                        <i className={`${s.icon} text-[#FF6B35] text-xl`}></i>
-                      </div>
-                      <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
-                    </div>
-                    <div className="pt-1">
-                      <span className="text-[10px] font-semibold text-[#FF6B35]/60 uppercase tracking-widest block mb-1">{s.tag}</span>
-                      <h3 className="font-bold text-white mb-1 text-sm">{s.title}</h3>
-                      <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
-                    </div>
+            ))}
+          </div>
+
+          {/* Divider with label */}
+          <div className="flex items-center gap-4 mb-12">
+            <div className="flex-1 h-px bg-white/8" />
+            <span className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest whitespace-nowrap">How we get you there</span>
+            <div className="flex-1 h-px bg-white/8" />
+          </div>
+
+          {/* Process steps */}
+          <div className="relative grid sm:grid-cols-3 gap-8">
+            <div className="hidden sm:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px" style={{ background: 'linear-gradient(90deg, rgba(255,107,53,0.3), rgba(255,107,53,0.1) 50%, rgba(255,107,53,0.3))' }} />
+            {[
+              { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
+              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Your Sentro OS instance, configured around your exact structure — your rules, your roles, your modules.' },
+              { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
+            ].map(s => (
+              <div key={s.step} className="flex flex-col items-center text-center relative">
+                <div className="relative mb-5 z-10">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}>
+                    <i className={`${s.icon} text-[#FF6B35] text-xl`}></i>
                   </div>
-                ))}
+                  <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
+                </div>
+                <span className="text-[10px] font-semibold text-[#FF6B35]/60 uppercase tracking-widest mb-1">{s.tag}</span>
+                <h3 className="font-bold text-white mb-2 text-sm">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
