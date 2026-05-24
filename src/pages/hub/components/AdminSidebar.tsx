@@ -73,15 +73,6 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
         )}
       </div>
 
-      {/* Role badge */}
-      {!collapsed && (
-        <div className="px-4 py-2.5">
-          <span className="text-xs text-[#FF6B35] font-medium bg-[#FF6B35]/10 px-2 py-0.5 rounded-full whitespace-nowrap">
-            {hubUser?.role === 'owner' ? 'Owner' : 'HR / Admin'}
-          </span>
-        </div>
-      )}
-
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         {navItems.map((item, idx) => {
@@ -126,7 +117,12 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-white text-xs font-medium truncate">{hubUser?.full_name}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-white text-xs font-medium truncate">{hubUser?.full_name}</p>
+                <span className="text-[10px] text-[#FF6B35] font-medium bg-[#FF6B35]/10 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                  {hubUser?.role === 'owner' ? 'Owner' : 'Admin'}
+                </span>
+              </div>
               <p className="text-gray-500 text-xs truncate">{hubUser?.email}</p>
             </div>
             <button
