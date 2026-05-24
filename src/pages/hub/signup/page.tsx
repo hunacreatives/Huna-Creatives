@@ -19,8 +19,13 @@ export default function HubSignupPage() {
 
     if (!isInvite) {
       // Not from an invite link — redirect based on session state
-      supabase.auth.getSession().then(({ data }) => {
-        navigate(data.session ? '/hub/dashboard' : '/hub/login', { replace: true });
+      supabase.auth.getSession().then(async ({ data }) => {
+        if (data.session) {
+          const { data: hubUser } = await supabase.from('hub_users').select('role').eq('id', data.session.user.id).maybeSingle();
+          navigate(hubUser?.role === 'admin' ? '/hub/admin/dashboard' : '/hub/contractor/dashboard', { replace: true });
+        } else {
+          navigate('/hub/login', { replace: true });
+        }
       });
       return;
     }
