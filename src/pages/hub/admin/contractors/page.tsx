@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { HubUser } from '@/lib/types';
 import AddContractorModal from './AddContractorModal';
 
-type ConfirmAction = { type: 'deactivate' | 'delete'; contractor: HubUser };
+type ConfirmAction = { type: 'deactivate' | 'delete' | 'resend-invite'; contractor: HubUser };
 type Toast = { id: number; message: string; type: 'success' | 'error' };
 
 export default function ContractorsPage() {
@@ -224,26 +224,8 @@ export default function ContractorsPage() {
                                 {!c.onboarding_completed && (
                                   <>
                                     <button
-                                      disabled={resendingId === c.id}
-                                      onClick={async () => {
-                                        setOpenMenu(null);
-                                        setResendingId(c.id);
-                                        try {
-                                          const { data, error } = await supabase.functions.invoke('resend-invite', {
-                                            body: { contractor_id: c.id },
-                                          });
-                                          if (error || data?.error) {
-                                            showToast(data?.error ?? 'Failed to resend invite', 'error');
-                                          } else {
-                                            showToast(`Invite resent to ${c.email}`, 'success');
-                                          }
-                                        } catch {
-                                          showToast('Failed to resend invite', 'error');
-                                        } finally {
-                                          setResendingId(null);
-                                        }
-                                      }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sky-600 hover:bg-sky-50 cursor-pointer disabled:opacity-50"
+                                      onClick={() => { setOpenMenu(null); setConfirm({ type: 'resend-invite', contractor: c }); }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sky-600 hover:bg-sky-50 cursor-pointer"
                                     >
                                       <i className="ri-mail-send-line"></i>
                                       Resend Invite
@@ -312,16 +294,22 @@ export default function ContractorsPage() {
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${confirm.type === 'delete' ? 'bg-rose-100' : 'bg-amber-100'}`}>
-              <i className={`text-xl ${confirm.type === 'delete' ? 'ri-delete-bin-line text-rose-600' : 'ri-user-forbid-line text-amber-600'}`}></i>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              confirm.type === 'delete' ? 'bg-rose-100' : confirm.type === 'resend-invite' ? 'bg-sky-100' : 'bg-amber-100'
+            }`}>
+              <i className={`text-xl ${
+                confirm.type === 'delete' ? 'ri-delete-bin-line text-rose-600' : confirm.type === 'resend-invite' ? 'ri-mail-send-line text-sky-600' : 'ri-user-forbid-line text-amber-600'
+              }`}></i>
             </div>
             <div className="text-center space-y-1">
               <h3 className="font-semibold text-[#111827]">
-                {confirm.type === 'delete' ? 'Remove contractor?' : 'Deactivate contractor?'}
+                {confirm.type === 'delete' ? 'Remove contractor?' : confirm.type === 'resend-invite' ? 'Resend invite?' : 'Deactivate contractor?'}
               </h3>
               <p className="text-sm text-gray-500">
                 {confirm.type === 'delete'
                   ? <>This will permanently delete <strong>{confirm.contractor.full_name}</strong> and all their data. This cannot be undone.</>
+                  : confirm.type === 'resend-invite'
+                  ? <>A fresh invite link will be sent to <strong>{confirm.contractor.email}</strong>. Any previous link will no longer work.</>
                   : <>This will mark <strong>{confirm.contractor.full_name}</strong> as inactive. They won't be able to log in. You can reactivate them later.</>
                 }
               </p>
@@ -329,17 +317,42 @@ export default function ContractorsPage() {
             <div className="flex gap-3 pt-1">
               <button
                 onClick={() => setConfirm(null)}
-                disabled={actionLoading}
+                disabled={actionLoading || resendingId !== null}
                 className="flex-1 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                onClick={() => confirm.type === 'delete' ? handleDelete(confirm.contractor) : handleDeactivate(confirm.contractor)}
-                disabled={actionLoading}
-                className={`flex-1 py-2.5 text-sm text-white rounded-lg cursor-pointer disabled:opacity-60 ${confirm.type === 'delete' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-500 hover:bg-amber-600'}`}
+                onClick={async () => {
+                  if (confirm.type === 'resend-invite') {
+                    setResendingId(confirm.contractor.id);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('resend-invite', {
+                        body: { contractor_id: confirm.contractor.id },
+                      });
+                      if (error || data?.error) {
+                        showToast(data?.error ?? 'Failed to resend invite', 'error');
+                      } else {
+                        showToast(`Invite resent to ${confirm.contractor.email}`, 'success');
+                      }
+                    } catch {
+                      showToast('Failed to resend invite', 'error');
+                    } finally {
+                      setResendingId(null);
+                      setConfirm(null);
+                    }
+                  } else if (confirm.type === 'delete') {
+                    handleDelete(confirm.contractor);
+                  } else {
+                    handleDeactivate(confirm.contractor);
+                  }
+                }}
+                disabled={actionLoading || resendingId !== null}
+                className={`flex-1 py-2.5 text-sm text-white rounded-lg cursor-pointer disabled:opacity-60 ${
+                  confirm.type === 'delete' ? 'bg-rose-600 hover:bg-rose-700' : confirm.type === 'resend-invite' ? 'bg-sky-600 hover:bg-sky-700' : 'bg-amber-500 hover:bg-amber-600'
+                }`}
               >
-                {actionLoading ? <i className="ri-loader-4-line animate-spin"></i> : confirm.type === 'delete' ? 'Remove' : 'Deactivate'}
+                {(actionLoading || resendingId !== null) ? <i className="ri-loader-4-line animate-spin"></i> : confirm.type === 'delete' ? 'Remove' : confirm.type === 'resend-invite' ? 'Send Invite' : 'Deactivate'}
               </button>
             </div>
           </div>
