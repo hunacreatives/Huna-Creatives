@@ -1378,7 +1378,7 @@ export default function ForAgenciesPage() {
         <div className="relative max-w-xl mx-auto">
           <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">Get started</p>
           <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight">
-            Ready to give your team its hub?
+            Ready to give<br />your team its hub?
           </h2>
           <p className="text-gray-500 text-sm mb-8 leading-relaxed">
             Book a 30-minute demo. We walk through the platform, understand your workflow, and show you exactly what we'd build for your org.
