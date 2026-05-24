@@ -1193,6 +1193,73 @@ export default function ForAgenciesPage() {
         </div>
       </section>
 
+      {/* ── WHAT IS SENTRO OS ── */}
+      <section className="relative z-10 py-14 sm:py-20 px-6 border-t border-white/5">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 items-center">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">What is Sentro OS</p>
+              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-5 leading-tight">
+                Not a SaaS.<br />A hub built around <span className="text-[#FF6B35]">your</span> team.
+              </h2>
+              <p className="text-gray-400 leading-relaxed mb-4">
+                Sentro OS is a fully custom internal operations platform — built around how your organization actually runs. Not a generic tool you squeeze your team into. A system that fits your workflow from day one.
+              </p>
+              <p className="text-gray-400 leading-relaxed">
+                You get one hub that manages your people, your payroll, your documents, your internal comms, and your projects. Branded as yours. Maintained by us.
+              </p>
+            </div>
+            <div className="flex-shrink-0 w-full lg:w-80 grid grid-cols-1 gap-3">
+              {[
+                { label: 'Not a template', sub: 'Every hub is built from scratch around your structure', icon: 'ri-hammer-line' },
+                { label: 'Your brand on it', sub: 'Your logo, your colors, your domain', icon: 'ri-palette-line' },
+                { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as you grow', icon: 'ri-shield-check-line' },
+              ].map(p => (
+                <div key={p.label} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
+                  <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                    <i className={`${p.icon} text-[#FF6B35] text-sm`}></i>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">{p.label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{p.sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── WHY IT WAS MADE ── */}
+      <section className="relative z-10 py-14 sm:py-20 px-6 border-t border-white/5 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 80% at 20% 50%, rgba(255,107,53,0.05) 0%, transparent 70%)' }} />
+        <div className="max-w-4xl mx-auto relative">
+          <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4 text-center">Why it was made</p>
+          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-10 text-center leading-tight">
+            We built it for ourselves first.
+          </h2>
+          <div className="grid sm:grid-cols-3 gap-6 mb-10">
+            {[
+              { num: '01', heading: 'The problem', body: 'We were running our own agency team — designers, strategists, account managers — across spreadsheets, group chats, and manual payroll. It was messy and time-consuming.' },
+              { num: '02', heading: 'What we built', body: 'We built an internal operations hub for our own team. Attendance, payroll, contracts, credentials, requests — everything in one place. It worked.' },
+              { num: '03', heading: 'Why we\'re sharing it', body: 'Other firms have the same problem. So we started building custom versions of it for them — same foundation, fully configured around their workflow.' },
+            ].map(s => (
+              <div key={s.num} className="relative pl-5 border-l border-white/10">
+                <span className="text-[10px] font-black text-[#FF6B35]/50 uppercase tracking-widest block mb-2">{s.num}</span>
+                <h3 className="font-bold text-white text-sm mb-2">{s.heading}</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">{s.body}</p>
+              </div>
+            ))}
+          </div>
+          <div className="border border-white/8 rounded-2xl p-6 bg-white/2 text-center">
+            <p className="text-gray-300 text-base leading-relaxed italic">
+              "We didn't build Sentro OS to sell software. We built it because we needed it — and it turned out everyone else needed it too."
+            </p>
+            <p className="text-xs text-gray-600 mt-3">— Francis, Founder of Huna Creatives</p>
+          </div>
+        </div>
+      </section>
+
       {/* ── FEATURES ── */}
       <section className="relative z-10 py-14 sm:py-20 px-6">
         <div className="max-w-6xl mx-auto">
