@@ -63,7 +63,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
         collapsed ? 'w-[60px]' : 'w-[220px]'
       }`}
     >
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/10">
         {collapsed ? (
           <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0">
             <i className="ri-home-heart-line text-white text-xs"></i>
@@ -72,25 +72,32 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
           <img src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-7 w-auto flex-shrink-0" />
         )}
         {!collapsed && (
-          <span className="text-white/40 text-xs tracking-widest uppercase font-medium whitespace-nowrap overflow-hidden">
-            Huna Hub
-          </span>
+          <>
+            <span className="text-white/40 text-xs tracking-widest uppercase font-medium whitespace-nowrap overflow-hidden">
+              Huna Hub
+            </span>
+            <span className="text-xs text-emerald-400 font-medium bg-emerald-400/10 px-2 py-0.5 rounded-full whitespace-nowrap ml-auto">
+              Contractor
+            </span>
+          </>
         )}
-        <button
-          onClick={onToggle}
-          className={`ml-auto text-gray-400 hover:text-white transition-colors cursor-pointer ${collapsed ? 'mx-auto' : ''}`}
-        >
-          <i className={`text-sm ${collapsed ? 'ri-menu-unfold-line' : 'ri-menu-fold-line'}`}></i>
-        </button>
+        {collapsed && (
+          <button
+            onClick={onToggle}
+            className="mx-auto text-gray-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <i className="ri-menu-unfold-line text-sm"></i>
+          </button>
+        )}
+        {!collapsed && (
+          <button
+            onClick={onToggle}
+            className="text-gray-400 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+          >
+            <i className="ri-menu-fold-line text-sm"></i>
+          </button>
+        )}
       </div>
-
-      {!collapsed && (
-        <div className="px-4 py-2">
-          <span className="text-xs text-emerald-400 font-medium bg-emerald-400/10 px-2 py-0.5 rounded-full whitespace-nowrap">
-            Contractor
-          </span>
-        </div>
-      )}
 
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         {navItems.map((item, idx) => {
