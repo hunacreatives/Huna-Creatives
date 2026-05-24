@@ -40,11 +40,18 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'A contractor with this email already exists.' }), { status: 200, headers: cors });
     }
 
+    // If a stale auth user exists (e.g. previously deleted from hub_users), remove it first
+    const { data: { users: existingAuthUsers } } = await supabase.auth.admin.listUsers();
+    const staleAuthUser = existingAuthUsers?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+    if (staleAuthUser) {
+      await supabase.auth.admin.deleteUser(staleAuthUser.id);
+    }
+
     // Generate invite link (creates auth.users entry without sending Supabase's default email)
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: 'invite',
       email: email.toLowerCase(),
-      options: { redirectTo: 'https://hub.hunacreatives.com/hub/signup' },
+      options: { redirectTo: 'https://hunacreatives.com/hub/signup' },
     });
 
     if (linkErr || !linkData?.user) {
