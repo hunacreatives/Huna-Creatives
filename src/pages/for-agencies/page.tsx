@@ -1206,20 +1206,20 @@ export default function ForAgenciesPage() {
                 You get your own instance: your people, payroll, documents, credentials, and projects — all managed in one place. Configured by us. Maintained by us.
               </p>
             </div>
-            <div className="flex-shrink-0 w-full lg:w-72 grid grid-cols-1 gap-6">
+            <div className="flex-shrink-0 w-full lg:w-72 grid grid-cols-1 gap-3">
               {[
                 { label: 'Built from scratch', sub: 'No templates. Every hub is configured around your org structure.', icon: 'ri-hammer-line' },
                 { label: 'We use it ourselves', sub: 'We run Huna Creatives on Sentro OS. Every feature earned its place.', icon: 'ri-tools-line' },
                 { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as your team grows.', icon: 'ri-shield-check-line' },
               ].map(p => (
-                <div key={p.label} className="text-center">
-                  <div className="flex items-center justify-center gap-2 mb-1.5">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                      <i className={`${p.icon} text-[#FF6B35] text-xs`}></i>
-                    </div>
-                    <p className="text-sm font-bold text-white">{p.label}</p>
+                <div key={p.label} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
+                  <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                    <i className={`${p.icon} text-[#FF6B35] text-sm`}></i>
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">{p.sub}</p>
+                  <div>
+                    <p className="text-sm font-bold text-white">{p.label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{p.sub}</p>
+                  </div>
                 </div>
               ))}
             </div>
