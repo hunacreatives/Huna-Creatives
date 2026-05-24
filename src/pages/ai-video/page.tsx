@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 const API_KEY = import.meta.env.VITE_REPLICATE_API_KEY as string;
 
@@ -234,11 +236,17 @@ function SceneCard({
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
+type StitchStatus = 'idle' | 'loading-ffmpeg' | 'stitching' | 'done' | 'error';
+
 export default function AiVideoPage() {
   const [clips, setClips] = useState<Record<number, ClipState>>(
     Object.fromEntries(SCENES.map(s => [s.id, { status: 'idle' as ClipStatus }]))
   );
   const progressRefs = useRef<Record<number, (pct: number) => void>>({});
+  const [stitchStatus, setStitchStatus] = useState<StitchStatus>('idle');
+  const [stitchProgress, setStitchProgress] = useState('');
+  const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
+  const ffmpegRef = useRef<FFmpeg | null>(null);
 
   const setClip = (id: number, update: Partial<ClipState>) =>
     setClips(prev => ({ ...prev, [id]: { ...prev[id], ...update } }));
@@ -246,14 +254,7 @@ export default function AiVideoPage() {
   const generateClip = async (id: number, prompt: string) => {
     setClip(id, { status: 'generating', videoUrl: undefined, error: undefined });
 
-    // Store progress setter reference
-    const updateProgress = (pct: number) => {
-      setClips(prev => {
-        if (prev[id].status !== 'generating') return prev;
-        // We don't store progress in state to avoid re-renders — just update the bar via ref
-        return prev;
-      });
-    };
+    const updateProgress = (_pct: number) => {};
     progressRefs.current[id] = updateProgress;
 
     try {
@@ -270,6 +271,57 @@ export default function AiVideoPage() {
     SCENES.forEach((scene, i) => {
       setTimeout(() => generateClip(scene.id, scene.prompt), i * 2000);
     });
+  };
+
+  const stitchAll = async () => {
+    const readyClips = SCENES.map(s => clips[s.id]).filter(c => c.status === 'done' && c.videoUrl);
+    if (readyClips.length === 0) return;
+
+    try {
+      // Load ffmpeg if not already loaded
+      if (!ffmpegRef.current) {
+        setStitchStatus('loading-ffmpeg');
+        setStitchProgress('Loading ffmpeg…');
+        const ff = new FFmpeg();
+        ff.on('log', ({ message }) => setStitchProgress(message));
+        ff.on('progress', ({ progress }) => setStitchProgress(`Encoding… ${Math.round(progress * 100)}%`));
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+        await ff.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+        ffmpegRef.current = ff;
+      }
+
+      setStitchStatus('stitching');
+      const ff = ffmpegRef.current!;
+
+      // Write each clip to ffmpeg virtual FS
+      const listLines: string[] = [];
+      for (let i = 0; i < readyClips.length; i++) {
+        setStitchProgress(`Fetching clip ${i + 1} of ${readyClips.length}…`);
+        const filename = `clip${i}.mp4`;
+        await ff.writeFile(filename, await fetchFile(readyClips[i].videoUrl!));
+        listLines.push(`file '${filename}'`);
+      }
+
+      // Write concat list
+      const encoder = new TextEncoder();
+      await ff.writeFile('list.txt', encoder.encode(listLines.join('\n')));
+
+      setStitchProgress('Stitching clips together…');
+      await ff.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4']);
+
+      setStitchProgress('Exporting…');
+      const data = await ff.readFile('output.mp4');
+      const blob = new Blob([data], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      setFinalVideoUrl(url);
+      setStitchStatus('done');
+    } catch (err) {
+      setStitchStatus('error');
+      setStitchProgress(String(err));
+    }
   };
 
   const doneCount = Object.values(clips).filter(c => c.status === 'done').length;
@@ -327,15 +379,65 @@ export default function AiVideoPage() {
           ))}
         </div>
 
-        {/* Assembly note */}
+        {/* Stitch panel */}
         {doneCount > 0 && (
-          <div className="mt-8 rounded-2xl p-4 text-center"
-            style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}>
-            <p className="text-xs text-green-400 font-semibold mb-1">{doneCount} clip{doneCount > 1 ? 's' : ''} ready</p>
-            <p className="text-[10px] text-gray-600 leading-relaxed">
-              Download each clip and assemble in CapCut, Premiere, or DaVinci Resolve.<br />
-              Add the SENTRO OS text overlay on Scene 6 for the glowing hero ending.
-            </p>
+          <div className="mt-8 rounded-2xl overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="px-5 py-4 flex items-center justify-between"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div>
+                <p className="text-sm font-bold text-white">Combine into one video</p>
+                <p className="text-[10px] text-gray-600 mt-0.5">
+                  {doneCount}/{SCENES.length} clips ready · runs in your browser
+                </p>
+              </div>
+              <button
+                onClick={stitchAll}
+                disabled={stitchStatus === 'loading-ffmpeg' || stitchStatus === 'stitching'}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all flex items-center gap-2"
+                style={{
+                  background: (stitchStatus === 'loading-ffmpeg' || stitchStatus === 'stitching')
+                    ? 'rgba(255,255,255,0.04)'
+                    : 'linear-gradient(135deg, #FF6B35, #e55a27)',
+                  color: (stitchStatus === 'loading-ffmpeg' || stitchStatus === 'stitching') ? '#4b5563' : '#fff',
+                  boxShadow: (stitchStatus === 'loading-ffmpeg' || stitchStatus === 'stitching') ? 'none' : '0 0 20px rgba(255,107,53,0.35)',
+                }}>
+                {stitchStatus === 'loading-ffmpeg' || stitchStatus === 'stitching'
+                  ? <><i className="ri-loader-4-line animate-spin"></i> Working…</>
+                  : stitchStatus === 'done'
+                  ? <><i className="ri-refresh-line"></i> Re-stitch</>
+                  : <><i className="ri-scissors-cut-line"></i> Stitch & Export</>
+                }
+              </button>
+            </div>
+
+            {/* Progress */}
+            {(stitchStatus === 'loading-ffmpeg' || stitchStatus === 'stitching') && stitchProgress && (
+              <div className="px-5 py-3">
+                <p className="text-[10px] text-orange-400 font-mono truncate">{stitchProgress}</p>
+              </div>
+            )}
+
+            {/* Error */}
+            {stitchStatus === 'error' && (
+              <div className="px-5 py-3">
+                <p className="text-xs text-red-400">{stitchProgress}</p>
+              </div>
+            )}
+
+            {/* Final video */}
+            {stitchStatus === 'done' && finalVideoUrl && (
+              <div className="px-5 pb-5 pt-4">
+                <video src={finalVideoUrl} controls className="w-full rounded-xl mb-3"
+                  style={{ maxHeight: 400, background: '#000' }} />
+                <a href={finalVideoUrl} download="sentro-os-reel.mp4"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-white cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', boxShadow: '0 0 20px rgba(34,197,94,0.3)' }}>
+                  <i className="ri-download-2-line text-base"></i>
+                  Download sentro-os-reel.mp4
+                </a>
+              </div>
+            )}
           </div>
         )}
 
