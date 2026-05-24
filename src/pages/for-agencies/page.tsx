@@ -1100,7 +1100,7 @@ export default function ForAgenciesPage() {
             A custom internal operations hub built around <em className="not-italic font-black text-[#FF6B35]" style={{ textShadow: '0 0 20px rgba(255,107,53,0.5)' }}>your</em> team's workflow.
           </p>
           <p className="text-sm text-gray-500 mb-8 sm:whitespace-nowrap">
-            Manage HR, attendance, payroll, documents, credentials, SOPs, and internal operations — all in one branded system.
+            Manage HR, attendance, payroll, documents, credentials, SOPs, and internal operations — all in one system.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button onClick={scrollToDemo}
@@ -1150,17 +1150,16 @@ export default function ForAgenciesPage() {
       </div>
 
       {/* ── SCREENS ── */}
-      <section id="features" className="relative z-10 py-16 sm:py-28 px-6">
+      <section id="features" className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The Platform</p>
-            <h2 className="text-4xl sm:text-5xl font-black mb-5 tracking-tight leading-tight">
+            <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight">
               Built to run<br /><span className="text-[#FF6B35]" style={{ textShadow: '0 0 30px rgba(255,107,53,0.4)' }}>your whole team</span>
             </h2>
-            <p className="text-gray-400 max-w-xl mx-auto text-lg">Every screen is designed around how your team actually works — not how enterprise software thinks it does.</p>
+            <p className="text-gray-400 max-w-lg mx-auto text-base">Every screen designed around how your team actually works — not how enterprise software thinks it does.</p>
           </div>
 
-          {/* Tab buttons — above both columns */}
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-8 sm:justify-center">
             {SCREENS.map((s, i) => (
               <button key={s.label} onClick={() => setActiveScreen(i)}
@@ -1171,23 +1170,18 @@ export default function ForAgenciesPage() {
             ))}
           </div>
 
-          {/* Mobile: phone mockup only */}
-          <div className="lg:hidden flex justify-center mb-6">
+          {/* Mobile: phone only */}
+          <div className="lg:hidden flex flex-col items-center">
             <PhoneMockup activeScreen={activeScreen} />
-          </div>
-          <div className="lg:hidden">
             <p className="text-sm text-gray-500 text-center mt-4">{SCREENS[activeScreen].desc}</p>
           </div>
 
           {/* Desktop: side by side */}
           <div className="hidden lg:flex gap-10 items-start">
-            {/* Left: desktop mockup */}
             <div className="flex-1 min-w-0">
               <HubPreview activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
               <p className="text-sm text-gray-500 mt-6">{SCREENS[activeScreen].desc}</p>
             </div>
-
-            {/* Right: phone mockup */}
             <div className="flex-shrink-0">
               <PhoneMockup activeScreen={activeScreen} />
             </div>
@@ -1196,7 +1190,7 @@ export default function ForAgenciesPage() {
       </section>
 
       {/* ── WHAT IS SENTRO OS ── */}
-      <section className="relative z-10 py-14 sm:py-20 px-6 border-t border-white/5">
+      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 items-center">
             <div className="flex-1 min-w-0">
@@ -1204,18 +1198,18 @@ export default function ForAgenciesPage() {
               <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-5 leading-tight">
                 Not a SaaS.<br />Your own <span className="text-[#FF6B35]">Sentro OS</span> instance.
               </h2>
-              <p className="text-gray-400 leading-relaxed mb-4">
-                Sentro OS is a fully custom internal operations platform — built around how your organization actually runs. Not a generic tool you squeeze your team into. A system configured for your workflow from day one.
+              <p className="text-gray-400 text-sm leading-relaxed mb-3">
+                Sentro OS is a custom internal operations platform built around how your organization actually runs. Not a generic tool you squeeze your team into — a system that fits your workflow from day one.
               </p>
-              <p className="text-gray-400 leading-relaxed">
-                You get your own instance of Sentro OS — managing your people, payroll, documents, credentials, and projects. Configured by us. Maintained by us.
+              <p className="text-gray-400 text-sm leading-relaxed">
+                You get your own instance: your people, payroll, documents, credentials, and projects — all managed in one place. Configured by us. Maintained by us.
               </p>
             </div>
-            <div className="flex-shrink-0 w-full lg:w-80 grid grid-cols-1 gap-3">
+            <div className="flex-shrink-0 w-full lg:w-72 grid grid-cols-1 gap-3">
               {[
-                { label: 'Not a template', sub: 'Every hub is built from scratch around your structure', icon: 'ri-hammer-line' },
-                { label: 'Your own instance', sub: 'Configured for your team, your workflow, your org structure', icon: 'ri-server-line' },
-                { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as you grow', icon: 'ri-shield-check-line' },
+                { label: 'Built from scratch', sub: 'No templates. Every hub is configured around your org structure.', icon: 'ri-hammer-line' },
+                { label: 'We use it ourselves', sub: 'We run Huna Creatives on Sentro OS. Every feature earned its place.', icon: 'ri-tools-line' },
+                { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as your team grows.', icon: 'ri-shield-check-line' },
               ].map(p => (
                 <div key={p.label} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
                   <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
@@ -1223,7 +1217,7 @@ export default function ForAgenciesPage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-white">{p.label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{p.sub}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{p.sub}</p>
                   </div>
                 </div>
               ))}
@@ -1233,37 +1227,37 @@ export default function ForAgenciesPage() {
       </section>
 
       {/* ── WHY IT WAS MADE ── */}
-      <section className="relative z-10 py-14 sm:py-20 px-6 border-t border-white/5 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 80% at 20% 50%, rgba(255,107,53,0.05) 0%, transparent 70%)' }} />
+      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 50% 80% at 15% 50%, rgba(255,107,53,0.04) 0%, transparent 70%)' }} />
         <div className="max-w-4xl mx-auto relative">
-          <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4 text-center">Why it was made</p>
+          <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3 text-center">Why it was made</p>
           <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-10 text-center leading-tight">
             We built it for ourselves first.
           </h2>
-          <div className="grid sm:grid-cols-3 gap-6 mb-10">
+          <div className="grid sm:grid-cols-3 gap-6 mb-8">
             {[
-              { num: '01', heading: 'The problem', body: 'We were running our own agency team — designers, strategists, account managers — across spreadsheets, group chats, and manual payroll. It was messy and time-consuming.' },
-              { num: '02', heading: 'What we built', body: 'We built an internal operations hub for our own team. Attendance, payroll, contracts, credentials, requests — everything in one place. It worked.' },
-              { num: '03', heading: 'Why we\'re sharing it', body: 'Other firms have the same problem. So we started building custom versions of it for them — same foundation, fully configured around their workflow.' },
+              { num: '01', heading: 'The problem', body: 'We were managing our own agency team — across spreadsheets, group chats, and manual payroll. It was slow and error-prone.' },
+              { num: '02', heading: 'What we built', body: 'We built one hub for our team. Attendance, payroll, contracts, credentials, requests — everything in one place. It worked.' },
+              { num: '03', heading: 'Why we\'re sharing it', body: 'Other firms have the same problem. So we started building Sentro OS instances for them — same foundation, configured around their workflow.' },
             ].map(s => (
-              <div key={s.num} className="relative pl-5 border-l border-white/10">
-                <span className="text-[10px] font-black text-[#FF6B35]/50 uppercase tracking-widest block mb-2">{s.num}</span>
+              <div key={s.num} className="relative pl-4 border-l border-white/10">
+                <span className="text-[10px] font-black text-[#FF6B35]/40 uppercase tracking-widest block mb-2">{s.num}</span>
                 <h3 className="font-bold text-white text-sm mb-2">{s.heading}</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">{s.body}</p>
               </div>
             ))}
           </div>
-          <div className="border border-white/8 rounded-2xl p-6 bg-white/2 text-center">
-            <p className="text-gray-300 text-base leading-relaxed italic">
+          <div className="border border-white/8 rounded-xl p-5 bg-white/2">
+            <p className="text-gray-400 text-sm leading-relaxed italic text-center">
               "We didn't build Sentro OS to sell software. We built it because we needed it — and it turned out everyone else needed it too."
             </p>
-            <p className="text-xs text-gray-600 mt-3">— Francis, Founder of Huna Creatives</p>
+            <p className="text-xs text-gray-600 mt-3 text-center">— Francis, Founder of Huna Creatives</p>
           </div>
         </div>
       </section>
 
       {/* ── FEATURES ── */}
-      <section className="relative z-10 py-14 sm:py-20 px-6">
+      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-2">What's included</p>
@@ -1288,14 +1282,13 @@ export default function ForAgenciesPage() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section className="relative z-10 py-14 sm:py-20 px-6">
+      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The process</p>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight">Up and running in weeks,<br className="hidden sm:block" /> not months.</h2>
           </div>
           <div className="relative grid sm:grid-cols-3 gap-8">
-            {/* Connector line (desktop only) */}
             <div className="hidden sm:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px" style={{ background: 'linear-gradient(90deg, rgba(255,107,53,0.3), rgba(255,107,53,0.1) 50%, rgba(255,107,53,0.3))' }} />
             {[
               { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
@@ -1309,8 +1302,8 @@ export default function ForAgenciesPage() {
                   </div>
                   <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
                 </div>
-                <span className="text-[10px] font-semibold text-[#FF6B35]/70 uppercase tracking-widest mb-1">{s.tag}</span>
-                <h3 className="font-bold text-white mb-2 text-base">{s.title}</h3>
+                <span className="text-[10px] font-semibold text-[#FF6B35]/60 uppercase tracking-widest mb-1">{s.tag}</span>
+                <h3 className="font-bold text-white mb-2 text-sm">{s.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
               </div>
             ))}
@@ -1319,96 +1312,74 @@ export default function ForAgenciesPage() {
       </section>
 
       {/* ── PRICING ── */}
-      <section id="pricing" className="relative z-10 py-16 sm:py-28 px-6">
+      <section id="pricing" className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Pricing</p>
-            <h2 className="text-4xl sm:text-5xl font-black mb-4 tracking-tight">One-time setup. Monthly base. Per seat.</h2>
-            <p className="text-gray-400 text-lg">You pay to have it built right, then a flat base + per contractor. No surprises.</p>
+            <h2 className="text-3xl sm:text-4xl font-black mb-3 tracking-tight">One-time setup. Monthly base. Per seat.</h2>
+            <p className="text-gray-500 text-sm">You pay to have it built right, then a flat base + per seat. No surprises.</p>
           </div>
-          <div className="grid sm:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-3 gap-4">
             {PLANS.map(p => (
-              <div key={p.name} className={`rounded-2xl p-7 border flex flex-col relative overflow-hidden ${p.highlight ? 'border-[#FF6B35]/50' : 'bg-white/3 border-white/10'}`}
-                style={p.highlight ? { background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(255,107,53,0.05) 100%)', boxShadow: '0 0 60px rgba(255,107,53,0.15)' } : {}}>
+              <div key={p.name} className={`rounded-2xl p-6 border flex flex-col relative overflow-hidden ${p.highlight ? 'border-[#FF6B35]/50' : 'bg-white/3 border-white/10'}`}
+                style={p.highlight ? { background: 'linear-gradient(135deg, rgba(255,107,53,0.12) 0%, rgba(255,107,53,0.04) 100%)', boxShadow: '0 0 40px rgba(255,107,53,0.12)' } : {}}>
                 {p.highlight && (
                   <>
                     <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #FF6B35, transparent)' }} />
-                    <span className="text-xs font-bold uppercase tracking-widest text-[#FF6B35] mb-4">Most Popular</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B35] mb-3">Most Popular</span>
                   </>
                 )}
-                <h3 className="font-black text-xl mb-3 text-white">{p.name}</h3>
-                <div className="inline-flex items-center gap-1.5 text-xs font-medium mb-4 px-2.5 py-1.5 rounded-lg w-fit bg-white/5 text-gray-400">
+                <h3 className="font-black text-lg mb-2 text-white">{p.name}</h3>
+                <div className="inline-flex items-center gap-1.5 text-xs font-medium mb-4 px-2.5 py-1 rounded-lg w-fit bg-white/5 text-gray-500">
                   <i className="ri-tools-line text-xs"></i>
                   {p.setup === 'Custom' ? 'Custom setup fee' : `${p.setup} one-time setup`}
                 </div>
                 <div className="flex items-end gap-1 mb-1">
-                  <span className="text-4xl font-black text-white">{p.price}</span>
-                  <span className="text-sm mb-1.5 text-gray-400">{p.per}</span>
+                  <span className="text-3xl font-black text-white">{p.price}</span>
+                  <span className="text-sm mb-1 text-gray-400">{p.per}</span>
                 </div>
-                <p className="text-xs text-gray-500 mb-1">{p.seats} · <span className="italic">{p.perSeat}</span></p>
-                <p className="text-sm mt-3 mb-6 text-gray-400">{p.desc}</p>
-                <ul className="space-y-2.5 mb-8 flex-1">
+                <p className="text-xs text-gray-600 mb-1">{p.seats} · <span className="italic">{p.perSeat}</span></p>
+                <p className="text-xs mt-3 mb-5 text-gray-500">{p.desc}</p>
+                <ul className="space-y-2 mb-6 flex-1">
                   {p.features.map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-gray-300">
+                    <li key={f} className="flex items-center gap-2 text-xs text-gray-400">
                       <i className="ri-check-line flex-shrink-0 text-[#FF6B35]"></i>{f}
                     </li>
                   ))}
                 </ul>
                 <button onClick={scrollToDemo}
-                  className="w-full py-3 rounded-xl font-bold text-sm transition-all cursor-pointer text-white"
+                  className="w-full py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer text-white"
                   style={p.highlight
-                    ? { background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 30px rgba(255,107,53,0.3)' }
-                    : { background: 'rgba(255,107,53,0.15)', border: '1px solid rgba(255,107,53,0.3)' }}>
+                    ? { background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 24px rgba(255,107,53,0.3)' }
+                    : { background: 'rgba(255,107,53,0.12)', border: '1px solid rgba(255,107,53,0.25)' }}>
                   {p.cta} →
                 </button>
               </div>
             ))}
           </div>
-          <p className="text-center text-xs text-gray-600 mt-6">Per-seat pricing discussed during your demo call based on team size.</p>
-        </div>
-      </section>
-
-      {/* ── TRUST ── */}
-      <section className="relative z-10 py-14 sm:py-20 px-6 border-t border-white/5">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid sm:grid-cols-3 gap-8 text-center">
-            {[
-              { icon: 'ri-tools-line', title: 'Built by a team that uses it', desc: 'We run our own operations on Sentro OS every day. Every feature exists because we needed it first.' },
-              { icon: 'ri-shield-check-line', title: 'Your own instance', desc: 'Your own Sentro OS — configured for your team, your workflow, your structure. Not a shared platform.' },
-              { icon: 'ri-customer-service-2-line', title: 'We set it up with you', desc: 'No onboarding headache. We map your workflow, configure everything, and train your team.' },
-            ].map(w => (
-              <div key={w.title}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                  <i className={`${w.icon} text-[#FF6B35] text-xl`}></i>
-                </div>
-                <h3 className="font-bold mb-2 text-white">{w.title}</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">{w.desc}</p>
-              </div>
-            ))}
-          </div>
+          <p className="text-center text-xs text-gray-600 mt-5">Per-seat pricing discussed during your demo call based on team size.</p>
         </div>
       </section>
 
       {/* ── CTA ── */}
-      <section ref={demoRef} className="relative z-10 py-20 sm:py-32 px-6 text-center">
-        <div style={{ background: 'radial-gradient(ellipse 60% 80% at 50% 50%, rgba(255,107,53,0.12) 0%, transparent 70%)' }} className="absolute inset-0 pointer-events-none" />
-        <div className="relative max-w-2xl mx-auto">
+      <section ref={demoRef} className="relative z-10 py-16 sm:py-24 px-6 text-center border-t border-white/5">
+        <div style={{ background: 'radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255,107,53,0.1) 0%, transparent 70%)' }} className="absolute inset-0 pointer-events-none" />
+        <div className="relative max-w-xl mx-auto">
           <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">Get started</p>
-          <h2 className="text-4xl sm:text-6xl font-black mb-6 tracking-tight leading-tight">
-            Ready to give your<br />team its hub?
+          <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight">
+            Ready to give your team its hub?
           </h2>
-          <p className="text-gray-400 mb-10 text-lg leading-relaxed">
-            Book a 30-minute demo. We walk through the platform, understand your workflow,
-            and show you exactly what we would build for your organization.
+          <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+            Book a 30-minute demo. We walk through the platform, understand your workflow, and show you exactly what we'd build for your org.
           </p>
           <a href="https://calendly.com/hunacreatives/30min" target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-10 py-5 font-bold rounded-xl text-lg text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 60px rgba(255,107,53,0.4)' }}>
+            className="inline-flex items-center gap-2 px-8 py-4 font-bold rounded-xl text-base text-white transition-all"
+            style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 40px rgba(255,107,53,0.35)' }}>
             <i className="ri-calendar-check-line"></i>
             Book a Free Demo
           </a>
-          <p className="text-xs text-gray-600 mt-5">30 minutes · No commitment · We do the setup</p>
-          <p className="text-xs text-gray-700 mt-3">
+          <p className="text-xs text-gray-600 mt-4">30 minutes · No commitment · We do the setup</p>
+          <p className="text-xs text-gray-700 mt-2">
             A product by <a href="https://www.hunacreatives.com" className="text-gray-500 hover:text-white transition-colors">Huna Creatives</a>
           </p>
         </div>
