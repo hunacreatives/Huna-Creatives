@@ -426,12 +426,9 @@ export default function ContractorDashboard() {
       {loading ? (
         <div className="flex justify-center py-20"><i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i></div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 max-w-6xl">
+        <div className="max-w-6xl mx-auto space-y-4 w-full">
 
-          {/* ── LEFT COLUMN (2/3) ── */}
-          <div className="lg:col-span-2 space-y-4">
-
-            {/* Hero greeting */}
+            {/* Hero greeting — full width */}
             <div className="bg-[#111827] rounded-2xl p-5 text-white relative overflow-hidden">
               <style>{`
                 @keyframes sun-pulse{0%,100%{box-shadow:0 0 24px 10px rgba(255,185,50,0.35)}50%{box-shadow:0 0 42px 20px rgba(255,185,50,0.6)}}
@@ -543,6 +540,12 @@ export default function ContractorDashboard() {
                 </p>
               </div>
             </div>
+
+          {/* ── TWO-COLUMN GRID ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+          {/* ── LEFT COLUMN (2/3) ── */}
+          <div className="lg:col-span-2 space-y-4">
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -663,7 +666,7 @@ export default function ContractorDashboard() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>{/* end left col */}
 
           {/* ── RIGHT COLUMN (1/3) ── */}
           <div className="space-y-4">
@@ -729,8 +732,9 @@ export default function ContractorDashboard() {
               </div>
             </div>
 
-          </div>
-        </div>
+          </div>{/* end right col */}
+          </div>{/* end two-col grid */}
+        </div>{/* end max-w wrapper */}
       )}
     </ContractorLayout>
   );
