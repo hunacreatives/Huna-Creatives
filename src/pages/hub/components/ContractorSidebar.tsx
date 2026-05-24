@@ -72,14 +72,9 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
           <img src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-7 w-auto flex-shrink-0" />
         )}
         {!collapsed && (
-          <>
-            <span className="text-white/40 text-xs tracking-widest uppercase font-medium whitespace-nowrap overflow-hidden">
-              Huna Hub
-            </span>
-            <span className="text-xs text-emerald-400 font-medium bg-emerald-400/10 px-2 py-0.5 rounded-full whitespace-nowrap ml-auto">
-              Contractor
-            </span>
-          </>
+          <span className="text-white/40 text-xs tracking-widest uppercase font-medium whitespace-nowrap overflow-hidden">
+            Huna Hub
+          </span>
         )}
         {collapsed && (
           <button
@@ -98,6 +93,14 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
           </button>
         )}
       </div>
+
+      {!collapsed && (
+        <div className="px-4 py-2">
+          <span className="text-xs text-emerald-400 font-medium bg-emerald-400/10 px-2 py-0.5 rounded-full">
+            Contractor
+          </span>
+        </div>
+      )}
 
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         {navItems.map((item, idx) => {
