@@ -455,7 +455,7 @@ export default function ContractorDashboard() {
                   <>
                     {/* Moon */}
                     <div style={{
-                      position:'absolute', right:'26%', top:'12%',
+                      position:'absolute', right:'18%', top:'12%',
                       width:30, height:30, borderRadius:'50%',
                       background:'radial-gradient(circle at 38% 38%, #EEF4FF 0%, #C0D4F0 55%, #90B0D8 100%)',
                       animation:'moon-pulse 4s ease-in-out infinite',
