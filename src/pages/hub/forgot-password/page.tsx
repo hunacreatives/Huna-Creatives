@@ -28,11 +28,11 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6">
       <div className="w-full max-w-md space-y-8">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
-            <i className="ri-briefcase-4-fill text-white text-sm"></i>
+            <span className="text-white text-sm font-black">S</span>
           </div>
-          <span className="text-[#111827] font-semibold text-lg tracking-tight">Huna Hub</span>
+          <span className="text-[#111827] font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
         </div>
 
         {sent ? (
@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@hunacreatives.com"
+                    placeholder="you@yourcompany.com"
                     required
                     className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white transition-all"
                   />

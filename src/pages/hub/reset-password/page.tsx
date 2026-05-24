@@ -51,8 +51,11 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6">
       <div className="w-full max-w-md space-y-8">
-        <div className="flex items-center gap-2.5">
-          <img src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-9 w-auto" />
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
+            <span className="text-white text-sm font-black">S</span>
+          </div>
+          <span className="text-[#111827] font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
         </div>
 
         {done ? (

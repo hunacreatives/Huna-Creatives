@@ -59,39 +59,31 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
 
   return (
     <aside
-      className={`h-screen bg-[#111827] flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${
+      className={`h-screen bg-[#080c14] flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${
         collapsed ? 'w-[60px]' : 'w-[220px]'
       }`}
     >
-      <div className="flex items-center gap-3 px-4 h-[57px] border-b border-white/10">
+      <div className="flex items-center gap-3 px-4 h-[57px] border-b border-white/8">
         {collapsed ? (
-          <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0">
-            <i className="ri-home-heart-line text-white text-xs"></i>
+          <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0 mx-auto">
+            <span className="text-white text-xs font-black tracking-tight">S</span>
           </div>
         ) : (
-          <img src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-7 w-auto flex-shrink-0" />
+          <>
+            <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xs font-black tracking-tight">S</span>
+            </div>
+            <span className="text-white font-bold text-sm tracking-wide whitespace-nowrap overflow-hidden">
+              SENTRO <span className="text-[#FF6B35]">OS</span>
+            </span>
+          </>
         )}
-        {!collapsed && (
-          <span className="text-white/40 text-xs tracking-widest uppercase font-medium whitespace-nowrap overflow-hidden">
-            Huna Hub
-          </span>
-        )}
-        {collapsed && (
-          <button
-            onClick={onToggle}
-            className="mx-auto text-gray-400 hover:text-white transition-colors cursor-pointer"
-          >
-            <i className="ri-menu-unfold-line text-sm"></i>
-          </button>
-        )}
-        {!collapsed && (
-          <button
-            onClick={onToggle}
-            className="text-gray-400 hover:text-white transition-colors cursor-pointer flex-shrink-0"
-          >
-            <i className="ri-menu-fold-line text-sm"></i>
-          </button>
-        )}
+        <button
+          onClick={onToggle}
+          className={`text-gray-500 hover:text-white transition-colors cursor-pointer ${collapsed ? 'hidden' : 'ml-auto'}`}
+        >
+          <i className="ri-menu-fold-line text-sm"></i>
+        </button>
       </div>
 
       {!collapsed && (
@@ -107,9 +99,9 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
           if ((item as any).divider) {
             return !collapsed ? (
               <div key={idx} className="pt-3 pb-1 px-2.5">
-                <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">{item.label}</p>
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">{item.label}</p>
               </div>
-            ) : <div key={idx} className="border-t border-white/10 my-2"></div>;
+            ) : <div key={idx} className="border-t border-white/8 my-2"></div>;
           }
           return (
             <NavLink
@@ -133,7 +125,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
         })}
       </nav>
 
-      <div className="border-t border-white/10 p-3">
+      <div className="border-t border-white/8 p-3">
         {!collapsed ? (
           <div className="flex items-center gap-2.5">
             {hubUser?.avatar_url ? (

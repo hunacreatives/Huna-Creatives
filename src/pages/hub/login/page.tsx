@@ -60,15 +60,20 @@ export default function HubLoginPage() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex">
       {/* Left panel */}
-      <div className="hidden lg:flex lg:w-[45%] bg-[#1c1917] flex-col p-10 gap-8">
-        {/* Logo */}
-        <img src="/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-11 w-auto self-start" />
+      <div className="hidden lg:flex lg:w-[45%] bg-[#080c14] flex-col p-10 gap-8">
+        {/* Wordmark */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-sm font-black">S</span>
+          </div>
+          <span className="text-white font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
+        </div>
 
         {/* Team photo */}
         <div className="rounded-2xl overflow-hidden ring-1 ring-white/10">
           <img
             src="https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/f4405f8d-bb2d-4158-8112-4d2c495073e8/Screenshot+2025-08-05+at+12.46.35%E2%80%AFPM.png"
-            alt="Huna Creatives Team"
+            alt="Team"
             className="w-full h-[380px] object-cover"
             style={{ objectPosition: '70% center' }}
           />
@@ -78,21 +83,24 @@ export default function HubLoginPage() {
         <div className="space-y-3">
           <p className="text-white/35 text-xs tracking-[0.28em] uppercase font-medium">Team Portal</p>
           <h2 className="text-white text-2xl font-semibold leading-snug">
-            Your team ops, all in one place.
+            Your agency ops, all in one place.
           </h2>
           <p className="text-white/50 text-sm leading-relaxed">
-            The Huna Hub is where the team clocks in and out via Slack, tracks hours, views payslips, submits requests, reads announcements, and accesses SOPs — all in one private portal.
+            Sentro OS is your internal operations hub — attendance, payroll, time-off, announcements, SOPs, and contracts, all in one private portal built for your team.
           </p>
-          <p className="text-white/25 text-xs">Private access — Huna Creatives team only.</p>
+          <p className="text-white/25 text-xs">Private access — authorized team members only.</p>
         </div>
       </div>
 
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md space-y-8">
-          {/* Mobile logo */}
-          <div className="lg:hidden">
-            <img src="/images/547b59870e776a20eb28e4f20931787c.png" alt="Huna Creatives" className="h-8 w-auto" />
+          {/* Mobile wordmark */}
+          <div className="lg:hidden flex items-center gap-2">
+            <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center">
+              <span className="text-white text-xs font-black">S</span>
+            </div>
+            <span className="text-[#111827] font-bold text-sm tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
           </div>
 
           <div className="space-y-2">
@@ -118,7 +126,7 @@ export default function HubLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@hunacreatives.com"
+                  placeholder="you@yourcompany.com"
                   required
                   className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white transition-all"
                 />
@@ -180,8 +188,8 @@ export default function HubLoginPage() {
           </form>
 
           <p className="text-center text-xs text-gray-400">
-            Private portal — Huna Creatives team only.<br />
-            Contact HR if you need access.
+            Private portal — authorized team members only.<br />
+            Contact your admin if you need access.
           </p>
         </div>
       </div>

@@ -71,29 +71,29 @@ export default function HubSignupPage() {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex">
-      <div className="hidden lg:flex lg:w-1/2 bg-[#111827] flex-col justify-between p-12">
-        <div className="flex items-center gap-2.5">
+      <div className="hidden lg:flex lg:w-1/2 bg-[#080c14] flex-col justify-between p-12">
+        <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
-            <i className="ri-briefcase-4-fill text-white text-sm"></i>
+            <span className="text-white text-sm font-black">S</span>
           </div>
-          <span className="text-white font-semibold text-lg tracking-tight">Huna Hub</span>
+          <span className="text-white font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
         </div>
         <div className="space-y-4">
           <h2 className="text-white text-3xl font-bold leading-tight">Welcome to the team.</h2>
           <p className="text-gray-400 text-base leading-relaxed">
-            Set your password to access attendance tracking, announcements, payouts, and your team SOPs.
+            Set your password to access your Sentro OS workspace — attendance, payouts, announcements, SOPs, and more.
           </p>
         </div>
-        <p className="text-gray-600 text-xs">Private portal — Huna Creatives team only.</p>
+        <p className="text-gray-600 text-xs">Private portal — authorized team members only.</p>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md space-y-8">
-          <div className="flex items-center gap-2.5 lg:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
             <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
-              <i className="ri-briefcase-4-fill text-white text-sm"></i>
+              <span className="text-white text-sm font-black">S</span>
             </div>
-            <span className="text-[#111827] font-semibold text-lg tracking-tight">Huna Hub</span>
+            <span className="text-[#111827] font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
           </div>
 
           <div className="space-y-1">
