@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 
 const API_KEY = import.meta.env.VITE_REPLICATE_API_KEY as string;
 
@@ -246,7 +245,7 @@ export default function AiVideoPage() {
   const [stitchStatus, setStitchStatus] = useState<StitchStatus>('idle');
   const [stitchProgress, setStitchProgress] = useState('');
   const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
-  const ffmpegRef = useRef<FFmpeg | null>(null);
+  const ffmpegRef = useRef<ReturnType<typeof createFFmpeg> | null>(null);
 
   const setClip = (id: number, update: Partial<ClipState>) =>
     setClips(prev => ({ ...prev, [id]: { ...prev[id], ...update } }));
@@ -282,14 +281,13 @@ export default function AiVideoPage() {
       if (!ffmpegRef.current) {
         setStitchStatus('loading-ffmpeg');
         setStitchProgress('Loading ffmpeg…');
-        const ff = new FFmpeg();
-        ff.on('log', ({ message }) => setStitchProgress(message));
-        ff.on('progress', ({ progress }) => setStitchProgress(`Encoding… ${Math.round(progress * 100)}%`));
-        const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.4/dist/esm';
-        await ff.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        const ff = createFFmpeg({
+          corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+          log: false,
         });
+        ff.setLogger(({ message }) => setStitchProgress(message));
+        ff.setProgress(({ ratio }) => setStitchProgress(`Encoding… ${Math.round(ratio * 100)}%`));
+        await ff.load();
         ffmpegRef.current = ff;
       }
 
@@ -301,20 +299,19 @@ export default function AiVideoPage() {
       for (let i = 0; i < readyClips.length; i++) {
         setStitchProgress(`Fetching clip ${i + 1} of ${readyClips.length}…`);
         const filename = `clip${i}.mp4`;
-        await ff.writeFile(filename, await fetchFile(readyClips[i].videoUrl!));
+        ff.FS('writeFile', filename, await fetchFile(readyClips[i].videoUrl!));
         listLines.push(`file '${filename}'`);
       }
 
       // Write concat list
-      const encoder = new TextEncoder();
-      await ff.writeFile('list.txt', encoder.encode(listLines.join('\n')));
+      ff.FS('writeFile', 'list.txt', new TextEncoder().encode(listLines.join('\n')));
 
       setStitchProgress('Stitching clips together…');
-      await ff.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4']);
+      await ff.run('-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4');
 
       setStitchProgress('Exporting…');
-      const data = await ff.readFile('output.mp4');
-      const blob = new Blob([data], { type: 'video/mp4' });
+      const data = ff.FS('readFile', 'output.mp4');
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
       setFinalVideoUrl(url);
       setStitchStatus('done');
