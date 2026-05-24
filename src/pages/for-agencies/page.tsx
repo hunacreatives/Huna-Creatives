@@ -1056,13 +1056,13 @@ export default function ForAgenciesPage() {
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         trail: [],
-        trailLen: 25 + Math.floor(Math.random() * 55),
+        trailLen: 80 + Math.floor(Math.random() * 120),
         alpha: 0.2 + Math.random() * 0.35,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
       };
     };
 
-    let particles: P[] = Array.from({ length: 22 }, spawn);
+    let particles: P[] = Array.from({ length: 8 }, spawn);
 
     let animId: number;
     const animate = () => {
@@ -1367,10 +1367,13 @@ export default function ForAgenciesPage() {
             ))}
           </div>
           <div className="rounded-xl p-5 bg-black/10 border border-white/20">
-            <p className="text-white/90 text-sm leading-relaxed italic text-center">
+            <p className="text-white/90 text-sm leading-relaxed italic text-center mb-4">
               "We didn't build Sentro OS to sell software. We built it because we needed it — and it turned out everyone else needed it too."
             </p>
-            <p className="text-xs text-white/50 mt-3 text-center">— Francis, Founder of Huna Creatives</p>
+            <div className="flex items-center justify-center gap-3">
+              <img src="/images/6785570f89c09728ca73acf4660742b6.png" alt="Francis Fiel Roble" className="w-8 h-8 rounded-full object-cover border-2 border-white/30" />
+              <p className="text-xs text-white/60">Francis Fiel Roble · Founder, Huna Creatives</p>
+            </div>
           </div>
         </div>
       </section>
