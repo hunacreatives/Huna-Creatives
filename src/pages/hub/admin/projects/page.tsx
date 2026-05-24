@@ -19,7 +19,7 @@ interface ContractorPayout { id: number; amount: number; paid_at: string; notes:
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
   contract_price: number; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
-  hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null }[];
+  hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
   hub_project_contractors: {
     id: number; percentage: number; payout_type: string; fixed_amount: number | null;
@@ -57,6 +57,7 @@ export default function AdminProjectsPage() {
   const [payAmount, setPayAmount] = useState('');
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [payNotes, setPayNotes] = useState('');
+  const [payReceipt, setPayReceipt] = useState<File | null>(null);
   const [paySaving, setPaySaving] = useState(false);
   const [payError, setPayError] = useState('');
 
@@ -91,7 +92,7 @@ export default function AdminProjectsPage() {
   const fetchAll = async () => {
     const [pRes, cRes] = await Promise.all([
       supabase.from('hub_projects')
-        .select('*, hub_project_payments(id, amount, paid_at, notes), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
+        .select('*, hub_project_payments(id, amount, paid_at, notes, receipt_url), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
@@ -135,12 +136,24 @@ export default function AdminProjectsPage() {
   const logPayment = async () => {
     if (!activeId || !payAmount) return;
     setPaySaving(true); setPayError('');
+
+    let receipt_url: string | null = null;
+    if (payReceipt) {
+      const ext = payReceipt.name.split('.').pop();
+      const path = `client-payments/${activeId}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('payout-receipts').upload(path, payReceipt, { upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('payout-receipts').getPublicUrl(path);
+        receipt_url = urlData.publicUrl;
+      }
+    }
+
     const { error } = await supabase.from('hub_project_payments').insert({
-      project_id: activeId, amount: parseFloat(payAmount), paid_at: payDate, notes: payNotes || null,
+      project_id: activeId, amount: parseFloat(payAmount), paid_at: payDate, notes: payNotes || null, receipt_url,
     });
     setPaySaving(false);
     if (error) { setPayError(error.message); return; }
-    setPayAmount(''); setPayNotes('');
+    setPayAmount(''); setPayNotes(''); setPayReceipt(null);
     fetchAll();
   };
 
@@ -588,7 +601,7 @@ ${balance > 0 ? `
                     <div className="space-y-2">
                       {activeProject.hub_project_payments.map((pp) => (
                         <div key={pp.id} className="flex items-start justify-between gap-2 p-2.5 bg-gray-50 rounded-lg">
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <span className="text-sm font-semibold text-emerald-600">{fmt(pp.amount)}</span>
                             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                               <span className="text-[11px] text-gray-400">
@@ -601,6 +614,11 @@ ${balance > 0 ? `
                                 </span>
                               )}
                             </div>
+                            {pp.receipt_url && (
+                              <button onClick={() => setLightboxUrl(pp.receipt_url)} className="mt-1.5 cursor-pointer">
+                                <img src={pp.receipt_url} alt="receipt" className="h-8 w-14 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
+                              </button>
+                            )}
                           </div>
                           <button onClick={() => deletePayment(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0 mt-0.5"><i className="ri-delete-bin-line text-xs"></i></button>
                         </div>
@@ -621,6 +639,18 @@ ${balance > 0 ? `
                         className="px-3 py-1.5 bg-emerald-500 text-white text-xs rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap">
                         {paySaving ? '...' : '+ Log'}
                       </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <i className="ri-image-add-line text-gray-400 text-sm"></i>
+                        <span className="text-xs text-gray-400">{payReceipt ? payReceipt.name : 'Attach receipt (optional)'}</span>
+                        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => setPayReceipt(e.target.files?.[0] ?? null)} />
+                      </label>
+                      {payReceipt && (
+                        <button onClick={() => setPayReceipt(null)} className="text-gray-300 hover:text-rose-400 cursor-pointer text-xs">
+                          <i className="ri-close-line"></i>
+                        </button>
+                      )}
                     </div>
                     {payError && <p className="text-xs text-red-500">{payError}</p>}
                   </div>
