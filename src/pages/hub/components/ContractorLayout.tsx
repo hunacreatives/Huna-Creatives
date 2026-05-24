@@ -53,7 +53,7 @@ export default function ContractorLayout({ children, title, actions }: Props) {
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="bg-white border-b border-gray-100 px-4 md:px-6 py-3.5 flex items-center gap-4 flex-shrink-0">
+        <header className="bg-white border-b border-gray-100 px-4 md:px-6 h-[57px] flex items-center gap-4 flex-shrink-0">
           <button
             onClick={() => setMobileOpen(true)}
             className="lg:hidden text-gray-500 hover:text-gray-700 cursor-pointer"

@@ -63,7 +63,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
         collapsed ? 'w-[60px]' : 'w-[220px]'
       }`}
     >
-      <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/10">
+      <div className="flex items-center gap-3 px-4 h-[57px] border-b border-white/10">
         {collapsed ? (
           <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0">
             <i className="ri-home-heart-line text-white text-xs"></i>
