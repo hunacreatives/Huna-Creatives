@@ -6,6 +6,7 @@ import { HubUser } from '@/lib/types';
 import AddContractorModal from './AddContractorModal';
 
 type ConfirmAction = { type: 'deactivate' | 'delete'; contractor: HubUser };
+type Toast = { id: number; message: string; type: 'success' | 'error' };
 
 export default function ContractorsPage() {
   const navigate = useNavigate();
@@ -18,7 +19,16 @@ export default function ContractorsPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
+  const toastCounter = useRef(0);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    const id = ++toastCounter.current;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  };
 
   const fetchContractors = async () => {
     const { data } = await supabase
@@ -210,7 +220,37 @@ export default function ContractorsPage() {
                               <i className="ri-more-2-fill text-sm"></i>
                             </button>
                             {openMenu === c.id && (
-                              <div className="absolute right-0 top-8 z-20 w-44 bg-white border border-gray-100 rounded-xl shadow-lg py-1 text-sm">
+                              <div className="absolute right-0 top-8 z-20 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 text-sm">
+                                {!c.onboarding_completed && (
+                                  <>
+                                    <button
+                                      disabled={resendingId === c.id}
+                                      onClick={async () => {
+                                        setOpenMenu(null);
+                                        setResendingId(c.id);
+                                        try {
+                                          const { data, error } = await supabase.functions.invoke('resend-invite', {
+                                            body: { contractor_id: c.id },
+                                          });
+                                          if (error || data?.error) {
+                                            showToast(data?.error ?? 'Failed to resend invite', 'error');
+                                          } else {
+                                            showToast(`Invite resent to ${c.email}`, 'success');
+                                          }
+                                        } catch {
+                                          showToast('Failed to resend invite', 'error');
+                                        } finally {
+                                          setResendingId(null);
+                                        }
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sky-600 hover:bg-sky-50 cursor-pointer disabled:opacity-50"
+                                    >
+                                      <i className="ri-mail-send-line"></i>
+                                      Resend Invite
+                                    </button>
+                                    <div className="border-t border-gray-50 my-1" />
+                                  </>
+                                )}
                                 {c.status === 'active' ? (
                                   <button
                                     onClick={() => { setOpenMenu(null); setConfirm({ type: 'deactivate', contractor: c }); }}
@@ -258,6 +298,16 @@ export default function ContractorsPage() {
           onSuccess={() => { setShowAdd(false); fetchContractors(); }}
         />
       )}
+
+      {/* Toast notifications */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+        {toasts.map(t => (
+          <div key={t.id} className={`flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white pointer-events-auto transition-all ${t.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+            <i className={t.type === 'success' ? 'ri-checkbox-circle-line' : 'ri-error-warning-line'}></i>
+            {t.message}
+          </div>
+        ))}
+      </div>
 
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
