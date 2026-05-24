@@ -47,7 +47,13 @@ export default function HubSignupPage() {
     const { error: updateErr } = await supabase.auth.updateUser({ password });
     if (updateErr) { setError(updateErr.message); setLoading(false); return; }
 
-    navigate('/hub/dashboard');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: hubUser } = await supabase.from('hub_users').select('role').eq('id', user.id).maybeSingle();
+      navigate(hubUser?.role === 'admin' ? '/hub/admin/dashboard' : '/hub/contractor/dashboard', { replace: true });
+    } else {
+      navigate('/hub/login', { replace: true });
+    }
   };
 
   if (!ready) {

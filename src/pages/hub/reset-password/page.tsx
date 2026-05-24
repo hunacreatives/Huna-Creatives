@@ -13,10 +13,19 @@ export default function ResetPasswordPage() {
   const [validSession, setValidSession] = useState(false);
 
   useEffect(() => {
-    // Supabase puts the access token in the URL hash after clicking the reset link
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setValidSession(!!session);
+    // Listen for PASSWORD_RECOVERY event fired when Supabase parses the hash tokens
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        setValidSession(true);
+      }
     });
+
+    // Fallback for already-active sessions
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setValidSession(true);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -29,7 +38,14 @@ export default function ResetPasswordPage() {
     setLoading(false);
     if (err) { setError(err.message); return; }
     setDone(true);
-    setTimeout(() => navigate('/hub/login'), 2500);
+    // Session is already active — check role and redirect to the right dashboard
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: hubUser } = await supabase.from('hub_users').select('role').eq('id', user.id).maybeSingle();
+      setTimeout(() => navigate(hubUser?.role === 'admin' ? '/hub/admin/dashboard' : '/hub/contractor/dashboard'), 2000);
+    } else {
+      setTimeout(() => navigate('/hub/login'), 2000);
+    }
   };
 
   return (
@@ -46,7 +62,7 @@ export default function ResetPasswordPage() {
             </div>
             <div className="space-y-1">
               <h2 className="text-[#111827] text-lg font-semibold">Password updated</h2>
-              <p className="text-gray-500 text-sm">Redirecting you to sign in…</p>
+              <p className="text-gray-500 text-sm">Taking you to your hub…</p>
             </div>
           </div>
         ) : (
