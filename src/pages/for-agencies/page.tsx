@@ -1056,13 +1056,17 @@ export default function ForAgenciesPage() {
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         trail: [],
-        trailLen: 80 + Math.floor(Math.random() * 120),
+        trailLen: 200 + Math.floor(Math.random() * 200),
         alpha: 0.2 + Math.random() * 0.35,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
       };
     };
 
-    let particles: P[] = Array.from({ length: 8 }, spawn);
+    let particles: P[] = [];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i < 8; i++) {
+      timers.push(setTimeout(() => { particles.push(spawn()); }, 3000 + i * 600));
+    }
 
     let animId: number;
     const animate = () => {
@@ -1133,6 +1137,7 @@ export default function ForAgenciesPage() {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', resize);
+      timers.forEach(clearTimeout);
     };
   }, []);
 
