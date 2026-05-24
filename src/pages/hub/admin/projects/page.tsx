@@ -74,6 +74,7 @@ export default function AdminProjectsPage() {
   const [addCtxPct, setAddCtxPct] = useState('');
   const [addCtxFixed, setAddCtxFixed] = useState('');
   const [ctxSaving, setCtxSaving] = useState(false);
+  const [ctxAddError, setCtxAddError] = useState('');
 
   // Staged contractor payouts: keyed by hub_project_contractors.id
   const [ctxPayForm, setCtxPayForm] = useState<Record<number, { amount: string; date: string; notes: string; receipt: File | null; notify: boolean }>>({});
@@ -183,15 +184,17 @@ export default function AdminProjectsPage() {
     if (!activeId || !addCtxId) return;
     if (addCtxPayoutType === 'percentage' && !addCtxPct) return;
     if (addCtxPayoutType === 'fixed' && !addCtxFixed) return;
-    setCtxSaving(true);
-    await supabase.from('hub_project_contractors').upsert({
+    setCtxSaving(true); setCtxAddError('');
+    const { error } = await supabase.from('hub_project_contractors').upsert({
       project_id: activeId,
       contractor_id: addCtxId,
       payout_type: addCtxPayoutType,
       percentage: addCtxPayoutType === 'percentage' ? parseFloat(addCtxPct) : 0,
       fixed_amount: addCtxPayoutType === 'fixed' ? parseFloat(addCtxFixed) : null,
     }, { onConflict: 'project_id,contractor_id' });
-    setAddCtxId(''); setAddCtxPct(''); setAddCtxFixed(''); setCtxSaving(false);
+    setCtxSaving(false);
+    if (error) { setCtxAddError(error.message); return; }
+    setAddCtxId(''); setAddCtxPct(''); setAddCtxFixed('');
     fetchAll();
   };
 
@@ -860,6 +863,7 @@ ${balance > 0 ? `
                         {ctxSaving ? '...' : 'Add'}
                       </button>
                     </div>
+                    {ctxAddError && <p className="text-xs text-red-500">{ctxAddError}</p>}
                   </div>
                 )}
               </div>
