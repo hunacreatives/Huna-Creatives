@@ -1193,7 +1193,7 @@ export default function ForAgenciesPage() {
       <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 items-center">
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-center lg:text-left">
               <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">What is Sentro OS</p>
               <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-5 leading-tight">
                 Not a SaaS.<br />Your own <span className="text-[#FF6B35]">Sentro OS</span> instance.
