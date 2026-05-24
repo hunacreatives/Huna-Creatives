@@ -1292,36 +1292,6 @@ export default function ForAgenciesPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The process</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">Up and running in weeks,<br className="hidden sm:block" /> not months.</h2>
-          </div>
-          <div className="relative grid sm:grid-cols-3 gap-8">
-            <div className="hidden sm:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px" style={{ background: 'linear-gradient(90deg, rgba(255,107,53,0.3), rgba(255,107,53,0.1) 50%, rgba(255,107,53,0.3))' }} />
-            {[
-              { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
-              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Your Sentro OS instance, configured around your exact structure — your rules, your roles, your modules.' },
-              { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
-            ].map(s => (
-              <div key={s.step} className="flex flex-col items-center text-center relative">
-                <div className="relative mb-5 z-10">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}>
-                    <i className={`${s.icon} text-[#FF6B35] text-xl`}></i>
-                  </div>
-                  <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
-                </div>
-                <span className="text-[10px] font-semibold text-[#FF6B35]/60 uppercase tracking-widest mb-1">{s.tag}</span>
-                <h3 className="font-bold text-white mb-2 text-sm">{s.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── PRICING ── */}
       <section id="pricing" className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto">
@@ -1393,6 +1363,36 @@ export default function ForAgenciesPage() {
           <p className="text-xs text-gray-700 mt-2">
             A product by <a href="https://www.hunacreatives.com" className="text-gray-500 hover:text-white transition-colors">Huna Creatives</a>
           </p>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The process</p>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight">Up and running in weeks,<br className="hidden sm:block" /> not months.</h2>
+          </div>
+          <div className="relative grid sm:grid-cols-3 gap-8">
+            <div className="hidden sm:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px" style={{ background: 'linear-gradient(90deg, rgba(255,107,53,0.3), rgba(255,107,53,0.1) 50%, rgba(255,107,53,0.3))' }} />
+            {[
+              { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
+              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Your Sentro OS instance, configured around your exact structure — your rules, your roles, your modules.' },
+              { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
+            ].map(s => (
+              <div key={s.step} className="flex flex-col items-center text-center relative">
+                <div className="relative mb-5 z-10">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}>
+                    <i className={`${s.icon} text-[#FF6B35] text-xl`}></i>
+                  </div>
+                  <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
+                </div>
+                <span className="text-[10px] font-semibold text-[#FF6B35]/60 uppercase tracking-widest mb-1">{s.tag}</span>
+                <h3 className="font-bold text-white mb-2 text-sm">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
