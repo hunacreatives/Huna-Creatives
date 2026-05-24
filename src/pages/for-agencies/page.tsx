@@ -1392,7 +1392,7 @@ export default function ForAgenciesPage() {
       </section>
 
       <div className="relative z-10 border-t border-white/5">
-        <Footer />
+        <Footer isDark />
       </div>
     </div>
   );
