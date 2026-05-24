@@ -32,7 +32,7 @@ const PLANS = [
     name: 'Enterprise', setup: 'Custom', price: 'Custom', per: '',
     perSeat: 'Negotiated per seat', seats: 'Unlimited seats',
     desc: 'Fully custom build tailored to your organization from the ground up.',
-    features: ['Everything in Growth', 'Your branding & domain', 'Custom integrations & modules', 'Dedicated onboarding', 'Dedicated account manager', 'SLA & priority escalation'],
+    features: ['Everything in Growth', 'Custom integrations & modules', 'Dedicated onboarding', 'Dedicated account manager', 'SLA & priority escalation'],
     cta: 'Talk to Us', highlight: false,
   },
 ];
@@ -974,7 +974,7 @@ export default function ForAgenciesPage() {
   useSEO({
     title: 'Sentro OS — Custom Internal Operations Hub for Agencies & Firms',
     description:
-      'Sentro OS is a done-for-you internal operations hub built around your team\'s workflow. Attendance, payroll, documents, credentials, and more — fully branded for your organization.',
+      'Sentro OS is a done-for-you internal operations hub built around your team\'s workflow. Attendance, payroll, documents, credentials, and more — your own instance, fully configured for your organization.',
     canonical: '/sentro-os',
     schema: [
       {
@@ -1113,7 +1113,7 @@ export default function ForAgenciesPage() {
               See how it works
             </a>
           </div>
-          <p className="text-xs text-gray-700 mt-4">No credit card required · We set it up with you · Your brand on it</p>
+          <p className="text-xs text-gray-700 mt-4">No credit card required · We set it up with you · Your own Sentro OS instance</p>
         </div>
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
           style={{ opacity: pageVisible ? 1 : 0, transition: 'opacity 1s ease-out' }}>
@@ -1202,19 +1202,19 @@ export default function ForAgenciesPage() {
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">What is Sentro OS</p>
               <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-5 leading-tight">
-                Not a SaaS.<br />A hub built around <span className="text-[#FF6B35]">your</span> team.
+                Not a SaaS.<br />Your own <span className="text-[#FF6B35]">Sentro OS</span> instance.
               </h2>
               <p className="text-gray-400 leading-relaxed mb-4">
-                Sentro OS is a fully custom internal operations platform — built around how your organization actually runs. Not a generic tool you squeeze your team into. A system that fits your workflow from day one.
+                Sentro OS is a fully custom internal operations platform — built around how your organization actually runs. Not a generic tool you squeeze your team into. A system configured for your workflow from day one.
               </p>
               <p className="text-gray-400 leading-relaxed">
-                You get one hub that manages your people, your payroll, your documents, your internal comms, and your projects. Branded as yours. Maintained by us.
+                You get your own instance of Sentro OS — managing your people, payroll, documents, credentials, and projects. Configured by us. Maintained by us.
               </p>
             </div>
             <div className="flex-shrink-0 w-full lg:w-80 grid grid-cols-1 gap-3">
               {[
                 { label: 'Not a template', sub: 'Every hub is built from scratch around your structure', icon: 'ri-hammer-line' },
-                { label: 'Your brand on it', sub: 'Your logo, your colors, your domain', icon: 'ri-palette-line' },
+                { label: 'Your own instance', sub: 'Configured for your team, your workflow, your org structure', icon: 'ri-server-line' },
                 { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as you grow', icon: 'ri-shield-check-line' },
               ].map(p => (
                 <div key={p.label} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
@@ -1299,7 +1299,7 @@ export default function ForAgenciesPage() {
             <div className="hidden sm:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px" style={{ background: 'linear-gradient(90deg, rgba(255,107,53,0.3), rgba(255,107,53,0.1) 50%, rgba(255,107,53,0.3))' }} />
             {[
               { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
-              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Custom configured around your exact structure — your brand, your rules, your modules.' },
+              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Your Sentro OS instance, configured around your exact structure — your rules, your roles, your modules.' },
               { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
             ].map(s => (
               <div key={s.step} className="flex flex-col items-center text-center relative">
@@ -1374,7 +1374,7 @@ export default function ForAgenciesPage() {
           <div className="grid sm:grid-cols-3 gap-8 text-center">
             {[
               { icon: 'ri-tools-line', title: 'Built by a team that uses it', desc: 'We run our own operations on Sentro OS every day. Every feature exists because we needed it first.' },
-              { icon: 'ri-shield-check-line', title: 'Your brand on it', desc: 'Your logo, your colors, your domain. It looks like it was built in-house — because it was.' },
+              { icon: 'ri-shield-check-line', title: 'Your own instance', desc: 'Your own Sentro OS — configured for your team, your workflow, your structure. Not a shared platform.' },
               { icon: 'ri-customer-service-2-line', title: 'We set it up with you', desc: 'No onboarding headache. We map your workflow, configure everything, and train your team.' },
             ].map(w => (
               <div key={w.title}>
