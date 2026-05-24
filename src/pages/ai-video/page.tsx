@@ -9,44 +9,37 @@ const SCENES = [
   {
     id: 1,
     title: 'The Chaos',
-    timing: '0–3s',
+    timing: '0–5s',
     prompt:
-      'Multiple app windows open simultaneously on a dark desktop, notification badges piling up, spreadsheet with red error cells, Slack messages flooding in, Google Forms, email inbox overflowing, overwhelming cluttered digital workspace, cinematic dark moody lighting, fast chaotic energy, 9:16 vertical video, high quality',
+      'Multiple app windows open simultaneously on a dark desktop, notification badges piling up, spreadsheet with red error cells, Slack messages flooding in, email inbox overflowing, overwhelming cluttered digital workspace, cinematic dark moody lighting, chaotic energy, 9:16 vertical video, high quality, 5 seconds',
   },
   {
     id: 2,
-    title: 'The Break',
-    timing: '3–5s',
-    prompt:
-      'All windows dissolving and shattering into pure black, dramatic slow motion, particles of light fading away, complete darkness, single beat of silence, cinematic minimalist, dark background, 9:16 vertical video, high quality',
-  },
-  {
-    id: 3,
     title: 'The Hub Reveals',
     timing: '5–10s',
     prompt:
-      'Sleek dark modern software dashboard rising up from the bottom of the screen, glowing orange accent colors, clean UI with sidebar navigation, team attendance dots lighting up green one by one, KPI cards counting up, beautiful data visualization, cinematic product reveal, dark background with orange glow, slow camera push forward, 9:16 vertical video, high quality',
+      'Sleek dark modern software dashboard rising up dramatically from the bottom of the screen, glowing orange accent colors, clean UI sidebar navigation, team attendance dots lighting up green, KPI stat cards animating, cinematic product reveal, dark background with orange glow, slow camera push forward, 9:16 vertical video, high quality, 5 seconds',
   },
   {
-    id: 4,
+    id: 3,
     title: 'Features Montage',
     timing: '10–15s',
     prompt:
-      'Rapid elegant transitions between dark UI screens: attendance tracking view with green checkmarks, payroll processing screen with numbers calculating and processed stamp appearing, document vault with files organizing, credentials panel with masked passwords locking into place, each screen morphing into the next, dark premium software aesthetic, orange accent colors, 9:16 vertical video, high quality',
+      'Rapid elegant transitions between dark software UI screens: attendance tracking with green checkmarks filling in, payroll processing with numbers calculating and a green processed stamp, document vault with files organizing themselves, credentials panel locking into place, each screen morphing into the next seamlessly, dark premium software aesthetic, orange accents, 9:16 vertical video, high quality, 5 seconds',
+  },
+  {
+    id: 4,
+    title: 'The Stamp',
+    timing: '15–20s',
+    prompt:
+      'Cinematic dark frame, single line of clean bold white text fading in centered on screen, warm amber light softly illuminating from behind, minimal dramatic pause, premium dark brand aesthetic, subtle warm glow particles floating, 9:16 vertical video, high quality, 5 seconds',
   },
   {
     id: 5,
-    title: 'The Stamp',
-    timing: '15–17s',
-    prompt:
-      'Single dark cinematic frame, clean minimal dark background with subtle warm glow, dramatic pause, dark premium aesthetic, 9:16 vertical video, high quality',
-  },
-  {
-    id: 6,
     title: 'The Hero Glow',
-    timing: '17–20s',
+    timing: '20–25s',
     prompt:
-      'Dramatic cinematic reveal of large bold white glowing text on pure dark background, warm golden orange glow radiating outward from the letters, light breathing and pulsing, text illuminated from within, luxury brand reveal, dark film noir aesthetic, warm amber and orange light bloom, 9:16 vertical video, high quality, slow motion',
+      'Dramatic cinematic reveal of large glowing bold white text on pure black background, warm golden orange light radiating and blooming outward from the letters, glow breathing and pulsing like neon signage, text illuminated from within, luxury brand reveal, dark film noir aesthetic, warm amber and orange light bloom filling the frame, 9:16 vertical video, high quality, 5 seconds',
   },
 ];
 
@@ -282,7 +275,7 @@ export default function AiVideoPage() {
         setStitchStatus('loading-ffmpeg');
         setStitchProgress('Loading ffmpeg…');
         const ff = createFFmpeg({
-          corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+          corePath: `${window.location.origin}/ffmpeg/ffmpeg-core.js`,
           log: false,
         });
         ff.setLogger(({ message }) => setStitchProgress(message));
@@ -332,8 +325,8 @@ export default function AiVideoPage() {
         {/* Header */}
         <div className="mb-8">
           <p className="text-[10px] text-gray-700 uppercase tracking-widest mb-2">Sentro OS · AI Video</p>
-          <h1 className="text-2xl font-black text-white mb-1">20s Reel Generator</h1>
-          <p className="text-sm text-gray-600">6 scenes · powered by Minimax via Replicate</p>
+          <h1 className="text-2xl font-black text-white mb-1">25s Reel Generator</h1>
+          <p className="text-sm text-gray-600">5 scenes · 5s each · powered by Minimax via Replicate</p>
         </div>
 
         {/* Progress overview */}
