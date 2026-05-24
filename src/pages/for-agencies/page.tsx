@@ -1212,11 +1212,13 @@ export default function ForAgenciesPage() {
                 { label: 'We use it ourselves', sub: 'We run Huna Creatives on Sentro OS. Every feature earned its place.', icon: 'ri-tools-line' },
                 { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as your team grows.', icon: 'ri-shield-check-line' },
               ].map(p => (
-                <div key={p.label} className="flex flex-col items-center text-center gap-2">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                    <i className={`${p.icon} text-[#FF6B35] text-sm`}></i>
+                <div key={p.label} className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-1.5">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,107,53,0.1)' }}>
+                      <i className={`${p.icon} text-[#FF6B35] text-xs`}></i>
+                    </div>
+                    <p className="text-sm font-bold text-white">{p.label}</p>
                   </div>
-                  <p className="text-sm font-bold text-white">{p.label}</p>
                   <p className="text-xs text-gray-500 leading-relaxed">{p.sub}</p>
                 </div>
               ))}
