@@ -1,8 +1,6 @@
 import { useState, useRef } from 'react';
 import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 
-const API_KEY = import.meta.env.VITE_REPLICATE_API_KEY as string;
-
 // ─── Script scenes ─────────────────────────────────────────────────────────────
 
 const SCENES = [
@@ -56,28 +54,34 @@ interface ClipState {
 
 // ─── Replicate API ─────────────────────────────────────────────────────────────
 
-const HEADERS = {
-  Authorization: `Bearer ${API_KEY}`,
-  'Content-Type': 'application/json',
-};
+const PROXY = '/api/replicate';
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
+async function proxyGet(path: string) {
+  const res = await fetch(`${PROXY}?path=${encodeURIComponent(path)}`);
+  return res.json();
+}
+
+async function proxyPost(path: string, body: unknown) {
+  const res = await fetch(`${PROXY}?path=${encodeURIComponent(path)}`, {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, data: await res.json() };
+}
 
 async function testConnection(): Promise<string> {
-  const res = await fetch('https://api.replicate.com/v1/account', { headers: HEADERS });
-  if (!res.ok) throw new Error(`Auth failed: HTTP ${res.status}`);
-  const data = await res.json() as { username?: string };
+  const data = await proxyGet('account') as { username?: string; detail?: string };
+  if (data.detail) throw new Error(data.detail);
   return data.username ?? 'connected';
 }
 
 async function createPrediction(prompt: string): Promise<string> {
-  const res = await fetch('https://api.replicate.com/v1/models/minimax/video-01/predictions', {
-    method: 'POST',
-    headers: HEADERS,
-    body: JSON.stringify({
-      input: { prompt, prompt_optimizer: true },
-    }),
-  });
-  const data = await res.json() as { id?: string; detail?: string; error?: string };
-  if (!res.ok) throw new Error(data.detail || data.error || `HTTP ${res.status}`);
+  const { status, data } = await proxyPost('models/minimax/video-01/predictions', {
+    input: { prompt, prompt_optimizer: true },
+  }) as { status: number; data: { id?: string; detail?: string; error?: string } };
+  if (status >= 400) throw new Error(data.detail || data.error || `HTTP ${status}`);
   if (!data.id) throw new Error('No prediction ID returned');
   return data.id;
 }
@@ -85,8 +89,7 @@ async function createPrediction(prompt: string): Promise<string> {
 async function pollPrediction(id: string, onProgress?: (status: string) => void): Promise<string> {
   for (let attempt = 0; attempt < 180; attempt++) {
     await new Promise(r => setTimeout(r, 3000));
-    const res = await fetch(`https://api.replicate.com/v1/predictions/${id}`, { headers: HEADERS });
-    const data = await res.json() as { status: string; output?: string | string[]; error?: string; logs?: string };
+    const data = await proxyGet(`predictions/${id}`) as { status: string; output?: string | string[]; error?: string };
 
     if (onProgress) onProgress(data.status);
 
