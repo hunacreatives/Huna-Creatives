@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import html2canvas from 'html2canvas';
 
 // ─── Shared animation styles ───────────────────────────────────────────────────
 
@@ -752,8 +753,10 @@ const HUNA_BG   = ['#1a0404','#0d0000','#1a0404','#0d0000','#1a0404','#0d0000'];
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AdPreviewPage() {
-  const [brand, setBrand]     = useState<'sentro' | 'huna'>('sentro');
-  const [current, setCurrent] = useState(0);
+  const [brand, setBrand]         = useState<'sentro' | 'huna'>('sentro');
+  const [current, setCurrent]     = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const slideRef = useRef<HTMLDivElement>(null);
 
   const slides = brand === 'sentro' ? SENTRO_SLIDES : HUNA_SLIDES;
   const labels = brand === 'sentro' ? SENTRO_LABELS : HUNA_LABELS;
@@ -763,6 +766,25 @@ export default function AdPreviewPage() {
   const SlideComponent = slides[current];
   const prev = () => setCurrent(i => (i - 1 + slides.length) % slides.length);
   const next = () => setCurrent(i => (i + 1) % slides.length);
+
+  const downloadSlide = async () => {
+    if (!slideRef.current || downloading) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(slideRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: null,
+        logging: false,
+      });
+      const link = document.createElement('a');
+      link.download = `${brand}-slide-${current + 1}-${labels[current].toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#030305] text-white flex flex-col items-center px-4 py-10 font-sans">
@@ -785,24 +807,42 @@ export default function AdPreviewPage() {
       </div>
 
       <div className="w-full max-w-sm">
-        <SlideComponent />
+        <div ref={slideRef}>
+          <SlideComponent />
+        </div>
 
-        <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center justify-between mt-4 gap-2">
           <button onClick={prev}
-            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/8 hover:bg-white/5 transition-colors cursor-pointer text-gray-500">
+            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/8 hover:bg-white/5 transition-colors cursor-pointer text-gray-500 flex-shrink-0">
             <i className="ri-arrow-left-s-line text-xl"></i>
           </button>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-1 justify-center">
             {slides.map((_, i) => (
               <button key={i} onClick={() => setCurrent(i)} className="cursor-pointer transition-all duration-200"
                 style={{ width: i === current ? 22 : 6, height: 6, borderRadius: 3, background: i === current ? accent : 'rgba(255,255,255,0.1)' }} />
             ))}
           </div>
           <button onClick={next}
-            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/8 hover:bg-white/5 transition-colors cursor-pointer text-gray-500">
+            className="w-10 h-10 rounded-xl flex items-center justify-center border border-white/8 hover:bg-white/5 transition-colors cursor-pointer text-gray-500 flex-shrink-0">
             <i className="ri-arrow-right-s-line text-xl"></i>
           </button>
         </div>
+
+        {/* Download button */}
+        <button
+          onClick={downloadSlide}
+          disabled={downloading}
+          className="mt-3 w-full py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer"
+          style={{
+            background: downloading ? 'rgba(255,255,255,0.04)' : `${accent}18`,
+            border: `1px solid ${accent}30`,
+            color: downloading ? '#4b5563' : accent,
+          }}>
+          {downloading
+            ? <><i className="ri-loader-4-line text-sm animate-spin"></i> Rendering…</>
+            : <><i className="ri-download-2-line text-sm"></i> Download Slide {current + 1}</>
+          }
+        </button>
 
         <div className="mt-6">
           <p className="text-[9px] text-gray-700 uppercase tracking-widest mb-2">All slides</p>
@@ -822,7 +862,7 @@ export default function AdPreviewPage() {
           </div>
         </div>
 
-        <p className="text-[9px] text-gray-700 text-center mt-8">Screenshot each slide at full size · 4:5 format</p>
+        <p className="text-[9px] text-gray-700 text-center mt-8">Downloads at 3× resolution · 4:5 format</p>
       </div>
     </div>
   );
