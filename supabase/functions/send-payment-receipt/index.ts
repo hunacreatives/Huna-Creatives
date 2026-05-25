@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
   try {
     const {
       to,
+      cc,
       client_name,
       project_name,
       amount,
@@ -153,6 +154,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: [to],
+        ...(cc ? { cc: [cc] } : {}),
         subject: `Payment Received — ${project_name}`,
         html,
       }),

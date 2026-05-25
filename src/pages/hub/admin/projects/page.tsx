@@ -93,6 +93,7 @@ export default function AdminProjectsPage() {
   // Send receipt
   const [sendReceiptModal, setSendReceiptModal] = useState<{ payment: Project['hub_project_payments'][0]; project: Project } | null>(null);
   const [sendReceiptEmail, setSendReceiptEmail] = useState('');
+  const [sendReceiptCc, setSendReceiptCc] = useState('');
   const [sendReceiptSending, setSendReceiptSending] = useState(false);
   const [sendReceiptMsg, setSendReceiptMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -210,6 +211,7 @@ export default function AdminProjectsPage() {
     const { data, error } = await supabase.functions.invoke('send-payment-receipt', {
       body: {
         to: sendReceiptEmail.trim(),
+        cc: sendReceiptCc.trim() || undefined,
         client_name: project.client_name,
         project_name: project.project_name,
         amount: payment.amount,
@@ -798,7 +800,7 @@ ${balance > 0 ? `
                                 )}
                               </div>
                               <div className="flex items-center gap-1.5 flex-shrink-0">
-                                <button onClick={() => { setSendReceiptModal({ payment: pp, project: activeProject }); setSendReceiptEmail(activeProject.contact_email ?? ''); setSendReceiptMsg(null); }}
+                                <button onClick={() => { setSendReceiptModal({ payment: pp, project: activeProject }); setSendReceiptEmail(activeProject.contact_email ?? ''); setSendReceiptCc(''); setSendReceiptMsg(null); }}
                                   className="text-gray-300 hover:text-sky-500 cursor-pointer mt-0.5" title="Send receipt to client">
                                   <i className="ri-mail-send-line text-xs"></i>
                                 </button>
@@ -1344,6 +1346,12 @@ ${balance > 0 ? `
                 <label className="text-xs font-medium text-gray-600">Send to <span className="text-red-400">*</span></label>
                 <input type="email" value={sendReceiptEmail} onChange={e => setSendReceiptEmail(e.target.value)}
                   placeholder="client@email.com" autoFocus
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">CC <span className="text-gray-400">(optional)</span></label>
+                <input type="email" value={sendReceiptCc} onChange={e => setSendReceiptCc(e.target.value)}
+                  placeholder="e.g. team@hunacreatives.com"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
               </div>
 
