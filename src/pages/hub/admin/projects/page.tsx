@@ -61,6 +61,12 @@ export default function AdminProjectsPage() {
   const [paySaving, setPaySaving] = useState(false);
   const [payError, setPayError] = useState('');
 
+  // Payment edit
+  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
+  const [editPayForm, setEditPayForm] = useState({ amount: '', date: '', notes: '', receipt: null as File | null, existingReceiptUrl: null as string | null });
+  const [editPaySaving, setEditPaySaving] = useState(false);
+  const [editPayError, setEditPayError] = useState('');
+
   // Cost log
   const [costLabel, setCostLabel] = useState('');
   const [costAmount, setCostAmount] = useState('');
@@ -174,6 +180,34 @@ export default function AdminProjectsPage() {
 
   const deletePayment = async (pid: number) => {
     await supabase.from('hub_project_payments').delete().eq('id', pid);
+    fetchAll();
+  };
+
+  const updatePayment = async () => {
+    if (!editPayForm.amount) return;
+    setEditPaySaving(true); setEditPayError('');
+
+    let receipt_url = editPayForm.existingReceiptUrl;
+    if (editPayForm.receipt) {
+      const ext = editPayForm.receipt.name.split('.').pop();
+      const path = `client-payments/${activeId}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('payout-receipts').upload(path, editPayForm.receipt, { upsert: true });
+      if (!upErr) {
+        const { data: urlData } = supabase.storage.from('payout-receipts').getPublicUrl(path);
+        receipt_url = urlData.publicUrl;
+      }
+    }
+
+    const { error } = await supabase.from('hub_project_payments').update({
+      amount: parseFloat(editPayForm.amount),
+      paid_at: editPayForm.date,
+      notes: editPayForm.notes || null,
+      receipt_url,
+    }).eq('id', editingPaymentId!);
+
+    setEditPaySaving(false);
+    if (error) { setEditPayError(error.message); return; }
+    setEditingPaymentId(null);
     fetchAll();
   };
 
@@ -610,27 +644,71 @@ ${balance > 0 ? `
                   ) : (
                     <div className="space-y-2">
                       {activeProject.hub_project_payments.map((pp) => (
-                        <div key={pp.id} className="flex items-start justify-between gap-2 p-2.5 bg-gray-50 rounded-lg">
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm font-semibold text-emerald-600">{fmt(pp.amount)}</span>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              <span className="text-[11px] text-gray-400">
-                                <i className="ri-calendar-line text-[10px] mr-0.5"></i>
-                                {pp.paid_at ? new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                              </span>
-                              {pp.notes && (
-                                <span className="text-[11px] text-gray-500">
-                                  · <i className="ri-file-text-line text-[10px] mr-0.5"></i>{pp.notes}
-                                </span>
-                              )}
+                        <div key={pp.id} className="bg-gray-50 rounded-lg overflow-hidden">
+                          {editingPaymentId === pp.id ? (
+                            <div className="p-2.5 space-y-2">
+                              <div className="flex gap-2">
+                                <input type="number" value={editPayForm.amount} onChange={e => setEditPayForm(f => ({ ...f, amount: e.target.value }))} placeholder="Amount"
+                                  className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                                <input type="date" value={editPayForm.date} onChange={e => setEditPayForm(f => ({ ...f, date: e.target.value }))}
+                                  className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                              </div>
+                              <input value={editPayForm.notes} onChange={e => setEditPayForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)"
+                                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                              <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-white transition-colors flex-1">
+                                  <i className="ri-image-add-line text-gray-400 text-sm"></i>
+                                  <span className="text-xs text-gray-400 truncate">{editPayForm.receipt ? editPayForm.receipt.name : editPayForm.existingReceiptUrl ? 'Replace receipt' : 'Attach proof of payment'}</span>
+                                  <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => setEditPayForm(f => ({ ...f, receipt: e.target.files?.[0] ?? null }))} />
+                                </label>
+                                {editPayForm.existingReceiptUrl && !editPayForm.receipt && (
+                                  <button onClick={() => setLightboxUrl(editPayForm.existingReceiptUrl)} className="cursor-pointer flex-shrink-0">
+                                    <img src={editPayForm.existingReceiptUrl} alt="receipt" className="h-8 w-12 object-cover rounded border border-gray-200 hover:opacity-80" />
+                                  </button>
+                                )}
+                                {(editPayForm.receipt || editPayForm.existingReceiptUrl) && (
+                                  <button onClick={() => setEditPayForm(f => ({ ...f, receipt: null, existingReceiptUrl: null }))} className="text-gray-300 hover:text-rose-400 cursor-pointer text-xs flex-shrink-0">
+                                    <i className="ri-close-line"></i>
+                                  </button>
+                                )}
+                              </div>
+                              {editPayError && <p className="text-xs text-red-500">{editPayError}</p>}
+                              <div className="flex gap-2">
+                                <button onClick={() => setEditingPaymentId(null)} className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-white cursor-pointer">Cancel</button>
+                                <button onClick={updatePayment} disabled={!editPayForm.amount || editPaySaving}
+                                  className="flex-1 py-1.5 text-xs bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40">
+                                  {editPaySaving ? '...' : 'Save'}
+                                </button>
+                              </div>
                             </div>
-                            {pp.receipt_url && (
-                              <button onClick={() => setLightboxUrl(pp.receipt_url)} className="mt-1.5 cursor-pointer">
-                                <img src={pp.receipt_url} alt="receipt" className="h-8 w-14 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
-                              </button>
-                            )}
-                          </div>
-                          <button onClick={() => deletePayment(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0 mt-0.5"><i className="ri-delete-bin-line text-xs"></i></button>
+                          ) : (
+                            <div className="flex items-start justify-between gap-2 p-2.5">
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-semibold text-emerald-600">{fmt(pp.amount)}</span>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  <span className="text-[11px] text-gray-400">
+                                    <i className="ri-calendar-line text-[10px] mr-0.5"></i>
+                                    {pp.paid_at ? new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                                  </span>
+                                  {pp.notes && (
+                                    <span className="text-[11px] text-gray-500">
+                                      · <i className="ri-file-text-line text-[10px] mr-0.5"></i>{pp.notes}
+                                    </span>
+                                  )}
+                                </div>
+                                {pp.receipt_url && (
+                                  <button onClick={() => setLightboxUrl(pp.receipt_url)} className="mt-1.5 cursor-pointer">
+                                    <img src={pp.receipt_url} alt="receipt" className="h-8 w-14 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button onClick={() => { setEditingPaymentId(pp.id); setEditPayForm({ amount: String(pp.amount), date: pp.paid_at, notes: pp.notes ?? '', receipt: null, existingReceiptUrl: pp.receipt_url }); setEditPayError(''); }}
+                                  className="text-gray-300 hover:text-gray-600 cursor-pointer mt-0.5"><i className="ri-edit-line text-xs"></i></button>
+                                <button onClick={() => deletePayment(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer mt-0.5"><i className="ri-delete-bin-line text-xs"></i></button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
