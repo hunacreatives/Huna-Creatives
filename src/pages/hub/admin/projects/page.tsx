@@ -30,6 +30,7 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
 
 interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null; }
 interface PaymentReminder { id: number; send_date: string; amount_due: number | null; notes: string | null; status: string; sent_at: string | null; }
+type InvoiceSendMode = 'now' | 'schedule';
 
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
@@ -113,7 +114,21 @@ export default function AdminProjectsPage() {
 
   // Invoice
   const [invoiceModal, setInvoiceModal] = useState<Project | null>(null);
-  const emptyInvoiceForm = { email: '', cc: '', subject: '', due_date: '', invoice_number: '', message: '' };
+  const emptyInvoiceForm = {
+    email: '',
+    cc: '',
+    subject: '',
+    due_date: '',
+    invoice_number: '',
+    bill_to_name: '',
+    bill_to_address: '',
+    reference: '',
+    payment_terms: '',
+    send_mode: 'now' as InvoiceSendMode,
+    scheduled_for: '',
+    message: '',
+    amount_requested: '',
+  };
   const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm);
   const setIf = (patch: Partial<typeof emptyInvoiceForm>) => setInvoiceForm(f => ({ ...f, ...patch }));
   const [invoiceLineItems, setInvoiceLineItems] = useState<{ description: string; amount: string }[]>([]);
@@ -127,12 +142,20 @@ export default function AdminProjectsPage() {
   const [reminderNotes, setReminderNotes] = useState('');
   const [reminderSaving, setReminderSaving] = useState(false);
   const [reminderError, setReminderError] = useState('');
+  const invoiceLocked = !!invoiceMsg?.ok;
 
   const fetchNextInvoiceNumber = async () => {
-    const { data } = await supabase.from('hub_invoice_log').select('invoice_number').order('id', { ascending: false }).limit(1).maybeSingle();
-    if (!data) return '0001';
-    const last = parseInt(data.invoice_number, 10);
-    return isNaN(last) ? '0001' : String(last + 1).padStart(4, '0');
+    const [sentRes, scheduledRes] = await Promise.all([
+      supabase.from('hub_invoice_log').select('invoice_number').order('id', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('hub_scheduled_invoices').select('invoice_number').order('id', { ascending: false }).limit(1).maybeSingle(),
+    ]);
+
+    const latest = [sentRes.data?.invoice_number, scheduledRes.data?.invoice_number]
+      .map((value) => parseInt(String(value ?? ''), 10))
+      .filter((value) => !Number.isNaN(value));
+
+    if (latest.length === 0) return '0001';
+    return String(Math.max(...latest) + 1).padStart(4, '0');
   };
 
   const fetchAll = async () => {
@@ -392,29 +415,40 @@ export default function AdminProjectsPage() {
     fetchAll();
   };
 
+  const buildInvoicePayload = (project: Project) => {
+    const invNum = invoiceForm.invoice_number.trim() || String(project.id).padStart(4, '0');
+    return {
+      to: invoiceForm.email.trim(),
+      cc: invoiceForm.cc.trim() || undefined,
+      subject: invoiceForm.subject.trim() || undefined,
+      client_name: project.client_name,
+      project_name: project.project_name,
+      service: project.service,
+      contract_price: project.contract_price,
+      start_date: project.start_date,
+      deadline: invoiceForm.due_date || project.deadline,
+      payments: invoiceShowPayments ? project.hub_project_payments : [],
+      show_payments: invoiceShowPayments,
+      line_items: invoiceLineItems.filter(i => i.description && i.amount),
+      notes: project.notes,
+      bill_to_name: invoiceForm.bill_to_name.trim() || undefined,
+      bill_to_address: invoiceForm.bill_to_address.trim() || undefined,
+      reference: invoiceForm.reference.trim() || undefined,
+      payment_terms: invoiceForm.payment_terms.trim() || undefined,
+      message: invoiceForm.message.trim() || undefined,
+      invoice_number: invNum,
+      project_id: project.id,
+      app_base_url: typeof window !== 'undefined' ? window.location.origin : undefined,
+      amount_requested: invoiceForm.amount_requested ? parseFloat(invoiceForm.amount_requested) : undefined,
+    };
+  };
+
   const sendInvoice = async (project: Project) => {
     setInvoiceSending(true);
     setInvoiceMsg(null);
-    const invNum = invoiceForm.invoice_number.trim() || String(project.id).padStart(4, '0');
+    const payload = buildInvoicePayload(project);
     const { data, error } = await supabase.functions.invoke('send-invoice', {
-      body: {
-        to: invoiceForm.email.trim(),
-        cc: invoiceForm.cc.trim() || undefined,
-        subject: invoiceForm.subject.trim() || undefined,
-        client_name: project.client_name,
-        project_name: project.project_name,
-        service: project.service,
-        contract_price: project.contract_price,
-        start_date: project.start_date,
-        deadline: invoiceForm.due_date || project.deadline,
-        payments: invoiceShowPayments ? project.hub_project_payments : [],
-        show_payments: invoiceShowPayments,
-        line_items: invoiceLineItems.filter(i => i.description && i.amount),
-        notes: project.notes,
-        message: invoiceForm.message.trim() || undefined,
-        invoice_number: invNum,
-        project_id: project.id,
-      },
+      body: payload,
     });
     setInvoiceSending(false);
     if (error || data?.error) {
@@ -428,40 +462,105 @@ export default function AdminProjectsPage() {
     }
   };
 
-  const printInvoice = (project: Project, overrides?: { due_date?: string; invoice_number?: string; message?: string; line_items?: { description: string; amount: string }[]; show_payments?: boolean }) => {
+  const scheduleInvoice = async (project: Project) => {
+    if (!invoiceForm.scheduled_for) {
+      setInvoiceMsg({ ok: false, text: 'Choose when the invoice should be sent.' });
+      return;
+    }
+
+    const scheduledAt = new Date(invoiceForm.scheduled_for);
+    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()) {
+      setInvoiceMsg({ ok: false, text: 'Scheduled send time must be in the future.' });
+      return;
+    }
+
+    setInvoiceSending(true);
+    setInvoiceMsg(null);
+    const payload = buildInvoicePayload(project);
+    const { error } = await supabase.from('hub_scheduled_invoices').insert({
+      project_id: project.id,
+      invoice_number: String(payload.invoice_number),
+      to_email: payload.to,
+      cc_email: payload.cc ?? null,
+      subject: payload.subject ?? null,
+      client_name: payload.client_name,
+      project_name: payload.project_name,
+      service: payload.service ?? null,
+      contract_price: payload.contract_price,
+      start_date: payload.start_date,
+      due_date: payload.deadline,
+      payments: payload.payments,
+      show_payments: payload.show_payments,
+      line_items: payload.line_items,
+      notes: payload.notes ?? null,
+      bill_to_name: payload.bill_to_name ?? null,
+      bill_to_address: payload.bill_to_address ?? null,
+      reference: payload.reference ?? null,
+      payment_terms: payload.payment_terms ?? null,
+      message: payload.message ?? null,
+      scheduled_for: scheduledAt.toISOString(),
+    });
+    setInvoiceSending(false);
+
+    if (error) {
+      setInvoiceMsg({ ok: false, text: error.message });
+      return;
+    }
+
+    if (invoiceForm.email.trim() !== project.contact_email) {
+      await supabase.from('hub_projects').update({ contact_email: invoiceForm.email.trim() }).eq('id', project.id);
+    }
+    setInvoiceMsg({ ok: true, text: `Invoice scheduled for ${scheduledAt.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}.` });
+    fetchAll();
+  };
+
+  const printInvoice = async (project: Project, overrides?: { due_date?: string; invoice_number?: string; bill_to_name?: string; bill_to_address?: string; reference?: string; payment_terms?: string; message?: string; line_items?: { description: string; amount: string }[]; show_payments?: boolean }) => {
+    const { data: latestLink } = await supabase
+      .from('hub_invoice_payment_links')
+      .select('token')
+      .eq('project_id', project.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const payUrl = latestLink?.token
+      ? `${window.location.origin}/pay/${latestLink.token}`
+      : null;
     const d = derived(project);
     const fmt2 = (n: number) => '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const balance = project.contract_price - d.totalPaid;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
     const invNum = overrides?.invoice_number || String(project.id).padStart(4,'0');
-    const dueDate = overrides?.due_date || project.deadline;
+    const billToName = overrides?.bill_to_name || project.client_name;
+    const billToAddress = overrides?.bill_to_address?.trim() || '';
     const customMsg = overrides?.message || '';
     const lineItems = overrides?.line_items ?? [{ description: project.service ?? project.project_name, amount: String(project.contract_price) }];
     const showPayments = overrides?.show_payments ?? true;
     const lineItemsTotal = lineItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
-    const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) return;
+    const totalPaid = showPayments ? d.totalPaid : 0;
+    const balance = lineItemsTotal - totalPaid;
     const paymentRows = project.hub_project_payments.map(p => `
       <tr>
         <td>${new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
         <td>${p.notes ?? 'Payment received'}</td>
         <td class="amount paid">+ ${fmt2(p.amount)}</td>
       </tr>`).join('');
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Invoice #${invNum} — ${project.project_name}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827;background:#fff;padding:48px}
-  .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:36px;padding-bottom:24px;border-bottom:3px solid #FF6B35}
-  .header img{height:36px}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827;background:#f9fafb;padding:24px}
+  .invoice-card{max-width:1100px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:24px;overflow:hidden}
+  .content{padding:28px 40px 36px}
+  .header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;background:#0f172a;padding:28px 40px}
+  .header-brand img{height:64px;display:block}
   .header-right{text-align:right}
   .header-right h1{font-size:13px;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em}
-  .header-right .inv{font-size:22px;font-weight:800;color:#111827}
-  .meta{display:flex;justify-content:space-between;margin-bottom:28px}
-  .meta .to p:first-child{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
-  .meta .to p:last-child{font-size:17px;font-weight:700}
-  .meta .dates{text-align:right;font-size:13px;color:#6b7280;line-height:1.8}
-  .project-box{background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:28px}
+  .header-right .inv{font-size:36px;line-height:1;font-weight:800;color:#fff}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f3f4f6}
+  .meta-col .eyebrow{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .meta-col .title{font-size:16px;font-weight:700}
+  .meta-col .line{font-size:12px;color:#6b7280;line-height:1.7;white-space:pre-line}
+  .meta-col.right{text-align:right}
+  .project-box{background:#f9fafb;border-radius:10px;padding:14px 16px;margin-bottom:20px}
   .project-box .name{font-size:14px;font-weight:600}
   .project-box .sub{font-size:12px;color:#6b7280;margin-top:3px}
   table{width:100%;border-collapse:collapse;margin-bottom:20px}
@@ -481,18 +580,31 @@ export default function AdminProjectsPage() {
   .qr-item{flex:1;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;text-align:center}
   .qr-item img{width:100px;height:100px;object-fit:contain;border-radius:6px;display:block;margin:0 auto}
   .qr-item p{margin:8px 0 0;font-size:12px;font-weight:700;color:#111827}
-  @media print{body{padding:24px}}
+  @media print{body{padding:0;background:#fff}.invoice-card{max-width:none;border:none;border-radius:0}.content{padding:24px}}
 </style></head><body>
+<div class="invoice-card">
 <div class="header">
-  <img src="${logoUrl}" onerror="this.style.display='none'" />
-  <div class="header-right"><h1>Invoice</h1><div class="inv">#${invNum}</div></div>
+  <div class="header-brand">
+    <img src="${logoUrl}" onerror="this.parentElement.style.display='none'" />
+  </div>
+  <div class="header-right">
+    <h1>Invoice</h1>
+    <div class="inv">#${invNum}</div>
+  </div>
 </div>
+<div class="content">
 ${customMsg ? `<div style="background:#fffbf5;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;margin-bottom:24px;font-size:13px;color:#92400e">${customMsg}</div>` : ''}
 <div class="meta">
-  <div class="to"><p>Billed to</p><p>${project.client_name}</p></div>
-  <div class="dates">
-    <div>Date: <strong>${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</strong></div>
-    ${dueDate ? `<div>Due: <strong>${new Date(dueDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</strong></div>` : ''}
+  <div class="meta-col">
+    <div class="eyebrow">From</div>
+    <div class="title">Huna Creatives</div>
+    <div class="line">billing@hunacreatives.com
+www.hunacreatives.com</div>
+  </div>
+  <div class="meta-col right">
+    <div class="eyebrow">Bill To</div>
+    <div class="title">${billToName}</div>
+    <div class="line">${project.contact_email ? `${project.contact_email}${billToAddress ? '\n' : ''}` : ''}${billToAddress}</div>
   </div>
 </div>
 <div class="project-box">
@@ -510,24 +622,33 @@ ${showPayments && project.hub_project_payments.length > 0 ? `
   <tbody>${paymentRows}</tbody>
 </table>` : ''}
 <table class="totals">
-  <tr><td>Total contract</td><td>${fmt2(lineItemsTotal)}</td></tr>
+  <tr><td>Subtotal</td><td>${fmt2(lineItemsTotal)}</td></tr>
   ${showPayments ? `<tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>` : ''}
   <tr class="balance"><td>Balance due</td><td>${(showPayments ? balance : lineItemsTotal) <= 0 ? 'Paid in full' : fmt2(showPayments ? balance : lineItemsTotal)}</td></tr>
 </table>
-${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;margin-top:16px">${project.notes}</p>` : ''}
-${balance > 0 ? `
-<div class="pay-via">
-  <h3>Pay via</h3>
-  <div class="qr-grid">
-    <div class="qr-item"><img src="https://www.hunacreatives.com/images/qr-gcash.jpg" alt="GCash" /><p>GCash</p></div>
-    <div class="qr-item"><img src="https://www.hunacreatives.com/images/qr-bdo.jpg" alt="BDO" /><p>BDO InstaPay</p></div>
-    <div class="qr-item"><img src="https://www.hunacreatives.com/images/qr-gotyme.jpg" alt="GoTyme" /><p>GoTyme</p></div>
-  </div>
+${(showPayments ? balance : lineItemsTotal) > 0 && payUrl ? `
+<div style="margin-top:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px;text-align:center;">
+  <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Choose your payment channel online</div>
+  <div style="font-size:12px;color:#6b7280;margin-bottom:14px;">Open your secure payment page to select GCash, BDO, or GoTyme, then upload proof of payment.</div>
+  <a href="${payUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#111827;color:#ffffff;font-size:13px;font-weight:700;padding:10px 18px;border-radius:9px;text-decoration:none;">Pay Now →</a>
 </div>` : ''}
-<div class="footer">Huna Creatives · billing@hunacreatives.com</div>
-<script>window.onload=function(){setTimeout(function(){window.print()},400)}<\/script>
-</body></html>`);
-    win.document.close();
+${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;margin-top:16px">${project.notes}</p>` : ''}
+<div class="footer">This email is not being monitored. Please do not reply directly. If you have questions, contact contact@hunacreatives.com.</div>
+</div>
+</div>
+<script>window.onload=function(){setTimeout(function(){window.print()},400)}</script>
+</body></html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank', 'noopener,noreferrer,width=900,height=700');
+    if (!win) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    win.addEventListener('load', () => {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, { once: true });
   };
 
   const filtered = projects.filter(p =>
@@ -572,17 +693,53 @@ ${balance > 0 ? `
       {!loading && projects.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Total Contract Value', value: fmt(summaryTotals.contractValue), icon: 'ri-file-list-3-line', color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-100' },
-            { label: 'Operational Costs', value: fmt(summaryTotals.costs), icon: 'ri-subtract-line', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100' },
-            { label: 'Net Profit', value: fmt(summaryTotals.netProfit), icon: 'ri-line-chart-line', color: 'text-teal-600', bg: 'bg-teal-50', border: 'border-teal-100' },
-            { label: 'Collected from Clients', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, icon: 'ri-money-dollar-circle-line', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+            {
+              label: 'Total Contract Value',
+              value: fmt(summaryTotals.contractValue),
+              icon: 'ri-file-list-3-line',
+              text: 'text-slate-800',
+              soft: 'bg-slate-50',
+              chip: 'bg-slate-900 text-white',
+              border: 'border-slate-200',
+              glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]',
+            },
+            {
+              label: 'Operational Costs',
+              value: fmt(summaryTotals.costs),
+              icon: 'ri-subtract-line',
+              text: 'text-rose-700',
+              soft: 'bg-rose-50',
+              chip: 'bg-rose-500 text-white',
+              border: 'border-rose-200',
+              glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]',
+            },
+            {
+              label: 'Net Profit',
+              value: fmt(summaryTotals.netProfit),
+              icon: 'ri-line-chart-line',
+              text: 'text-teal-700',
+              soft: 'bg-teal-50',
+              chip: 'bg-teal-500 text-white',
+              border: 'border-teal-200',
+              glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]',
+            },
+            {
+              label: 'Collected from Clients',
+              value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`,
+              icon: 'ri-money-dollar-circle-line',
+              text: 'text-emerald-700',
+              soft: 'bg-emerald-50',
+              chip: 'bg-emerald-500 text-white',
+              border: 'border-emerald-200',
+              glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]',
+            },
           ].map(card => (
-            <div key={card.label} className={`bg-white border ${card.border} rounded-xl p-4`}>
-              <div className={`w-7 h-7 ${card.bg} rounded-lg flex items-center justify-center mb-2`}>
-                <i className={`${card.icon} ${card.color} text-sm`}></i>
+            <div key={card.label} className={`${card.soft} ${card.glow} border ${card.border} rounded-2xl p-4`}>
+              <div className={`w-8 h-8 ${card.chip} rounded-xl flex items-center justify-center mb-3 shadow-sm`}>
+                <i className={`${card.icon} text-sm`}></i>
               </div>
-              <p className={`text-lg font-bold ${card.color}`}>{card.value}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{card.label}</p>
+              <p className={`text-lg font-bold tracking-tight ${card.text}`}>{card.value}</p>
+              <p className="text-xs text-gray-500 mt-1">{card.label}</p>
             </div>
           ))}
         </div>
@@ -689,11 +846,11 @@ ${balance > 0 ? `
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => printInvoice(activeProject)}
+                    <button onClick={() => void printInvoice(activeProject)}
                       className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer flex items-center gap-1">
                       <i className="ri-printer-line"></i> Print
                     </button>
-                    <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, message: '' }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
+                    <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
                       className="text-xs px-2.5 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer flex items-center gap-1">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>
@@ -1218,6 +1375,20 @@ ${balance > 0 ? `
               </div>
               <button onClick={() => setInvoiceModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
             </div>
+            {invoiceLocked ? (
+              <div className="px-5 py-10 min-h-[420px] flex items-center justify-center">
+                <div className="max-w-sm text-center">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i className="ri-check-line text-3xl text-emerald-600"></i>
+                  </div>
+                  <h4 className="text-xl font-bold text-[#111827]">
+                    {invoiceForm.send_mode === 'schedule' ? 'Invoice Scheduled' : 'Invoice Sent'}
+                  </h4>
+                  <p className="text-sm text-gray-500 mt-2">{invoiceMsg?.text}</p>
+                  <p className="text-xs text-gray-400 mt-4">Close this window to return. Reopen the invoice modal if you need to prepare another send.</p>
+                </div>
+              </div>
+            ) : (
             <div className="p-5 space-y-3 max-h-[70vh] overflow-y-auto">
               {/* Recipient */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1238,6 +1409,33 @@ ${balance > 0 ? `
                 <input type="text" value={invoiceForm.subject} onChange={e => setIf({ subject: e.target.value })}
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
               </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-600">Delivery</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIf({ send_mode: 'now', scheduled_for: '' })}
+                    className={`px-3 py-2 rounded-lg border text-sm cursor-pointer transition-colors ${invoiceForm.send_mode === 'now' ? 'border-[#FF6B35] bg-orange-50 text-[#FF6B35]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    Send now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIf({ send_mode: 'schedule' })}
+                    className={`px-3 py-2 rounded-lg border text-sm cursor-pointer transition-colors ${invoiceForm.send_mode === 'schedule' ? 'border-[#FF6B35] bg-orange-50 text-[#FF6B35]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    Schedule
+                  </button>
+                </div>
+                {invoiceForm.send_mode === 'schedule' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-600">Send on</label>
+                    <input type="datetime-local" value={invoiceForm.scheduled_for} onChange={e => setIf({ scheduled_for: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    <p className="text-[11px] text-gray-400">This invoice will be saved as a snapshot and sent automatically at the selected time.</p>
+                  </div>
+                )}
+              </div>
               {/* Invoice # and Due date */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -1249,6 +1447,39 @@ ${balance > 0 ? `
                   <label className="text-xs font-medium text-gray-600">Due date</label>
                   <input type="date" value={invoiceForm.due_date} onChange={e => setIf({ due_date: e.target.value })}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Bill to name</label>
+                  <input type="text" value={invoiceForm.bill_to_name} onChange={e => setIf({ bill_to_name: e.target.value })}
+                    placeholder="e.g. FS Architects"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Reference / PO <span className="text-gray-400">(optional)</span></label>
+                  <input type="text" value={invoiceForm.reference} onChange={e => setIf({ reference: e.target.value })}
+                    placeholder="e.g. PO-1042"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">Billing address <span className="text-gray-400">(optional)</span></label>
+                <textarea value={invoiceForm.bill_to_address} onChange={e => setIf({ bill_to_address: e.target.value })} rows={2}
+                  placeholder="Company address, attention line, or billing contact"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Payment terms <span className="text-gray-400">(optional)</span></label>
+                  <input type="text" value={invoiceForm.payment_terms} onChange={e => setIf({ payment_terms: e.target.value })}
+                    placeholder="e.g. Net 15 or Due on receipt"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">Currency</label>
+                  <input type="text" value="PHP (₱)" disabled
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-500" />
                 </div>
               </div>
               {/* Line items */}
@@ -1303,29 +1534,52 @@ ${balance > 0 ? `
                   <span className="font-bold text-[#FF6B35]">{fmt(invoiceModal.contract_price - invoiceModal.hub_project_payments.reduce((s,p)=>s+p.amount,0))}</span>
                 </div>
               </div>
+
+              {/* Amount to collect */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">Amount to Request <span className="text-gray-400 font-normal">(what the client owes on this invoice)</span></label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₱</span>
+                  <input type="number" value={invoiceForm.amount_requested} onChange={e => setIf({ amount_requested: e.target.value })}
+                    placeholder="e.g. 15000"
+                    className="w-full pl-7 pr-3 py-2 text-sm border border-[#FF6B35] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 font-semibold text-[#111827]" />
+                </div>
+                <p className="text-[10px] text-gray-400">This is the "Balance Due" shown on the invoice and on the payment page.</p>
+              </div>
               {invoiceMsg && (
                 <p className={`text-xs font-medium ${invoiceMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>
                   {invoiceMsg.ok ? <><i className="ri-check-line mr-1"></i>{invoiceMsg.text}</> : invoiceMsg.text}
                 </p>
               )}
             </div>
+            )}
             <div className="px-5 pb-5 space-y-2">
-              <button
-                onClick={() => printInvoice(invoiceModal, { due_date: invoiceForm.due_date, invoice_number: invoiceForm.invoice_number, message: invoiceForm.message, line_items: invoiceLineItems.filter(i => i.description && i.amount), show_payments: invoiceShowPayments })}
-                className="w-full py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <i className="ri-printer-line"></i> Preview / Print
-              </button>
-              <div className="flex gap-2">
-                <button onClick={() => setInvoiceModal(null)} className="flex-1 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
-                <button
-                  onClick={() => sendInvoice(invoiceModal)}
-                  disabled={invoiceSending || !invoiceForm.email.trim()}
-                  className="flex-1 py-2 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  {invoiceSending ? <><i className="ri-loader-4-line animate-spin"></i> Sending…</> : <><i className="ri-mail-send-line"></i> Send Invoice</>}
+              {invoiceLocked ? (
+                <button onClick={() => setInvoiceModal(null)} className="w-full py-2.5 text-sm bg-[#111827] text-white rounded-lg hover:bg-black cursor-pointer">
+                  Close
                 </button>
-              </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => void printInvoice(invoiceModal, { due_date: invoiceForm.due_date, invoice_number: invoiceForm.invoice_number, bill_to_name: invoiceForm.bill_to_name, bill_to_address: invoiceForm.bill_to_address, reference: invoiceForm.reference, payment_terms: invoiceForm.payment_terms, message: invoiceForm.message, line_items: invoiceLineItems.filter(i => i.description && i.amount), show_payments: invoiceShowPayments })}
+                    className="w-full py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <i className="ri-printer-line"></i> Preview / Print
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setInvoiceModal(null)} className="flex-1 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
+                    <button
+                      onClick={() => invoiceForm.send_mode === 'schedule' ? scheduleInvoice(invoiceModal) : sendInvoice(invoiceModal)}
+                      disabled={invoiceSending || !invoiceForm.email.trim() || (invoiceForm.send_mode === 'schedule' && !invoiceForm.scheduled_for)}
+                      className="flex-1 py-2 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      {invoiceSending
+                        ? <><i className="ri-loader-4-line animate-spin"></i> {invoiceForm.send_mode === 'schedule' ? 'Scheduling…' : 'Sending…'}</>
+                        : <><i className={invoiceForm.send_mode === 'schedule' ? 'ri-calendar-schedule-line' : 'ri-mail-send-line'}></i> {invoiceForm.send_mode === 'schedule' ? 'Schedule Invoice' : 'Send Invoice'}</>}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

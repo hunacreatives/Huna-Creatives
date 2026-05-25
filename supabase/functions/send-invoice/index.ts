@@ -2,6 +2,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives Billing <billing@hunacreatives.com>';
+const DEFAULT_BASE_URL = (
+  Deno.env.get('PUBLIC_SITE_URL') ||
+  Deno.env.get('SITE_URL') ||
+  'https://www.hunacreatives.com'
+).replace(/\/$/, '');
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -34,9 +39,15 @@ Deno.serve(async (req) => {
       show_payments,
       line_items,
       notes,
+      bill_to_name,
+      bill_to_address,
+      reference,
+      payment_terms,
       message,
       invoice_number,
       project_id,
+      app_base_url,
+      amount_requested,
     } = await req.json();
 
     const lineItems: { description: string; amount: string }[] = line_items?.length
@@ -51,9 +62,38 @@ Deno.serve(async (req) => {
 
     const totalPaid: number = (payments ?? []).reduce((s: number, p: any) => s + p.amount, 0);
     const balance = lineItemsTotal - totalPaid;
-    const isPaid = balance <= 0;
+    // amount_requested overrides the balance shown on invoice and payment link
+    const amountDue: number = amount_requested != null ? Number(amount_requested) : Math.max(showPayments ? balance : lineItemsTotal, 0);
+    const isPaid = amountDue <= 0;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
     const invoiceDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const billedTo = bill_to_name || client_name;
+    const { data: paymentLink, error: paymentLinkError } = await supabase
+      .from('hub_invoice_payment_links')
+      .insert({
+        project_id: project_id ?? null,
+        invoice_number: String(invoice_number),
+        client_name,
+        project_name,
+        to_email: to,
+        amount_due: amountDue,
+        due_date: deadline ?? null,
+        line_items: lineItems,
+        payment_terms: payment_terms ?? null,
+        reference: reference ?? null,
+      })
+      .select('token')
+      .single();
+
+    if (paymentLinkError || !paymentLink?.token) {
+      return new Response(JSON.stringify({ error: paymentLinkError?.message ?? 'Failed to create payment link' }), { status: 200, headers: cors });
+    }
+
+    const normalizedAppBase =
+      typeof app_base_url === 'string' && app_base_url.trim().length > 0
+        ? app_base_url.replace(/\/$/, '')
+        : DEFAULT_BASE_URL;
+    const payUrl = `${normalizedAppBase}/pay/${paymentLink.token}`;
 
     const paymentsRows = (payments ?? []).map((p: any) => `
       <tr>
@@ -86,7 +126,7 @@ Deno.serve(async (req) => {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <img src="${logoUrl}" alt="Huna Creatives" height="28" style="display:block;" />
+                    <img src="${logoUrl}" alt="Huna Creatives" height="34" style="display:block;" />
                   </td>
                   <td style="text-align:right;">
                     <p style="margin:0;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">Invoice</p>
@@ -100,19 +140,19 @@ Deno.serve(async (req) => {
           <!-- Meta row -->
           <tr>
             <td style="padding:28px 40px 0;border-bottom:1px solid #f3f4f6;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="vertical-align:top;width:50%;">
-                    <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Billed to</p>
-                    <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">${client_name}</p>
-                  </td>
-                  <td style="vertical-align:top;text-align:right;">
-                    <p style="margin:0 0 2px;font-size:12px;color:#6b7280;">Date: <strong style="color:#111827;">${invoiceDate}</strong></p>
-                    ${deadline ? `<p style="margin:0;font-size:12px;color:#6b7280;">Due: <strong style="color:#111827;">${new Date(deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</strong></p>` : ''}
-                  </td>
-                </tr>
-              </table>
-              <div style="margin-top:20px;padding:16px;background:#f9fafb;border-radius:10px;margin-bottom:28px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;padding-bottom:12px;border-bottom:1px solid #f3f4f6;">
+                <div>
+                  <p style="margin:0 0 6px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">From</p>
+                  <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">Huna Creatives</p>
+                  <div style="margin-top:6px;font-size:12px;color:#6b7280;line-height:1.7;">billing@hunacreatives.com<br/>www.hunacreatives.com</div>
+                </div>
+                <div style="text-align:right;">
+                  <p style="margin:0 0 6px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Bill To</p>
+                  <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">${billedTo}</p>
+                  <div style="margin-top:6px;font-size:12px;color:#6b7280;line-height:1.7;">${to ? `${to}${bill_to_address ? '<br/>' : ''}` : ''}${bill_to_address ? bill_to_address.replace(/\n/g, '<br/>') : ''}</div>
+                </div>
+              </div>
+              <div style="margin-top:14px;padding:14px 16px;background:#f9fafb;border-radius:10px;margin-bottom:20px;">
                 <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#111827;">${project_name}</p>
                 ${service ? `<p style="margin:0;font-size:12px;color:#6b7280;">${service}</p>` : ''}
                 ${start_date ? `<p style="margin:4px 0 0;font-size:12px;color:#9ca3af;">Started ${new Date(start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>` : ''}
@@ -163,7 +203,7 @@ Deno.serve(async (req) => {
             <td style="padding:20px 40px 28px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#6b7280;">Total</td>
+                  <td style="padding:6px 0;font-size:13px;color:#6b7280;">Subtotal</td>
                   <td style="padding:6px 0;font-size:13px;color:#6b7280;text-align:right;">${fmt(lineItemsTotal)}</td>
                 </tr>
                 ${showPayments ? `<tr>
@@ -175,7 +215,7 @@ Deno.serve(async (req) => {
                 </tr>
                 <tr>
                   <td style="padding:8px 0;font-size:15px;font-weight:700;color:#111827;">Balance due</td>
-                  <td style="padding:8px 0;font-size:18px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;">${isPaid ? 'Paid in full' : fmt(balance)}</td>
+                  <td style="padding:8px 0;font-size:18px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;">${isPaid ? 'Paid in full' : fmt(amountDue)}</td>
                 </tr>
               </table>
             </td>
@@ -202,38 +242,22 @@ Deno.serve(async (req) => {
           <!-- Payment options -->
           ${!isPaid ? `
           <tr>
-            <td style="padding:0 40px 28px;">
-              <p style="margin:0 0 14px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Pay via</p>
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="text-align:center;padding:0 8px;">
-                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px 10px;">
-                      <img src="https://www.hunacreatives.com/images/qr-gcash.jpg" alt="GCash QR" width="110" height="110" style="display:block;margin:0 auto;border-radius:6px;" />
-                      <p style="margin:8px 0 0;font-size:12px;font-weight:700;color:#111827;">GCash</p>
-                    </div>
-                  </td>
-                  <td style="text-align:center;padding:0 8px;">
-                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px 10px;">
-                      <img src="https://www.hunacreatives.com/images/qr-bdo.jpg" alt="BDO QR" width="110" height="110" style="display:block;margin:0 auto;border-radius:6px;" />
-                      <p style="margin:8px 0 0;font-size:12px;font-weight:700;color:#111827;">BDO InstaPay</p>
-                    </div>
-                  </td>
-                  <td style="text-align:center;padding:0 8px;">
-                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px 10px;">
-                      <img src="https://www.hunacreatives.com/images/qr-gotyme.jpg" alt="GoTyme QR" width="110" height="110" style="display:block;margin:0 auto;border-radius:6px;" />
-                      <p style="margin:8px 0 0;font-size:12px;font-weight:700;color:#111827;">GoTyme</p>
-                    </div>
-                  </td>
-                </tr>
-              </table>
+            <td style="padding:0 40px 12px;">
+              <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:18px 18px 16px;text-align:center;">
+                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#111827;">Choose your payment channel online</p>
+                <p style="margin:0 0 14px;font-size:12px;color:#6b7280;">Open your secure payment page to select GCash, BDO, or GoTyme, then upload proof of payment.</p>
+                <a href="${payUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#111827;color:#ffffff;font-size:14px;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none;">
+                  Pay Now →
+                </a>
+              </div>
             </td>
           </tr>` : ''}
 
           <!-- Footer -->
           <tr>
             <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:18px 40px;text-align:center;">
-              <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
-              <p style="margin:0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} Huna Creatives · billing@hunacreatives.com</p>
+              <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;">This email is not being monitored. Please do not reply directly. If you have questions, contact <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
+              <p style="margin:0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} Huna Creatives · contact@hunacreatives.com</p>
             </td>
           </tr>
 
@@ -271,7 +295,7 @@ Deno.serve(async (req) => {
       subject: subject ?? null,
       contract_price: lineItemsTotal,
       total_paid: totalPaid,
-      balance,
+      balance: amountDue,
       line_items: lineItems,
       show_payments: showPayments,
     });

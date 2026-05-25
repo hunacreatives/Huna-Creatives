@@ -52,6 +52,7 @@ const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page')
 const HubAdminInvoiceLog = lazy(() => import('../pages/hub/admin/invoice-log/page'));
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
+const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
 
 const routes: RouteObject[] = [
@@ -147,6 +148,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/invoice-log', element: <HubAdminInvoiceLog /> },
   { path: '/hub/admin/questionnaires', element: <HubAdminQuestionnaires /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
+  { path: '/pay/:token', element: <PublicPaymentPage /> },
   {
     path: '*',
     element: <NotFound />,
