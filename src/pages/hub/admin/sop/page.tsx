@@ -22,7 +22,7 @@ const categoryColors: Record<string, string> = {
   general: 'bg-gray-100 text-gray-600',
 };
 
-const emptyForm = { title: '', content: '', category: 'general', video_url: '', published: true };
+const emptyForm = { title: '', content: '', category: 'general', video_url: '', published: true, visibility: 'all' };
 
 export default function SopPage() {
   const [sops, setSops] = useState<HubSop[]>([]);
@@ -55,7 +55,7 @@ export default function SopPage() {
   const openNew = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
   const openEdit = (s: HubSop) => {
     setEditing(s);
-    setForm({ title: s.title, content: s.content || '', category: s.category, video_url: s.video_url || '', published: s.published });
+    setForm({ title: s.title, content: s.content || '', category: s.category, video_url: s.video_url || '', published: s.published, visibility: (s as any).visibility || 'all' });
     setShowModal(true);
   };
 
@@ -116,7 +116,10 @@ export default function SopPage() {
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${categoryColors[s.category] || 'bg-gray-100 text-gray-500'}`}>
                     <i className={`${categoryIcons[s.category] || 'ri-book-2-line'} text-base`}></i>
                   </div>
-                  {!s.published && <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">Draft</span>}
+                  <div className="flex gap-1">
+                    {!s.published && <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">Draft</span>}
+                    {(s as any).visibility === 'admin_only' && <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">Admin only</span>}
+                  </div>
                 </div>
                 <h3 className="text-sm font-semibold text-[#111827] mb-1 line-clamp-2">{s.title}</h3>
                 {s.content && <p className="text-xs text-gray-400 line-clamp-2">{s.content}</p>}
@@ -202,10 +205,16 @@ export default function SopPage() {
                 <input value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })}
                   placeholder="https://www.youtube.com/embed/..." className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} className="rounded" />
-                <span className="text-sm text-gray-600">Published</span>
-              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} className="rounded" />
+                  <span className="text-sm text-gray-600">Published</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.visibility === 'admin_only'} onChange={(e) => setForm({ ...form, visibility: e.target.checked ? 'admin_only' : 'all' })} className="rounded" />
+                  <span className="text-sm text-gray-600">Admin only <span className="text-xs text-gray-400">(hidden from contractors)</span></span>
+                </label>
+              </div>
             </div>
             <div className="flex gap-2 p-5 pt-0">
               <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors whitespace-nowrap">Cancel</button>

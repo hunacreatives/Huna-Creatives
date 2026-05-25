@@ -24,7 +24,7 @@ export default function ContractorSopPage() {
   useEffect(() => {
     const fetchSops = async () => {
       setLoading(true);
-      const { data } = await supabase.from('hub_sop').select('*').eq('published', true).order('category').order('title');
+      const { data } = await supabase.from('hub_sop').select('*').eq('published', true).neq('visibility', 'admin_only').order('category').order('title');
       setSops((data as HubSop[]) ?? []);
       setLoading(false);
     };
