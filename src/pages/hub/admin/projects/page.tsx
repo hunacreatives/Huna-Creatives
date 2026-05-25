@@ -88,6 +88,12 @@ export default function AdminProjectsPage() {
   const [costSaving, setCostSaving] = useState(false);
   const [costError, setCostError] = useState('');
 
+  // Send receipt
+  const [sendReceiptModal, setSendReceiptModal] = useState<{ payment: Project['hub_project_payments'][0]; project: Project } | null>(null);
+  const [sendReceiptEmail, setSendReceiptEmail] = useState('');
+  const [sendReceiptSending, setSendReceiptSending] = useState(false);
+  const [sendReceiptMsg, setSendReceiptMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   // Contractor assignment
   const [addCtxId, setAddCtxId] = useState('');
   const [addCtxPayoutType, setAddCtxPayoutType] = useState<'percentage' | 'fixed'>('percentage');
@@ -178,6 +184,33 @@ export default function AdminProjectsPage() {
     if (error) { setPayError(error.message); return; }
     setPayAmount(''); setPayNotes(''); setPayReceipt(null);
     fetchAll();
+  };
+
+  const sendReceipt = async () => {
+    if (!sendReceiptModal || !sendReceiptEmail.trim()) return;
+    setSendReceiptSending(true); setSendReceiptMsg(null);
+    const { payment, project } = sendReceiptModal;
+    const totalPaid = project.hub_project_payments.reduce((s, p) => s + p.amount, 0);
+    const { data, error } = await supabase.functions.invoke('send-payment-receipt', {
+      body: {
+        to: sendReceiptEmail.trim(),
+        client_name: project.client_name,
+        project_name: project.project_name,
+        amount: payment.amount,
+        paid_at: payment.paid_at,
+        notes: payment.notes,
+        receipt_url: payment.receipt_url,
+        total_paid: totalPaid,
+        contract_price: project.contract_price,
+        invoice_number: project.id,
+      },
+    });
+    setSendReceiptSending(false);
+    if (error || data?.error) {
+      setSendReceiptMsg({ ok: false, text: data?.error ?? error?.message ?? 'Failed to send' });
+    } else {
+      setSendReceiptMsg({ ok: true, text: 'Receipt sent!' });
+    }
   };
 
   const logCost = async () => {
@@ -727,6 +760,10 @@ ${balance > 0 ? `
                                 )}
                               </div>
                               <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button onClick={() => { setSendReceiptModal({ payment: pp, project: activeProject }); setSendReceiptEmail(activeProject.contact_email ?? ''); setSendReceiptMsg(null); }}
+                                  className="text-gray-300 hover:text-sky-500 cursor-pointer mt-0.5" title="Send receipt to client">
+                                  <i className="ri-mail-send-line text-xs"></i>
+                                </button>
                                 <button onClick={() => { setEditingPaymentId(pp.id); setEditPayForm({ amount: String(pp.amount), date: pp.paid_at, notes: pp.notes ?? '', receipt: null, existingReceiptUrl: pp.receipt_url }); setEditPayError(''); }}
                                   className="text-gray-300 hover:text-gray-600 cursor-pointer mt-0.5"><i className="ri-edit-line text-xs"></i></button>
                                 <button onClick={() => deletePayment(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer mt-0.5"><i className="ri-delete-bin-line text-xs"></i></button>
@@ -1193,6 +1230,57 @@ ${balance > 0 ? `
                   {invoiceSending ? <><i className="ri-loader-4-line animate-spin"></i> Sending…</> : <><i className="ri-mail-send-line"></i> Send Invoice</>}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send receipt modal */}
+      {sendReceiptModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setSendReceiptModal(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-[#111827]">Send Payment Receipt</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{fmt(sendReceiptModal.payment.amount)} · {new Date(sendReceiptModal.payment.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+              </div>
+              <button onClick={() => setSendReceiptModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">Send to <span className="text-red-400">*</span></label>
+                <input type="email" value={sendReceiptEmail} onChange={e => setSendReceiptEmail(e.target.value)}
+                  placeholder="client@email.com" autoFocus
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+              </div>
+
+              {/* Payment summary */}
+              <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-xs text-gray-500">
+                <div className="flex justify-between"><span>Payment</span><span className="font-semibold text-emerald-600">{fmt(sendReceiptModal.payment.amount)}</span></div>
+                <div className="flex justify-between"><span>Date</span><span className="font-medium text-gray-700">{new Date(sendReceiptModal.payment.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></div>
+                {sendReceiptModal.payment.notes && <div className="flex justify-between"><span>Note</span><span className="text-gray-600">{sendReceiptModal.payment.notes}</span></div>}
+                <div className="flex justify-between pt-1 border-t border-gray-200"><span>Remaining balance</span><span className={`font-bold ${sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0) <= 0 ? 'text-emerald-600' : 'text-[#FF6B35]'}`}>{sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0) <= 0 ? 'Paid in full' : fmt(sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0))}</span></div>
+              </div>
+
+              {sendReceiptModal.payment.receipt_url && (
+                <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
+                  <img src={sendReceiptModal.payment.receipt_url} alt="receipt" className="h-10 w-14 object-cover rounded border border-gray-200 flex-shrink-0" />
+                  <p className="text-xs text-gray-500">Receipt image will be included in the email.</p>
+                </div>
+              )}
+
+              {sendReceiptMsg && (
+                <p className={`text-xs font-medium ${sendReceiptMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {sendReceiptMsg.ok ? <><i className="ri-check-line mr-1"></i>{sendReceiptMsg.text}</> : sendReceiptMsg.text}
+                </p>
+              )}
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={() => setSendReceiptModal(null)} className="flex-1 py-2.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
+              <button onClick={sendReceipt} disabled={sendReceiptSending || !sendReceiptEmail.trim()}
+                className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5">
+                {sendReceiptSending ? <><i className="ri-loader-4-line animate-spin"></i> Sending…</> : <><i className="ri-mail-send-line"></i> Send Receipt</>}
+              </button>
             </div>
           </div>
         </div>
