@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     const totalPaid: number = (payments ?? []).reduce((s: number, p: any) => s + p.amount, 0);
     const balance = lineItemsTotal - totalPaid;
     // amount_requested overrides the balance shown on invoice and payment link
-    const amountDue: number = amount_requested != null ? Number(amount_requested) : Math.max(showPayments ? balance : lineItemsTotal, 0);
+    const amountDue: number = amount_requested != null ? Number(amount_requested) : Math.max(balance, 0);
     const isPaid = amountDue <= 0;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
     const invoiceDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });

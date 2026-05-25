@@ -427,7 +427,7 @@ export default function AdminProjectsPage() {
       contract_price: project.contract_price,
       start_date: project.start_date,
       deadline: invoiceForm.due_date || project.deadline,
-      payments: invoiceShowPayments ? project.hub_project_payments : [],
+      payments: project.hub_project_payments,
       show_payments: invoiceShowPayments,
       line_items: invoiceLineItems.filter(i => i.description && i.amount),
       notes: project.notes,
@@ -535,7 +535,7 @@ export default function AdminProjectsPage() {
     const lineItems = overrides?.line_items ?? [{ description: project.service ?? project.project_name, amount: String(project.contract_price) }];
     const showPayments = overrides?.show_payments ?? true;
     const lineItemsTotal = lineItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
-    const totalPaid = showPayments ? d.totalPaid : 0;
+    const totalPaid = d.totalPaid;
     const balance = lineItemsTotal - totalPaid;
     const paymentRows = project.hub_project_payments.map(p => `
       <tr>
@@ -624,9 +624,9 @@ ${showPayments && project.hub_project_payments.length > 0 ? `
 <table class="totals">
   <tr><td>Subtotal</td><td>${fmt2(lineItemsTotal)}</td></tr>
   ${showPayments ? `<tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>` : ''}
-  <tr class="balance"><td>Balance due</td><td>${(showPayments ? balance : lineItemsTotal) <= 0 ? 'Paid in full' : fmt2(showPayments ? balance : lineItemsTotal)}</td></tr>
+  <tr class="balance"><td>Balance due</td><td>${balance <= 0 ? 'Paid in full' : fmt2(balance)}</td></tr>
 </table>
-${(showPayments ? balance : lineItemsTotal) > 0 && payUrl ? `
+${balance > 0 && payUrl ? `
 <div style="margin-top:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px;text-align:center;">
   <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Choose your payment channel online</div>
   <div style="font-size:12px;color:#6b7280;margin-bottom:14px;">Open your secure payment page to select GCash, BDO, or GoTyme, then upload proof of payment.</div>
@@ -692,15 +692,19 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       {/* Summary strip */}
       {!loading && projects.length > 0 && (
         <>
-          {/* Mobile: inline text strip */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-gray-500 md:hidden">
-            <span>Contract <span className="font-semibold text-gray-800">{fmt(summaryTotals.contractValue)}</span></span>
-            <span className="text-gray-300">·</span>
-            <span>Costs <span className="font-semibold text-rose-600">{fmt(summaryTotals.costs)}</span></span>
-            <span className="text-gray-300">·</span>
-            <span>Net <span className="font-semibold text-teal-600">{fmt(summaryTotals.netProfit)}</span></span>
-            <span className="text-gray-300">·</span>
-            <span>Collected <span className="font-semibold text-emerald-600">{fmt(summaryTotals.collected)}</span> <span className="text-gray-400">({summaryTotals.collectionPct.toFixed(0)}%)</span></span>
+          {/* Mobile: 2x2 mini grid */}
+          <div className="grid grid-cols-2 gap-2 md:hidden">
+            {[
+              { label: 'Contract',  value: fmt(summaryTotals.contractValue), cls: 'text-gray-800' },
+              { label: 'Costs',     value: fmt(summaryTotals.costs),         cls: 'text-rose-600' },
+              { label: 'Net',       value: fmt(summaryTotals.netProfit),     cls: 'text-teal-600' },
+              { label: 'Collected', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, cls: 'text-emerald-600' },
+            ].map(s => (
+              <div key={s.label} className="bg-white border border-gray-100 rounded-xl px-3 py-2">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
+                <p className={`text-sm font-bold ${s.cls} truncate`}>{s.value}</p>
+              </div>
+            ))}
           </div>
           {/* Desktop: cards */}
           <div className="hidden md:grid grid-cols-4 gap-3">
