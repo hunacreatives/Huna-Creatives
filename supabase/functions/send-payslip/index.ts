@@ -198,6 +198,7 @@ async function sendPayslip(payout_id: string) {
         This is an automatically generated payslip for the pay period <strong style="color:#6b7280;">${periodLabel}</strong>.
         Please keep this for your records. If you notice any discrepancies, reach out to HR on Slack immediately.
       </p>
+      <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
       <p style="font-size:11px;color:#d1d5db;margin:0;">© ${new Date().getFullYear()} Huna Creatives · payroll@hunacreatives.com</p>
     </div>
 

@@ -138,6 +138,7 @@ Deno.serve(async (req) => {
           <tr>
             <td style="padding:28px 40px;text-align:center;border-top:1px solid #f3f4f6;margin-top:24px;">
               <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Thank you for your payment.</p>
+              <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
               <p style="margin:0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} Huna Creatives · billing@hunacreatives.com</p>
             </td>
           </tr>

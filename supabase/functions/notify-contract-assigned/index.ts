@@ -111,6 +111,7 @@ async function run(assignment_id: string) {
       </div>
     </div>
     <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #f3f4f6;">
+      <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;text-align:center;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
       <p style="font-size:11px;color:#d1d5db;margin:0;text-align:center;">© ${new Date().getFullYear()} Huna Creatives · hr@hunacreatives.com</p>
     </div>
   </div>
