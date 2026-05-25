@@ -1376,7 +1376,7 @@ export default function ForAgenciesPage() {
               "We didn't build Sentro OS to sell software. We built it because we needed it — and it turned out everyone else needed it too."
             </p>
             <div className="flex items-center justify-center gap-3">
-              <img src="/images/6785570f89c09728ca73acf4660742b6.png" alt="Francis Fiel Roble" className="w-8 h-8 rounded-full object-cover border-2 border-white/30" />
+              <img src="/images/francis-fiel-roble-headshot.png" alt="Francis Fiel Roble" className="w-8 h-8 rounded-full object-cover border-2 border-white/30" />
               <p className="text-xs text-white/60">Francis Fiel Roble · Founder, Huna Creatives</p>
             </div>
           </div>
