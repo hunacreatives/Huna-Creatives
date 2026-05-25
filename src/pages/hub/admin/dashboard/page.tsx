@@ -28,6 +28,16 @@ interface SlackRecord {
 
 interface HoursRow { user_id: string; hours_capped: number; overtime_hours: number; }
 
+interface OutstandingInvoice {
+  id: number;
+  invoice_number: string;
+  client_name: string;
+  project_name: string;
+  balance: number | null;
+  sent_at: string;
+  due_date: string | null;
+}
+
 interface BirthdayPerson {
   full_name: string;
   avatar_url: string | null;
@@ -97,6 +107,7 @@ export default function AdminDashboardPage() {
   const [activeProjectCount, setActiveProjectCount] = useState(0);
   const [monthlyRetainerTotal, setMonthlyRetainerTotal] = useState(0);
   const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
+  const [outstandingInvoices, setOutstandingInvoices] = useState<OutstandingInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const isOwner = effectiveRole === 'owner';
   const isOwnerOrAdmin = isOwner || effectiveRole === 'admin' || effectiveRole === 'hr';
@@ -127,7 +138,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr] = await Promise.all([
+      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult] = await Promise.all([
         supabase.functions.invoke('slack-attendance'),
         supabase.from('hub_announcements').select('*, hub_users(full_name)').order('created_at', { ascending: false }).limit(4),
         supabase.from('hub_requests').select('*, hub_users(full_name, avatar_url)').in('status', ['open', 'in_review']).order('created_at', { ascending: false }),
@@ -137,6 +148,8 @@ export default function AdminDashboardPage() {
         supabase.from('hub_projects').select('contract_price, status, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
+        supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').eq('settled', false).order('sent_at', { ascending: false }),
+        supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
       ]);
 
       if (!slackResult.error && slackResult.data?.attendance) {
@@ -265,6 +278,18 @@ export default function AdminDashboardPage() {
         .filter((c: any) => c.status === 'active' && c.contract_value)
         .reduce((s: number, c: any) => s + (c.contract_currency === 'USD' ? c.contract_value * clientUsdRate : c.contract_value), 0);
       setMonthlyRetainerTotal(retainerTotal);
+
+      // Build due_date map from payment links (latest link per invoice+project)
+      const dueDateMap: Record<string, string | null> = {};
+      for (const lnk of (linkResult.data as any[]) ?? []) {
+        const key = `${lnk.invoice_number}__${lnk.project_id}`;
+        if (!(key in dueDateMap)) dueDateMap[key] = lnk.due_date ?? null;
+      }
+      const outstanding: OutstandingInvoice[] = ((invResult.data as any[]) ?? []).map((inv: any) => ({
+        ...inv,
+        due_date: dueDateMap[`${inv.invoice_number}__${inv.project_id}`] ?? null,
+      }));
+      setOutstandingInvoices(outstanding);
 
       setAnnouncements((annResult.data as HubAnnouncement[]) ?? []);
       setPendingRequests((reqResult.data as HubRequest[]) ?? []);
@@ -434,6 +459,59 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Outstanding invoices */}
+        {isOwnerOrAdmin && outstandingInvoices.length > 0 && (() => {
+          const todayMs = new Date().setHours(0, 0, 0, 0);
+          const pastDue = outstandingInvoices.filter(inv => {
+            if (!inv.due_date) return false;
+            const dueMs = new Date(inv.due_date + 'T00:00:00').getTime();
+            return todayMs - dueMs >= 3 * 86400000;
+          });
+          const hasPastDue = pastDue.length > 0;
+          return (
+            <div className={`rounded-xl border p-4 ${hasPastDue ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-100'}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <i className={`ri-file-list-3-line text-sm ${hasPastDue ? 'text-rose-500' : 'text-amber-600'}`}></i>
+                  <p className={`text-sm font-semibold ${hasPastDue ? 'text-rose-700' : 'text-amber-700'}`}>
+                    {hasPastDue
+                      ? `${pastDue.length} invoice${pastDue.length > 1 ? 's' : ''} past due`
+                      : `${outstandingInvoices.length} outstanding invoice${outstandingInvoices.length > 1 ? 's' : ''}`}
+                  </p>
+                  {hasPastDue && outstandingInvoices.length > pastDue.length && (
+                    <span className="text-xs text-rose-400">· {outstandingInvoices.length - pastDue.length} more pending</span>
+                  )}
+                </div>
+                <button onClick={() => navigate('/hub/admin/invoice-log')} className={`text-xs hover:underline cursor-pointer ${hasPastDue ? 'text-rose-600' : 'text-amber-600'}`}>
+                  View all →
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {outstandingInvoices.slice(0, 6).map(inv => {
+                  const dueMs = inv.due_date ? new Date(inv.due_date + 'T00:00:00').getTime() : null;
+                  const daysOverdue = dueMs ? Math.floor((todayMs - dueMs) / 86400000) : null;
+                  const isOverdue = daysOverdue != null && daysOverdue >= 3;
+                  return (
+                    <div key={inv.id} className={`flex items-center gap-2 bg-white rounded-lg px-3 py-2 border shadow-sm ${isOverdue ? 'border-rose-200' : 'border-white'}`}>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800">
+                          #{inv.invoice_number.padStart(4, '0')} · {inv.project_name}
+                        </p>
+                        <p className="text-xs text-gray-400">{inv.client_name}{inv.balance ? ` · ₱${inv.balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : ''}</p>
+                      </div>
+                      {isOverdue && (
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
+                          {daysOverdue}d overdue
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* KPI row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -86,6 +86,7 @@ export default function InvoiceLogPage() {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [verifying, setVerifying] = useState<Set<number>>(new Set());
+  const [resending, setResending] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const fetch = async () => {
@@ -222,6 +223,42 @@ export default function InvoiceLogPage() {
       setProofs(prev => prev.map(p => p.id === proof.id ? { ...p, verified: true, verified_at } : p));
     } finally {
       setVerifying(prev => { const s = new Set(prev); s.delete(proof.id); return s; });
+    }
+  };
+
+  const resendInvoice = async (inv: InvoiceLog) => {
+    if (!window.confirm(`Resend invoice #${inv.invoice_number.padStart(4, '0')} to ${inv.sent_to}?`)) return;
+    setResending(prev => new Set(prev).add(inv.id));
+    try {
+      let payments: { amount: number; paid_at: string; notes: string | null }[] = [];
+      if (inv.project_id) {
+        const { data: pmts } = await supabase.from('hub_project_payments').select('amount, paid_at, notes').eq('project_id', inv.project_id).order('paid_at', { ascending: true });
+        payments = pmts ?? [];
+      }
+      const { data, error } = await supabase.functions.invoke('send-invoice', {
+        body: {
+          to: inv.sent_to,
+          cc: inv.sent_cc || undefined,
+          subject: inv.subject || undefined,
+          client_name: inv.client_name,
+          project_name: inv.project_name,
+          contract_price: inv.contract_price,
+          payments,
+          show_payments: inv.show_payments,
+          line_items: inv.line_items,
+          invoice_number: inv.invoice_number,
+          project_id: inv.project_id,
+          amount_requested: inv.balance,
+          app_base_url: window.location.origin,
+        },
+      });
+      if (error || data?.error) {
+        alert('Failed to resend: ' + (data?.error || error?.message));
+      } else {
+        alert(`Invoice resent to ${inv.sent_to}`);
+      }
+    } finally {
+      setResending(prev => { const s = new Set(prev); s.delete(inv.id); return s; });
     }
   };
 
@@ -368,15 +405,27 @@ export default function InvoiceLogPage() {
                           <p className={`font-semibold ${(inv.balance ?? 1) <= 0 ? 'text-emerald-600' : 'text-orange-500'}`}>{inv.balance != null && inv.balance <= 0 ? 'Paid ✓' : fmt(inv.balance)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs text-gray-400">
                           Payments history {inv.show_payments ? 'shown' : 'hidden'} · Sent {fmtDateTime(inv.sent_at)}
                           {inv.settled && inv.settled_at && <> · <span className="text-emerald-600">Settled {fmtDateTime(inv.settled_at)}</span></>}
                         </p>
-                        <button onClick={() => deleteInvoice(inv.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-rose-500 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer">
-                          <i className="ri-delete-bin-line"></i> Delete
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => resendInvoice(inv)}
+                            disabled={resending.has(inv.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs text-[#FF6B35] border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {resending.has(inv.id)
+                              ? <><i className="ri-loader-4-line animate-spin"></i> Sending…</>
+                              : <><i className="ri-send-plane-line"></i> Resend</>
+                            }
+                          </button>
+                          <button onClick={() => deleteInvoice(inv.id)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs text-rose-500 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer">
+                            <i className="ri-delete-bin-line"></i> Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
