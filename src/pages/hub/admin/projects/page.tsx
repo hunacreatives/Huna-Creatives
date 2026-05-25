@@ -691,57 +691,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
       {/* Summary strip */}
       {!loading && projects.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            {
-              label: 'Total Contract Value',
-              value: fmt(summaryTotals.contractValue),
-              icon: 'ri-file-list-3-line',
-              text: 'text-slate-800',
-              soft: 'bg-slate-50',
-              chip: 'bg-slate-900 text-white',
-              border: 'border-slate-200',
-              glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]',
-            },
-            {
-              label: 'Operational Costs',
-              value: fmt(summaryTotals.costs),
-              icon: 'ri-subtract-line',
-              text: 'text-rose-700',
-              soft: 'bg-rose-50',
-              chip: 'bg-rose-500 text-white',
-              border: 'border-rose-200',
-              glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]',
-            },
-            {
-              label: 'Net Profit',
-              value: fmt(summaryTotals.netProfit),
-              icon: 'ri-line-chart-line',
-              text: 'text-teal-700',
-              soft: 'bg-teal-50',
-              chip: 'bg-teal-500 text-white',
-              border: 'border-teal-200',
-              glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]',
-            },
-            {
-              label: 'Collected from Clients',
-              value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`,
-              icon: 'ri-money-dollar-circle-line',
-              text: 'text-emerald-700',
-              soft: 'bg-emerald-50',
-              chip: 'bg-emerald-500 text-white',
-              border: 'border-emerald-200',
-              glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]',
-            },
-          ].map(card => (
-            <div key={card.label} className={`${card.soft} ${card.glow} border ${card.border} rounded-2xl p-4`}>
-              <div className={`w-8 h-8 ${card.chip} rounded-xl flex items-center justify-center mb-3 shadow-sm`}>
-                <i className={`${card.icon} text-sm`}></i>
-              </div>
-              <p className={`text-lg font-bold tracking-tight ${card.text}`}>{card.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{card.label}</p>
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-x-5 gap-y-1 px-1 text-xs text-gray-500">
+          <span>Contract <span className="font-semibold text-gray-800">{fmt(summaryTotals.contractValue)}</span></span>
+          <span className="text-gray-300">·</span>
+          <span>Costs <span className="font-semibold text-rose-600">{fmt(summaryTotals.costs)}</span></span>
+          <span className="text-gray-300">·</span>
+          <span>Net <span className="font-semibold text-teal-600">{fmt(summaryTotals.netProfit)}</span></span>
+          <span className="text-gray-300">·</span>
+          <span>Collected <span className="font-semibold text-emerald-600">{fmt(summaryTotals.collected)}</span> <span className="text-gray-400">({summaryTotals.collectionPct.toFixed(0)}%)</span></span>
         </div>
       )}
 
