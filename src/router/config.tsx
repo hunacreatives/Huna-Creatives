@@ -49,6 +49,7 @@ const HubContractorClients = lazy(() => import('../pages/hub/contractor/clients/
 const HubContractorProjects = lazy(() => import('../pages/hub/contractor/projects/page'));
 const HubAdminProjects = lazy(() => import('../pages/hub/admin/projects/page'));
 const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page'));
+const HubAdminInvoiceLog = lazy(() => import('../pages/hub/admin/invoice-log/page'));
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
@@ -143,6 +144,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/projects', element: <HubAdminProjects /> },
   { path: '/hub/admin/overtime', element: <HubAdminOvertime /> },
   { path: '/hub/admin/documents', element: <HubAdminDocuments /> },
+  { path: '/hub/admin/invoice-log', element: <HubAdminInvoiceLog /> },
   { path: '/hub/admin/questionnaires', element: <HubAdminQuestionnaires /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   {

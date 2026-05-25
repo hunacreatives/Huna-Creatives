@@ -1,5 +1,11 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives Billing <billing@hunacreatives.com>';
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -75,31 +81,42 @@ Deno.serve(async (req) => {
           <!-- Payment details -->
           <tr>
             <td style="padding:24px 40px 0;">
-              <div style="background:#f9fafb;border-radius:12px;padding:20px;border:1px solid #e5e7eb;">
+              <div style="background:#f0fdf4;border-radius:12px;padding:20px;border:1px solid #bbf7d0;">
                 <table width="100%" cellpadding="0" cellspacing="0">
                   <tr>
-                    <td style="padding:6px 0;font-size:13px;color:#6b7280;">Amount received</td>
-                    <td style="padding:6px 0;font-size:15px;font-weight:800;color:#059669;text-align:right;">${fmt(amount)}</td>
+                    <td style="padding:6px 0;font-size:13px;color:#166534;">Amount received</td>
+                    <td style="padding:6px 0;font-size:22px;font-weight:800;color:#059669;text-align:right;">${fmt(amount)}</td>
                   </tr>
                   <tr>
-                    <td style="padding:6px 0;font-size:13px;color:#6b7280;">Date</td>
-                    <td style="padding:6px 0;font-size:13px;font-weight:600;color:#111827;text-align:right;">${dateStr}</td>
+                    <td style="padding:4px 0;font-size:13px;color:#166534;">Date</td>
+                    <td style="padding:4px 0;font-size:13px;font-weight:600;color:#166534;text-align:right;">${dateStr}</td>
                   </tr>
                   ${notes ? `<tr>
-                    <td style="padding:6px 0;font-size:13px;color:#6b7280;">Note</td>
-                    <td style="padding:6px 0;font-size:13px;color:#374151;text-align:right;">${notes}</td>
+                    <td style="padding:4px 0;font-size:13px;color:#166534;">Note</td>
+                    <td style="padding:4px 0;font-size:13px;color:#166534;text-align:right;">${notes}</td>
                   </tr>` : ''}
-                  <tr><td colspan="2" style="padding:4px 0;"><div style="border-top:1px solid #e5e7eb;margin:4px 0;"></div></td></tr>
-                  <tr>
-                    <td style="padding:6px 0;font-size:13px;color:#6b7280;">Total paid to date</td>
-                    <td style="padding:6px 0;font-size:13px;font-weight:600;color:#111827;text-align:right;">${fmt(total_paid)}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:6px 0;font-size:13px;font-weight:700;color:#111827;">Remaining balance</td>
-                    <td style="padding:6px 0;font-size:15px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;">${isPaid ? 'Paid in full ✓' : fmt(balance)}</td>
-                  </tr>
                 </table>
               </div>
+            </td>
+          </tr>
+
+          <!-- Running total (subtle) -->
+          <tr>
+            <td style="padding:12px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:4px 0;font-size:12px;color:#9ca3af;">Total paid to date</td>
+                  <td style="padding:4px 0;font-size:12px;color:#6b7280;text-align:right;">${fmt(total_paid)}</td>
+                </tr>
+                ${isPaid ? `<tr>
+                  <td colspan="2" style="padding:6px 0;text-align:center;">
+                    <span style="font-size:12px;color:#059669;font-weight:600;">✓ Fully paid — thank you!</span>
+                  </td>
+                </tr>` : `<tr>
+                  <td style="padding:4px 0;font-size:12px;color:#9ca3af;">Remaining balance</td>
+                  <td style="padding:4px 0;font-size:12px;color:#9ca3af;text-align:right;">${fmt(balance)}</td>
+                </tr>`}
+              </table>
             </td>
           </tr>
 
@@ -145,6 +162,18 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       return new Response(JSON.stringify({ error: resBody?.message ?? 'Failed to send' }), { status: 200, headers: cors });
     }
+
+    await supabase.from('hub_payment_receipt_log').insert({
+      project_id: project_id ?? null,
+      client_name,
+      project_name,
+      payment_amount: amount,
+      paid_at,
+      sent_to: to,
+      total_paid,
+      balance,
+      receipt_url: receipt_url ?? null,
+    });
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {

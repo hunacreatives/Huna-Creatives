@@ -29,12 +29,14 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
 };
 
 interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null; }
+interface PaymentReminder { id: number; send_date: string; amount_due: number | null; notes: string | null; status: string; sent_at: string | null; }
 
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
   contract_price: number; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
   hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
+  hub_payment_reminders: PaymentReminder[];
   hub_project_contractors: {
     id: number; percentage: number; payout_type: string; fixed_amount: number | null;
     payout_status: string; paid_at: string | null; notes: string | null;
@@ -118,10 +120,24 @@ export default function AdminProjectsPage() {
   const [invoiceSending, setInvoiceSending] = useState(false);
   const [invoiceMsg, setInvoiceMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // Payment reminders
+  const [reminderDate, setReminderDate] = useState('');
+  const [reminderAmount, setReminderAmount] = useState('');
+  const [reminderNotes, setReminderNotes] = useState('');
+  const [reminderSaving, setReminderSaving] = useState(false);
+  const [reminderError, setReminderError] = useState('');
+
+  const fetchNextInvoiceNumber = async () => {
+    const { data } = await supabase.from('hub_invoice_log').select('invoice_number').order('id', { ascending: false }).limit(1).maybeSingle();
+    if (!data) return '0001';
+    const last = parseInt(data.invoice_number, 10);
+    return isNaN(last) ? '0001' : String(last + 1).padStart(4, '0');
+  };
+
   const fetchAll = async () => {
     const [pRes, cRes] = await Promise.all([
       supabase.from('hub_projects')
-        .select('*, hub_project_payments(id, amount, paid_at, notes, receipt_url), hub_project_costs(id, label, amount, date), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
+        .select('*, hub_project_payments(id, amount, paid_at, notes, receipt_url), hub_project_costs(id, label, amount, date), hub_payment_reminders(id, send_date, amount_due, notes, status, sent_at), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
@@ -352,6 +368,27 @@ export default function AdminProjectsPage() {
     fetchAll();
   };
 
+  const addReminder = async () => {
+    if (!activeId || !reminderDate) return;
+    setReminderSaving(true); setReminderError('');
+    const { error } = await supabase.from('hub_payment_reminders').insert({
+      project_id: activeId,
+      send_date: reminderDate,
+      amount_due: reminderAmount ? parseFloat(reminderAmount) : null,
+      notes: reminderNotes || null,
+      status: 'pending',
+    });
+    setReminderSaving(false);
+    if (error) { setReminderError(error.message); return; }
+    setReminderDate(''); setReminderAmount(''); setReminderNotes('');
+    fetchAll();
+  };
+
+  const deleteReminder = async (rid: number) => {
+    await supabase.from('hub_payment_reminders').delete().eq('id', rid);
+    fetchAll();
+  };
+
   const sendInvoice = async (project: Project) => {
     setInvoiceSending(true);
     setInvoiceMsg(null);
@@ -373,6 +410,7 @@ export default function AdminProjectsPage() {
         notes: project.notes,
         message: invoiceForm.message.trim() || undefined,
         invoice_number: invNum,
+        project_id: project.id,
       },
     });
     setInvoiceSending(false);
@@ -652,7 +690,7 @@ ${balance > 0 ? `
                       className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer flex items-center gap-1">
                       <i className="ri-printer-line"></i> Print
                     </button>
-                    <button onClick={() => { setInvoiceModal(activeProject); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${String(activeProject.id).padStart(4,'0')} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: String(activeProject.id).padStart(4,'0'), message: '' }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
+                    <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, message: '' }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
                       className="text-xs px-2.5 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer flex items-center gap-1">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>
@@ -802,6 +840,61 @@ ${balance > 0 ? `
                       )}
                     </div>
                     {payError && <p className="text-xs text-red-500">{payError}</p>}
+                  </div>
+                </div>
+
+                {/* Payment Schedule */}
+                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Schedule</p>
+                    <span className="text-[10px] text-gray-400">Reminders auto-send on due date</span>
+                  </div>
+                  {(activeProject.hub_payment_reminders ?? []).length === 0 ? (
+                    <p className="text-xs text-gray-400">No reminders scheduled.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {[...(activeProject.hub_payment_reminders ?? [])].sort((a, b) => a.send_date.localeCompare(b.send_date)).map(r => {
+                        const isPast = r.send_date < new Date().toISOString().slice(0, 10);
+                        const statusCls = r.status === 'sent' ? 'text-emerald-600 bg-emerald-50' : r.status === 'cancelled' ? 'text-gray-400 bg-gray-100 line-through' : isPast ? 'text-rose-500 bg-rose-50' : 'text-amber-600 bg-amber-50';
+                        const statusLabel = r.status === 'sent' ? 'Sent' : r.status === 'cancelled' ? 'Cancelled' : isPast ? 'Overdue' : 'Pending';
+                        return (
+                          <div key={r.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-medium text-gray-700">
+                                  {new Date(r.send_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </span>
+                                {r.amount_due && <span className="text-xs font-semibold text-[#FF6B35]">{fmt(r.amount_due)}</span>}
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusCls}`}>{statusLabel}</span>
+                              </div>
+                              {r.notes && <p className="text-[11px] text-gray-400 mt-0.5">{r.notes}</p>}
+                            </div>
+                            {r.status === 'pending' && (
+                              <button onClick={() => deleteReminder(r.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0">
+                                <i className="ri-delete-bin-line text-xs"></i>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="border-t border-gray-100 pt-3 space-y-2">
+                    <div className="flex gap-2">
+                      <input type="date" value={reminderDate} onChange={e => setReminderDate(e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <input type="number" value={reminderAmount} onChange={e => setReminderAmount(e.target.value)} placeholder="Amount (optional)"
+                        className="w-32 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={reminderNotes} onChange={e => setReminderNotes(e.target.value)} placeholder="Note e.g. 2nd installment"
+                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                      <button onClick={addReminder} disabled={!reminderDate || reminderSaving}
+                        className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                        {reminderSaving ? '...' : '+ Add'}
+                      </button>
+                    </div>
+                    {reminderError && <p className="text-xs text-red-500">{reminderError}</p>}
                   </div>
                 </div>
 

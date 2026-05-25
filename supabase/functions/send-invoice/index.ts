@@ -1,5 +1,11 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives Billing <billing@hunacreatives.com>';
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -30,6 +36,7 @@ Deno.serve(async (req) => {
       notes,
       message,
       invoice_number,
+      project_id,
     } = await req.json();
 
     const lineItems: { description: string; amount: string }[] = line_items?.length
@@ -252,6 +259,21 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       return new Response(JSON.stringify({ error: resBody?.message ?? 'Failed to send email' }), { status: 200, headers: cors });
     }
+
+    await supabase.from('hub_invoice_log').insert({
+      invoice_number: String(invoice_number),
+      project_id: project_id ?? null,
+      client_name,
+      project_name,
+      sent_to: to,
+      sent_cc: cc ?? null,
+      subject: subject ?? null,
+      contract_price: lineItemsTotal,
+      total_paid: totalPaid,
+      balance,
+      line_items: lineItems,
+      show_payments: showPayments,
+    });
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
