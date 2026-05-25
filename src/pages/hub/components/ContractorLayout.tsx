@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import ContractorSidebar from './ContractorSidebar';
 import NotificationBell from './NotificationBell';
+import DevToolbar from './DevToolbar';
 
 interface Props {
   children: ReactNode;
@@ -29,6 +30,7 @@ export default function ContractorLayout({ children, title, actions }: Props) {
         navigate('/hub/contractor/onboarding', { replace: true });
       }
     }
+    // developer viewing as contractor bypasses onboarding check
   }, [loading, hubUser]);
 
   if (loading || !hubUser) return (
@@ -84,6 +86,7 @@ export default function ContractorLayout({ children, title, actions }: Props) {
           </div>
         </main>
       </div>
+      <DevToolbar />
     </div>
   );
 }

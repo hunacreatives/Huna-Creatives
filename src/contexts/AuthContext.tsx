@@ -12,6 +12,9 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshHubUser: () => Promise<void>;
+  devViewAs: 'owner' | 'admin' | 'contractor' | null;
+  setDevViewAs: (role: 'owner' | 'admin' | 'contractor' | null) => void;
+  effectiveRole: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -21,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authUser, setAuthUser] = useState<SupabaseUser | null>(null);
   const [hubUser, setHubUser] = useState<HubUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [devViewAs, setDevViewAs] = useState<'owner' | 'admin' | 'contractor' | null>(null);
   const mountedRef = useRef(true);
   const hubUserLoadedRef = useRef(false);
 
@@ -119,8 +123,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const effectiveRole = hubUser?.role === 'developer' && devViewAs ? devViewAs : hubUser?.role ?? null;
+
   return (
-    <AuthContext.Provider value={{ session, authUser, user: hubUser, hubUser, loading, signIn, signOut, refreshHubUser }}>
+    <AuthContext.Provider value={{ session, authUser, user: hubUser, hubUser, loading, signIn, signOut, refreshHubUser, devViewAs, setDevViewAs, effectiveRole }}>
       {children}
     </AuthContext.Provider>
   );

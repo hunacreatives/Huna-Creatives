@@ -1,4 +1,4 @@
-export type UserRole = 'owner' | 'admin' | 'contractor';
+export type UserRole = 'owner' | 'admin' | 'contractor' | 'developer';
 
 export interface HubUser {
   id: string;

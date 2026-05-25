@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminSidebar from './AdminSidebar';
 import NotificationBell from './NotificationBell';
+import DevToolbar from './DevToolbar';
 
 interface Props {
   children: ReactNode;
@@ -85,6 +86,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
           </div>
         </main>
       </div>
+      <DevToolbar />
     </div>
   );
 }
