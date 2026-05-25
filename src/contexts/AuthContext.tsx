@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const effectiveRole = hubUser?.role === 'developer' && devViewAs ? devViewAs : hubUser?.role ?? null;
+  const effectiveRole = hubUser?.is_developer && devViewAs ? devViewAs : hubUser?.role ?? null;
 
   return (
     <AuthContext.Provider value={{ session, authUser, user: hubUser, hubUser, loading, signIn, signOut, refreshHubUser, devViewAs, setDevViewAs, effectiveRole }}>

@@ -1,4 +1,4 @@
-export type UserRole = 'owner' | 'admin' | 'contractor' | 'developer';
+export type UserRole = 'owner' | 'admin' | 'contractor';
 
 export interface HubUser {
   id: string;
@@ -29,6 +29,7 @@ export interface HubUser {
   bank_account_type?: string;
   notes?: string;
   onboarding_completed?: boolean;
+  is_developer?: boolean;
   shift_start?: string;
   shift_end?: string;
   work_days?: string[];

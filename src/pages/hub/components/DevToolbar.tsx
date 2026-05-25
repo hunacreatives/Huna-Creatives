@@ -11,7 +11,7 @@ export default function DevToolbar() {
   const { hubUser, devViewAs, setDevViewAs } = useAuth();
   const navigate = useNavigate();
 
-  if (hubUser?.role !== 'developer') return null;
+  if (!hubUser?.is_developer) return null;
 
   const handleSelect = (role: 'owner' | 'admin' | 'contractor') => {
     setDevViewAs(role);
