@@ -25,17 +25,25 @@ Deno.serve(async (req) => {
       start_date,
       deadline,
       payments,
+      show_payments,
+      line_items,
       notes,
       message,
       invoice_number,
     } = await req.json();
+
+    const lineItems: { description: string; amount: string }[] = line_items?.length
+      ? line_items
+      : [{ description: service ?? project_name, amount: String(contract_price) }];
+    const lineItemsTotal = lineItems.reduce((s: number, i: any) => s + (parseFloat(i.amount) || 0), 0);
+    const showPayments = show_payments !== false;
 
     if (!to || !client_name || !project_name) {
       return new Response(JSON.stringify({ error: 'to, client_name, and project_name are required' }), { status: 200, headers: cors });
     }
 
     const totalPaid: number = (payments ?? []).reduce((s: number, p: any) => s + p.amount, 0);
-    const balance = contract_price - totalPaid;
+    const balance = lineItemsTotal - totalPaid;
     const isPaid = balance <= 0;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
     const invoiceDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -116,17 +124,17 @@ Deno.serve(async (req) => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td style="padding:14px 16px;font-size:13px;color:#111827;font-weight:500;">${service ?? project_name}</td>
-                    <td style="padding:14px 16px;font-size:14px;font-weight:700;color:#111827;text-align:right;">${fmt(contract_price)}</td>
-                  </tr>
+                  ${lineItems.map((i: any) => `<tr>
+                    <td style="padding:14px 16px;font-size:13px;color:#111827;font-weight:500;">${i.description}</td>
+                    <td style="padding:14px 16px;font-size:14px;font-weight:700;color:#111827;text-align:right;">${fmt(parseFloat(i.amount) || 0)}</td>
+                  </tr>`).join('')}
                 </tbody>
               </table>
             </td>
           </tr>
 
           <!-- Payments received -->
-          ${paymentsRows ? `
+          ${showPayments && paymentsRows ? `
           <tr>
             <td style="padding:20px 40px 0;">
               <p style="margin:0 0 10px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Payments Received</p>
@@ -148,13 +156,13 @@ Deno.serve(async (req) => {
             <td style="padding:20px 40px 28px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#6b7280;">Total contract</td>
-                  <td style="padding:6px 0;font-size:13px;color:#6b7280;text-align:right;">${fmt(contract_price)}</td>
+                  <td style="padding:6px 0;font-size:13px;color:#6b7280;">Total</td>
+                  <td style="padding:6px 0;font-size:13px;color:#6b7280;text-align:right;">${fmt(lineItemsTotal)}</td>
                 </tr>
-                <tr>
+                ${showPayments ? `<tr>
                   <td style="padding:6px 0;font-size:13px;color:#6b7280;">Total paid</td>
                   <td style="padding:6px 0;font-size:13px;color:#059669;font-weight:600;text-align:right;">− ${fmt(totalPaid)}</td>
-                </tr>
+                </tr>` : ''}
                 <tr>
                   <td colspan="2" style="padding:2px 0;"><div style="border-top:2px solid #e5e7eb;margin:4px 0;"></div></td>
                 </tr>

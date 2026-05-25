@@ -87,6 +87,8 @@ export default function AdminProjectsPage() {
   const emptyInvoiceForm = { email: '', cc: '', subject: '', due_date: '', invoice_number: '', message: '' };
   const [invoiceForm, setInvoiceForm] = useState(emptyInvoiceForm);
   const setIf = (patch: Partial<typeof emptyInvoiceForm>) => setInvoiceForm(f => ({ ...f, ...patch }));
+  const [invoiceLineItems, setInvoiceLineItems] = useState<{ description: string; amount: string }[]>([]);
+  const [invoiceShowPayments, setInvoiceShowPayments] = useState(true);
   const [invoiceSending, setInvoiceSending] = useState(false);
   const [invoiceMsg, setInvoiceMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -284,7 +286,9 @@ export default function AdminProjectsPage() {
         contract_price: project.contract_price,
         start_date: project.start_date,
         deadline: invoiceForm.due_date || project.deadline,
-        payments: project.hub_project_payments,
+        payments: invoiceShowPayments ? project.hub_project_payments : [],
+        show_payments: invoiceShowPayments,
+        line_items: invoiceLineItems.filter(i => i.description && i.amount),
         notes: project.notes,
         message: invoiceForm.message.trim() || undefined,
         invoice_number: invNum,
@@ -302,7 +306,7 @@ export default function AdminProjectsPage() {
     }
   };
 
-  const printInvoice = (project: Project, overrides?: { due_date?: string; invoice_number?: string; message?: string }) => {
+  const printInvoice = (project: Project, overrides?: { due_date?: string; invoice_number?: string; message?: string; line_items?: { description: string; amount: string }[]; show_payments?: boolean }) => {
     const d = derived(project);
     const fmt2 = (n: number) => '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const balance = project.contract_price - d.totalPaid;
@@ -310,6 +314,9 @@ export default function AdminProjectsPage() {
     const invNum = overrides?.invoice_number || String(project.id).padStart(4,'0');
     const dueDate = overrides?.due_date || project.deadline;
     const customMsg = overrides?.message || '';
+    const lineItems = overrides?.line_items ?? [{ description: project.service ?? project.project_name, amount: String(project.contract_price) }];
+    const showPayments = overrides?.show_payments ?? true;
+    const lineItemsTotal = lineItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
     const win = window.open('', '_blank', 'width=900,height=700');
     if (!win) return;
     const paymentRows = project.hub_project_payments.map(p => `
@@ -373,17 +380,17 @@ ${customMsg ? `<div style="background:#fffbf5;border:1px solid #fed7aa;border-ra
 </div>
 <table>
   <thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
-  <tbody><tr><td>${project.service ?? project.project_name}</td><td class="amount">${fmt2(project.contract_price)}</td></tr></tbody>
+  <tbody>${lineItems.map(i => `<tr><td>${i.description}</td><td class="amount">${fmt2(parseFloat(i.amount) || 0)}</td></tr>`).join('')}</tbody>
 </table>
-${project.hub_project_payments.length > 0 ? `
+${showPayments && project.hub_project_payments.length > 0 ? `
 <table>
   <thead><tr><th>Date</th><th>Note</th><th style="text-align:right">Payment</th></tr></thead>
   <tbody>${paymentRows}</tbody>
 </table>` : ''}
 <table class="totals">
-  <tr><td>Total contract</td><td>${fmt2(project.contract_price)}</td></tr>
-  <tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>
-  <tr class="balance"><td>Balance due</td><td>${balance <= 0 ? 'Paid in full' : fmt2(balance)}</td></tr>
+  <tr><td>Total contract</td><td>${fmt2(lineItemsTotal)}</td></tr>
+  ${showPayments ? `<tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>` : ''}
+  <tr class="balance"><td>Balance due</td><td>${(showPayments ? balance : lineItemsTotal) <= 0 ? 'Paid in full' : fmt2(showPayments ? balance : lineItemsTotal)}</td></tr>
 </table>
 ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;margin-top:16px">${project.notes}</p>` : ''}
 ${balance > 0 ? `
@@ -554,7 +561,7 @@ ${balance > 0 ? `
                       className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer flex items-center gap-1">
                       <i className="ri-printer-line"></i> Print
                     </button>
-                    <button onClick={() => { setInvoiceModal(activeProject); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${String(activeProject.id).padStart(4,'0')} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: String(activeProject.id).padStart(4,'0'), message: '' }); setInvoiceMsg(null); }}
+                    <button onClick={() => { setInvoiceModal(activeProject); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${String(activeProject.id).padStart(4,'0')} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: String(activeProject.id).padStart(4,'0'), message: '' }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
                       className="text-xs px-2.5 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer flex items-center gap-1">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>
@@ -1009,6 +1016,42 @@ ${balance > 0 ? `
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
               </div>
+              {/* Line items */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-gray-600">Invoice Line Items</label>
+                  <button type="button" onClick={() => setInvoiceLineItems(p => [...p, { description: '', amount: '' }])}
+                    className="text-xs text-[#FF6B35] hover:text-[#e55a27] cursor-pointer flex items-center gap-1">
+                    <i className="ri-add-line"></i> Add line
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {invoiceLineItems.map((item, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <input value={item.description} onChange={e => setInvoiceLineItems(p => p.map((x, i) => i === idx ? { ...x, description: e.target.value } : x))}
+                        placeholder="e.g. Website Design — Phase 1"
+                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <input type="number" value={item.amount} onChange={e => setInvoiceLineItems(p => p.map((x, i) => i === idx ? { ...x, amount: e.target.value } : x))}
+                        placeholder="Amount"
+                        className="w-28 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                      {invoiceLineItems.length > 1 && (
+                        <button type="button" onClick={() => setInvoiceLineItems(p => p.filter((_, i) => i !== idx))}
+                          className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0">
+                          <i className="ri-close-line text-sm"></i>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Show payments toggle */}
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={invoiceShowPayments} onChange={e => setInvoiceShowPayments(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-[#FF6B35]" />
+                <span className="text-xs text-gray-600">Include payment history on invoice</span>
+              </label>
+
               {/* Message */}
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-600">Message <span className="text-gray-400 font-normal">(optional note to client)</span></label>
@@ -1033,7 +1076,7 @@ ${balance > 0 ? `
             </div>
             <div className="px-5 pb-5 space-y-2">
               <button
-                onClick={() => printInvoice(invoiceModal, { due_date: invoiceForm.due_date, invoice_number: invoiceForm.invoice_number, message: invoiceForm.message })}
+                onClick={() => printInvoice(invoiceModal, { due_date: invoiceForm.due_date, invoice_number: invoiceForm.invoice_number, message: invoiceForm.message, line_items: invoiceLineItems.filter(i => i.description && i.amount), show_payments: invoiceShowPayments })}
                 className="w-full py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <i className="ri-printer-line"></i> Preview / Print
