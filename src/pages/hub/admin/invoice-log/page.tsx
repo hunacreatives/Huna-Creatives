@@ -244,43 +244,45 @@ export default function InvoiceLogPage() {
           <p className="text-sm text-gray-500 mt-1">Full audit trail of sent invoices and payment receipts</p>
         </div>
 
-        <div className="flex items-center gap-3 mb-5">
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
-            <button
-              onClick={() => setTab('invoices')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer ${tab === 'invoices' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Invoices
-              <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{invoices.length}</span>
-            </button>
-            <button
-              onClick={() => setTab('scheduled')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer ${tab === 'scheduled' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Scheduled
-              <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{scheduled.filter(s => s.status === 'pending').length}</span>
-            </button>
-            <button
-              onClick={() => setTab('receipts')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer ${tab === 'receipts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Payment Receipts
-              <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{receipts.length}</span>
-            </button>
-            <button
-              onClick={() => setTab('proofs')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer ${tab === 'proofs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Payment Proofs
-              <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{proofs.length}</span>
-            </button>
+        <div className="mb-5 space-y-3">
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex bg-gray-100 rounded-lg p-1 gap-1 w-max sm:w-auto">
+              <button
+                onClick={() => setTab('invoices')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'invoices' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Invoices
+                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{invoices.length}</span>
+              </button>
+              <button
+                onClick={() => setTab('scheduled')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'scheduled' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Scheduled
+                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{scheduled.filter(s => s.status === 'pending').length}</span>
+              </button>
+              <button
+                onClick={() => setTab('receipts')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'receipts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Receipts
+                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{receipts.length}</span>
+              </button>
+              <button
+                onClick={() => setTab('proofs')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'proofs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Proofs
+                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{proofs.length}</span>
+              </button>
+            </div>
           </div>
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by client, project, email…"
-            className="ml-auto w-64 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
           />
         </div>
 
@@ -294,37 +296,36 @@ export default function InvoiceLogPage() {
               {filteredInvoices.map(inv => (
                 <div key={inv.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                   <button
-                    className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                    className="w-full text-left px-4 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
                     onClick={() => setExpanded(expanded === inv.id ? null : inv.id)}
                   >
-                    <div className="w-14 text-center">
-                      <span className="text-xs font-mono font-bold text-[#FF6B35] bg-orange-50 px-2 py-1 rounded">
-                        #{inv.invoice_number.padStart(4, '0')}
-                      </span>
-                    </div>
+                    <span className="text-xs font-mono font-bold text-[#FF6B35] bg-orange-50 px-2 py-1 rounded flex-shrink-0">
+                      #{inv.invoice_number.padStart(4, '0')}
+                    </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{inv.project_name}</p>
-                      <p className="text-xs text-gray-500 truncate">{inv.client_name} · {inv.sent_to}</p>
+                      <p className="text-xs text-gray-500 truncate">{inv.client_name}</p>
+                      <p className="text-xs text-gray-400 hidden sm:block">{inv.sent_to}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-bold text-gray-900">{fmt(inv.contract_price)}</p>
                       {inv.balance != null && (
                         <p className={`text-xs font-medium ${inv.balance <= 0 ? 'text-emerald-600' : 'text-orange-500'}`}>
-                          {inv.balance <= 0 ? 'Paid in full' : `${fmt(inv.balance)} due`}
+                          {inv.balance <= 0 ? 'Paid' : `${fmt(inv.balance)} due`}
                         </p>
                       )}
                     </div>
                     {inv.settled ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-shrink-0">
-                        <i className="ri-check-double-line"></i> Settled
+                        <i className="ri-check-double-line"></i> <span className="hidden sm:inline">Settled</span>
                       </span>
                     ) : (
                       <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full flex-shrink-0">
-                        Outstanding
+                        <span className="hidden sm:inline">Outstanding</span><span className="sm:hidden">Due</span>
                       </span>
                     )}
-                    <div className="text-xs text-gray-400 flex-shrink-0 w-28 text-right">{fmtDateTime(inv.sent_at)}</div>
-                    <i className={`ri-arrow-${expanded === inv.id ? 'up' : 'down'}-s-line text-gray-400`}></i>
+                    <div className="text-xs text-gray-400 flex-shrink-0 text-right hidden md:block">{fmtDateTime(inv.sent_at)}</div>
+                    <i className={`ri-arrow-${expanded === inv.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
                   </button>
                   {expanded === inv.id && (
                     <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-3">
@@ -399,24 +400,23 @@ export default function InvoiceLogPage() {
                 return (
                   <div key={inv.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <button
-                      className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                      className="w-full text-left px-4 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => setExpanded(expanded === 100000 + inv.id ? null : 100000 + inv.id)}
                     >
-                      <div className="w-14 text-center">
-                        <span className="text-xs font-mono font-bold text-[#FF6B35] bg-orange-50 px-2 py-1 rounded">
-                          #{inv.invoice_number.padStart(4, '0')}
-                        </span>
-                      </div>
+                      <span className="text-xs font-mono font-bold text-[#FF6B35] bg-orange-50 px-2 py-1 rounded flex-shrink-0">
+                        #{inv.invoice_number.padStart(4, '0')}
+                      </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{inv.project_name}</p>
-                        <p className="text-xs text-gray-500 truncate">{inv.client_name} · {inv.to_email}</p>
+                        <p className="text-xs text-gray-500 truncate">{inv.client_name}</p>
+                        <p className="text-xs text-gray-400 hidden sm:block">{inv.to_email}</p>
                       </div>
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right flex-shrink-0 hidden sm:block">
                         <p className="text-xs text-gray-400">Scheduled</p>
                         <p className="text-sm font-semibold text-gray-900">{fmtDateTime(inv.scheduled_for)}</p>
                       </div>
                       <span className={`text-[11px] px-2 py-1 rounded-full font-medium flex-shrink-0 ${statusCls}`}>{inv.status}</span>
-                      <i className={`ri-arrow-${expanded === 100000 + inv.id ? 'up' : 'down'}-s-line text-gray-400`}></i>
+                      <i className={`ri-arrow-${expanded === 100000 + inv.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
                     </button>
                     {expanded === 100000 + inv.id && (
                       <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-3">
@@ -488,33 +488,32 @@ export default function InvoiceLogPage() {
               {filteredProofs.map(p => (
                 <div key={p.id} className={`bg-white border rounded-xl overflow-hidden ${p.verified ? 'border-emerald-200' : 'border-gray-200'}`}>
                   <button
-                    className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                    className="w-full text-left px-4 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
                     onClick={() => setExpanded(expanded === 200000 + p.id ? null : 200000 + p.id)}
                   >
-                    <div className="w-14 text-center">
-                      <span className="text-xs font-mono font-bold text-[#FF6B35] bg-orange-50 px-2 py-1 rounded">
-                        #{p.invoice_number.padStart(4, '0')}
-                      </span>
-                    </div>
+                    <span className="text-xs font-mono font-bold text-[#FF6B35] bg-orange-50 px-2 py-1 rounded flex-shrink-0">
+                      #{p.invoice_number.padStart(4, '0')}
+                    </span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{p.project_name}</p>
                       <p className="text-xs text-gray-500 truncate">{p.client_name} · {p.payer_name}</p>
+                      <p className="text-xs text-gray-400 sm:hidden">{p.payment_channel}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-bold text-gray-900">{fmt(p.amount)}</p>
-                      <p className="text-xs text-gray-400">{p.payment_channel}</p>
+                      <p className="text-xs text-gray-400 hidden sm:block">{p.payment_channel}</p>
                     </div>
                     {p.verified ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-shrink-0">
-                        <i className="ri-check-line"></i> Verified
+                        <i className="ri-check-line"></i> <span className="hidden sm:inline">Verified</span>
                       </span>
                     ) : (
                       <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full flex-shrink-0">
                         Pending
                       </span>
                     )}
-                    <div className="text-xs text-gray-400 flex-shrink-0 w-28 text-right">{fmtDateTime(p.submitted_at)}</div>
-                    <i className={`ri-arrow-${expanded === 200000 + p.id ? 'up' : 'down'}-s-line text-gray-400`}></i>
+                    <div className="text-xs text-gray-400 flex-shrink-0 text-right hidden md:block">{fmtDateTime(p.submitted_at)}</div>
+                    <i className={`ri-arrow-${expanded === 200000 + p.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
                   </button>
                   {expanded === 200000 + p.id && (
                     <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-3">
@@ -557,7 +556,7 @@ export default function InvoiceLogPage() {
                           )}
                         </div>
                       )}
-                      <div className="flex items-center justify-between pt-1 border-t border-gray-200">
+                      <div className="pt-1 border-t border-gray-200 space-y-2">
                         {p.verified ? (
                           <p className="text-xs text-emerald-600 flex items-center gap-1">
                             <i className="ri-check-double-line"></i>
@@ -566,7 +565,7 @@ export default function InvoiceLogPage() {
                         ) : (
                           <p className="text-xs text-gray-400">Not yet verified</p>
                         )}
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={() => deleteProof(p.id)}
                             className="flex items-center gap-1 px-3 py-1.5 text-xs text-rose-500 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
@@ -601,19 +600,20 @@ export default function InvoiceLogPage() {
               {filteredReceipts.map(r => (
                 <div key={r.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                   <button
-                    className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                    className="w-full text-left px-4 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
                     onClick={() => setExpanded(expanded === -r.id ? null : -r.id)}
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{r.project_name}</p>
-                      <p className="text-xs text-gray-500 truncate">{r.client_name} · {r.sent_to}</p>
+                      <p className="text-xs text-gray-500 truncate">{r.client_name}</p>
+                      <p className="text-xs text-gray-400 hidden sm:block">{r.sent_to}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-bold text-emerald-600">{fmt(r.payment_amount)}</p>
                       {r.paid_at && <p className="text-xs text-gray-400">{fmtDate(r.paid_at)}</p>}
                     </div>
-                    <div className="text-xs text-gray-400 flex-shrink-0 w-32 text-right">{fmtDateTime(r.sent_at)}</div>
-                    <i className={`ri-arrow-${expanded === -r.id ? 'up' : 'down'}-s-line text-gray-400`}></i>
+                    <div className="text-xs text-gray-400 flex-shrink-0 text-right hidden md:block">{fmtDateTime(r.sent_at)}</div>
+                    <i className={`ri-arrow-${expanded === -r.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
                   </button>
                   {expanded === -r.id && (
                     <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-3">
