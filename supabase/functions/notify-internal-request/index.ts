@@ -27,13 +27,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 200, headers: cors });
     }
 
-    const isDoc = type === 'doc_request';
-    const emoji = isDoc ? '📄' : '🔑';
-    const label = isDoc ? 'Document Request' : 'Credential Access Request';
-    const url = isDoc
-      ? 'https://hunacreatives.com/hub/admin/docrequests'
-      : 'https://hunacreatives.com/hub/admin/credentials';
-    const btnLabel = isDoc ? 'View Doc Requests →' : 'View Credential Requests →';
+    const typeMap: Record<string, { emoji: string; label: string; url: string; btnLabel: string }> = {
+      doc_request:      { emoji: '📄', label: 'Document Request',         url: 'https://hunacreatives.com/hub/admin/docrequests',  btnLabel: 'View Doc Requests →' },
+      credential_request: { emoji: '🔑', label: 'Credential Access Request', url: 'https://hunacreatives.com/hub/admin/credentials', btnLabel: 'View Credential Requests →' },
+      contract_signed:  { emoji: '✍️',  label: 'Contract Signed',          url: 'https://hunacreatives.com/hub/admin/documents',   btnLabel: 'View Documents →' },
+      time_off:         { emoji: '🌴', label: 'Time Off Request',          url: 'https://hunacreatives.com/hub/admin/timeoff',     btnLabel: 'View Time Off →' },
+      overtime:         { emoji: '⏰', label: 'Overtime Request',          url: 'https://hunacreatives.com/hub/admin/overtime',    btnLabel: 'View Overtime →' },
+    };
+    const { emoji, label, url, btnLabel } = typeMap[type] ?? { emoji: '📋', label: type, url: 'https://hunacreatives.com/hub/admin', btnLabel: 'View Hub →' };
 
     const text = `${emoji} *${label}* from *${contractor_name}*${detail ? `\n> ${detail}` : ''}${notes ? `\n> _${notes}_` : ''}`;
 

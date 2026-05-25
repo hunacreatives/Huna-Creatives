@@ -67,6 +67,9 @@ export default function ContractorOvertimePage() {
     });
     setSaving(false);
     setShowModal(false);
+    supabase.functions.invoke('notify-internal-request', {
+      body: { type: 'overtime', contractor_name: user.full_name, detail: `${date} · ${h}hrs`, notes: reason.trim() || null },
+    }).catch(() => {});
     fetchAll();
   };
 

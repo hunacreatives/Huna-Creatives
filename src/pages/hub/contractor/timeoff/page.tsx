@@ -164,6 +164,9 @@ export default function ContractorTimeOffPage() {
     });
     setSaving(false);
     setShowModal(false);
+    supabase.functions.invoke('notify-internal-request', {
+      body: { type: 'time_off', contractor_name: user.full_name, detail: `${type} · ${startDate}${halfDay ? '' : ` – ${endDate}`}`, notes: reason || null },
+    }).catch(() => {});
     fetchAll();
   };
 

@@ -148,6 +148,10 @@ export default function ContractorDocumentsPage() {
       body: { assignment_id: signModal.id },
     }).catch(() => {}); // fire and forget
 
+    supabase.functions.invoke('notify-internal-request', {
+      body: { type: 'contract_signed', contractor_name: hubUser!.full_name, detail: signModal.hub_sign_documents?.title ?? 'Contract', notes: null },
+    }).catch(() => {});
+
     setSigning(false);
     setSignModal(null);
     setSignName('');
