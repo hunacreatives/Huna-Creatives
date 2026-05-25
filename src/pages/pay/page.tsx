@@ -305,8 +305,8 @@ export default function PublicPaymentPage() {
 
           <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
             <MetaCell label="Client" value={link.client_name} />
-            <MetaCell label="Due date" value={link.due_date ? new Date(`${link.due_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'} />
-            <MetaCell label="Terms" value={link.payment_terms || 'Due on receipt'} />
+            <MetaCell label="Due" value={link.due_date ? new Date(`${link.due_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'} />
+            <MetaCell label="Project" value={link.project_name} />
           </div>
         </div>
 
