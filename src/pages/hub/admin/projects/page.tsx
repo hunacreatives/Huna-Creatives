@@ -514,7 +514,7 @@ export default function AdminProjectsPage() {
     fetchAll();
   };
 
-  const printInvoice = async (project: Project, overrides?: { due_date?: string; invoice_number?: string; bill_to_name?: string; bill_to_address?: string; reference?: string; payment_terms?: string; message?: string; line_items?: { description: string; amount: string }[]; show_payments?: boolean }) => {
+  const printInvoice = async (project: Project, overrides?: { due_date?: string; invoice_number?: string; bill_to_name?: string; bill_to_address?: string; reference?: string; payment_terms?: string; message?: string; line_items?: { description: string; amount: string }[]; show_payments?: boolean; amount_requested?: number }) => {
     const { data: latestLink } = await supabase
       .from('hub_invoice_payment_links')
       .select('token')
@@ -536,7 +536,9 @@ export default function AdminProjectsPage() {
     const showPayments = overrides?.show_payments ?? true;
     const lineItemsTotal = lineItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
     const totalPaid = d.totalPaid;
-    const balance = lineItemsTotal - totalPaid;
+    // balance_due is what appears on the invoice — use explicit amount_requested if provided,
+    // otherwise fall back to lineItemsTotal (the invoice amount itself, not auto-deducted)
+    const balanceDue = overrides?.amount_requested != null ? overrides.amount_requested : lineItemsTotal - totalPaid;
     const paymentRows = project.hub_project_payments.map(p => `
       <tr>
         <td>${new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
@@ -572,7 +574,7 @@ export default function AdminProjectsPage() {
   .totals tr td{padding:6px 0;font-size:13px;color:#6b7280;border:none}
   .totals tr td:last-child{text-align:right}
   .totals .balance td{font-size:16px;font-weight:800;color:#111827;border-top:2px solid #e5e7eb;padding-top:10px}
-  .totals .balance td:last-child{color:${balance <= 0 ? '#059669' : '#FF6B35'}}
+  .totals .balance td:last-child{color:${balanceDue <= 0 ? '#059669' : '#FF6B35'}}
   .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af}
   .pay-via{margin-top:32px}
   .pay-via h3{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:14px}
@@ -624,9 +626,9 @@ ${showPayments && project.hub_project_payments.length > 0 ? `
 <table class="totals">
   <tr><td>Subtotal</td><td>${fmt2(lineItemsTotal)}</td></tr>
   ${showPayments ? `<tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>` : ''}
-  <tr class="balance"><td>Balance due</td><td>${balance <= 0 ? 'Paid in full' : fmt2(balance)}</td></tr>
+  <tr class="balance"><td>Balance due</td><td>${balanceDue <= 0 ? 'Paid in full' : fmt2(balanceDue)}</td></tr>
 </table>
-${balance > 0 && payUrl ? `
+${balanceDue > 0 && payUrl ? `
 <div style="margin-top:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px;text-align:center;">
   <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Choose your payment channel online</div>
   <div style="font-size:12px;color:#6b7280;margin-bottom:14px;">Open your secure payment page to select GCash, BDO, or GoTyme, then upload proof of payment.</div>
@@ -1543,7 +1545,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               ) : (
                 <>
                   <button
-                    onClick={() => void printInvoice(invoiceModal, { due_date: invoiceForm.due_date, invoice_number: invoiceForm.invoice_number, bill_to_name: invoiceForm.bill_to_name, bill_to_address: invoiceForm.bill_to_address, reference: invoiceForm.reference, payment_terms: invoiceForm.payment_terms, message: invoiceForm.message, line_items: invoiceLineItems.filter(i => i.description && i.amount), show_payments: invoiceShowPayments })}
+                    onClick={() => void printInvoice(invoiceModal, { due_date: invoiceForm.due_date, invoice_number: invoiceForm.invoice_number, bill_to_name: invoiceForm.bill_to_name, bill_to_address: invoiceForm.bill_to_address, reference: invoiceForm.reference, payment_terms: invoiceForm.payment_terms, message: invoiceForm.message, line_items: invoiceLineItems.filter(i => i.description && i.amount), show_payments: invoiceShowPayments, amount_requested: invoiceForm.amount_requested ? parseFloat(invoiceForm.amount_requested) : undefined })}
                     className="w-full py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <i className="ri-printer-line"></i> Preview / Print
