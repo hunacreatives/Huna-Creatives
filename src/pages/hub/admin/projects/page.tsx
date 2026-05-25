@@ -221,6 +221,7 @@ export default function AdminProjectsPage() {
         total_paid: totalPaid,
         contract_price: project.contract_price,
         invoice_number: project.id,
+        project_id: project.id,
       },
     });
     setSendReceiptSending(false);

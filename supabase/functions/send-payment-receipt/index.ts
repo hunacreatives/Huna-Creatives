@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
       total_paid,
       contract_price,
       invoice_number,
+      project_id,
     } = await req.json();
 
     if (!to || !client_name || !project_name || !amount) {
