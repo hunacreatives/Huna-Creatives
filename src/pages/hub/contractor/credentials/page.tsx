@@ -159,6 +159,9 @@ export default function ContractorCredentialsPage() {
       showToast('Failed to submit request. Try again.');
       return;
     }
+    supabase.functions.invoke('notify-internal-request', {
+      body: { type: 'credential_request', contractor_name: hubUser!.full_name, detail: `${requestModal.platform} — ${requestModal.client_name}`, notes: requestReason },
+    });
     setRequestModal(null);
     showToast('Access request submitted!');
     fetchData();

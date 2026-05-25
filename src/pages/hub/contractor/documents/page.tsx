@@ -166,6 +166,9 @@ export default function ContractorDocumentsPage() {
     });
     setSubmitting(false);
     if (error) { showToast('Failed to submit. Try again.'); return; }
+    supabase.functions.invoke('notify-internal-request', {
+      body: { type: 'doc_request', contractor_name: hubUser!.full_name, detail: docType, notes: notes || null },
+    });
     setShowForm(false);
     setNotes('');
     setDocType(DOC_TYPES[0]);
