@@ -975,7 +975,7 @@ export default function ForAgenciesPage() {
     title: 'Sentro OS — Custom Internal Operations Hub for Agencies & Firms',
     description:
       'Sentro OS is a done-for-you internal operations hub built around your team\'s workflow. Attendance, payroll, documents, credentials, and more — your own instance, fully configured for your organization.',
-    canonical: '/sentro-os',
+    canonical: '/sentro',
     schema: [
       {
         '@context': 'https://schema.org',
@@ -997,7 +997,7 @@ export default function ForAgenciesPage() {
       {
         '@context': 'https://schema.org',
         '@type': 'WebPage',
-        url: 'https://www.hunacreatives.com/sentro-os',
+        url: 'https://www.hunacreatives.com/sentro',
         name: 'Sentro OS — Custom Internal Operations Hub',
         isPartOf: { '@id': 'https://www.hunacreatives.com/#website' },
       },

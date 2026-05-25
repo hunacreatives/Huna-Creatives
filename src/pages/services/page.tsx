@@ -403,12 +403,12 @@ export default function ServicesPage() {
               <span className="text-white font-semibold">Sentro OS</span> is a custom-built internal operations platform — attendance, payroll, documents, credentials, and more. Built around your exact workflow and branded as your own.
             </p>
             <div className="flex flex-wrap gap-3">
-              <a href="/sentro-os"
+              <a href="/sentro"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white transition-all"
                 style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 24px rgba(255,107,53,0.35)' }}>
                 See Sentro OS →
               </a>
-              <a href="/sentro-os#pricing"
+              <a href="/sentro#pricing"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-gray-400 border border-white/10 hover:bg-white/5 transition-all">
                 View pricing
               </a>

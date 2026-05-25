@@ -185,7 +185,7 @@ export default function HomePage() {
             Need an internal ops hub for your team?{' '}
             <span className="text-gray-400">We built one — attendance, payroll, docs & more.</span>
           </p>
-          <a href="/sentro-os"
+          <a href="/sentro"
             className="flex-shrink-0 text-sm font-semibold text-[#FF6B35] hover:text-white transition-colors whitespace-nowrap">
             See Sentro OS →
           </a>
