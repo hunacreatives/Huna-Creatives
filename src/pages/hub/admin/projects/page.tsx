@@ -667,7 +667,7 @@ ${balance > 0 ? `
                     <p className="text-xs text-gray-400">No payments logged yet.</p>
                   ) : (
                     <div className="space-y-2">
-                      {activeProject.hub_project_payments.map((pp) => (
+                      {[...activeProject.hub_project_payments].sort((a, b) => new Date(a.paid_at).getTime() - new Date(b.paid_at).getTime()).map((pp) => (
                         <div key={pp.id} className="bg-gray-50 rounded-lg overflow-hidden">
                           {editingPaymentId === pp.id ? (
                             <div className="p-2.5 space-y-2">
