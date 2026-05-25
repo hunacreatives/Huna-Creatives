@@ -7,6 +7,20 @@ import { logAudit } from '@/lib/audit';
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
+const serviceCfg: Record<string, { border: string; dot: string; badge: string }> = {
+  'Website Design':           { border: 'border-l-sky-400',     dot: 'bg-sky-400',     badge: 'bg-sky-50 text-sky-700' },
+  'Website Maintenance':      { border: 'border-l-cyan-400',    dot: 'bg-cyan-400',    badge: 'bg-cyan-50 text-cyan-700' },
+  'Branding & Identity':      { border: 'border-l-violet-400',  dot: 'bg-violet-400',  badge: 'bg-violet-50 text-violet-700' },
+  'Graphic Design':           { border: 'border-l-pink-400',    dot: 'bg-pink-400',    badge: 'bg-pink-50 text-pink-700' },
+  'Social Media Management':  { border: 'border-l-orange-400',  dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700' },
+  'Content Creation':         { border: 'border-l-amber-400',   dot: 'bg-amber-400',   badge: 'bg-amber-50 text-amber-700' },
+  'SEO':                      { border: 'border-l-emerald-400', dot: 'bg-emerald-400', badge: 'bg-emerald-50 text-emerald-700' },
+  'Digital Ads':              { border: 'border-l-rose-400',    dot: 'bg-rose-400',    badge: 'bg-rose-50 text-rose-700' },
+  'Email Marketing':          { border: 'border-l-indigo-400',  dot: 'bg-indigo-400',  badge: 'bg-indigo-50 text-indigo-700' },
+  'Other':                    { border: 'border-l-gray-300',    dot: 'bg-gray-300',    badge: 'bg-gray-50 text-gray-500' },
+};
+const getServiceCfg = (service: string | null) => serviceCfg[service ?? ''] ?? serviceCfg['Other'];
+
 const statusCfg: Record<string, { label: string; cls: string }> = {
   ongoing:   { label: 'Ongoing',   cls: 'bg-sky-100 text-sky-700' },
   completed: { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' },
@@ -521,17 +535,23 @@ ${balance > 0 ? `
               <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-gray-300 text-xl"></i></div>
             ) : filtered.length === 0 ? (
               <p className="text-xs text-gray-400 text-center py-8">No projects yet.</p>
-            ) : Object.entries(grouped).map(([service, items]) => (
+            ) : Object.entries(grouped).map(([service, items]) => {
+              const sc = getServiceCfg(service);
+              return (
               <div key={service}>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-1 mb-1.5">{service}</p>
+                <div className="flex items-center gap-1.5 px-1 mb-1.5">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${sc.dot}`}></div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{service}</p>
+                </div>
                 <div className="space-y-2">
                   {items.map(p => {
                     const d = derived(p);
                     const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                     const dl = deadlineStatus(p.deadline, p.status);
+                    const sc2 = getServiceCfg(p.service);
                     return (
                       <button key={p.id} onClick={() => setActiveId(p.id)}
-                        className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer ${activeId === p.id ? 'border-[#FF6B35] bg-orange-50' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+                        className={`w-full text-left p-3.5 rounded-xl border-l-4 border border-gray-100 transition-all cursor-pointer ${sc2.border} ${activeId === p.id ? 'bg-orange-50 border-r-[#FF6B35] border-t-[#FF6B35] border-b-[#FF6B35]' : 'bg-white hover:border-r-gray-200 hover:border-t-gray-200 hover:border-b-gray-200'}`}>
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-[#111827] leading-tight truncate">{p.project_name}</p>
@@ -557,7 +577,8 @@ ${balance > 0 ? `
                   })}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -580,8 +601,11 @@ ${balance > 0 ? `
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="font-bold text-[#111827] text-lg">{activeProject.project_name}</h2>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
+                      {activeProject.service && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getServiceCfg(activeProject.service).badge}`}>{activeProject.service}</span>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">{activeProject.client_name}{activeProject.service ? ` · ${activeProject.service}` : ''}</p>
+                    <p className="text-sm text-gray-500 mt-0.5">{activeProject.client_name}</p>
                     {(activeProject.start_date || activeProject.deadline) && (
                       <p className="text-xs text-gray-400 mt-1">
                         {activeProject.start_date && `Started ${new Date(activeProject.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
