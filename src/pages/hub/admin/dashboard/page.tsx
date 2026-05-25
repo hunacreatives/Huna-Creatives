@@ -84,7 +84,7 @@ function formatTime(iso: string | null) {
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
-  const { hubUser } = useAuth();
+  const { hubUser, effectiveRole } = useAuth();
   const [attendance, setAttendance] = useState<SlackRecord[]>([]);
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>([]);
   const [pendingRequests, setPendingRequests] = useState<HubRequest[]>([]);
@@ -98,8 +98,8 @@ export default function AdminDashboardPage() {
   const [monthlyRetainerTotal, setMonthlyRetainerTotal] = useState(0);
   const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
   const [loading, setLoading] = useState(true);
-  const isOwner = hubUser?.role === 'owner';
-  const isOwnerOrAdmin = isOwner || hubUser?.role === 'admin' || hubUser?.role === 'hr';
+  const isOwner = effectiveRole === 'owner';
+  const isOwnerOrAdmin = isOwner || effectiveRole === 'admin' || effectiveRole === 'hr';
 
   const today = new Date();
   const isFirstHalf = today.getDate() <= 15;
