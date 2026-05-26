@@ -972,9 +972,9 @@ function PhoneMockup({ activeScreen }: { activeScreen: number }) {
 
 export default function ForAgenciesPage() {
   useSEO({
-    title: 'Sentro OS — Custom Internal Operations Hub for Agencies & Firms',
+    title: 'Sentro OS — HR & Operations Hub for Creative Agencies in the Philippines',
     description:
-      'Sentro OS is a done-for-you internal operations hub built around your team\'s workflow. Attendance, payroll, documents, credentials, and more — your own instance, fully configured for your organization.',
+      'Sentro OS is a custom-built internal operations hub for creative agencies and firms in the Philippines. Manage attendance, payroll, contracts, client projects, time-off, overtime, and your full team — all in one branded system. Built and maintained by Huna Creatives.',
     canonical: '/sentro',
     schema: [
       {
@@ -983,23 +983,96 @@ export default function ForAgenciesPage() {
         name: 'Sentro OS',
         applicationCategory: 'BusinessApplication',
         operatingSystem: 'Web',
-        description: 'A custom internal operations hub for agencies and firms. Manage attendance, payroll, documents, credentials, and internal operations — all in one branded system.',
+        description: 'A custom internal operations hub for creative agencies and firms in the Philippines. Manage attendance, payroll, contracts, client projects, time-off, overtime approvals, SOP library, and credentials — all in one system.',
+        keywords: 'agency operations hub, HR software Philippines, payroll management, attendance tracking, creative agency management software, internal operations system, agency HR tool, project tracking Philippines',
+        areaServed: 'Philippines',
         offers: [
-          { '@type': 'Offer', name: 'Starter', price: '4999', priceCurrency: 'PHP' },
-          { '@type': 'Offer', name: 'Growth', price: '9999', priceCurrency: 'PHP' },
+          { '@type': 'Offer', name: 'Starter', price: '4999', priceCurrency: 'PHP', description: 'For small teams ready to stop running on spreadsheets. Includes attendance, payroll, documents, and project management.' },
+          { '@type': 'Offer', name: 'Growth', price: '9999', priceCurrency: 'PHP', description: 'For growing agencies managing multiple departments, clients, and projects. Includes project-based payouts, overtime approvals, and audit log.' },
         ],
         provider: {
           '@type': 'Organization',
           name: 'Huna Creatives',
           url: 'https://www.hunacreatives.com',
+          areaServed: 'Philippines',
         },
+        featureList: [
+          'Attendance & Time Tracking via Slack',
+          'Automated Payroll Calculation',
+          'Contract & Document Generation',
+          'Leave & Overtime Approval Workflows',
+          'Client & Project Tracking',
+          'Intake Forms & Client Questionnaires',
+          'SOP Library',
+          'Credentials Vault',
+          'Audit Log',
+        ],
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'What is Sentro OS?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Sentro OS is a custom-built internal operations hub for creative agencies and firms. It centralizes HR, attendance tracking, payroll, contracts, client projects, and internal workflows into one branded system built specifically for your team.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Who is Sentro OS for?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Sentro OS is designed for creative agencies, design firms, marketing studios, and any service-based team that manages contractors or employees. It is particularly suited for Philippine-based agencies that need a centralized HR and operations platform.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'How does attendance tracking work in Sentro OS?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Sentro OS integrates with Slack for attendance tracking. Team members punch in and out directly from a Slack channel. The system captures timestamps, calculates daily hours, flags overtime, and generates reports automatically.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Does Sentro OS handle payroll?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes. Sentro OS automatically calculates payroll per pay period for hourly, fixed-rate, and project-based contractors. It supports USD-to-PHP conversion and generates payout summaries you can approve in one click.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'How much does Sentro OS cost?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Sentro OS starts at ₱4,999/month (Starter plan, ₱15,000 one-time setup) for small teams. The Growth plan is ₱9,999/month (₱30,000 setup) for larger agencies. Enterprise pricing is available for custom builds.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Is Sentro OS available in the Philippines?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes. Sentro OS is built by Huna Creatives, a Philippine-based creative agency. It is designed specifically for Philippine teams, with peso-based payroll, local date formats, and support tailored to how agencies in the Philippines operate.',
+            },
+          },
+        ],
       },
       {
         '@context': 'https://schema.org',
         '@type': 'WebPage',
         url: 'https://www.hunacreatives.com/sentro',
-        name: 'Sentro OS — Custom Internal Operations Hub',
+        name: 'Sentro OS — HR & Operations Hub for Creative Agencies in the Philippines',
+        description: 'Custom-built internal operations hub for creative agencies. Attendance, payroll, contracts, and project tracking — all in one system.',
         isPartOf: { '@id': 'https://www.hunacreatives.com/#website' },
+        about: {
+          '@type': 'SoftwareApplication',
+          name: 'Sentro OS',
+        },
       },
     ],
   });
@@ -1020,7 +1093,7 @@ export default function ForAgenciesPage() {
   }, []);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sentroTextRef = useRef<HTMLDivElement>(null);
+  const sentroTextRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1200,10 +1273,10 @@ export default function ForAgenciesPage() {
       >
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }} />
         <div className="relative flex flex-col items-center" style={{ zIndex: 1 }}>
-          <div
+          <h1
             ref={sentroTextRef}
             className={`flex items-baseline select-none${lit ? ' sentro-lit' : ''}`}
-            style={{ gap: '0.18em', opacity: lit ? undefined : 0 }}
+            style={{ gap: '0.18em', opacity: lit ? undefined : 0, margin: 0, padding: 0 }}
           >
             <span className="font-black text-white"
               style={{ fontSize: 'clamp(4.5rem, 12vw, 12rem)', letterSpacing: '-0.03em', lineHeight: 1 }}>
@@ -1213,7 +1286,7 @@ export default function ForAgenciesPage() {
               style={{ fontSize: 'clamp(2rem, 5vw, 5rem)', letterSpacing: '-0.02em', lineHeight: 1, marginBottom: '0.5vw', marginLeft: '0.3em' }}>
               OS
             </span>
-          </div>
+          </h1>
           <div className="w-full flex justify-end mt-1.5"
             style={{ opacity: bylineVisible ? 1 : 0, transform: bylineVisible ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity 1s ease-out, transform 1s ease-out' }}>
             <p className="text-[10px] sm:text-xs text-gray-600 tracking-[0.2em] uppercase">by Huna Creatives</p>
@@ -1279,9 +1352,9 @@ export default function ForAgenciesPage() {
           <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The Platform</p>
             <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight">
-              Built to run<br /><span className="text-[#FF6B35]" style={{ textShadow: '0 0 30px rgba(255,107,53,0.4)' }}>your whole team</span>
+              Attendance, payroll, HR — built to run<br /><span className="text-[#FF6B35]" style={{ textShadow: '0 0 30px rgba(255,107,53,0.4)' }}>your whole agency</span>
             </h2>
-            <p className="text-gray-400 max-w-lg mx-auto text-base">Every screen designed around how your team actually works — not how enterprise software thinks it does.</p>
+            <p className="text-gray-400 max-w-lg mx-auto text-base">Every screen designed around how creative agencies and firms actually operate — not how enterprise software thinks they do.</p>
           </div>
 
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-8 sm:justify-center">
@@ -1388,7 +1461,7 @@ export default function ForAgenciesPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Everything you need, ready to go</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Built complete. Launched fast.</h2>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Your agency operations hub — built complete, launched fast.</h2>
             <p className="text-gray-500 text-sm">Here's what's inside your hub — and how we get it into your hands.</p>
           </div>
 
