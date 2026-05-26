@@ -170,13 +170,13 @@ const ArticlePage = () => {
         <section className="px-4 md:px-6 py-8">
           <div className="max-w-4xl mx-auto">
             <div
-              className="w-full h-[240px] md:h-[360px] lg:h-[480px] rounded-xl md:rounded-2xl overflow-hidden"
+              className="w-full h-[240px] md:h-[360px] lg:h-[480px] rounded-xl md:rounded-2xl overflow-hidden bg-[#0a0a0a]"
               style={{ border: '1px solid rgba(255,255,255,0.07)' }}
             >
               <img
                 src={article.heroImage}
                 alt={article.title}
-                className="w-full h-full object-cover object-top"
+                className={`w-full h-full ${article.heroImageFit === 'contain' ? 'object-contain' : 'object-cover object-top'}`}
               />
             </div>
           </div>

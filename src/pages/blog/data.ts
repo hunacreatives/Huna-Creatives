@@ -6,6 +6,7 @@ export interface BlogArticle {
   readTime: string;
   date: string;
   heroImage: string;
+  heroImageFit?: 'cover' | 'contain';
   author: { name: string; role: string; avatar: string };
   seo: {
     description: string;
@@ -950,6 +951,7 @@ export const blogArticles: BlogArticle[] = [
     readTime: '7 min read',
     date: 'March 25, 2026',
     heroImage: '/images/blog-sentro-os-hero.png',
+    heroImageFit: 'contain',
     author: {
       name: 'Huna Creatives',
       role: 'Product Team',
