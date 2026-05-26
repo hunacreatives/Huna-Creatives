@@ -150,12 +150,10 @@ export default function AdminOvertimePage() {
                         {new Date(r.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3.5">
-                        {r.status === 'pending' && (
-                          <button onClick={() => openReview(r)}
-                            className="text-xs text-gray-500 hover:text-[#FF6B35] cursor-pointer transition-colors font-medium whitespace-nowrap">
-                            Review
-                          </button>
-                        )}
+                        <button onClick={() => openReview(r)}
+                          className="text-xs text-gray-500 hover:text-[#FF6B35] cursor-pointer transition-colors font-medium whitespace-nowrap">
+                          {r.status === 'pending' ? 'Review' : 'View'}
+                        </button>
                       </td>
                     </tr>
                   );
@@ -199,16 +197,22 @@ export default function AdminOvertimePage() {
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none"
                 />
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => decide('approved')} disabled={updating}
-                  className="flex-1 py-2.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap">
-                  Approve
-                </button>
-                <button onClick={() => decide('rejected')} disabled={updating}
-                  className="flex-1 py-2.5 text-sm bg-rose-500 text-white rounded-lg font-medium hover:bg-rose-600 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap">
-                  Reject
-                </button>
-              </div>
+              {selected.status === 'pending' ? (
+                <div className="flex gap-2">
+                  <button onClick={() => decide('approved')} disabled={updating}
+                    className="flex-1 py-2.5 text-sm bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap">
+                    Approve
+                  </button>
+                  <button onClick={() => decide('rejected')} disabled={updating}
+                    className="flex-1 py-2.5 text-sm bg-rose-500 text-white rounded-lg font-medium hover:bg-rose-600 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap">
+                    Reject
+                  </button>
+                </div>
+              ) : (
+                <div className={`text-center py-2 text-sm font-medium rounded-lg ${selected.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                  {selected.status === 'approved' ? 'Approved' : 'Rejected'}
+                </div>
+              )}
             </div>
           </div>
         </div>

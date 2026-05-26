@@ -222,7 +222,7 @@ export default function ClientsPage() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button onClick={() => openManageTeam(c)} className="text-xs text-gray-400 hover:text-[#FF6B35] cursor-pointer transition-colors flex items-center gap-1">
                         <i className="ri-user-add-line text-sm"></i>
-                        <span className="hidden sm:inline">Manage Team</span>
+                        <span>Team</span>
                       </button>
                       <button onClick={() => openEdit(c)} className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer transition-colors flex items-center gap-1">
                         <i className="ri-edit-line text-sm"></i>

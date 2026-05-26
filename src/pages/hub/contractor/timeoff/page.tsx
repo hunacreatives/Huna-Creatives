@@ -431,6 +431,14 @@ export default function ContractorTimeOffPage() {
                 </p>
               )}
 
+              {/* Blackout warning when selected dates overlap */}
+              {startDate && type !== 'emergency' && blackouts.some(b => startDate <= b.end_date && (halfDay ? startDate : endDate || startDate) >= b.start_date) && (
+                <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-100 rounded-lg">
+                  <i className="ri-calendar-close-line text-rose-500 text-sm mt-0.5 flex-shrink-0"></i>
+                  <p className="text-xs text-rose-600">Your selected dates fall within a blackout period. Please choose different dates.</p>
+                </div>
+              )}
+
               {advanceWarning && (
                 <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
                   <i className="ri-calendar-line text-amber-500 text-sm mt-0.5 flex-shrink-0"></i>

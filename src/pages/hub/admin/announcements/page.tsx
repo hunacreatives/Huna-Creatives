@@ -124,10 +124,14 @@ export default function AnnouncementsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
+                      {a.published
+                        ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">Published</span>
+                        : (a as any).scheduled_at
+                          ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-sky-100 text-sky-700 flex items-center gap-1"><i className="ri-time-line text-[10px]"></i>Scheduled · {new Date((a as any).scheduled_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                          : <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Draft</span>
+                      }
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${priorityColors[a.priority]}`}>{a.priority}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${categoryColors[a.category]}`}>{a.category}</span>
-                      {!a.published && !(a as any).scheduled_at && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">Draft</span>}
-                      {!a.published && (a as any).scheduled_at && <span className="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-600">🕐 {new Date((a as any).scheduled_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>}
                     </div>
                     <h3 className="text-sm font-semibold text-[#111827] mb-1">{a.title}</h3>
                     <p className="text-sm text-gray-500 line-clamp-2">{a.body}</p>

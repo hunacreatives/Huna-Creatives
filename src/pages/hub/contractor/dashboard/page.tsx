@@ -277,7 +277,7 @@ export default function ContractorDashboard() {
   const [slackStatus, setSlackStatus] = useState<'on' | 'off' | 'absent' | null>(null);
   const [hoursThisCutoff, setHoursThisCutoff] = useState(0);
   const [estimatedPayout, setEstimatedPayout] = useState(0);
-  const [showPayout, setShowPayout] = useState(false);
+  const [showPayout, setShowPayout] = useState(() => localStorage.getItem('hub_showPayout') === 'true');
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>([]);
   const [requests, setRequests] = useState<HubRequest[]>([]);
   const [timeOffs, setTimeOffs] = useState<HubTimeOff[]>([]);
@@ -571,7 +571,7 @@ export default function ContractorDashboard() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-white/70">Est. Payout</span>
                   <button
-                    onClick={() => setShowPayout(v => !v)}
+                    onClick={() => setShowPayout(v => { const next = !v; localStorage.setItem('hub_showPayout', String(next)); return next; })}
                     className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center hover:bg-white/30 transition-colors cursor-pointer"
                   >
                     <i className={`${showPayout ? 'ri-eye-line' : 'ri-eye-off-line'} text-white text-sm`}></i>

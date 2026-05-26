@@ -167,18 +167,20 @@ export default function AdminTimeOffPage() {
       <div className="space-y-4">
 
         {/* Tab: Requests / Blackouts / Balances */}
-        <div className="flex gap-2 border-b border-gray-100 pb-0">
-          {[{ key: 'requests', label: 'Leave Requests' }, { key: 'blackouts', label: 'Blackout Dates' }, { key: 'balances', label: 'Leave Balances' }].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key as any)}
-              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
-                tab === t.key ? 'border-[#FF6B35] text-[#FF6B35]' : 'border-transparent text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="overflow-x-auto -mx-1 px-1">
+          <div className="flex gap-2 border-b border-gray-100 pb-0 min-w-max">
+            {[{ key: 'requests', label: 'Leave Requests' }, { key: 'blackouts', label: 'Blackout Dates' }, { key: 'balances', label: 'Leave Balances' }].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key as any)}
+                className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+                  tab === t.key ? 'border-[#FF6B35] text-[#FF6B35]' : 'border-transparent text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {tab === 'requests' && (

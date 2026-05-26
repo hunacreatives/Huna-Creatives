@@ -24,6 +24,7 @@ const actionIcons: Record<string, string> = {
 
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<HubAuditLog[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -32,14 +33,19 @@ export default function AuditLogPage() {
 
   const fetchLogs = async () => {
     setLoading(true);
+    let countQ = supabase.from('hub_audit_log').select('*', { count: 'exact', head: true });
     let q = supabase
       .from('hub_audit_log')
       .select('*, hub_users(full_name, avatar_url, role)')
       .order('created_at', { ascending: false })
       .range(page * perPage, (page + 1) * perPage - 1);
-    if (actionFilter !== 'all') q = q.eq('action', actionFilter);
-    const { data } = await q;
+    if (actionFilter !== 'all') {
+      q = q.eq('action', actionFilter);
+      countQ = countQ.eq('action', actionFilter);
+    }
+    const [{ data }, { count }] = await Promise.all([q, countQ]);
     setLogs((data as HubAuditLog[]) ?? []);
+    setTotalCount(count ?? 0);
     setLoading(false);
   };
 
@@ -122,7 +128,7 @@ export default function AuditLogPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap">
             <i className="ri-arrow-left-line text-xs"></i> Previous
           </button>
-          <span className="text-xs text-gray-400">Page {page + 1}</span>
+          <span className="text-xs text-gray-400">Page {page + 1} of {Math.ceil(totalCount / perPage) || 1} · {totalCount} total</span>
           <button onClick={() => setPage(page + 1)} disabled={logs.length < perPage}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap">
             Next <i className="ri-arrow-right-line text-xs"></i>

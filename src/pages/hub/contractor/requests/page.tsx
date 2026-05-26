@@ -29,6 +29,7 @@ export default function ContractorRequestsPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<HubRequest | null>(null);
+  const [toast, setToast] = useState('');
 
   const fetchRequests = async () => {
     if (!user) return;
@@ -47,11 +48,16 @@ export default function ContractorRequestsPage() {
     setSaving(false);
     setShowModal(false);
     setForm(emptyForm);
+    setToast('Request submitted successfully.');
+    setTimeout(() => setToast(''), 3000);
     fetchRequests();
   };
 
   return (
     <ContractorLayout title="Requests">
+      {toast && (
+        <div className="fixed top-5 right-5 z-[60] bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">{toast}</div>
+      )}
       <div className="space-y-4 max-w-3xl">
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">{requests.length} total request{requests.length !== 1 ? 's' : ''}</p>
