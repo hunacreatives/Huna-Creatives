@@ -5,6 +5,7 @@ export interface BlogArticle {
   excerpt: string;
   readTime: string;
   date: string;
+  isoDate: string;
   heroImage: string;
   heroImagePosition?: string;
   author: { name: string; role: string; avatar: string };
@@ -30,6 +31,7 @@ export const blogArticles: BlogArticle[] = [
       'The quality gap has closed. Filipino creative agencies are now producing brand identities that compete with London and New York studios — at a fraction of the cost. Here is why smart founders are making the move.',
     readTime: '6 min read',
     date: 'March 18, 2026',
+    isoDate: '2026-03-18',
     heroImage: '/images/blog-brand-identity-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -121,6 +123,7 @@ export const blogArticles: BlogArticle[] = [
       'Most Cebu businesses have a website. Very few have one that actually works. The difference between a beautiful website and a converting one is strategy — and it is costing local businesses leads every single day.',
     readTime: '7 min read',
     date: 'March 11, 2026',
+    isoDate: '2026-03-11',
     heroImage: '/images/blog-web-design-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -212,6 +215,7 @@ export const blogArticles: BlogArticle[] = [
       'There are dozens of social media agencies in Cebu. Most of them will post for you. Very few will actually grow your business. Here is what separates the ones that deliver from the ones that just keep you busy.',
     readTime: '6 min read',
     date: 'March 4, 2026',
+    isoDate: '2026-03-04',
     heroImage: '/images/blog-social-media-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -303,6 +307,7 @@ export const blogArticles: BlogArticle[] = [
       'The biggest fear when outsourcing content is losing the voice that makes your brand feel like yours. Here is how to hand off content creation to a Filipino agency and get back work that sounds exactly like you — only better.',
     readTime: '6 min read',
     date: 'February 25, 2026',
+    isoDate: '2026-02-25',
     heroImage: '/images/blog-content-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -394,6 +399,7 @@ export const blogArticles: BlogArticle[] = [
       'Most Cebu businesses think they have a brand because they have a logo. A logo is the beginning. A complete visual identity is what makes customers recognize you instantly, trust you faster, and pay you more.',
     readTime: '5 min read',
     date: 'February 18, 2026',
+    isoDate: '2026-02-18',
     heroImage: '/images/blog-visual-branding-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -486,6 +492,7 @@ export const blogArticles: BlogArticle[] = [
       'You do not need a $20,000 branding budget to launch with a world-class brand. In 2026, the smartest startup founders are getting premium brand identities from Filipino creative agencies — and investing the savings into growth.',
     readTime: '8 min read',
     date: 'February 11, 2026',
+    isoDate: '2026-02-11',
     heroImage: '/images/blog-brand-strategy-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -577,6 +584,7 @@ export const blogArticles: BlogArticle[] = [
       'A professional website is no longer optional for Cebu small businesses. The good news: you do not need to spend a fortune to get one that looks premium, loads fast, and turns visitors into paying customers.',
     readTime: '7 min read',
     date: 'February 4, 2026',
+    isoDate: '2026-02-04',
     heroImage: '/images/blog-smb-web-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -668,6 +676,7 @@ export const blogArticles: BlogArticle[] = [
       'Your brand is being formed whether you are intentional about it or not. Every pitch deck, every social post, every client email is shaping how people perceive your startup. Here is how to take control of that perception from day one.',
     readTime: '8 min read',
     date: 'January 28, 2026',
+    isoDate: '2026-01-28',
     heroImage: '/images/blog-startup-brand-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -769,6 +778,7 @@ export const blogArticles: BlogArticle[] = [
       'The playbook that worked in 2023 is obsolete. Filipino consumers are more sophisticated, algorithms have changed, and the brands growing on social media in 2026 are doing something fundamentally different. Here is what it is.',
     readTime: '7 min read',
     date: 'January 21, 2026',
+    isoDate: '2026-01-21',
     heroImage: '/images/blog-social-strategy-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -859,6 +869,7 @@ export const blogArticles: BlogArticle[] = [
       'In a city full of tarpaulins and generic business cards, premium graphic design is one of the sharpest competitive advantages available to Cebu businesses. Here is how to use it.',
     readTime: '6 min read',
     date: 'January 14, 2026',
+    isoDate: '2026-01-14',
     heroImage: '/images/blog-print-design-hero-001.jpg',
     author: {
       name: 'Huna Creatives',
@@ -950,6 +961,7 @@ export const blogArticles: BlogArticle[] = [
       'Most HR tools were built for corporations. Sentro OS was built for creative agencies — attendance via Slack, one-click payroll, client project tracking, and contracts, all in one system designed specifically for how Philippine agencies actually work.',
     readTime: '7 min read',
     date: 'March 25, 2026',
+    isoDate: '2026-03-25',
     heroImage: '/images/blog-sentro-os-hero.png',
     heroImagePosition: '50% 20%',
     author: {

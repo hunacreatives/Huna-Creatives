@@ -35,12 +35,15 @@ const ArticlePage = () => {
           '@id': `https://www.hunacreatives.com/blog/${slug}/#article`,
           headline: article.title,
           description: article.seo.description,
-          image: article.heroImage,
-          datePublished: article.date,
+          image: `https://www.hunacreatives.com${article.heroImage}`,
+          url: `https://www.hunacreatives.com/blog/${slug}`,
+          datePublished: article.isoDate,
+          dateModified: article.isoDate,
           author: {
             '@type': 'Organization',
             '@id': 'https://www.hunacreatives.com/#organization',
             name: 'Huna Creatives',
+            url: 'https://www.hunacreatives.com',
           },
           publisher: {
             '@id': 'https://www.hunacreatives.com/#organization',
@@ -124,20 +127,6 @@ const ArticlePage = () => {
             <p className="text-white/50 text-base leading-relaxed mb-6 max-w-2xl">
               {article.excerpt}
             </p>
-
-            {/* SEO Summary Card */}
-            <div
-              className="mb-8 px-4 py-3 rounded-lg flex items-start gap-3"
-              style={{
-                background: 'rgba(249,115,22,0.06)',
-                border: '1px solid rgba(249,115,22,0.15)',
-              }}
-            >
-              <i className="ri-file-text-line text-orange-500/70 text-sm mt-0.5 flex-shrink-0" />
-              <p className="text-white/40 text-xs leading-relaxed">
-                {article.seo.description}
-              </p>
-            </div>
 
             {/* Author */}
             <div
@@ -268,6 +257,37 @@ const ArticlePage = () => {
                       >
                         {kw}
                       </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Internal links */}
+                <div
+                  className="mt-8 pt-6 border-t"
+                  style={{ borderColor: 'rgba(255,255,255,0.07)' }}
+                >
+                  <p className="text-[10px] font-semibold tracking-widest uppercase text-white/25 mb-3">
+                    Explore Huna Creatives
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: 'Our Services', href: '/services' },
+                      { label: 'Portfolio', href: '/portfolio' },
+                      { label: 'Contact Us', href: '/contact' },
+                      { label: 'Sentro OS', href: '/sentro' },
+                      { label: 'About Us', href: '/about' },
+                    ].map((link) => (
+                      <Link
+                        key={link.href}
+                        to={link.href}
+                        className="px-3 py-1.5 rounded-full text-[11px] font-medium text-white/40 hover:text-orange-400 transition-colors"
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                        }}
+                      >
+                        {link.label}
+                      </Link>
                     ))}
                   </div>
                 </div>
