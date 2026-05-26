@@ -43,12 +43,35 @@ export default function AdminOvertimePage() {
   const decide = async (status: 'approved' | 'rejected') => {
     if (!selected || !hubUser) return;
     setUpdating(true);
+
     await supabase.from('hub_overtime_requests').update({
       status,
       reviewed_by: hubUser.id,
       admin_notes: adminNotes || null,
       updated_at: new Date().toISOString(),
     }).eq('id', selected.id);
+
+    // On approval, sum all approved OT for this contractor on this date and write to hub_daily_hours
+    if (status === 'approved') {
+      const { data: approvedForDate } = await supabase
+        .from('hub_overtime_requests')
+        .select('hours')
+        .eq('contractor_id', selected.contractor_id)
+        .eq('date', selected.date)
+        .eq('status', 'approved');
+
+      // Include the current request (just approved above) in the total
+      const previousHours = (approvedForDate ?? []).reduce((s: number, r: any) => s + (r.hours || 0), 0);
+      const totalOT = previousHours + (selected.hours || 0);
+
+      await supabase.from('hub_daily_hours').upsert({
+        user_id: selected.contractor_id,
+        date: selected.date,
+        overtime_hours: totalOT,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,date' });
+    }
+
     setUpdating(false);
     setSelected(null);
     fetchRequests();

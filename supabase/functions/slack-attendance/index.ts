@@ -1,11 +1,11 @@
-// v2
+// v3 — overtime comes from hub_overtime_requests (approved), not Slack parsing
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const CHANNEL_ID = 'C0830PCGQK1';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const MAX_HOURS_FIXED = 8; // billable cap for fixed-rate contractors (hourly contractors self-report, no cap)
+const MAX_HOURS_FIXED = 8; // billable cap for fixed-rate contractors
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -35,15 +35,12 @@ Deno.serve(async (req) => {
       try {
         const body = await req.json();
 
-        // Slack URL verification challenge
         if (body?.type === 'url_verification') {
           return new Response(JSON.stringify({ challenge: body.challenge }), { headers: cors });
         }
 
-        // Slack event callback — only process message events with "off" text
         if (body?.type === 'event_callback') {
           slackEventText = (body?.event?.text || '').trim().toLowerCase();
-          // Only run full sync when someone types "on" or "off"
           if (slackEventText !== 'on' && slackEventText !== 'off') {
             return new Response(JSON.stringify({ ok: true }), { headers: cors });
           }
@@ -73,7 +70,7 @@ Deno.serve(async (req) => {
       oldest = String(windowStart.getTime() / 1000);
     }
 
-    // Fetch messages
+    // Fetch messages — only care about on/off punches now
     const slack = await slackGet(
       `conversations.history?channel=${CHANNEL_ID}&oldest=${oldest}${latest ? `&latest=${latest}` : ''}&limit=500`
     );
@@ -84,13 +81,7 @@ Deno.serve(async (req) => {
 
     const messages = [...(slack.messages || [])].reverse();
 
-    // Per user: on/off punches
     const userPunches: Record<string, { status: 'on' | 'off'; ts: number }[]> = {};
-
-    // Per user: overtime messages (messages that start with "overtime" and have replies)
-    const overtimeMessages: { slackId: string; ts: string }[] = [];
-
-    // Per user: "on" messages with thread replies (hourly contractors log hours in thread)
     const hourlyOnMessages: { slackId: string; ts: string }[] = [];
 
     for (const msg of messages) {
@@ -100,39 +91,14 @@ Deno.serve(async (req) => {
         if (!userPunches[msg.user]) userPunches[msg.user] = [];
         userPunches[msg.user].push({ status: text as 'on' | 'off', ts: parseFloat(msg.ts) });
 
-        // Track "on" messages with replies — used for hourly hour logging
         if (text === 'on' && msg.reply_count > 0) {
           hourlyOnMessages.push({ slackId: msg.user, ts: msg.ts });
         }
       }
-
-      // Detect "Overtime" posts that have at least one thread reply
-      if (text.startsWith('overtime') && msg.user && msg.reply_count > 0) {
-        overtimeMessages.push({ slackId: msg.user, ts: msg.ts });
-      }
+      // No overtime parsing from Slack — OT comes from hub_overtime_requests
     }
 
-    // Resolve overtime hours per Slack user — store with timestamp so we can bind to correct shift
-    const overtimeEntries: Record<string, { ts: number; hours: number }[]> = {};
-
-    await Promise.all(
-      overtimeMessages.map(async ({ slackId, ts }) => {
-        const thread = await slackGet(`conversations.replies?channel=${CHANNEL_ID}&ts=${ts}`);
-        if (!thread.ok) return;
-        for (const reply of thread.messages || []) {
-          if (reply.ts === ts) continue;
-          if (reply.user !== slackId) continue;
-          const num = parseFloat((reply.text || '').trim());
-          if (!isNaN(num) && num > 0) {
-            if (!overtimeEntries[slackId]) overtimeEntries[slackId] = [];
-            overtimeEntries[slackId].push({ ts: parseFloat(ts), hours: num });
-            break;
-          }
-        }
-      })
-    );
-
-    // Resolve hourly hours from "on" thread replies — keyed by on-message ts so each shift is isolated
+    // Resolve hourly hours from "on" thread replies
     const hourlyHoursByTs: Record<number, number> = {};
 
     await Promise.all(
@@ -140,7 +106,7 @@ Deno.serve(async (req) => {
         const thread = await slackGet(`conversations.replies?channel=${CHANNEL_ID}&ts=${ts}`);
         if (!thread.ok) return;
         for (const reply of thread.messages || []) {
-          if (reply.ts === ts) continue; // skip parent
+          if (reply.ts === ts) continue;
           if (reply.user !== slackId) continue;
           const num = parseFloat((reply.text || '').trim());
           if (!isNaN(num) && num > 0) {
@@ -164,8 +130,7 @@ Deno.serve(async (req) => {
       if (c.slack_username) slackUsernameMap[c.slack_username.toLowerCase().replace(/^@/, '')] = c;
     }
 
-    // Resolve Slack user info (email + display name)
-    const slackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeEntries)])];
+    const slackIds = [...new Set(Object.keys(userPunches))];
     const slackEmailMap: Record<string, string> = {};
     const slackDisplayNameMap: Record<string, string> = {};
 
@@ -181,19 +146,14 @@ Deno.serve(async (req) => {
       })
     );
 
-    // Build attendance result + persist hours
     const punchedEmails = new Set<string>();
     const attendance: any[] = [];
     const hoursUpserts: any[] = [];
     const hoursInProgress: any[] = [];
 
-    // Collect all slackIds that punched, logged overtime, or logged hourly hours
-    const allSlackIds = [...new Set([...Object.keys(userPunches), ...Object.keys(overtimeEntries)])];
-
-    for (const slackId of allSlackIds) {
+    for (const slackId of slackIds) {
       const punches = userPunches[slackId] || [];
       const email = slackEmailMap[slackId];
-      // Match by email first, then fall back to Slack display name vs slack_username
       const displayName = slackDisplayNameMap[slackId];
       const hubUser = (email ? emailMap[email] : null) ?? (displayName ? slackUsernameMap[displayName] : null);
       if (hubUser?.email) punchedEmails.add(hubUser.email);
@@ -208,14 +168,9 @@ Deno.serve(async (req) => {
       }));
 
       const firstOn = punches.find(p => p.status === 'on');
-      // First off AFTER firstOn — prevents spanning multiple overnight shifts
       const lastOff = firstOn ? punches.find(p => p.status === 'off' && p.ts > firstOn.ts) : undefined;
-      // Next "on" after firstOn — used to bound overtime to this shift only
-      const nextOn = firstOn ? punches.find(p => p.status === 'on' && p.ts > firstOn.ts) : undefined;
 
-      // Record hours under the date the shift STARTED (on punch), not when the function runs.
-      // For overnight shifts (shift_start >= 20:00), a punch-in between midnight and noon
-      // belongs to the previous calendar day.
+      // Record hours under the date the shift STARTED (on punch)
       const shiftDate = (() => {
         if (!firstOn) return todayDate;
         const punchMs = firstOn.ts * 1000;
@@ -230,11 +185,6 @@ Deno.serve(async (req) => {
         return punchDate;
       })();
 
-      // Only count overtime posted during THIS shift (after firstOn, before nextOn)
-      const overtimeHoursForShift = (overtimeEntries[slackId] || [])
-        .filter(e => !firstOn || (e.ts >= firstOn.ts && (!nextOn || e.ts < nextOn.ts)))
-        .reduce((s, e) => s + e.hours, 0);
-
       const isHourly = hubUser?.payment_type === 'hourly';
       const threadHours = firstOn ? hourlyHoursByTs[firstOn.ts] : undefined;
 
@@ -243,40 +193,33 @@ Deno.serve(async (req) => {
       let effectiveStatus = status;
 
       if (isHourly && threadHours != null) {
-        // Hourly contractors self-report hours — no cap, trust their input
         hoursRaw = threadHours;
         hoursCapped = threadHours;
         effectiveStatus = 'off';
       } else if (firstOn && lastOff && lastOff.ts > firstOn.ts) {
-        // Standard on/off punch — cap wall-clock duration
         hoursRaw = (lastOff.ts - firstOn.ts) / 3600;
         hoursCapped = Math.min(hoursRaw, MAX_HOURS_FIXED);
       } else if (!isHourly && threadHours != null && firstOn) {
-        // Fixed contractor thread hours
         hoursRaw = threadHours;
         hoursCapped = Math.min(threadHours, MAX_HOURS_FIXED);
         effectiveStatus = 'off';
       }
 
-      const overtimeHours = overtimeHoursForShift;
-
-      if (hubUser && (firstOn || overtimeHours > 0)) {
-        const validLastOff = (lastOff && firstOn && lastOff.ts > firstOn.ts) ? new Date(lastOff.ts * 1000).toISOString() : null;
+      // overtime_hours is NOT set here — it is written when admin approves hub_overtime_requests
+      if (hubUser && firstOn) {
+        const validLastOff = (lastOff && lastOff.ts > firstOn.ts) ? new Date(lastOff.ts * 1000).toISOString() : null;
         const row = {
           user_id: hubUser.id,
           date: shiftDate,
           hours_raw: parseFloat(hoursRaw.toFixed(4)),
           hours_capped: parseFloat(hoursCapped.toFixed(4)),
-          overtime_hours: parseFloat(overtimeHours.toFixed(2)),
-          first_on: firstOn ? new Date(firstOn.ts * 1000).toISOString() : null,
+          first_on: new Date(firstOn.ts * 1000).toISOString(),
           last_off: validLastOff,
           updated_at: new Date().toISOString(),
         };
-        if (hoursRaw > 0 || overtimeHours > 0) {
-          // Shift complete — always upsert with correct hours
+        if (hoursRaw > 0) {
           hoursUpserts.push(row);
         } else {
-          // Shift in progress — only insert if no row exists yet, never overwrite completed hours
           hoursInProgress.push(row);
         }
       }
@@ -292,35 +235,18 @@ Deno.serve(async (req) => {
           last_punch: new Date(latestPunch.ts * 1000).toISOString(),
           punches: punchList,
           hours_today: parseFloat(hoursCapped.toFixed(2)),
-          overtime_today: parseFloat(overtimeHours.toFixed(2)),
+          overtime_today: 0,
         });
       }
     }
 
-    // Upsert daily hours — preserve existing overtime_hours if higher (prevents re-sync overwriting accumulated OT)
+    // Upsert daily hours — do NOT touch overtime_hours column (managed by OT approval flow)
     if (hoursUpserts.length > 0) {
-      const upsertKeys = hoursUpserts.map(r => ({ user_id: r.user_id, date: r.date }));
-      const { data: existingRows } = await supabase
-        .from('hub_daily_hours')
-        .select('user_id, date, overtime_hours')
-        .or(upsertKeys.map(k => `and(user_id.eq.${k.user_id},date.eq.${k.date})`).join(','));
-
-      const existingMap: Record<string, number> = {};
-      for (const row of existingRows || []) {
-        existingMap[`${row.user_id}:${row.date}`] = row.overtime_hours || 0;
-      }
-
-      const mergedUpserts = hoursUpserts.map(r => ({
-        ...r,
-        overtime_hours: Math.max(r.overtime_hours, existingMap[`${r.user_id}:${r.date}`] ?? 0),
-      }));
-
       await supabase
         .from('hub_daily_hours')
-        .upsert(mergedUpserts, { onConflict: 'user_id,date' });
+        .upsert(hoursUpserts, { onConflict: 'user_id,date' });
     }
 
-    // In-progress (punched on, not off yet) — insert only, never overwrite completed hours
     if (hoursInProgress.length > 0) {
       await supabase
         .from('hub_daily_hours')
