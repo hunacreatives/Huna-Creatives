@@ -12,6 +12,73 @@ interface Props {
 
 const DEFAULT_TOOLS = ['Canva Pro', 'Adobe Photoshop (if required)'];
 
+function generateCustomContractHTML(contractorName: string, effectiveDate: string, body: string, sigData: string, logoData: string): string {
+  const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const bodyHtml = body
+    .split(/\n\n+/)
+    .map(para => `<p>${para.replace(/\n/g, '<br />')}</p>`)
+    .join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #111; background: #fff; line-height: 1.6; }
+  .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 18mm 20mm 20mm 20mm; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4pt; }
+  .logo-block img { height: 44pt; width: auto; display: block; }
+  .logo-tagline { font-size: 8.5pt; color: #333; margin-top: 4pt; font-style: italic; }
+  .header-contact { text-align: right; font-size: 8.5pt; color: #333; line-height: 1.7; }
+  .header-rule { border: none; border-top: 2.5pt solid #D64F1E; margin: 6pt 0 14pt 0; width: 100%; }
+  p { text-align: justify; margin-bottom: 7pt; font-size: 11pt; }
+  .divider { border: none; border-top: 0.75pt solid #ccc; margin: 14pt 0; }
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20pt; margin-top: 28pt; }
+  .sig-label { font-size: 9pt; color: #555; }
+  @media print { body { background: #fff; } .page { margin: 0; padding: 15mm 18mm 18mm 18mm; } @page { size: A4; margin: 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="logo-block">
+      <img src="${logoData}" alt="Huna Creatives" />
+      <div class="logo-tagline">Let's bring your <em>hunahuna</em> to life.</div>
+    </div>
+    <div class="header-contact">
+      (032) 505 6921 | +63 952 447 2602<br />
+      contact@hunacreatives.com<br />
+      Cebu, Philippines, 6004
+    </div>
+  </div>
+  <hr class="header-rule" />
+
+  ${bodyHtml}
+
+  <hr class="divider" style="margin-top:28pt;" />
+  <div class="sig-grid">
+    <div>
+      <p><strong>Huna Creatives</strong><br />("Client")</p>
+      <div style="height:44pt;display:flex;align-items:flex-end;padding-bottom:0;margin-top:16pt;">
+        <img src="${sigData}" style="height:70pt;width:auto;max-width:240pt;object-fit:contain;" />
+      </div>
+      <div style="border-top:1pt solid #111;margin-bottom:4pt;"></div>
+      <p class="sig-label">Francis Fiel Roble &nbsp;|&nbsp; ${fmt(effectiveDate)}</p>
+    </div>
+    <div>
+      <p><strong>${contractorName}</strong><br />("Contractor")</p>
+      <div style="height:44pt;margin-top:16pt;border-bottom:1pt solid #111;"></div>
+      <p class="sig-label" style="margin-top:4pt;">Signature</p>
+      <div style="border-top:1pt solid #111;margin-top:20pt;margin-bottom:4pt;"></div>
+      <p class="sig-label">${contractorName} &nbsp;|&nbsp; Date</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
 function generateContractHTML(fields: ContractFields, sigData: string, logoData: string): string {
   const {
     contractorName, effectiveDate, role, primaryClient, responsibilities,
@@ -278,6 +345,8 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
   const [previewHtml, setPreviewHtml] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+  const [contractMode, setContractMode] = useState<'template' | 'custom'>('template');
+  const [customBody, setCustomBody] = useState('');
 
   const set = (key: keyof ContractFields, val: any) =>
     setFields(prev => ({ ...prev, [key]: val }));
@@ -305,7 +374,9 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
   };
 
   const handlePreview = () => {
-    const html = generateContractHTML(fields, FRANCIS_SIG, HUNA_LOGO);
+    const html = contractMode === 'custom'
+      ? generateCustomContractHTML(fields.contractorName, fields.effectiveDate, customBody, FRANCIS_SIG, HUNA_LOGO)
+      : generateContractHTML(fields, FRANCIS_SIG, HUNA_LOGO);
     setPreviewHtml(html);
     setStep('preview');
   };
@@ -314,8 +385,10 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
     if (!fields.contractorId) return;
     setSaving(true);
 
-    const html = generateContractHTML(fields, FRANCIS_SIG, HUNA_LOGO);
-    const title = `Independent Contractor Agreement – ${fields.contractorName}`;
+    const html = previewHtml;
+    const title = contractMode === 'custom'
+      ? `Custom Agreement – ${fields.contractorName}`
+      : `Independent Contractor Agreement – ${fields.contractorName}`;
 
     const { data: doc, error } = await supabase
       .from('hub_sign_documents')
@@ -393,6 +466,68 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
         {step === 'form' && (
           <div className="overflow-y-auto flex-1 p-5 space-y-5">
 
+            {/* Mode toggle */}
+            <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
+              {(['template', 'custom'] as const).map(m => (
+                <button key={m} type="button" onClick={() => setContractMode(m)}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                    contractMode === m ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}>
+                  {m === 'template' ? 'Use Template' : 'Write Custom'}
+                </button>
+              ))}
+            </div>
+
+            {contractMode === 'custom' ? (
+              <>
+                {/* Contractor */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Contractor *</label>
+                  <select
+                    value={fields.contractorId}
+                    onChange={e => handleContractorChange(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer"
+                  >
+                    <option value="">Select contractor…</option>
+                    {contractors.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+                  </select>
+                </div>
+
+                {/* Effective date + amendment type */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Effective Date *</label>
+                    <input type="date" value={fields.effectiveDate} onChange={e => set('effectiveDate', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Contract Type</label>
+                    <select value={fields.amendmentType} onChange={e => set('amendmentType', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer">
+                      <option value="initial">Initial Agreement</option>
+                      <option value="rate_amendment">Rate Amendment</option>
+                      <option value="scope_change">Scope Change</option>
+                      <option value="renewal">Renewal</option>
+                      <option value="other">Other Amendment</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Custom body */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Contract Body *</label>
+                  <textarea
+                    value={customBody}
+                    onChange={e => setCustomBody(e.target.value)}
+                    rows={18}
+                    placeholder={"Type or paste your contract here...\n\nSeparate paragraphs with a blank line.\n\nThe Huna Creatives header and signature block are added automatically."}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] font-mono resize-y"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Blank line = new paragraph. Header + signature block added automatically.</p>
+                </div>
+              </>
+            ) : (
+              <>
             {/* Contractor */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Contractor *</label>
@@ -673,6 +808,8 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
                 </div>
               )}
             </div>
+              </>
+            )}
 
           </div>
         )}
@@ -703,8 +840,9 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
           {step === 'form' ? (
             <button
               onClick={handlePreview}
-              disabled={!fields.contractorId || !fields.role || !fields.primaryClient || !(fields.paymentType === 'hourly' ? fields.hourlyRate : fields.monthlyRate) || !fields.effectiveDate}
-
+              disabled={contractMode === 'custom'
+                ? !fields.contractorId || !customBody.trim() || !fields.effectiveDate
+                : !fields.contractorId || !fields.role || !fields.primaryClient || !(fields.paymentType === 'hourly' ? fields.hourlyRate : fields.monthlyRate) || !fields.effectiveDate}
               className="flex-1 bg-[#111827] text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 cursor-pointer disabled:opacity-40"
             >
               Preview Contract →
