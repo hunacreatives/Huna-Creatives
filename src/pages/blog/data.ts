@@ -943,6 +943,117 @@ export const blogArticles: BlogArticle[] = [
   },
 ];
 
+  {
+    slug: 'sentro-os-hr-operations-hub-creative-agencies-philippines',
+    category: 'Tools & Operations',
+    title: 'Sentro OS: The HR and Operations Hub Built for Creative Agencies in the Philippines',
+    excerpt:
+      'Most HR tools were built for corporations. Sentro OS was built for creative agencies — attendance via Slack, one-click payroll, client project tracking, and contracts, all in one system designed specifically for how Philippine agencies actually work.',
+    readTime: '7 min read',
+    date: 'March 25, 2026',
+    heroImage: '/images/blog-brand-identity-hero-001.jpg',
+    author: {
+      name: 'Huna Creatives',
+      role: 'Product Team',
+      avatar: '/images/blog-author-huna-001.jpg',
+    },
+    seo: {
+      description:
+        'Sentro OS is a custom-built HR and operations hub for creative agencies in the Philippines. Manage attendance, payroll, time-off, overtime, client projects, and contracts — all in one system built specifically for Philippine agencies and remote creative teams.',
+      keywords: [
+        'HR software Philippines creative agency',
+        'operations hub Philippines',
+        'payroll system creative agency Philippines',
+        'attendance tracking Slack Philippines',
+        'agency management software Philippines',
+        'Sentro OS',
+        'HR system for agencies Cebu',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Running a creative agency in the Philippines means juggling things that most HR software was never designed to handle — contractors on different rate structures, attendance tracked through Slack, payroll split between peso and dollar payments, client projects that need to connect to team costs, and a level of operational complexity that spreadsheets stopped being able to manage a long time ago. We know this because we lived it. Sentro OS is the system we built to solve it.',
+      },
+      {
+        type: 'heading',
+        content: 'What Sentro OS Actually Is',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Sentro OS is a custom-built internal operations hub for creative agencies, design firms, and marketing studios. It brings together the functions that agency owners spend the most time managing manually — attendance, payroll, time-off, overtime, contracts, client projects, and team HR — into a single, branded system built specifically for how agencies in the Philippines operate. It is not a generic HR tool with a local skin. It is built from the ground up for this context.',
+      },
+      {
+        type: 'heading',
+        content: 'The Features That Actually Matter for Philippine Agencies',
+      },
+      {
+        type: 'list',
+        content: 'What Sentro OS manages out of the box:',
+        items: [
+          'Attendance via Slack — team members punch in and out from a Slack channel, timestamps captured automatically',
+          'Payroll automation — calculates pay per period for hourly, fixed-rate, and project-based contractors, including USD-to-PHP conversion',
+          'Time-off and overtime management — requests, approvals, and balance tracking in one place',
+          'Client project tracking — contract value, collections, costs, and team payouts per project',
+          'Digital contracts — generate, send, and track contractor agreements without leaving the system',
+          'Team dashboard — see who is online, who is on leave, and where every project stands at a glance',
+        ],
+      },
+      {
+        type: 'quote',
+        content:
+          'We built Sentro OS because every HR tool we tried was designed for a company with 500 employees in an office building. We needed something that worked for a lean, remote creative team — and nothing like it existed.',
+      },
+      {
+        type: 'heading',
+        content: 'Who Sentro OS Is For',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Sentro OS is built for creative agencies, design studios, marketing firms, and any service-based team that manages a mix of remote contractors and staff. It is particularly suited to Philippine-based agencies operating on a combination of local and international clients — where payroll involves multiple currencies, payment types, and rate structures that generic HR tools simply cannot handle cleanly.',
+      },
+      {
+        type: 'heading',
+        content: 'The Problem With Generic HR Software for Agencies',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Tools like BambooHR, Workday, and even local payroll apps are built for traditional employment structures — fixed salaries, office-based attendance, standard benefit calculations. Creative agencies rarely look like this. You have contractors on project rates, freelancers on hourly arrangements, team members in different time zones, and clients whose project budgets are directly tied to team costs. Sentro OS is built around this reality, not the corporate HR template.',
+      },
+      {
+        type: 'heading',
+        content: 'Pricing and Setup',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Sentro OS starts at ₱4,999 per month with a one-time ₱15,000 setup fee for small teams on the Starter plan. The Growth plan — designed for larger agencies with more complex payroll and project tracking needs — runs ₱9,999 per month with a ₱30,000 setup. Enterprise pricing is available for custom builds and agencies that need white-labeled versions for their own clients. Every plan includes onboarding support — we set the system up with you, not just for you.',
+      },
+      {
+        type: 'heading',
+        content: 'Why We Built It and Why We Are Offering It to Other Agencies',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Huna Creatives built Sentro OS to run our own agency operations. After using it internally and seeing how dramatically it reduced the time we spent on HR administration and payroll, we realized it could do the same for other agencies dealing with the same problems. If you are managing a creative team in the Philippines and spending hours each week on attendance tracking, payroll calculations, and contract administration — Sentro OS was built for exactly your situation.',
+      },
+    ],
+    cta: {
+      heading: 'Stop managing your agency with spreadsheets.',
+      body: 'Sentro OS is the operations hub built for creative agencies in the Philippines. See how it works and get your team set up — starting at ₱4,999/month.',
+    },
+    relatedSlugs: [
+      'why-brand-identity-is-your-most-valuable-asset',
+      'brand-strategy-before-design',
+    ],
+  },
+];
+
 export const getBlogArticle = (slug: string): BlogArticle | undefined =>
   blogArticles.find((a) => a.slug === slug);
 
