@@ -949,7 +949,7 @@ export const blogArticles: BlogArticle[] = [
       'Most HR tools were built for corporations. Sentro OS was built for creative agencies — attendance via Slack, one-click payroll, client project tracking, and contracts, all in one system designed specifically for how Philippine agencies actually work.',
     readTime: '7 min read',
     date: 'March 25, 2026',
-    heroImage: '/images/blog-brand-identity-hero-001.jpg',
+    heroImage: '/images/blog-sentro-os-hero.png',
     author: {
       name: 'Huna Creatives',
       role: 'Product Team',
