@@ -941,8 +941,6 @@ export const blogArticles: BlogArticle[] = [
       'why-brand-identity-is-your-most-valuable-asset',
     ],
   },
-];
-
   {
     slug: 'sentro-os-hr-operations-hub-creative-agencies-philippines',
     category: 'Tools & Operations',
