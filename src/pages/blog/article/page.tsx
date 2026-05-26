@@ -176,7 +176,8 @@ const ArticlePage = () => {
               <img
                 src={article.heroImage}
                 alt={article.title}
-                className={`w-full h-full ${article.heroImageFit === 'contain' ? 'object-contain' : 'object-cover object-top'}`}
+                className="w-full h-full object-cover"
+                style={{ objectPosition: article.heroImagePosition ?? 'center top' }}
               />
             </div>
           </div>
