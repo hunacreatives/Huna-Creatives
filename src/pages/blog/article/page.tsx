@@ -193,10 +193,9 @@ const ArticlePage = () => {
                     return (
                       <p
                         key={i}
-                        className="text-white/55 text-sm md:text-base leading-relaxed mb-5"
-                      >
-                        {block.content}
-                      </p>
+                        className="text-white/55 text-sm md:text-base leading-relaxed mb-5 [&_a]:text-orange-400 [&_a]:underline [&_a]:underline-offset-2 [&_a]:hover:text-orange-300"
+                        dangerouslySetInnerHTML={{ __html: block.content }}
+                      />
                     );
                   }
                   if (block.type === 'quote') {

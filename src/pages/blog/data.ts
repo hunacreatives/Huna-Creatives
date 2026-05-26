@@ -103,7 +103,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Not all agencies are equal. Before you hire, look for a portfolio that demonstrates range — not just one style. Look for a team that leads with strategy, not just execution. Ask about their process, their communication cadence, and their experience with international clients. At Huna Creatives, we have worked with brands across the US, Australia, and Southeast Asia, and we treat every international engagement with the same rigor we bring to our local Cebu clients.',
+          'Not all agencies are equal. Before you hire, look for a portfolio that demonstrates range — not just one style. Look for a team that leads with strategy, not just execution. Ask about their process, their communication cadence, and their experience with international clients. At Huna Creatives, we have worked with brands across the US, Australia, and Southeast Asia — see our <a href="/portfolio">portfolio</a> for examples — and we treat every international engagement with the same rigor we bring to our local Cebu clients. <a href="/contact">Start with a free discovery call</a> to see if we are the right fit.',
       },
     ],
     cta: {
@@ -186,7 +186,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'A website that cannot be found is a website that does not exist. Every site Huna Creatives builds is optimized for local search from the ground up — structured data, proper meta tags, Google Business integration, and page speed optimization. When someone in Cebu searches for your type of business, we want your site showing up at the top of the results.',
+          'A website that cannot be found is a website that does not exist. Every site <a href="/services">Huna Creatives builds</a> is optimized for local search from the ground up — structured data, proper meta tags, Google Business integration, and page speed optimization. When someone in Cebu searches for your type of business, we want your site showing up at the top of the results.',
       },
       {
         type: 'heading',
@@ -195,7 +195,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'We do not start with templates. We start with your business — your goals, your customers, and the actions you want visitors to take. From there, we design and build a custom site that is fast, beautiful, and built to convert. Every project includes mobile optimization, performance testing, and a 30-day support period after launch.',
+          'We do not start with templates. We start with your business — your goals, your customers, and the actions you want visitors to take. From there, we design and build a custom site that is fast, beautiful, and built to convert. Every project includes mobile optimization, performance testing, and a 30-day support period after launch. <a href="/contact">Talk to us about your website today.</a>',
       },
     ],
     cta: {
@@ -287,7 +287,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Ask to see real results from real clients — not just beautiful posts, but actual metrics. Ask how they measure success and how they connect social media activity to business outcomes. Ask who creates the content and whether it is custom or templated. At Huna Creatives, we are transparent about our process, our results, and exactly what you can expect when we manage your social media.',
+          'Ask to see real results from real clients — not just beautiful posts, but actual metrics. Ask how they measure success and how they connect social media activity to business outcomes. Ask who creates the content and whether it is custom or templated. At <a href="/services">Huna Creatives</a>, we are transparent about our process, our results, and exactly what you can expect when we manage your social media. <a href="/contact">Get in touch</a> to see real client results.',
       },
     ],
     cta: {
@@ -331,7 +331,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Content is the fuel that drives every marketing channel — your blog, your social media, your email list, your SEO. But creating consistent, high-quality content takes time that most business owners and marketing teams simply do not have. Outsourcing to a Filipino content agency is one of the smartest operational decisions a growing brand can make in 2026 — but only if the handoff is done right.',
+          'Content is the fuel that drives every marketing channel — your blog, your social media, your email list, your SEO. But creating consistent, high-quality content takes time that most business owners and marketing teams simply do not have. Outsourcing to a Filipino content agency is one of the smartest operational decisions a growing brand can make in 2026 — but only if the handoff is done right. Read how <a href="/blog/why-brand-identity-is-your-most-valuable-asset">brands are outsourcing more than just content to the Philippines</a>.',
       },
       {
         type: 'heading',
@@ -379,7 +379,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Month one is always about calibration — learning your voice, testing formats, and refining the workflow. By month two, the content starts to feel native to your brand. By month three, you have a content machine that runs predictably and requires minimal input from your team. This is where the compounding value of outsourced content creation really begins to show.',
+          'Month one is always about calibration — learning your voice, testing formats, and refining the workflow. By month two, the content starts to feel native to your brand. By month three, you have a content machine that runs predictably and requires minimal input from your team. This is where the compounding value of outsourced content creation really begins to show. <a href="/contact">Talk to Huna Creatives</a> about a content engagement that fits your brand.',
       },
     ],
     cta: {
@@ -472,7 +472,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'We are based in Cebu and we understand the local market deeply — the visual language that resonates with Cebuano consumers, the platforms that matter most, and the competitive landscape across every major industry in the city. When we build a brand identity for a Cebu business, it is built with that context built in.',
+          'We are based in Cebu and we understand the local market deeply — the visual language that resonates with Cebuano consumers, the platforms that matter most, and the competitive landscape across every major industry in the city. When we build a <a href="/services">brand identity for a Cebu business</a>, it is built with that context built in. See our <a href="/portfolio">portfolio of local and international work</a> to get a sense of what that looks like.',
       },
     ],
     cta: {
@@ -539,7 +539,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'The mistake most cheap branding options make is skipping strategy. You get a logo, a color palette, and a font — but no understanding of why those choices communicate the right things to your specific audience. At Huna Creatives, we lead every engagement with strategy. We learn your market, your competitors, your target customer, and the emotional territory you want to own before we design anything.',
+          'The mistake most cheap branding options make is skipping strategy. You get a logo, a color palette, and a font — but no understanding of why those choices communicate the right things to your specific audience. At Huna Creatives, we lead every engagement with strategy — learn more about our <a href="/services">branding services</a>. We learn your market, your competitors, your target customer, and the emotional territory you want to own before we design anything.',
       },
       {
         type: 'heading',
@@ -564,7 +564,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Working with a Filipino creative agency remotely is more straightforward than most founders expect. Discovery and strategy happen over video calls. Concepts are presented in Figma or PDF with clear rationale. Feedback rounds are structured to be efficient. Most branding projects run four to six weeks from kick-off to final delivery. The time zone difference with the US and Australia often works in your favor — you brief in the evening, and work is ready for your review the next morning.',
+          'Working with a Filipino creative agency remotely is more straightforward than most founders expect. Discovery and strategy happen over video calls. Concepts are presented in Figma or PDF with clear rationale. Feedback rounds are structured to be efficient. Most branding projects run four to six weeks from kick-off to final delivery. The time zone difference with the US and Australia often works in your favor — you brief in the evening, and work is ready for your review the next morning. <a href="/contact">Start your project with Huna Creatives.</a>',
       },
     ],
     cta: {
@@ -647,7 +647,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Having a website is only half the battle. If nobody can find it, it is not doing its job. Local SEO — optimizing your site and Google Business Profile to appear when people search for businesses like yours in Cebu — is one of the highest-return investments a local business can make. Every website Huna Creatives builds includes foundational local SEO setup: proper title tags, meta descriptions, structured data, and Google Business integration.',
+          'Having a website is only half the battle. If nobody can find it, it is not doing its job. Local SEO — optimizing your site and Google Business Profile to appear when people search for businesses like yours in Cebu — is one of the highest-return investments a local business can make. Every <a href="/services">website Huna Creatives builds</a> includes foundational local SEO setup: proper title tags, meta descriptions, structured data, and Google Business integration. See how we approach <a href="/blog/web-design-that-converts-not-just-impresses">web design that converts</a> for businesses in Cebu.',
       },
       {
         type: 'heading',
@@ -656,7 +656,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'We start every project with a discovery conversation — learning your business, your customers, and what you want the website to do. We design in phases, gathering your feedback before we build. Most small business projects go from first meeting to live launch in three to five weeks. After launch, we provide a 30-day support period so you are never left figuring things out on your own.',
+          'We start every project with a discovery conversation — learning your business, your customers, and what you want the website to do. We design in phases, gathering your feedback before we build. Most small business projects go from first meeting to live launch in three to five weeks. After launch, we provide a 30-day support period so you are never left figuring things out on your own. <a href="/contact">Book a free consultation</a> to get started.',
       },
     ],
     cta: {
@@ -748,7 +748,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Once you have validated the business and the brand is working, the next phase is building a complete brand system that your growing team can use without you policing every design decision. This means comprehensive brand guidelines, template libraries, and a visual system that is strong enough to stay consistent whether it is being used by your in-house designer, a freelancer, or an external agency.',
+          'Once you have validated the business and the brand is working, the next phase is building a complete brand system that your growing team can use without you policing every design decision. This means comprehensive brand guidelines, template libraries, and a visual system that is strong enough to stay consistent whether it is being used by your in-house designer, a freelancer, or an external agency. Read more about <a href="/blog/the-power-of-consistent-visual-branding">what a complete visual identity actually includes</a>.',
       },
       {
         type: 'heading',
@@ -757,7 +757,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'The value proposition is straightforward. Filipino creative agencies deliver strategic, world-class brand identities at a fraction of what US or European studios charge for the same scope. The English fluency is native. The cultural understanding of Western markets is deep. The quality ceiling — when you find the right agency — is as high as anywhere in the world. For founders who need to stretch every dollar, this is not a compromise. It is a smart decision.',
+          'The value proposition is straightforward. Filipino <a href="/services">creative agencies</a> deliver strategic, world-class brand identities at a fraction of what US or European studios charge for the same scope. The English fluency is native. The cultural understanding of Western markets is deep. The quality ceiling — when you find the right agency — is as high as anywhere in the world. For founders who need to stretch every dollar, this is not a compromise. It is a smart decision. <a href="/portfolio">See our work</a> and judge for yourself.',
       },
     ],
     cta: {
@@ -849,7 +849,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'One viral post will not build your business. Consistent, quality content posted over twelve months will. The brands that dominate social media in their categories are not the ones chasing trends — they are the ones showing up with the same quality, the same voice, and the same value week after week. This is what builds the kind of brand recognition and trust that turns followers into paying customers. At Huna Creatives, every social media strategy we build is designed for the long game — because that is where the real returns are.',
+          'One viral post will not build your business. Consistent, quality content posted over twelve months will. The brands that dominate social media in their categories are not the ones chasing trends — they are the ones showing up with the same quality, the same voice, and the same value week after week. This is what builds the kind of brand recognition and trust that turns followers into paying customers. At Huna Creatives, every <a href="/services">social media strategy</a> we build is designed for the long game — because that is where the real returns are. <a href="/contact">Let us build yours.</a>',
       },
     ],
     cta: {
@@ -932,7 +932,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'The smartest brand collateral in 2026 bridges physical and digital. A QR code on a premium brochure that leads to a beautifully designed landing page. Packaging designed to be photographed and shared on Instagram. Business cards that link to a digital portfolio or booking page. At Huna Creatives, we design brand materials that work in both worlds — so your physical touchpoints amplify your digital presence instead of existing separately from it.',
+          'The smartest brand collateral in 2026 bridges physical and digital. A QR code on a premium brochure that leads to a beautifully designed landing page. Packaging designed to be photographed and shared on Instagram. Business cards that link to a digital portfolio or booking page. At Huna Creatives, we design <a href="/services">brand materials that work in both worlds</a> — so your physical touchpoints amplify your digital presence instead of existing separately from it. Browse our <a href="/portfolio">portfolio</a> to see how we bridge print and digital for Cebu businesses.',
       },
       {
         type: 'heading',
@@ -941,7 +941,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Great print design requires understanding print production — color modes, bleed, resolution, paper stock, and finishing options like matte lamination, spot UV, or foil. These technical details are the difference between a print piece that looks amateur and one that looks premium. Our team handles every aspect from concept to print-ready files, ensuring your materials look as good in hand as they do on screen.',
+          'Great print design requires understanding print production — color modes, bleed, resolution, paper stock, and finishing options like matte lamination, spot UV, or foil. These technical details are the difference between a print piece that looks amateur and one that looks premium. Our team handles every aspect from concept to print-ready files, ensuring your materials look as good in hand as they do on screen. <a href="/contact">Get a quote for your next print project.</a>',
       },
     ],
     cta: {
@@ -986,7 +986,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Running a creative agency in the Philippines means juggling things that most HR software was never designed to handle — contractors on different rate structures, attendance tracked through Slack, payroll split between peso and dollar payments, client projects that need to connect to team costs, and a level of operational complexity that spreadsheets stopped being able to manage a long time ago. We know this because we lived it. Sentro OS is the system we built to solve it.',
+          'Running a creative agency in the Philippines means juggling things that most HR software was never designed to handle — contractors on different rate structures, attendance tracked through Slack, payroll split between peso and dollar payments, client projects that need to connect to team costs, and a level of operational complexity that spreadsheets stopped being able to manage a long time ago. We know this because we lived it at <a href="/about">Huna Creatives</a>. <a href="/sentro">Sentro OS</a> is the system we built to solve it.',
       },
       {
         type: 'heading',
@@ -1052,7 +1052,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Huna Creatives built Sentro OS to run our own agency operations. After using it internally and seeing how dramatically it reduced the time we spent on HR administration and payroll, we realized it could do the same for other agencies dealing with the same problems. If you are managing a creative team in the Philippines and spending hours each week on attendance tracking, payroll calculations, and contract administration — Sentro OS was built for exactly your situation.',
+          'Huna Creatives built <a href="/sentro">Sentro OS</a> to run our own agency operations. After using it internally and seeing how dramatically it reduced the time we spent on HR administration and payroll, we realized it could do the same for other agencies dealing with the same problems. If you are managing a creative team in the Philippines and spending hours each week on attendance tracking, payroll calculations, and contract administration — <a href="/sentro">Sentro OS</a> was built for exactly your situation.',
       },
     ],
     cta: {
