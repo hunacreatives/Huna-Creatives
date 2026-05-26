@@ -104,174 +104,204 @@ export default function ContractorsPage() {
       }
     >
       <div className="space-y-4">
-        {/* Filters */}
-        <div className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center">
-              <i className="ri-search-line text-gray-400 text-sm"></i>
+
+        {/* Branded header */}
+        <div className="bg-[#111827] rounded-2xl px-5 py-4 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="flex -space-x-1.5">
+                  {contractors.filter(c => c.status === 'active' && c.avatar_url).slice(0, 4).map(c => (
+                    <img key={c.id} src={c.avatar_url!} alt={c.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-[#111827] flex-shrink-0" />
+                  ))}
+                </div>
+                <p className="text-white/50 text-xs">{contractors.filter(c => c.status === 'active').length} active</p>
+              </div>
+              <div className="flex items-center gap-4 flex-wrap mt-2">
+                {Object.entries(
+                  contractors.filter(c => c.status === 'active').reduce((acc: Record<string, number>, c) => {
+                    if (c.department) acc[c.department] = (acc[c.department] || 0) + 1;
+                    return acc;
+                  }, {})
+                ).slice(0, 4).map(([dept, count]) => (
+                  <div key={dept} className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] flex-shrink-0"></span>
+                    <span className="text-white/50 text-xs">{dept}</span>
+                    <span className="text-white/30 text-xs">{count}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+            <div className="flex gap-4 sm:gap-6">
+              {[
+                { label: 'Total', value: contractors.length },
+                { label: 'Active', value: contractors.filter(c => c.status === 'active').length },
+                { label: 'Inactive', value: contractors.filter(c => c.status === 'inactive').length },
+              ].map(s => (
+                <div key={s.label} className="text-center sm:text-right">
+                  <p className="text-xl font-bold text-white">{s.value}</p>
+                  <p className="text-white/40 text-[11px] uppercase tracking-wide">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Search + filter */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 relative">
+            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, email, department..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white"
+              placeholder="Search name, email, department..."
+              className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white"
             />
           </div>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
             {(['all', 'active', 'inactive'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
                   statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
+                }`}>
                 {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center h-48">
-              <i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[700px]">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/50">
-                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Contractor</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Department</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Rate</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Slack</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Status</th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Start Date</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center text-sm text-gray-400 py-10">
-                        No contractors found
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map((c) => (
-                      <tr
-                        key={c.id}
-                        className="hover:bg-gray-50/50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/hub/admin/contractors/${c.id}`)}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={c.avatar_url || ''}
-                              alt={c.full_name}
-                              className="w-8 h-8 rounded-full object-cover object-top flex-shrink-0"
-                            />
-                            <div>
-                              <p className="text-sm font-medium text-[#111827]">{c.full_name}</p>
-                              <p className="text-xs text-gray-400">{c.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${departmentColors[c.department || ''] || 'bg-gray-100 text-gray-600'}`}>
-                            {c.department || '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-gray-700">
-                            {c.payment_type === 'project_based' && c.project_percentage ? `${c.project_percentage}% per project` : c.payment_type === 'fixed' && c.monthly_rate ? `₱${c.monthly_rate.toLocaleString()}/mo` : c.hourly_rate ? `${c.currency === 'USD' ? '$' : '₱'}${c.hourly_rate}/hr${c.currency === 'USD' ? ' USD' : ''}` : '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-gray-500">{c.slack_username || '—'}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${
-                            c.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {c.status === 'active' ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-gray-500">
-                            {c.start_date ? new Date(c.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                          <div className="relative flex items-center justify-end gap-1" ref={openMenu === c.id ? menuRef : null}>
-                            <button
-                              onClick={() => navigate(`/hub/admin/contractors/${c.id}`)}
-                              className="text-gray-400 hover:text-[#FF6B35] transition-colors cursor-pointer p-1"
-                            >
-                              <i className="ri-arrow-right-s-line text-lg"></i>
-                            </button>
-                            <button
-                              onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)}
-                              className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer p-1"
-                            >
-                              <i className="ri-more-2-fill text-sm"></i>
-                            </button>
-                            {openMenu === c.id && (
-                              <div className="absolute right-0 top-8 z-20 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 text-sm">
-                                {!c.onboarding_completed && (
-                                  <>
-                                    <button
-                                      onClick={() => { setOpenMenu(null); setConfirm({ type: 'resend-invite', contractor: c }); }}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sky-600 hover:bg-sky-50 cursor-pointer"
-                                    >
-                                      <i className="ri-mail-send-line"></i>
-                                      Resend Invite
-                                    </button>
-                                    <div className="border-t border-gray-50 my-1" />
-                                  </>
-                                )}
-                                {c.status === 'active' ? (
-                                  <button
-                                    onClick={() => { setOpenMenu(null); setConfirm({ type: 'deactivate', contractor: c }); }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-amber-600 hover:bg-amber-50 cursor-pointer"
-                                  >
-                                    <i className="ri-user-forbid-line"></i>
-                                    Deactivate
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={async () => { setOpenMenu(null); await supabase.from('hub_users').update({ status: 'active' }).eq('id', c.id); fetchContractors(); }}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-emerald-600 hover:bg-emerald-50 cursor-pointer"
-                                  >
-                                    <i className="ri-user-follow-line"></i>
-                                    Reactivate
-                                  </button>
-                                )}
-                                <div className="border-t border-gray-50 my-1" />
-                                <button
-                                  onClick={() => { setOpenMenu(null); setConfirm({ type: 'delete', contractor: c }); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                                >
-                                  <i className="ri-delete-bin-line"></i>
-                                  Remove permanently
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {/* Contractor list */}
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white border border-gray-100 rounded-xl p-10 text-center">
+            <i className="ri-user-search-line text-3xl text-gray-200 block mb-2"></i>
+            <p className="text-sm text-gray-400">No contractors found</p>
+          </div>
+        ) : (
+          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-50">
+            {filtered.map((c) => {
+              const rateStr = c.payment_type === 'project_based' && c.project_percentage
+                ? `${c.project_percentage}% per project`
+                : (c.payment_type === 'fixed' || c.payment_type === 'fixed_flexible') && c.monthly_rate
+                ? `₱${c.monthly_rate.toLocaleString('en-PH', { maximumFractionDigits: 0 })}/mo`
+                : c.hourly_rate
+                ? `${c.currency === 'USD' ? '$' : '₱'}${c.hourly_rate}/hr${c.currency === 'USD' ? ' USD' : ''}`
+                : '—';
 
-        <p className="text-xs text-gray-400">{filtered.length} contractor{filtered.length !== 1 ? 's' : ''} shown</p>
+              return (
+                <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors cursor-pointer group"
+                  onClick={() => navigate(`/hub/admin/contractors/${c.id}`)}>
+
+                  {/* Avatar */}
+                  <div className="flex-shrink-0 relative">
+                    {c.avatar_url ? (
+                      <img src={c.avatar_url} alt={c.full_name} className="w-10 h-10 rounded-full object-cover object-top" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-[#FF6B35] flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">{c.full_name.charAt(0).toUpperCase()}</span>
+                      </div>
+                    )}
+                    {c.status === 'active' && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full"></span>
+                    )}
+                  </div>
+
+                  {/* Name + email */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-[#111827] truncate">{c.full_name}</p>
+                      {!c.onboarding_completed && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium flex-shrink-0">pending invite</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 truncate">{c.email}</p>
+                  </div>
+
+                  {/* Dept + rate */}
+                  <div className="hidden sm:flex flex-col items-start gap-1 min-w-[130px]">
+                    {c.department && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${departmentColors[c.department] || 'bg-gray-100 text-gray-600'}`}>
+                        {c.department}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-500">{rateStr}</span>
+                  </div>
+
+                  {/* Slack */}
+                  <div className="hidden md:flex items-center gap-1.5 min-w-[100px]">
+                    {c.slack_username ? (
+                      <>
+                        <i className="ri-slack-line text-gray-300 text-sm flex-shrink-0"></i>
+                        <span className="text-xs text-gray-500 truncate">{c.slack_username}</span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </div>
+
+                  {/* Start date */}
+                  <div className="hidden lg:block text-xs text-gray-400 whitespace-nowrap min-w-[90px] text-right">
+                    {c.start_date ? new Date(c.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                    <div className="relative" ref={openMenu === c.id ? menuRef : null}>
+                      <button onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)}
+                        className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
+                        <i className="ri-more-2-fill text-sm"></i>
+                      </button>
+                      {openMenu === c.id && (
+                        <div className="absolute right-0 top-9 z-20 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 text-sm">
+                          <button onClick={() => navigate(`/hub/admin/contractors/${c.id}`)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50 cursor-pointer">
+                            <i className="ri-eye-line text-gray-400"></i> View profile
+                          </button>
+                          {!c.onboarding_completed && (
+                            <>
+                              <div className="border-t border-gray-50 my-1" />
+                              <button onClick={() => { setOpenMenu(null); setConfirm({ type: 'resend-invite', contractor: c }); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sky-600 hover:bg-sky-50 cursor-pointer">
+                                <i className="ri-mail-send-line"></i> Resend invite
+                              </button>
+                            </>
+                          )}
+                          <div className="border-t border-gray-50 my-1" />
+                          {c.status === 'active' ? (
+                            <button onClick={() => { setOpenMenu(null); setConfirm({ type: 'deactivate', contractor: c }); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-amber-600 hover:bg-amber-50 cursor-pointer">
+                              <i className="ri-user-forbid-line"></i> Deactivate
+                            </button>
+                          ) : (
+                            <button onClick={async () => { setOpenMenu(null); await supabase.from('hub_users').update({ status: 'active' }).eq('id', c.id); fetchContractors(); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-emerald-600 hover:bg-emerald-50 cursor-pointer">
+                              <i className="ri-user-follow-line"></i> Reactivate
+                            </button>
+                          )}
+                          <div className="border-t border-gray-50 my-1" />
+                          <button onClick={() => { setOpenMenu(null); setConfirm({ type: 'delete', contractor: c }); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 hover:bg-rose-50 cursor-pointer">
+                            <i className="ri-delete-bin-line"></i> Remove permanently
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={() => navigate(`/hub/admin/contractors/${c.id}`)}
+                      className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-[#FF6B35] hover:bg-orange-50 rounded-lg transition-colors cursor-pointer opacity-0 group-hover:opacity-100">
+                      <i className="ri-arrow-right-s-line text-lg"></i>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <p className="text-xs text-gray-400 pb-1">{filtered.length} contractor{filtered.length !== 1 ? 's' : ''} shown</p>
       </div>
 
       {showAdd && (

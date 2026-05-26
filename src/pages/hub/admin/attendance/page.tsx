@@ -403,185 +403,164 @@ export default function AdminAttendancePage() {
 
   return (
     <AdminLayout title="Attendance">
-      <div className="space-y-5">
+      <div className="space-y-4">
 
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Date picker */}
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={selectedDate}
-                max={todayStr}
-                onChange={e => setSelectedDate(e.target.value || todayStr)}
-                className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:border-[#FF6B35] cursor-pointer"
-              />
-              {!isToday && (
-                <button
-                  onClick={() => setSelectedDate(todayStr)}
-                  className="text-xs text-[#FF6B35] hover:underline cursor-pointer"
-                >
-                  Back to today
-                </button>
-              )}
-            </div>
+        {/* Branded header card */}
+        <div className="bg-[#111827] rounded-2xl p-5 text-white">
+          {/* Top row: date info + mode badge */}
+          <div className="flex items-start justify-between gap-3 mb-5">
             <div>
-              <p className="text-sm text-gray-500">{displayDateLabel}</p>
+              <div className="flex items-center gap-2 mb-0.5">
+                <h2 className="text-base font-semibold text-white">{displayDateLabel}</h2>
+                {isToday ? (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
+                    Live
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/60 border border-white/10">
+                    Historical
+                  </span>
+                )}
+              </div>
               {isToday && lastRefresh && (
-                <p className="text-xs text-gray-400">
-                  Last updated {lastRefresh.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
+                <p className="text-xs text-white/40">
+                  Updated {lastRefresh.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
+                  <span className="mx-1.5 opacity-40">·</span>
+                  <i className="ri-slack-line mr-0.5"></i>via Slack
+                </p>
+              )}
+              {!isToday && (
+                <p className="text-xs text-white/40">
+                  <i className="ri-database-2-line mr-0.5"></i>From hub_daily_hours
                 </p>
               )}
             </div>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  max={todayStr}
+                  onChange={e => setSelectedDate(e.target.value || todayStr)}
+                  className="text-xs bg-white/10 border border-white/20 text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#FF6B35] cursor-pointer [color-scheme:dark]"
+                />
+                {!isToday && (
+                  <button
+                    onClick={() => setSelectedDate(todayStr)}
+                    className="text-xs text-[#FF6B35] hover:text-[#FF6B35]/80 cursor-pointer whitespace-nowrap transition-colors"
+                  >
+                    Today
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Right controls */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* PDF download buttons */}
-            {[
-              { label: 'Week PDF', range: () => getWeekRange(selectedDate), rangeLabel: 'Week' },
-              { label: 'Month PDF', range: () => getMonthRange(selectedDate), rangeLabel: 'Month' },
-              { label: 'Year PDF', range: () => getYearRange(selectedDate), rangeLabel: 'Year' },
-            ].map(btn => (
-              <button
-                key={btn.label}
-                onClick={() => { const [s, e] = btn.range(); generateAttendancePDF(s, e, btn.rangeLabel); }}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors cursor-pointer"
-              >
-                <i className="ri-file-pdf-line text-sm"></i>
-                {btn.label}
-              </button>
-            ))}
-
-            {/* Refresh (today only) */}
-            {isToday && (
-              <button
-                onClick={() => fetchLive(true)}
-                disabled={refreshing}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
-              >
-                <i className={`ri-refresh-line text-sm ${refreshing ? 'animate-spin' : ''}`}></i>
-                Refresh
-              </button>
+          {/* KPI row */}
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            {isToday ? (
+              <>
+                <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                  <p className="text-2xl font-bold text-white tabular-nums">{liveCounts.on}</p>
+                  <p className="text-xs text-emerald-400 mt-0.5 font-medium">Online</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                  <p className="text-2xl font-bold text-white tabular-nums">{liveCounts.off}</p>
+                  <p className="text-xs text-white/50 mt-0.5">Logged Off</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                  <p className="text-2xl font-bold text-white tabular-nums">{liveCounts.absent}</p>
+                  <p className="text-xs text-amber-400 mt-0.5 font-medium">Not In</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                  <p className="text-2xl font-bold text-white tabular-nums">{histCounts.worked}</p>
+                  <p className="text-xs text-emerald-400 mt-0.5 font-medium">Worked</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                  <p className="text-2xl font-bold text-white tabular-nums">{histCounts.absent}</p>
+                  <p className="text-xs text-amber-400 mt-0.5 font-medium">Absent</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                  <p className="text-2xl font-bold text-[#FF6B35] tabular-nums">{histCounts.totalHours.toFixed(1)}h</p>
+                  <p className="text-xs text-white/50 mt-0.5">Total Hours</p>
+                </div>
+              </>
             )}
+          </div>
+
+          {/* Bottom row: export + action buttons */}
+          <div className="flex items-center justify-between gap-3 pt-4 border-t border-white/10">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { label: 'Week', range: () => getWeekRange(selectedDate), rangeLabel: 'Week' },
+                { label: 'Month', range: () => getMonthRange(selectedDate), rangeLabel: 'Month' },
+                { label: 'Year', range: () => getYearRange(selectedDate), rangeLabel: 'Year' },
+              ].map(btn => (
+                <button
+                  key={btn.label}
+                  onClick={() => { const [s, e] = btn.range(); generateAttendancePDF(s, e, btn.rangeLabel); }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white/10 border border-white/10 text-white/70 hover:bg-white/15 hover:text-white transition-colors cursor-pointer"
+                >
+                  <i className="ri-file-pdf-line text-sm"></i>
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              {isToday ? (
+                <button
+                  onClick={() => fetchLive(true)}
+                  disabled={refreshing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 border border-white/10 text-white/70 hover:bg-white/15 hover:text-white transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  <i className={`ri-refresh-line text-sm ${refreshing ? 'animate-spin' : ''}`}></i>
+                  Refresh
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    setSyncing(true);
+                    await supabase.functions.invoke('slack-attendance', { body: { date: selectedDate } });
+                    await fetchHistorical(selectedDate);
+                    setSyncing(false);
+                  }}
+                  disabled={syncing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 border border-white/10 text-white/70 hover:bg-white/15 hover:text-white transition-colors cursor-pointer disabled:opacity-40"
+                >
+                  <i className={`ri-slack-line text-sm ${syncing ? 'animate-pulse' : ''}`}></i>
+                  {syncing ? 'Syncing…' : 'Sync Slack'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Stat cards */}
-        {isToday ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
-                <i className="ri-user-follow-line text-emerald-600 text-sm"></i>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{liveCounts.on}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Online</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">
-                <i className="ri-user-unfollow-line text-gray-500 text-sm"></i>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{liveCounts.off}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Logged Off</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-2">
-                <i className="ri-time-line text-amber-600 text-sm"></i>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{liveCounts.absent}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Not In Yet</p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-2">
-                <i className="ri-user-follow-line text-emerald-600 text-sm"></i>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{histCounts.worked}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Worked</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-2">
-                <i className="ri-user-unfollow-line text-amber-600 text-sm"></i>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{histCounts.absent}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Absent</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4 text-center">
-              <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center mx-auto mb-2">
-                <i className="ri-time-line text-sky-600 text-sm"></i>
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{histCounts.totalHours.toFixed(1)}h</p>
-              <p className="text-xs text-gray-500 mt-0.5">Total Hours</p>
-            </div>
-          </div>
-        )}
-
-        {/* Source note */}
-        {isToday ? (
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg">
-            <i className="ri-slack-line text-gray-400 text-sm"></i>
-            <p className="text-xs text-gray-500">Live from Slack — contractors type <span className="font-mono bg-white border border-gray-200 px-1 rounded">On</span> or <span className="font-mono bg-white border border-gray-200 px-1 rounded">Off</span> in the attendance channel. Auto-refreshes every minute.</p>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg">
-            <div className="flex items-center gap-2">
-              <i className="ri-database-2-line text-gray-400 text-sm"></i>
-              <p className="text-xs text-gray-500">Showing logged hours from <strong>hub_daily_hours</strong> for {displayDateLabel}. Contractors with no record are marked Absent.</p>
-            </div>
-            <button
-              onClick={async () => {
-                setSyncing(true);
-                await supabase.functions.invoke('slack-attendance', { body: { date: selectedDate } });
-                await fetchHistorical(selectedDate);
-                setSyncing(false);
-              }}
-              disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors cursor-pointer flex-shrink-0 disabled:opacity-50"
-            >
-              <i className={`ri-slack-line text-sm ${syncing ? 'animate-pulse' : ''}`}></i>
-              {syncing ? 'Syncing…' : 'Sync from Slack'}
-            </button>
-          </div>
-        )}
-
         {/* Filter tabs */}
-        <div className="flex gap-2">
-          {isToday ? (
-            (['all', 'worked', 'absent'] as const).map(f => {
-              const count = f === 'all' ? records.length : f === 'worked' ? liveCounts.on + liveCounts.off : liveCounts.absent;
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+            {(['all', 'worked', 'absent'] as const).map(f => {
+              const label = f === 'all' ? 'All' : f === 'worked' ? (isToday ? 'Online / Off' : 'Worked') : (isToday ? 'Not In' : 'Absent');
+              const count = isToday
+                ? (f === 'all' ? records.length : f === 'worked' ? liveCounts.on + liveCounts.off : liveCounts.absent)
+                : (f === 'all' ? histRows.length : f === 'worked' ? histCounts.worked : histCounts.absent);
               return (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    filter === f ? 'bg-[#111827] text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                    filter === f ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {f === 'all' ? 'All' : f === 'worked' ? 'Online / Off' : 'Not In'}
-                  <span className="ml-1.5 opacity-60">{count}</span>
+                  {label}
+                  <span className="ml-1.5 opacity-50">{count}</span>
                 </button>
               );
-            })
-          ) : (
-            (['all', 'worked', 'absent'] as const).map(f => {
-              const count = f === 'all' ? histRows.length : f === 'worked' ? histCounts.worked : histCounts.absent;
-              return (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    filter === f ? 'bg-[#111827] text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  {f === 'all' ? 'All' : f === 'worked' ? 'Worked' : 'Absent'}
-                  <span className="ml-1.5 opacity-60">{count}</span>
-                </button>
-              );
-            })
-          )}
+            })}
+          </div>
         </div>
 
         {/* Records */}
@@ -592,62 +571,65 @@ export default function AdminAttendancePage() {
         ) : isToday ? (
           /* ---- LIVE VIEW ---- */
           filteredLive.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <i className="ri-calendar-check-line text-3xl mb-2 block"></i>
-              <p className="text-sm">No records for this filter</p>
+            <div className="bg-white border border-gray-100 rounded-xl p-10 text-center">
+              <i className="ri-calendar-check-line text-3xl text-gray-200 mb-2 block"></i>
+              <p className="text-sm text-gray-400">No records for this filter</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-50">
               {filteredLive.map((r) => {
                 const key = r.hub_user_id || r.email || r.full_name;
                 const isExpanded = expanded === key;
+                const hasDetail = r.punches.length > 0 || r.overtime_today > 0;
                 return (
-                  <div key={key} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                  <div key={key}>
                     <div
-                      className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                      onClick={() => setExpanded(isExpanded ? null : key)}
+                      className={`flex items-center gap-3 px-4 py-3.5 ${hasDetail ? 'cursor-pointer hover:bg-gray-50/70' : ''} transition-colors`}
+                      onClick={() => hasDetail && setExpanded(isExpanded ? null : key)}
                     >
-                      <div className="relative">
+                      <div className="relative flex-shrink-0">
                         <Avatar name={r.full_name} avatar_url={r.avatar_url} />
-                        <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
                           r.status === 'on' ? 'bg-emerald-500' : r.status === 'off' ? 'bg-gray-400' : 'bg-amber-400'
                         }`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{r.full_name}</p>
+                        <p className="text-sm font-medium text-[#111827] truncate">{r.full_name}</p>
                         {r.department && <p className="text-xs text-gray-400">{r.department}</p>}
                       </div>
-                      <div className="text-right flex-shrink-0 space-y-0.5">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                            r.status === 'on' ? 'bg-emerald-100 text-emerald-700' : r.status === 'off' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {r.status === 'on' ? 'Online' : r.status === 'off' ? 'Logged Off' : 'Not In'}
-                          </span>
-                          {r.overtime_today > 0 && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                              +{r.overtime_today}h OT
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex flex-col items-end w-32 flex-shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              r.status === 'on' ? 'bg-emerald-100 text-emerald-700' : r.status === 'off' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {r.status === 'on' ? 'Online' : r.status === 'off' ? 'Logged Off' : 'Not In'}
                             </span>
-                          )}
+                            {r.overtime_today > 0 && (
+                              <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                                +{r.overtime_today}h OT
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {r.status === 'absent' ? 'No punch today' : `Last: ${formatTime(r.last_punch)}`}
+                          </p>
                         </div>
-                        <p className="text-xs text-gray-400">
-                          {r.status === 'absent' ? 'No punch today' : `Last: ${formatTime(r.last_punch)}`}
-                        </p>
+                        {hasDetail && (
+                          <i className={`ri-arrow-down-s-line text-gray-300 text-base transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}></i>
+                        )}
                       </div>
-                      {r.punches.length > 0 && (
-                        <i className={`ri-arrow-down-s-line text-gray-400 text-sm transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
-                      )}
                     </div>
-                    {isExpanded && (r.punches.length > 0 || r.overtime_today > 0) && (
-                      <div className="border-t border-gray-50 px-4 pb-4 pt-3 space-y-3">
+                    {isExpanded && hasDetail && (
+                      <div className="bg-gray-50/60 border-t border-gray-100 px-4 pb-4 pt-3 space-y-3">
                         {r.punches.length > 0 && (
                           <div>
-                            <p className="text-xs text-gray-400 mb-2">Today's punches</p>
+                            <p className="text-xs font-medium text-gray-400 mb-2">Today's punches</p>
                             <div className="space-y-1.5">
                               {r.punches.map((p, i) => (
-                                <div key={i} className="flex items-center gap-2">
+                                <div key={i} className="flex items-center gap-2.5">
                                   <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${p.status === 'on' ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                                  <span className={`text-xs font-medium ${p.status === 'on' ? 'text-emerald-700' : 'text-gray-600'}`}>
+                                  <span className={`text-xs font-medium w-20 flex-shrink-0 ${p.status === 'on' ? 'text-emerald-700' : 'text-gray-600'}`}>
                                     {p.status === 'on' ? 'Logged On' : 'Logged Off'}
                                   </span>
                                   <span className="text-xs text-gray-400">{formatTime(p.time)}</span>
@@ -658,8 +640,8 @@ export default function AdminAttendancePage() {
                         )}
                         {r.overtime_today > 0 && (
                           <div className="flex items-center gap-2 bg-purple-50 rounded-lg px-3 py-2">
-                            <i className="ri-time-fill text-purple-500 text-sm"></i>
-                            <span className="text-xs font-medium text-purple-700">Overtime logged: {r.overtime_today}h</span>
+                            <i className="ri-time-fill text-purple-400 text-sm"></i>
+                            <span className="text-xs font-medium text-purple-700">Overtime logged: +{r.overtime_today}h</span>
                           </div>
                         )}
                       </div>
@@ -672,9 +654,9 @@ export default function AdminAttendancePage() {
         ) : (
           /* ---- HISTORICAL VIEW ---- */
           filteredHist.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <i className="ri-calendar-check-line text-3xl mb-2 block"></i>
-              <p className="text-sm">No records for this filter</p>
+            <div className="bg-white border border-gray-100 rounded-xl p-10 text-center">
+              <i className="ri-calendar-check-line text-3xl text-gray-200 mb-2 block"></i>
+              <p className="text-sm text-gray-400">No records for this filter</p>
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
@@ -682,38 +664,39 @@ export default function AdminAttendancePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Contractor', 'Time In', 'Time Out', 'Hours', 'OT', 'Status'].map(h => (
+                      {['Contractor', 'Time In', 'Time Out', 'Hours', 'Status'].map(h => (
                         <th key={h} className="text-left text-xs text-gray-400 font-medium px-4 py-3">{h}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-50">
                     {filteredHist.map(r => (
-                      <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
+                      <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5">
                             <Avatar name={r.full_name} avatar_url={r.avatar_url} />
                             <div>
-                              <p className="font-medium text-gray-900">{r.full_name}</p>
-                              {r.department && <p className="text-xs text-gray-400">{r.department}</p>}
+                              <p className="text-sm font-medium text-[#111827]">{r.full_name}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {r.department && <p className="text-xs text-gray-400">{r.department}</p>}
+                                {r.overtime_hours != null && r.overtime_hours > 0 && (
+                                  <>
+                                    {r.department && <span className="text-gray-200 text-xs">·</span>}
+                                    <span className="text-xs text-purple-500 font-medium">+{r.overtime_hours.toFixed(1)}h OT</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">{formatTime(r.first_on)}</td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">{formatTime(r.last_off)}</td>
-                        <td className="px-4 py-3 font-medium text-gray-800">
-                          {r.hours_capped != null ? `${r.hours_capped.toFixed(2)}h` : '—'}
+                        <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{formatTime(r.first_on)}</td>
+                        <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{formatTime(r.last_off)}</td>
+                        <td className="px-4 py-3.5">
+                          <span className="text-sm font-semibold text-[#111827] tabular-nums">
+                            {r.hours_capped != null ? `${r.hours_capped.toFixed(1)}h` : '—'}
+                          </span>
                         </td>
-                        <td className="px-4 py-3">
-                          {r.overtime_hours && r.overtime_hours > 0 ? (
-                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">
-                              +{r.overtime_hours.toFixed(2)}h
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             r.worked ? 'bg-emerald-100 text-emerald-700' :
                             r.first_on && !r.last_off ? 'bg-sky-100 text-sky-700' :

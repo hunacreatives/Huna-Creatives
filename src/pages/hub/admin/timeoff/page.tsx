@@ -167,38 +167,33 @@ export default function AdminTimeOffPage() {
       <div className="space-y-4">
 
         {/* Tab: Requests / Blackouts / Balances */}
-        <div className="overflow-x-auto -mx-1 px-1">
-          <div className="flex gap-2 border-b border-gray-100 pb-0 min-w-max">
-            {[{ key: 'requests', label: 'Leave Requests' }, { key: 'blackouts', label: 'Blackout Dates' }, { key: 'balances', label: 'Leave Balances' }].map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key as any)}
-                className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
-                  tab === t.key ? 'border-[#FF6B35] text-[#FF6B35]' : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit overflow-x-auto">
+          {[{ key: 'requests', label: 'Leave Requests' }, { key: 'blackouts', label: 'Blackout Dates' }, { key: 'balances', label: 'Leave Balances' }].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key as any)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                tab === t.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {tab === 'requests' && (
           <>
             {/* Status filter */}
-            <div className="flex items-center justify-between">
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
-                {filterTabs.map((s) => {
-                  const count = s === 'all' ? requests.length : requests.filter((r) => r.status === s).length;
-                  return (
-                    <button key={s} onClick={() => setStatusFilter(s)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
-                        statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                      }`}>
-                      {s === 'all' ? 'All' : statusLabels[s]}
-                    </button>
-                  );
-                })}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+                {filterTabs.map((s) => (
+                  <button key={s} onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
+                      statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}>
+                    {s === 'all' ? 'All' : statusLabels[s]}
+                  </button>
+                ))}
               </div>
               <span className="text-xs text-gray-400">{requests.length} request{requests.length !== 1 ? 's' : ''}</span>
             </div>

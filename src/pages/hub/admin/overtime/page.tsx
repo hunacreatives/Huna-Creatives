@@ -84,11 +84,11 @@ export default function AdminOvertimePage() {
       <div className="space-y-4">
 
         {/* Filters */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
             {filterTabs.map((s) => (
               <button key={s} onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
                   statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}>
                 {s === 'all' ? 'All' : statusLabels[s]}

@@ -41,13 +41,16 @@ export default function RequestsPage() {
   return (
     <AdminLayout title="Request Center">
       <div className="space-y-4">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
-          {['all', 'open', 'in_review', 'resolved', 'closed'].map((s) => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              {s === 'all' ? 'All' : s.replace('_', ' ')}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+            {['all', 'open', 'in_review', 'resolved', 'closed'].map((s) => (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                {s === 'all' ? 'All' : s.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-gray-400">{requests.length} request{requests.length !== 1 ? 's' : ''}</span>
         </div>
 
         <div className="space-y-3">

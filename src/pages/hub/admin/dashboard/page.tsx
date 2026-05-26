@@ -92,6 +92,32 @@ function formatTime(iso: string | null) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
+type WidgetKey = 'kpi' | 'teamStatus' | 'payroll' | 'netProfit' | 'retainer' | 'requests' | 'timeOff' | 'announcements' | 'quickActions' | 'outstandingInvoices' | 'birthdays';
+
+const ALL_WIDGETS: { key: WidgetKey; label: string; icon: string; ownerOnly?: boolean }[] = [
+  { key: 'kpi',                label: 'KPI Stats',           icon: 'ri-bar-chart-2-line' },
+  { key: 'teamStatus',         label: 'Team Status',         icon: 'ri-team-line' },
+  { key: 'payroll',            label: 'Payroll Estimate',    icon: 'ri-money-dollar-circle-line' },
+  { key: 'netProfit',          label: 'Projects Net Profit', icon: 'ri-folder-chart-line' },
+  { key: 'retainer',           label: 'Monthly Retainers',   icon: 'ri-calendar-check-line', ownerOnly: true },
+  { key: 'requests',           label: 'Pending Requests',    icon: 'ri-inbox-line' },
+  { key: 'timeOff',            label: 'Time-Off Queue',      icon: 'ri-calendar-todo-line' },
+  { key: 'announcements',      label: 'Announcements',       icon: 'ri-megaphone-line' },
+  { key: 'quickActions',       label: 'Quick Actions',       icon: 'ri-flashlight-line' },
+  { key: 'outstandingInvoices',label: 'Outstanding Invoices',icon: 'ri-file-list-3-line' },
+  { key: 'birthdays',          label: 'Birthday Alerts',     icon: 'ri-cake-2-line' },
+];
+
+function loadWidgetPrefs(): Record<WidgetKey, boolean> {
+  try {
+    const raw = localStorage.getItem('hub_admin_widgets');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  const defaults: Partial<Record<WidgetKey, boolean>> = {};
+  ALL_WIDGETS.forEach(w => { defaults[w.key] = true; });
+  return defaults as Record<WidgetKey, boolean>;
+}
+
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
   const { hubUser, effectiveRole } = useAuth();
@@ -109,8 +135,20 @@ export default function AdminDashboardPage() {
   const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
   const [outstandingInvoices, setOutstandingInvoices] = useState<OutstandingInvoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [widgetPrefs, setWidgetPrefs] = useState<Record<WidgetKey, boolean>>(loadWidgetPrefs);
+  const [showCustomize, setShowCustomize] = useState(false);
   const isOwner = effectiveRole === 'owner';
   const isOwnerOrAdmin = isOwner || effectiveRole === 'admin' || effectiveRole === 'hr';
+
+  const show = (key: WidgetKey) => widgetPrefs[key] !== false;
+
+  const toggleWidget = (key: WidgetKey) => {
+    setWidgetPrefs(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem('hub_admin_widgets', JSON.stringify(next));
+      return next;
+    });
+  };
 
   const today = new Date();
   const isFirstHalf = today.getDate() <= 15;
@@ -344,6 +382,55 @@ export default function AdminDashboardPage() {
     <AdminLayout title="Dashboard">
       <div className="space-y-4">
 
+        {/* Customize drawer */}
+        {showCustomize && (
+          <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setShowCustomize(false)}>
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="relative bg-white w-full max-w-xs h-full shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#111827]">Customize Dashboard</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Toggle widgets on or off</p>
+                </div>
+                <button onClick={() => setShowCustomize(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <i className="ri-close-line text-lg"></i>
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-2">
+                {ALL_WIDGETS.filter(w => !w.ownerOnly || isOwner).map(w => (
+                  <button
+                    key={w.key}
+                    onClick={() => toggleWidget(w.key)}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-left"
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${widgetPrefs[w.key] !== false ? 'bg-[#FF6B35]/10' : 'bg-gray-100'}`}>
+                      <i className={`${w.icon} text-sm ${widgetPrefs[w.key] !== false ? 'text-[#FF6B35]' : 'text-gray-400'}`}></i>
+                    </div>
+                    <span className={`text-sm flex-1 ${widgetPrefs[w.key] !== false ? 'text-[#111827] font-medium' : 'text-gray-400'}`}>{w.label}</span>
+                    <div className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${widgetPrefs[w.key] !== false ? 'bg-[#FF6B35]' : 'bg-gray-200'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white shadow-sm mt-0.5 transition-all ${widgetPrefs[w.key] !== false ? 'ml-5' : 'ml-0.5'}`} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex-shrink-0">
+                <button
+                  onClick={() => {
+                    const all: Partial<Record<WidgetKey, boolean>> = {};
+                    ALL_WIDGETS.forEach(w => { all[w.key] = true; });
+                    const next = all as Record<WidgetKey, boolean>;
+                    setWidgetPrefs(next);
+                    localStorage.setItem('hub_admin_widgets', JSON.stringify(next));
+                  }}
+                  className="w-full py-2 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  Reset to defaults
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header banner */}
         <div className="bg-[#111827] rounded-2xl p-5 text-white relative overflow-hidden">
           <style>{`
@@ -406,7 +493,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
+            <div className="flex-1">
               <p className="text-white/50 text-xs mb-1 flex items-center gap-1.5">
                 {dateStr}
                 <span className="text-white/30">·</span>
@@ -436,7 +523,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Birthday alerts */}
-        {birthdays.length > 0 && (
+        {show('birthdays') && birthdays.length > 0 && (
           <div className={`rounded-xl border p-4 ${birthdays[0].isToday ? 'bg-pink-50 border-pink-200' : 'bg-amber-50 border-amber-100'}`}>
             <div className="flex items-center gap-2 mb-3">
               <span className="text-lg">{birthdays[0].isToday ? '🎂' : '🎁'}</span>
@@ -461,7 +548,7 @@ export default function AdminDashboardPage() {
         )}
 
         {/* Outstanding invoices */}
-        {isOwnerOrAdmin && outstandingInvoices.length > 0 && (() => {
+        {show('outstandingInvoices') && isOwnerOrAdmin && outstandingInvoices.length > 0 && (() => {
           const todayMs = new Date().setHours(0, 0, 0, 0);
           const pastDue = outstandingInvoices.filter(inv => {
             if (!inv.due_date) return false;
@@ -514,287 +601,312 @@ export default function AdminDashboardPage() {
         })()}
 
         {/* KPI row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Online Now', value: counts.on, icon: 'ri-user-follow-line', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-            { label: 'Logged Off', value: counts.off, icon: 'ri-user-unfollow-line', color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-100' },
-            { label: 'Not In Yet', value: counts.absent, icon: 'ri-time-line', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
-            { label: 'Cutoff Hours', value: `${totalHours}h`, icon: 'ri-bar-chart-2-line', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100' },
-          ].map((k) => (
-            <div key={k.label} className={`bg-white rounded-xl border ${k.border} p-4`}>
-              <div className={`w-8 h-8 ${k.bg} rounded-lg flex items-center justify-center mb-3`}>
-                <i className={`${k.icon} ${k.color} text-sm`}></i>
-              </div>
-              <p className="text-2xl font-bold text-[#111827]">{k.value}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{k.label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          {/* Team status — 3 cols */}
-          <div className="md:col-span-3 bg-white border border-gray-100 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-[#111827] text-sm">Team Status</h3>
-              <button onClick={() => navigate('/hub/admin/attendance')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Full view</button>
-            </div>
-
-            {/* Status groups */}
-            {onlineList.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs text-gray-400 font-medium mb-2 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                  Online
-                </p>
-                <div className="space-y-2">
-                  {onlineList.map(r => (
-                    <div key={r.hub_user_id || r.full_name} className="flex items-center gap-2.5 p-2 rounded-lg bg-emerald-50/50">
-                      <Avatar name={r.full_name} url={r.avatar_url} size={8} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{r.full_name}</p>
-                        {r.department && <p className="text-xs text-gray-400">{r.department}</p>}
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        {r.hours_today > 0 && <p className="text-xs font-medium text-emerald-600">{r.hours_today.toFixed(1)}h today</p>}
-                        <p className="text-xs text-gray-400">since {formatTime(r.last_punch)}</p>
-                      </div>
-                    </div>
-                  ))}
+        {show('kpi') && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: 'Online Now', value: counts.on, icon: 'ri-user-follow-line', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+              { label: 'Logged Off', value: counts.off, icon: 'ri-user-unfollow-line', color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-100' },
+              { label: 'Not In Yet', value: counts.absent, icon: 'ri-time-line', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+              { label: 'Cutoff Hours', value: `${totalHours}h`, icon: 'ri-bar-chart-2-line', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100' },
+            ].map((k) => (
+              <div key={k.label} className={`bg-white rounded-xl border ${k.border} p-4`}>
+                <div className={`w-8 h-8 ${k.bg} rounded-lg flex items-center justify-center mb-3`}>
+                  <i className={`${k.icon} ${k.color} text-sm`}></i>
                 </div>
+                <p className="text-2xl font-bold text-[#111827]">{k.value}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{k.label}</p>
               </div>
-            )}
-
-            {offList.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs text-gray-400 font-medium mb-2 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"></span>
-                  Logged Off
-                </p>
-                <div className="space-y-2">
-                  {offList.map(r => (
-                    <div key={r.hub_user_id || r.full_name} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50">
-                      <Avatar name={r.full_name} url={r.avatar_url} size={8} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700 truncate">{r.full_name}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        {r.hours_today > 0 && <p className="text-xs text-gray-500">{r.hours_today.toFixed(1)}h logged</p>}
-                        <p className="text-xs text-gray-400">off at {formatTime(r.last_punch)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {absentList.length > 0 && (
-              <div>
-                <p className="text-xs text-gray-400 font-medium mb-2 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
-                  Not In Yet
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {absentList.map(r => (
-                    <div key={r.hub_user_id || r.full_name} className="flex items-center gap-1.5 bg-amber-50 rounded-lg px-2.5 py-1.5">
-                      <Avatar name={r.full_name} url={r.avatar_url} size={5} />
-                      <span className="text-xs text-amber-700">{r.full_name.split(' ')[0]}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {attendance.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-6">No attendance data yet</p>
-            )}
+            ))}
           </div>
+        )}
 
-          {/* Right col — 2 cols */}
-          <div className="md:col-span-2 space-y-4">
-            {/* Payroll estimate */}
-            <div className="bg-[#FF6B35] rounded-xl p-4 text-white">
-              <div className="flex items-center gap-2 mb-3">
-                <i className="ri-money-dollar-circle-line text-white/70 text-sm"></i>
-                <p className="text-white/70 text-xs">Estimated Payroll</p>
-              </div>
-              <p className="text-2xl font-bold">₱{totalPayroll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-              <p className="text-white/60 text-xs mt-1">
-                {isFirstHalf ? `${today.toLocaleDateString('en-US', { month: 'short' })} 1–15` : `${today.toLocaleDateString('en-US', { month: 'short' })} 16–${new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()}`} cutoff
-              </p>
-              <button
-                onClick={() => navigate('/hub/admin/payroll')}
-                className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
-              >
-                View Payroll
-              </button>
-            </div>
+        {(show('teamStatus') || show('payroll') || show('netProfit') || show('retainer') || show('requests') || show('timeOff')) && (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {/* Team status — 3 cols */}
+            {show('teamStatus') && (
+              <div className="md:col-span-3 bg-white border border-gray-100 rounded-xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-[#111827] text-sm">Team Status</h3>
+                  <button onClick={() => navigate('/hub/admin/attendance')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Full view</button>
+                </div>
 
-            {/* Project Net Profit — owner/admin only */}
-            {isOwnerOrAdmin && (() => {
-              const collectionPct = totalContractValue > 0 ? Math.min((totalCollected / totalContractValue) * 100, 100) : 0;
-              return (
-                <div className="bg-teal-600 rounded-xl p-4 text-white">
-                  <div className="flex items-center gap-2 mb-3">
-                    <i className="ri-folder-chart-line text-white/70 text-sm"></i>
-                    <p className="text-white/70 text-xs">Projects Net Profit</p>
-                  </div>
-                  <p className="text-2xl font-bold">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                  <p className="text-white/60 text-xs mt-1">{activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
-                  <div className="mt-3">
-                    <div className="flex justify-between text-[10px] text-white/50 mb-1">
-                      <span>Client collections</span>
-                      <span>₱{totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 0 })} / ₱{totalContractValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })} ({collectionPct.toFixed(0)}%)</span>
-                    </div>
-                    <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                      <div className="h-full bg-white/70 rounded-full transition-all" style={{ width: `${collectionPct}%` }} />
+                {onlineList.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-400 font-medium mb-2 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                      Online
+                    </p>
+                    <div className="space-y-2">
+                      {onlineList.map(r => (
+                        <div key={r.hub_user_id || r.full_name} className="flex items-center gap-2.5 p-2 rounded-lg bg-emerald-50/50">
+                          <Avatar name={r.full_name} url={r.avatar_url} size={8} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{r.full_name}</p>
+                            {r.department && <p className="text-xs text-gray-400">{r.department}</p>}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {r.hours_today > 0 && <p className="text-xs font-medium text-emerald-600">{r.hours_today.toFixed(1)}h today</p>}
+                            <p className="text-xs text-gray-400">since {formatTime(r.last_punch)}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <button
-                    onClick={() => navigate('/hub/admin/projects')}
-                    className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    View Projects
-                  </button>
-                </div>
-              );
-            })()}
+                )}
 
-            {/* Monthly Retainer Total — owner only */}
-            {isOwner && (
-              <div className="bg-violet-600 rounded-xl p-4 text-white">
-                <div className="flex items-center gap-2 mb-3">
-                  <i className="ri-calendar-check-line text-white/70 text-sm"></i>
-                  <p className="text-white/70 text-xs">Monthly Retainers</p>
-                </div>
-                <p className="text-2xl font-bold">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                <p className="text-white/60 text-xs mt-1">active client contracts · converted to PHP</p>
-                <button
-                  onClick={() => navigate('/hub/admin/clients')}
-                  className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
-                >
-                  View Clients
-                </button>
+                {offList.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-400 font-medium mb-2 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400 inline-block"></span>
+                      Logged Off
+                    </p>
+                    <div className="space-y-2">
+                      {offList.map(r => (
+                        <div key={r.hub_user_id || r.full_name} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50">
+                          <Avatar name={r.full_name} url={r.avatar_url} size={8} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-700 truncate">{r.full_name}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {r.hours_today > 0 && <p className="text-xs text-gray-500">{r.hours_today.toFixed(1)}h logged</p>}
+                            <p className="text-xs text-gray-400">off at {formatTime(r.last_punch)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {absentList.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium mb-2 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
+                      Not In Yet
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {absentList.map(r => (
+                        <div key={r.hub_user_id || r.full_name} className="flex items-center gap-1.5 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                          <Avatar name={r.full_name} url={r.avatar_url} size={5} />
+                          <span className="text-xs text-amber-700">{r.full_name.split(' ')[0]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {attendance.length === 0 && (
+                  <p className="text-sm text-gray-400 text-center py-6">No attendance data yet</p>
+                )}
               </div>
             )}
 
-            {/* Pending requests */}
-            <div className="bg-white border border-gray-100 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-[#111827] text-sm">
-                  Requests
-                  {pendingRequests.length > 0 && (
-                    <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{pendingRequests.length}</span>
-                  )}
-                </h3>
-                <button onClick={() => navigate('/hub/admin/requests')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">View all</button>
-              </div>
-              {pendingRequests.length === 0 ? (
-                <div className="flex items-center gap-2 py-2">
-                  <i className="ri-checkbox-circle-line text-emerald-400"></i>
-                  <p className="text-sm text-gray-400">All clear</p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {pendingRequests.slice(0, 3).map((req) => (
-                    <div key={req.id} className="flex items-center gap-2">
-                      <Avatar name={(req.hub_users as HubUser)?.full_name || '?'} url={(req.hub_users as HubUser)?.avatar_url || null} size={7} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-800 truncate">{req.title}</p>
-                        <p className="text-xs text-gray-400 capitalize">{req.type.replace('_', ' ')}</p>
-                      </div>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${req.status === 'open' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
-                        {req.status === 'open' ? 'Open' : 'Review'}
-                      </span>
+            {/* Right col — 2 cols */}
+            {(show('payroll') || show('netProfit') || show('retainer') || show('requests') || show('timeOff')) && (
+              <div className={`${show('teamStatus') ? 'md:col-span-2' : 'md:col-span-5'} space-y-4`}>
+                {show('payroll') && (
+                  <div className="bg-[#FF6B35] rounded-xl p-4 text-white">
+                    <div className="flex items-center gap-2 mb-3">
+                      <i className="ri-money-dollar-circle-line text-white/70 text-sm"></i>
+                      <p className="text-white/70 text-xs">Estimated Payroll</p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <p className="text-2xl font-bold">₱{totalPayroll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-white/60 text-xs mt-1">
+                      {isFirstHalf ? `${today.toLocaleDateString('en-US', { month: 'short' })} 1–15` : `${today.toLocaleDateString('en-US', { month: 'short' })} 16–${new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()}`} cutoff
+                    </p>
+                    <button
+                      onClick={() => navigate('/hub/admin/payroll')}
+                      className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      View Payroll
+                    </button>
+                  </div>
+                )}
 
-            {/* Pending time-off */}
-            <div className="bg-white border border-gray-100 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-[#111827] text-sm">
-                  Time-Off
-                  {pendingTimeOff.length > 0 && (
-                    <span className="ml-2 text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full">{pendingTimeOff.length}</span>
-                  )}
-                </h3>
-                <button onClick={() => navigate('/hub/admin/time-off')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">View all</button>
-              </div>
-              {pendingTimeOff.length === 0 ? (
-                <div className="flex items-center gap-2 py-2">
-                  <i className="ri-checkbox-circle-line text-emerald-400"></i>
-                  <p className="text-sm text-gray-400">No pending</p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {pendingTimeOff.slice(0, 3).map((to) => (
-                    <div key={to.id} className="flex items-center gap-2">
-                      <Avatar name={(to.hub_users as HubUser)?.full_name || '?'} url={(to.hub_users as HubUser)?.avatar_url || null} size={7} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-800 truncate">{(to.hub_users as HubUser)?.full_name}</p>
-                        <p className="text-xs text-gray-400">{to.start_date}{to.start_date !== to.end_date ? ` → ${to.end_date}` : ''}</p>
+                {show('netProfit') && isOwnerOrAdmin && (() => {
+                  const collectionPct = totalContractValue > 0 ? Math.min((totalCollected / totalContractValue) * 100, 100) : 0;
+                  return (
+                    <div className="bg-teal-600 rounded-xl p-4 text-white">
+                      <div className="flex items-center gap-2 mb-3">
+                        <i className="ri-folder-chart-line text-white/70 text-sm"></i>
+                        <p className="text-white/70 text-xs">Projects Net Profit</p>
                       </div>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 capitalize font-medium ${toColors[to.type]}`}>{to.type}</span>
+                      <p className="text-2xl font-bold">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                      <p className="text-white/60 text-xs mt-1">{activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
+                      <div className="mt-3">
+                        <div className="flex justify-between text-[10px] text-white/50 mb-1">
+                          <span>Client collections</span>
+                          <span>₱{totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 0 })} / ₱{totalContractValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })} ({collectionPct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                          <div className="h-full bg-white/70 rounded-full transition-all" style={{ width: `${collectionPct}%` }} />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigate('/hub/admin/projects')}
+                        className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                      >
+                        View Projects
+                      </button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  );
+                })()}
+
+                {show('retainer') && isOwner && (
+                  <div className="bg-violet-600 rounded-xl p-4 text-white">
+                    <div className="flex items-center gap-2 mb-3">
+                      <i className="ri-calendar-check-line text-white/70 text-sm"></i>
+                      <p className="text-white/70 text-xs">Monthly Retainers</p>
+                    </div>
+                    <p className="text-2xl font-bold">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-white/60 text-xs mt-1">active client contracts · converted to PHP</p>
+                    <button
+                      onClick={() => navigate('/hub/admin/clients')}
+                      className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      View Clients
+                    </button>
+                  </div>
+                )}
+
+                {show('requests') && (
+                  <div className="bg-white border border-gray-100 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-[#111827] text-sm">
+                        Requests
+                        {pendingRequests.length > 0 && (
+                          <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{pendingRequests.length}</span>
+                        )}
+                      </h3>
+                      <button onClick={() => navigate('/hub/admin/requests')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">View all</button>
+                    </div>
+                    {pendingRequests.length === 0 ? (
+                      <div className="flex items-center gap-2 py-2">
+                        <i className="ri-checkbox-circle-line text-emerald-400"></i>
+                        <p className="text-sm text-gray-400">All clear</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {pendingRequests.slice(0, 3).map((req) => (
+                          <div key={req.id} className="flex items-center gap-2">
+                            <Avatar name={(req.hub_users as HubUser)?.full_name || '?'} url={(req.hub_users as HubUser)?.avatar_url || null} size={7} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-800 truncate">{req.title}</p>
+                              <p className="text-xs text-gray-400 capitalize">{req.type.replace('_', ' ')}</p>
+                            </div>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 ${req.status === 'open' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
+                              {req.status === 'open' ? 'Open' : 'Review'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {show('timeOff') && (
+                  <div className="bg-white border border-gray-100 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-[#111827] text-sm">
+                        Time-Off
+                        {pendingTimeOff.length > 0 && (
+                          <span className="ml-2 text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full">{pendingTimeOff.length}</span>
+                        )}
+                      </h3>
+                      <button onClick={() => navigate('/hub/admin/time-off')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">View all</button>
+                    </div>
+                    {pendingTimeOff.length === 0 ? (
+                      <div className="flex items-center gap-2 py-2">
+                        <i className="ri-checkbox-circle-line text-emerald-400"></i>
+                        <p className="text-sm text-gray-400">No pending</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {pendingTimeOff.slice(0, 3).map((to) => (
+                          <div key={to.id} className="flex items-center gap-2">
+                            <Avatar name={(to.hub_users as HubUser)?.full_name || '?'} url={(to.hub_users as HubUser)?.avatar_url || null} size={7} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-800 truncate">{(to.hub_users as HubUser)?.full_name}</p>
+                              <p className="text-xs text-gray-400">{to.start_date}{to.start_date !== to.end_date ? ` → ${to.end_date}` : ''}</p>
+                            </div>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 capitalize font-medium ${toColors[to.type]}`}>{to.type}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Announcements + Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white border border-gray-100 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-[#111827] text-sm">Announcements</h3>
-              <button onClick={() => navigate('/hub/admin/announcements')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Manage</button>
-            </div>
-            {announcements.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">No announcements yet</p>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {announcements.map((ann) => (
-                  <div key={ann.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-                    <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-medium flex-shrink-0 mt-0.5 capitalize ${annColors[ann.type]}`}>{ann.type}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{ann.title}</p>
-                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{ann.body}</p>
-                    </div>
-                    <p className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
-                      {new Date(ann.created_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </p>
+        {(show('announcements') || show('quickActions')) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {show('announcements') && (
+              <div className="bg-white border border-gray-100 rounded-xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-[#111827] text-sm">Announcements</h3>
+                  <button onClick={() => navigate('/hub/admin/announcements')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Manage</button>
+                </div>
+                {announcements.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">No announcements yet</p>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {announcements.map((ann) => (
+                      <div key={ann.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+                        <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-medium flex-shrink-0 mt-0.5 capitalize ${annColors[ann.type]}`}>{ann.type}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{ann.title}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{ann.body}</p>
+                        </div>
+                        <p className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                          {new Date(ann.created_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+              </div>
+            )}
+
+            {show('quickActions') && (
+              <div className="bg-white border border-gray-100 rounded-xl p-5">
+                <h3 className="font-semibold text-[#111827] text-sm mb-3">Quick Actions</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Add Contractor', icon: 'ri-user-add-line', path: '/hub/admin/contractors', color: 'text-[#FF6B35]', bg: 'bg-[#FF6B35]/5 hover:bg-[#FF6B35]/10' },
+                    { label: 'View Attendance', icon: 'ri-time-line', path: '/hub/admin/attendance', color: 'text-sky-600', bg: 'bg-sky-50 hover:bg-sky-100' },
+                    { label: 'Post Announcement', icon: 'ri-megaphone-line', path: '/hub/admin/announcements', color: 'text-violet-600', bg: 'bg-violet-50 hover:bg-violet-100' },
+                    { label: 'Run Payroll', icon: 'ri-money-dollar-circle-line', path: '/hub/admin/payroll', color: 'text-emerald-600', bg: 'bg-emerald-50 hover:bg-emerald-100' },
+                  ].map((a) => (
+                    <button
+                      key={a.label}
+                      onClick={() => navigate(a.path)}
+                      className={`flex items-center gap-3 p-3 ${a.bg} rounded-xl transition-colors cursor-pointer text-left`}
+                    >
+                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-100 flex-shrink-0">
+                        <i className={`${a.icon} ${a.color} text-sm`}></i>
+                      </div>
+                      <span className="text-sm text-gray-700 font-medium leading-tight">{a.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-
-          <div className="bg-white border border-gray-100 rounded-xl p-5">
-            <h3 className="font-semibold text-[#111827] text-sm mb-3">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Add Contractor', icon: 'ri-user-add-line', path: '/hub/admin/contractors', color: 'text-[#FF6B35]', bg: 'bg-[#FF6B35]/5 hover:bg-[#FF6B35]/10' },
-                { label: 'View Attendance', icon: 'ri-time-line', path: '/hub/admin/attendance', color: 'text-sky-600', bg: 'bg-sky-50 hover:bg-sky-100' },
-                { label: 'Post Announcement', icon: 'ri-megaphone-line', path: '/hub/admin/announcements', color: 'text-violet-600', bg: 'bg-violet-50 hover:bg-violet-100' },
-                { label: 'Run Payroll', icon: 'ri-money-dollar-circle-line', path: '/hub/admin/payroll', color: 'text-emerald-600', bg: 'bg-emerald-50 hover:bg-emerald-100' },
-              ].map((a) => (
-                <button
-                  key={a.label}
-                  onClick={() => navigate(a.path)}
-                  className={`flex items-center gap-3 p-3 ${a.bg} rounded-xl transition-colors cursor-pointer text-left`}
-                >
-                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-100 flex-shrink-0">
-                    <i className={`${a.icon} ${a.color} text-sm`}></i>
-                  </div>
-                  <span className="text-sm text-gray-700 font-medium leading-tight">{a.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+        )}
+        {/* Customize dashboard */}
+        <div className="flex justify-center pt-2 pb-1">
+          <button
+            onClick={() => setShowCustomize(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+          >
+            <i className="ri-layout-grid-line text-sm"></i>
+            Customize dashboard
+          </button>
         </div>
+
       </div>
     </AdminLayout>
   );
