@@ -79,6 +79,7 @@ export default function Hero() {
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const mouse = mousePosRef.current;
+      ctx.filter = 'blur(40px)';
       bubblesRef.current.forEach((bubble) => {
         bubble.x += bubble.vx;
         bubble.y += bubble.vy;
@@ -98,12 +99,11 @@ export default function Hero() {
         gradient.addColorStop(0.5, bubble.color.replace(/[\d.]+\)$/, '0.05)'));
         gradient.addColorStop(1, 'transparent');
         ctx.fillStyle = gradient;
-        ctx.filter = 'blur(40px)';
         ctx.beginPath();
         ctx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.filter = 'none';
       });
+      ctx.filter = 'none';
       animationFrameRef.current = requestAnimationFrame(animate);
     };
     animate();
@@ -121,13 +121,13 @@ export default function Hero() {
       data-hero-section
       className="relative flex items-center justify-center overflow-hidden"
       style={{
-        height: '100dvh',
+        height: '100svh',
         minHeight: '560px',
         paddingTop: '84px',
         background: 'linear-gradient(160deg, #0a0a0a 0%, #111111 50%, #0d0d0d 100%)',
       }}
     >
-      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }} />
+      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, willChange: 'transform' }} />
 
       <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 text-center flex flex-col items-center">
 

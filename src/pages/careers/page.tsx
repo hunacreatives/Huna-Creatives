@@ -19,104 +19,7 @@ interface JobListing {
   growth: string[];
 }
 
-const JOB_LISTINGS: JobListing[] = [
-  {
-    id: 'admin-coordinator',
-    title: 'Admin Coordinator',
-    type: 'Full-Time',
-    shift: 'Night Shift (11:00 PM – 7:00 AM PHT)',
-    startDate: 'Monday, April 13',
-    location: 'Remote – Philippines',
-    summary:
-      "We're looking for a highly organized Admin Coordinator to support the day-to-day operations of a growing US-based umbrella company managing four distinct businesses. This role is ideal for someone who can manage workflows, keep projects organized, and ensure smooth execution across multiple brands. You'll be working closely with the design and marketing team, making sure everything stays aligned, on track, and consistent.",
-    whatYoullDo: [
-      'Coordinate tasks and timelines across multiple brands and projects',
-      'Manage content calendars and ensure deadlines are met',
-      'Organize and track design and marketing deliverables',
-      'Ensure all outputs follow the correct brand guidelines per company',
-      'Communicate with team members to keep projects moving efficiently',
-      'Assist in uploading, scheduling, and publishing content',
-      'Maintain and update internal systems, files, and documentation',
-      'Support website updates and basic content management (WordPress or similar)',
-    ],
-    lookingFor: [
-      'Strong organizational and administrative skills',
-      'Excellent written and verbal English communication',
-      'High attention to detail and ability to manage multiple tasks at once',
-      'Ability to follow processes and maintain consistency across different brands',
-      'Comfortable working in a fast-paced remote environment',
-      'Ability to work independently and take ownership of tasks',
-    ],
-    niceToHave: [
-      'Experience with social media scheduling tools (e.g., HootSuite or similar)',
-      'Familiarity with website platforms (WordPress or similar)',
-      'Basic understanding of design workflows or marketing processes',
-      'Experience working with US-based teams or remote setups',
-    ],
-    workSetup: [
-      'Remote (Philippines-based)',
-      'Full-time position',
-      'Required shift: 11:00 PM – 7:00 AM (PHT)',
-    ],
-    setsYouApart: [
-      'You are highly reliable and keep things moving without constant supervision',
-      'You can manage multiple brands without mixing details or missing context',
-      'You take ownership and ensure tasks are completed accurately and on time',
-    ],
-    growth: [
-      'Exposure to multiple brands and business operations',
-      'Opportunity to grow into a more senior operations or project management role',
-      'Work closely with a creative and marketing-driven team',
-    ],
-  },
-  {
-    id: 'graphic-designer',
-    title: 'Graphic Designer',
-    type: 'Full-Time',
-    shift: 'Night Shift (11:00 PM – 7:00 AM PHT)',
-    startDate: 'Monday, April 13',
-    location: 'Remote – Philippines',
-    summary:
-      "We're looking for a skilled Graphic Designer with a strong eye for detail and the ability to work across multiple brand identities. This role is ideal for someone who can produce clean, consistent, high-quality visuals while adapting to different brand styles. You will support a US-based umbrella company managing four distinct businesses, each with its own branding, voice, and design direction.",
-    whatYoullDo: [
-      'Design on-brand graphics for social media, marketing campaigns, and digital assets',
-      'Create clean, professional layouts for websites, landing pages, and promotional materials',
-      'Work across multiple brands, ensuring each follows its own visual identity',
-      'Maintain strict consistency with brand guidelines for each company',
-      'Collaborate with the team to translate ideas into strong visual executions',
-      'Prepare and optimize assets for web and digital use',
-    ],
-    lookingFor: [
-      'Strong graphic design skills (Adobe Creative Suite, Canva, Figma, or similar)',
-      'A solid understanding of layout, typography, spacing, and visual hierarchy',
-      'Experience designing for social media and digital marketing',
-      'Proven ability to follow and switch between different brand guidelines',
-      'High attention to detail and consistency in design execution',
-      'Good English communication skills (written and verbal)',
-      'Ability to work independently and meet deadlines in a remote setup',
-    ],
-    niceToHave: [
-      'Basic understanding of website design (WordPress or similar)',
-      'Familiarity with digital marketing or content design for campaigns',
-      'Experience working with US-based teams or multi-brand companies',
-    ],
-    workSetup: [
-      'Remote (Philippines-based)',
-      'Full-time position',
-      'Required shift: 11:00 PM – 7:00 AM (PHT)',
-    ],
-    setsYouApart: [
-      'You can adapt your design style depending on the brand — not just stick to one look',
-      'You create clean, intentional designs that align with business goals',
-      'You take ownership and deliver consistent, high-quality work across different brands',
-    ],
-    growth: [
-      'Opportunity to work across multiple brands and expand your design range',
-      'Exposure to higher-level projects and increasing creative responsibility',
-      'Room to grow with the team as we take on more projects and larger-scale work',
-    ],
-  },
-];
+const JOB_LISTINGS: JobListing[] = [];
 
 const HAS_OPENINGS = JOB_LISTINGS.length > 0;
 
@@ -172,9 +75,10 @@ export default function CareersPage() {
         payload.append('resume_link', resumeLink.trim());
       }
       payload.append('message', formData.message);
+      payload.append('access_key', '7e42135a-f8bb-46ef-ba9b-eadd09929497');
       payload.append('_gotcha', '');
 
-      const res = await fetch('https://www.snapform.cc/api/f/cmng4ai4h0002l704s3r8yv77', {
+      const res = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         body: payload,
       });
@@ -297,9 +201,6 @@ export default function CareersPage() {
             Build your career with{' '}
             <span className="gradient-text-animated">Huna Creatives.</span>
           </h1>
-          <p className="text-sm md:text-[15px] text-white/40 max-w-lg mx-auto leading-relaxed">
-            We build brands that mean something. If you think boldly, work with intention, and want to be part of something worth building — you&apos;re in the right place.
-          </p>
         </div>
       </section>
 

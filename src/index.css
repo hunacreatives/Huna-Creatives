@@ -12,11 +12,14 @@
   html {
     overflow-x: hidden;
     scroll-behavior: smooth;
+    background-color: #0a0a0a;
   }
 
   body {
     @apply font-body antialiased;
     overflow-x: hidden;
+    background-color: #0a0a0a;
+    overscroll-behavior-y: none;
   }
 }
 

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { HubClient, HubClientAssignment, HubUser } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { logAudit } from '@/lib/audit';
-import { getSetting, setSetting } from '@/lib/settings';
+import { getSetting } from '@/lib/settings';
 
 const statusColors: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -38,14 +38,12 @@ export default function ClientsPage() {
     getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v)));
   }, []);
 
-  // Client modal
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<HubClient | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
-  // Assignment modal (manage team for a client)
   const [assignClient, setAssignClient] = useState<HubClient | null>(null);
   const [assignments, setAssignments] = useState<HubClientAssignment[]>([]);
   const [addContractorId, setAddContractorId] = useState('');
@@ -62,7 +60,6 @@ export default function ClientsPage() {
       supabase.from('hub_users').select('id, full_name, avatar_url, department, role').eq('status', 'active').order('full_name'),
     ]);
 
-    // hub_client_assignments may not exist yet if migration hasn't been run — fall back gracefully
     if (clientsRes.error?.message?.includes('hub_client_assignments')) {
       const { data: fallback } = await supabase.from('hub_clients').select('*').order('client_name');
       setClients((fallback as HubClient[]) ?? []);
@@ -132,7 +129,6 @@ export default function ClientsPage() {
     setAddContractorId('');
     setAddRole('');
     setAssignSaving(false);
-    // Refresh
     const { data } = await supabase
       .from('hub_client_assignments')
       .select('id, contractor_id, role, hub_users(id, full_name, avatar_url, department)')
@@ -153,121 +149,167 @@ export default function ClientsPage() {
     !assignments.some(a => a.contractor_id === c.id)
   );
 
+  // Header KPIs
+  const activeCount = clients.filter(c => c.status === 'active').length;
+  const pausedCount = clients.filter(c => c.status === 'paused').length;
+  const monthlyTotalPHP = isOwner ? clients.filter(c => c.status === 'active' && c.contract_value).reduce((s, c) => {
+    const val = c.contract_value ?? 0;
+    return s + (c.contract_currency === 'USD' ? val * usdRate : val);
+  }, 0) : 0;
+
   return (
     <AdminLayout title="Client Assignments">
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search clients..."
-              className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+
+        {/* Branded header */}
+        <div className="bg-[#111827] rounded-2xl p-5 text-white">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-base font-semibold text-white">Client Assignments</h2>
+              <p className="text-xs text-white/40 mt-0.5">{clients.length} client{clients.length !== 1 ? 's' : ''} total</p>
+            </div>
+            <button onClick={openNew}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#FF6B35] text-white text-xs font-medium rounded-xl hover:bg-[#e55a28] transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
+              <i className="ri-add-line text-sm"></i>
+              Add Client
+            </button>
           </div>
-          <button onClick={openNew} className="flex items-center gap-1.5 px-4 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
-            <i className="ri-add-line"></i> Add Client
-          </button>
+
+          <div className={`grid gap-3 ${isOwner ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <p className="text-2xl font-bold text-white tabular-nums">{activeCount}</p>
+              <p className="text-xs text-emerald-400 mt-0.5 font-medium">Active</p>
+            </div>
+            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+              <p className="text-2xl font-bold text-white tabular-nums">{pausedCount}</p>
+              <p className="text-xs text-amber-400 mt-0.5 font-medium">Paused</p>
+            </div>
+            {isOwner && (
+              <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                <p className="text-lg font-bold text-[#FF6B35] tabular-nums leading-tight">{monthlyTotalPHP ? fmtPHP(monthlyTotalPHP) : '—'}</p>
+                <p className="text-xs text-white/50 mt-0.5">Monthly retainer</p>
+              </div>
+            )}
+          </div>
+
+          {/* Search */}
+          <div className="relative mt-4">
+            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm"></i>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search clients..."
+              className="w-full pl-9 pr-3 py-2 text-sm bg-white/10 border border-white/10 text-white placeholder-white/30 rounded-xl focus:outline-none focus:border-[#FF6B35]/60 focus:bg-white/15 transition-colors"
+            />
+          </div>
         </div>
 
-        {/* Monthly total — owner only */}
-        {!loading && isOwner && (() => {
-          const activeClients = clients.filter(c => c.status === 'active' && c.contract_value);
-          const monthlyTotalPHP = activeClients.reduce((s, c) => {
-            const val = c.contract_value ?? 0;
-            return s + (c.contract_currency === 'USD' ? val * usdRate : val);
-          }, 0);
-          if (!monthlyTotalPHP) return null;
-          return (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <i className="ri-money-dollar-circle-line text-emerald-600 text-sm"></i>
-                <span className="text-sm font-medium text-emerald-700">Monthly Retainer Total</span>
-                <span className="text-xs text-emerald-500">({activeClients.length} active client{activeClients.length !== 1 ? 's' : ''} · USD @ ₱{usdRate})</span>
-              </div>
-              <span className="text-lg font-bold text-emerald-700">{fmtPHP(monthlyTotalPHP)}/mo</span>
-            </div>
-          );
-        })()}
-
+        {/* Client list */}
         {loading ? (
           <div className="flex justify-center py-12"><i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i></div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-gray-400 text-sm">No clients found</div>
+          <div className="bg-white border border-gray-100 rounded-xl p-10 text-center">
+            <i className="ri-building-line text-3xl text-gray-200 mb-2 block"></i>
+            <p className="text-sm text-gray-400">No clients found</p>
+          </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="space-y-3">
             {filtered.map(c => {
               const team = (c.hub_client_assignments ?? []) as HubClientAssignment[];
+              const visibleTeam = team.slice(0, 5);
+              const extraTeam = team.length - 5;
               return (
-                <div key={c.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                  {/* Client header */}
-                  <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
-                    <div className="w-9 h-9 bg-[#FF6B35]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <i className="ri-building-line text-[#FF6B35] text-sm"></i>
+                <div key={c.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden hover:border-gray-200 transition-colors">
+                  <div className="p-4">
+                    {/* Top row */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 bg-[#FF6B35]/10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <i className="ri-building-line text-[#FF6B35]"></i>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-[#111827]">{c.client_name}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${statusColors[c.status]}`}>{c.status}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {c.platform && (
+                              <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <i className="ri-layout-grid-line text-gray-300 text-xs"></i>
+                                {c.platform}
+                              </span>
+                            )}
+                            {c.notes && (
+                              <>
+                                {c.platform && <span className="text-gray-200 text-xs">·</span>}
+                                <span className="text-xs text-gray-400 italic truncate max-w-[200px]">{c.notes}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: contract value + actions */}
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        {isOwner && c.contract_value != null && (
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-emerald-700 tabular-nums">
+                              {c.contract_currency === 'USD'
+                                ? `$${c.contract_value.toLocaleString('en-US', { minimumFractionDigits: 0 })}`
+                                : fmtPHP(c.contract_value)}<span className="text-xs font-normal text-emerald-600">/mo</span>
+                            </p>
+                            {c.contract_currency === 'USD' && (
+                              <p className="text-[10px] text-gray-400">≈ {fmtPHP(c.contract_value * usdRate)}</p>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEdit(c)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors">
+                            <i className="ri-edit-line text-sm"></i>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#111827] text-sm">{c.client_name}</p>
-                      {c.platform && <p className="text-xs text-gray-400">{c.platform}</p>}
-                    </div>
-                    {isOwner && c.contract_value != null && (
-                      <div className="flex flex-col items-end flex-shrink-0">
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
-                          {c.contract_currency === 'USD'
-                            ? `$${c.contract_value.toLocaleString('en-US', { minimumFractionDigits: 0 })}`
-                            : fmtPHP(c.contract_value)}/mo
-                        </span>
-                        {c.contract_currency === 'USD' && (
-                          <span className="text-[10px] text-gray-400 mt-0.5">≈ {fmtPHP(c.contract_value * usdRate)}</span>
+
+                    {/* Team row */}
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                      <div className="flex items-center gap-2.5">
+                        {team.length === 0 ? (
+                          <p className="text-xs text-gray-400">No team members assigned</p>
+                        ) : (
+                          <>
+                            {/* Facepile */}
+                            <div className="flex -space-x-2">
+                              {visibleTeam.map(a => {
+                                const u = a.hub_users as any;
+                                if (!u) return null;
+                                return (
+                                  <div key={a.id} className="w-7 h-7 rounded-full border-2 border-white flex-shrink-0 overflow-hidden" title={u.full_name}>
+                                    {u.avatar_url
+                                      ? <img src={u.avatar_url} alt={u.full_name} className="w-full h-full object-cover object-top" />
+                                      : <div className="w-full h-full bg-[#FF6B35] flex items-center justify-center"><span className="text-white text-[10px] font-bold">{u.full_name.charAt(0)}</span></div>
+                                    }
+                                  </div>
+                                );
+                              })}
+                              {extraTeam > 0 && (
+                                <div className="w-7 h-7 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-[10px] font-medium text-gray-500">+{extraTeam}</span>
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500">{team.length} member{team.length !== 1 ? 's' : ''}</span>
+                          </>
                         )}
                       </div>
-                    )}
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${statusColors[c.status]}`}>{c.status}</span>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button onClick={() => openManageTeam(c)} className="text-xs text-gray-400 hover:text-[#FF6B35] cursor-pointer transition-colors flex items-center gap-1">
-                        <i className="ri-user-add-line text-sm"></i>
-                        <span>Team</span>
-                      </button>
-                      <button onClick={() => openEdit(c)} className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer transition-colors flex items-center gap-1">
-                        <i className="ri-edit-line text-sm"></i>
-                        <span className="hidden sm:inline">Edit</span>
+                      <button onClick={() => openManageTeam(c)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 border border-gray-200 hover:border-[#FF6B35]/40 hover:text-[#FF6B35] cursor-pointer transition-colors">
+                        <i className="ri-user-settings-line text-sm"></i>
+                        Manage Team
                       </button>
                     </div>
                   </div>
-
-                  {/* Team members */}
-                  <div className="px-5 py-3">
-                    {team.length === 0 ? (
-                      <div className="flex items-center gap-2 py-1">
-                        <p className="text-xs text-gray-400">No team members assigned.</p>
-                        <button onClick={() => openManageTeam(c)} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">
-                          Add someone
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-3">
-                        {team.map(a => {
-                          const u = a.hub_users as any;
-                          if (!u) return null;
-                          return (
-                            <div key={a.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                              <Avatar name={u.full_name} avatar_url={u.avatar_url} size={6} />
-                              <div>
-                                <p className="text-xs font-medium text-gray-800">{u.full_name}</p>
-                                {a.role && <p className="text-[11px] text-gray-400">{a.role}</p>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <button onClick={() => openManageTeam(c)}
-                          className="flex items-center gap-1.5 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-400 hover:text-[#FF6B35] hover:border-[#FF6B35]/40 cursor-pointer transition-colors">
-                          <i className="ri-add-line text-sm"></i> Add
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {c.notes && (
-                    <div className="px-5 pb-3">
-                      <p className="text-xs text-gray-400 italic">{c.notes}</p>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -366,8 +408,8 @@ export default function ClientsPage() {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
               <div>
-                <h2 className="font-semibold text-[#111827]">Manage Team</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{assignClient.client_name}</p>
+                <h2 className="font-semibold text-[#111827]">{assignClient.client_name}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Manage team members</p>
               </div>
               <button onClick={() => setAssignClient(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
                 <i className="ri-close-line text-lg"></i>
@@ -375,21 +417,25 @@ export default function ClientsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {/* Current assignments */}
-              {assignments.length > 0 && (
+              {assignments.length === 0 ? (
+                <div className="text-center py-6">
+                  <i className="ri-team-line text-3xl text-gray-200 mb-2 block"></i>
+                  <p className="text-sm text-gray-400">No one assigned yet</p>
+                </div>
+              ) : (
                 <div className="space-y-2">
                   {assignments.map(a => {
                     const u = a.hub_users as any;
                     if (!u) return null;
                     return (
-                      <div key={a.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                      <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl">
                         <Avatar name={u.full_name} avatar_url={u.avatar_url} size={8} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
+                          <p className="text-sm font-medium text-[#111827]">{u.full_name}</p>
                           <p className="text-xs text-gray-400">{a.role || u.department || '—'}</p>
                         </div>
                         <button onClick={() => removeAssignment(a.id, u.full_name)}
-                          className="text-gray-300 hover:text-rose-400 cursor-pointer transition-colors p-1">
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-400 hover:bg-rose-50 cursor-pointer transition-colors">
                           <i className="ri-delete-bin-line text-sm"></i>
                         </button>
                       </div>
@@ -398,30 +444,23 @@ export default function ClientsPage() {
                 </div>
               )}
 
-              {assignments.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">No one assigned yet.</p>
-              )}
-
-              {/* Add new */}
-              <div className="border-t border-gray-100 pt-4 space-y-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Team Member</p>
-                <div className="space-y-2">
-                  <select value={addContractorId} onChange={e => setAddContractorId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
-                    <option value="">Select contractor...</option>
-                    {unassignedContractors.map(u => (
-                      <option key={u.id} value={u.id}>{u.full_name}{u.department ? ` — ${u.department}` : ''}</option>
-                    ))}
-                  </select>
-                  <input value={addRole} onChange={e => setAddRole(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addAssignment()}
-                    placeholder="Their role on this account (e.g. Media Buyer)"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  <button onClick={addAssignment} disabled={!addContractorId || assignSaving}
-                    className="w-full py-2 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors">
-                    {assignSaving ? 'Adding...' : 'Add to Client'}
-                  </button>
-                </div>
+              <div className={`space-y-3 ${assignments.length > 0 ? 'border-t border-gray-100 pt-4' : ''}`}>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Add Team Member</p>
+                <select value={addContractorId} onChange={e => setAddContractorId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
+                  <option value="">Select contractor...</option>
+                  {unassignedContractors.map(u => (
+                    <option key={u.id} value={u.id}>{u.full_name}{u.department ? ` — ${u.department}` : ''}</option>
+                  ))}
+                </select>
+                <input value={addRole} onChange={e => setAddRole(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addAssignment()}
+                  placeholder="Role on this account (e.g. Media Buyer)"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                <button onClick={addAssignment} disabled={!addContractorId || assignSaving}
+                  className="w-full py-2.5 text-sm bg-[#111827] text-white rounded-xl hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors font-medium">
+                  {assignSaving ? 'Adding...' : 'Add to Team'}
+                </button>
               </div>
             </div>
           </div>
