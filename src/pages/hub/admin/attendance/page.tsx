@@ -598,7 +598,7 @@ export default function AdminAttendancePage() {
                         {r.department && <p className="text-xs text-gray-400">{r.department}</p>}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="flex flex-col items-end w-32 flex-shrink-0">
+                        <div className="flex flex-col items-end w-40 flex-shrink-0">
                           <div className="flex items-center gap-1.5">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               r.status === 'on' ? 'bg-emerald-100 text-emerald-700' : r.status === 'off' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'
@@ -611,9 +611,16 @@ export default function AdminAttendancePage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {r.status === 'absent' ? 'No punch today' : `Last: ${formatTime(r.last_punch)}`}
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {r.hours_raw != null && r.status !== 'absent' && (
+                              <span className="text-xs font-semibold tabular-nums text-[#111827]">
+                                {r.hours_raw.toFixed(2)}h
+                              </span>
+                            )}
+                            <p className="text-xs text-gray-400">
+                              {r.status === 'absent' ? 'No punch today' : `Last: ${formatTime(r.last_punch)}`}
+                            </p>
+                          </div>
                         </div>
                         {hasDetail && (
                           <i className={`ri-arrow-down-s-line text-gray-300 text-base transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}></i>
@@ -664,7 +671,7 @@ export default function AdminAttendancePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Contractor', 'Time In', 'Time Out', 'Hours', 'Status'].map(h => (
+                      {['Contractor', 'Time In', 'Time Out', 'Raw Hrs', 'Capped', 'Status'].map(h => (
                         <th key={h} className="text-left text-xs text-gray-400 font-medium px-4 py-3">{h}</th>
                       ))}
                     </tr>
@@ -693,7 +700,12 @@ export default function AdminAttendancePage() {
                         <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{formatTime(r.last_off)}</td>
                         <td className="px-4 py-3.5">
                           <span className="text-sm font-semibold text-[#111827] tabular-nums">
-                            {r.hours_capped != null ? `${r.hours_capped.toFixed(1)}h` : '—'}
+                            {r.hours_raw != null ? `${r.hours_raw.toFixed(2)}h` : '—'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`text-sm tabular-nums ${r.hours_capped != null && r.hours_raw != null && r.hours_capped < r.hours_raw ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
+                            {r.hours_capped != null ? `${r.hours_capped.toFixed(2)}h` : '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
