@@ -459,6 +459,24 @@ export default function AdminProjectsPage() {
         await supabase.from('hub_projects').update({ contact_email: invoiceForm.email.trim() }).eq('id', project.id);
         fetchAll();
       }
+      const year = String(new Date().getFullYear());
+      const invoiceSummary = [
+        `Invoice #${payload.invoice_number}`,
+        `Client: ${payload.client_name}`,
+        `Project: ${payload.project_name}`,
+        `Amount: ₱${payload.amount_requested?.toLocaleString() ?? payload.contract_price?.toLocaleString()}`,
+        `Sent to: ${payload.to}`,
+        `Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+      ].join('\n');
+      supabase.functions.invoke('upload-to-drive', {
+        body: {
+          filename: `Invoice-${payload.invoice_number}-${payload.client_name.replace(/\s+/g, '-')}-${year}.txt`,
+          mimeType: 'text/plain',
+          base64Content: btoa(invoiceSummary),
+          type: 'invoice',
+          meta: { year },
+        },
+      }).catch(() => {});
     }
   };
 

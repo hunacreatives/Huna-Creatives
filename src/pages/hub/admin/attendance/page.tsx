@@ -184,6 +184,25 @@ async function generateAttendancePDF(start: string, end: string, label: string) 
     }
   }
 
+  // Upload to Drive in background
+  const htmlContent = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Attendance Report — ${label}</title></head>
+<body>${tableRows}</body>
+</html>`;
+  const base64 = btoa(unescape(encodeURIComponent(htmlContent)));
+  const typeMap: Record<string, string> = { Week: 'attendance_weekly', Month: 'attendance_monthly', Year: 'attendance_yearly' };
+  const filename = `Attendance-${label}-${start}${start !== end ? `-to-${end}` : ''}.html`;
+  supabase.functions.invoke('upload-to-drive', {
+    body: {
+      filename,
+      mimeType: 'text/html',
+      base64Content: base64,
+      type: typeMap[label] || 'attendance_monthly',
+      meta: { year: String(new Date(start + 'T00:00:00').getFullYear()) },
+    },
+  }).catch(() => {});
+
   const win = window.open('', '_blank', 'width=1000,height=800');
   if (!win) return;
 
@@ -431,11 +450,6 @@ export default function AdminAttendancePage() {
                   Updated {lastRefresh.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
                   <span className="mx-1.5 opacity-40">·</span>
                   <i className="ri-slack-line mr-0.5"></i>via Slack
-                </p>
-              )}
-              {!isToday && (
-                <p className="text-xs text-white/40">
-                  <i className="ri-database-2-line mr-0.5"></i>From hub_daily_hours
                 </p>
               )}
             </div>
