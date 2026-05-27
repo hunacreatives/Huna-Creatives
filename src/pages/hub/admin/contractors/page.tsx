@@ -249,9 +249,6 @@ export default function ContractorsPage() {
                         <span className="text-white text-sm font-bold">{c.full_name.charAt(0).toUpperCase()}</span>
                       </div>
                     )}
-                    {c.status === 'active' && (
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full"></span>
-                    )}
                   </div>
 
                   {/* Name + email */}
