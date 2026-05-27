@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface Props {
@@ -23,11 +23,30 @@ export default function EditHoursModal({ userId, date, fullName, currentHours, o
   const [reason, setReason] = useState('Paid Holiday');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [reverting, setReverting] = useState(false);
   const [error, setError] = useState('');
+  const [existingRecord, setExistingRecord] = useState<{
+    is_manual: boolean;
+    override_reason: string | null;
+    original_hours_raw: number | null;
+    original_hours_capped: number | null;
+  } | null>(null);
 
   const displayDate = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   });
+
+  useEffect(() => {
+    supabase
+      .from('hub_daily_hours')
+      .select('is_manual, override_reason, original_hours_raw, original_hours_capped, hours_raw, hours_capped')
+      .eq('user_id', userId)
+      .eq('date', date)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setExistingRecord(data as any);
+      });
+  }, [userId, date]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -39,7 +58,12 @@ export default function EditHoursModal({ userId, date, fullName, currentHours, o
     setLoading(true);
     setError('');
 
-    const overrideReason = reason === 'Other' && notes.trim() ? notes.trim() : reason + (notes.trim() ? ` — ${notes.trim()}` : '');
+    const overrideReason = reason === 'Other' && notes.trim()
+      ? notes.trim()
+      : reason + (notes.trim() ? ` — ${notes.trim()}` : '');
+
+    // Only save originals if this is the FIRST manual edit (not overwriting a previous manual edit)
+    const saveOriginals = existingRecord && !existingRecord.is_manual;
 
     const { error: err } = await supabase
       .from('hub_daily_hours')
@@ -52,6 +76,10 @@ export default function EditHoursModal({ userId, date, fullName, currentHours, o
           is_manual: true,
           override_reason: overrideReason,
           updated_at: new Date().toISOString(),
+          ...(saveOriginals ? {
+            original_hours_raw: (existingRecord as any).hours_raw,
+            original_hours_capped: (existingRecord as any).hours_capped,
+          } : {}),
         },
         { onConflict: 'user_id,date' }
       );
@@ -61,18 +89,78 @@ export default function EditHoursModal({ userId, date, fullName, currentHours, o
     onSuccess();
   };
 
+  const handleRevert = async () => {
+    if (!existingRecord?.is_manual) return;
+    setReverting(true);
+    setError('');
+
+    const { error: err } = await supabase
+      .from('hub_daily_hours')
+      .update({
+        hours_raw: existingRecord.original_hours_raw,
+        hours_capped: existingRecord.original_hours_capped,
+        is_manual: false,
+        override_reason: null,
+        original_hours_raw: null,
+        original_hours_capped: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId)
+      .eq('date', date);
+
+    setReverting(false);
+    if (err) { setError(err.message); return; }
+    onSuccess();
+  };
+
+  const isManual = existingRecord?.is_manual;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
-            <h2 className="font-semibold text-[#111827] text-sm">Edit Hours</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-[#111827] text-sm">Edit Hours</h2>
+              {isManual && (
+                <span className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
+                  Manual override active
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-400 mt-0.5">{fullName} · {displayDate}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer">
             <i className="ri-close-line text-lg"></i>
           </button>
         </div>
+
+        {isManual && existingRecord?.override_reason && (
+          <div className="px-5 pt-4">
+            <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium text-amber-700">Previously overridden</p>
+                <p className="text-xs text-amber-600 mt-0.5">{existingRecord.override_reason}</p>
+                {existingRecord.original_hours_raw != null && (
+                  <p className="text-xs text-amber-500 mt-1">
+                    Original: {Number(existingRecord.original_hours_raw).toFixed(2)}h
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleRevert}
+                disabled={reverting}
+                className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {reverting
+                  ? <><i className="ri-loader-4-line animate-spin"></i> Reverting…</>
+                  : <><i className="ri-arrow-go-back-line"></i> Undo Override</>
+                }
+              </button>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="space-y-1">
@@ -118,9 +206,9 @@ export default function EditHoursModal({ userId, date, fullName, currentHours, o
             />
           </div>
 
-          <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2.5 flex gap-2 text-xs text-amber-700">
+          <div className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 flex gap-2 text-xs text-gray-500">
             <i className="ri-information-line flex-shrink-0 mt-0.5"></i>
-            <span>This will override the logged hours for this day and will be counted toward payroll.</span>
+            <span>This will override the logged hours for this day and count toward payroll.</span>
           </div>
 
           {error && (
