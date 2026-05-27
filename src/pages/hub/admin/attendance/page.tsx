@@ -404,6 +404,7 @@ export default function AdminAttendancePage() {
     : new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
+    <>
     <AdminLayout title="Attendance">
       <div className="space-y-4">
 
@@ -750,5 +751,6 @@ export default function AdminAttendancePage() {
         onSuccess={() => { setEditHours(null); fetchHistorical(selectedDate); }}
       />
     )}
+    </>
   );
 }
