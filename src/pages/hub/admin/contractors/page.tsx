@@ -14,6 +14,7 @@ export default function ContractorsPage() {
   const [filtered, setFiltered] = useState<HubUser[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [deptFilter, setDeptFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -68,9 +69,14 @@ export default function ContractorsPage() {
     fetchContractors();
   };
 
+  const departments = Array.from(
+    new Set(contractors.map(c => c.department).filter(Boolean) as string[])
+  ).sort();
+
   useEffect(() => {
     let result = contractors;
     if (statusFilter !== 'all') result = result.filter((c) => c.status === statusFilter);
+    if (deptFilter !== 'all') result = result.filter((c) => c.department === deptFilter);
     if (search) result = result.filter((c) =>
       c.full_name.toLowerCase().includes(search.toLowerCase()) ||
       c.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -78,7 +84,7 @@ export default function ContractorsPage() {
       c.slack_username?.toLowerCase().includes(search.toLowerCase())
     );
     setFiltered(result);
-  }, [contractors, search, statusFilter]);
+  }, [contractors, search, statusFilter, deptFilter]);
 
   const departmentColors: Record<string, string> = {
     Creative: 'bg-pink-100 text-pink-700',
@@ -170,6 +176,34 @@ export default function ContractorsPage() {
             ))}
           </div>
         </div>
+
+        {/* Department filter */}
+        {departments.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setDeptFilter('all')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${deptFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              All Departments
+            </button>
+            {departments.map(dept => (
+              <button
+                key={dept}
+                onClick={() => setDeptFilter(deptFilter === dept ? 'all' : dept)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                  deptFilter === dept
+                    ? `${departmentColors[dept] || 'bg-gray-200 text-gray-700'} ring-2 ring-offset-1 ring-current`
+                    : `${departmentColors[dept] || 'bg-gray-100 text-gray-600'} opacity-60 hover:opacity-100`
+                }`}
+              >
+                {dept}
+                <span className="ml-1.5 opacity-60">
+                  {contractors.filter(c => c.department === dept && (statusFilter === 'all' || c.status === statusFilter)).length}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Contractor list */}
         {loading ? (
