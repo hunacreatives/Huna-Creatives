@@ -718,6 +718,24 @@ export default function AdminPayrollPage() {
 </body>
 </html>`);
     win.document.close();
+
+    const year = String(new Date().getFullYear());
+    const pdfSummary = [
+      `Payroll Report — ${selectedPeriod.label}`,
+      `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+      `Contractors: ${rows.length}`,
+      `Total Hours: ${totalHours.toFixed(2)}h`,
+      `Total Payroll: ₱${totalPay.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
+    ].join('\n');
+    supabase.functions.invoke('upload-to-drive', {
+      body: {
+        filename: `Payroll-${selectedPeriod.label.replace(/[^a-z0-9]/gi, '-')}.txt`,
+        mimeType: 'text/plain',
+        base64Content: btoa(unescape(encodeURIComponent(pdfSummary))),
+        type: 'payroll',
+        meta: { year },
+      },
+    }).catch(() => {});
   };
 
   return (
@@ -805,6 +823,16 @@ export default function AdminPayrollPage() {
                     a.download = `payroll-${selectedPeriod.label.replace(/[^a-z0-9]/gi, '-')}.csv`;
                     a.click();
                     URL.revokeObjectURL(url);
+                    const year = String(new Date().getFullYear());
+                    supabase.functions.invoke('upload-to-drive', {
+                      body: {
+                        filename: `Payroll-${selectedPeriod.label.replace(/[^a-z0-9]/gi, '-')}.csv`,
+                        mimeType: 'text/csv',
+                        base64Content: btoa(unescape(encodeURIComponent(csv))),
+                        type: 'payroll',
+                        meta: { year },
+                      },
+                    }).catch(() => {});
                   }}
                   disabled={loading || rows.length === 0}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
