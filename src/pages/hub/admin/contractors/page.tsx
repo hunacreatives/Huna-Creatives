@@ -86,6 +86,16 @@ export default function ContractorsPage() {
     setFiltered(result);
   }, [contractors, search, statusFilter, deptFilter]);
 
+  const getCompleteness = (c: HubUser) => {
+    const fields = [
+      c.avatar_url, c.phone, c.birthday, c.department,
+      c.shift_start, c.shift_end, c.work_days?.length,
+      c.bank_account_number, c.emergency_contact, c.contract_expiry_date,
+    ];
+    const filled = fields.filter(Boolean).length;
+    return Math.round((filled / fields.length) * 100);
+  };
+
   const departmentColors: Record<string, string> = {
     Creative: 'bg-pink-100 text-pink-700',
     'Media Buying': 'bg-orange-100 text-orange-700',
@@ -281,6 +291,20 @@ export default function ContractorsPage() {
                   <div className="hidden lg:block text-xs text-gray-400 whitespace-nowrap min-w-[90px] text-right">
                     {c.start_date ? new Date(c.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                   </div>
+
+                  {/* Profile completeness */}
+                  {(() => {
+                    const pct = getCompleteness(c);
+                    const color = pct >= 80 ? 'bg-emerald-100 text-emerald-700' : pct >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700';
+                    return (
+                      <div className="hidden xl:flex flex-col items-end gap-0.5 min-w-[56px]" title={`Profile ${pct}% complete`}>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${color}`}>{pct}%</span>
+                        <div className="w-10 h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${pct >= 80 ? 'bg-emerald-400' : pct >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>

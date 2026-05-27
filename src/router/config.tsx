@@ -41,6 +41,7 @@ const HubContractorProfile = lazy(() => import('../pages/hub/contractor/profile/
 const HubContractorPayouts = lazy(() => import('../pages/hub/contractor/payouts/page'));
 const HubContractorDocuments = lazy(() => import('../pages/hub/contractor/documents/page'));
 const HubAdminCredentials = lazy(() => import('../pages/hub/admin/credentials/page'));
+const HubAdminPerformance = lazy(() => import('../pages/hub/admin/performance/page'));
 const HubContractorCredentials = lazy(() => import('../pages/hub/contractor/credentials/page'));
 const HubAdminOvertime = lazy(() => import('../pages/hub/admin/overtime/page'));
 const HubContractorOvertime = lazy(() => import('../pages/hub/contractor/overtime/page'));
@@ -123,6 +124,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/clients', element: <HubAdminClients /> },
   { path: '/hub/admin/assets', element: <HubAdminAssets /> },
   { path: '/hub/admin/auditlog', element: <HubAdminAuditLog /> },
+  { path: '/hub/admin/performance', element: <HubAdminPerformance /> },
   { path: '/hub/admin/settings', element: <HubAdminSettings /> },
   { path: '/hub/admin/payroll', element: <HubAdminPayroll /> },
   { path: '/hub/admin/payouts', element: <HubAdminPayouts /> },

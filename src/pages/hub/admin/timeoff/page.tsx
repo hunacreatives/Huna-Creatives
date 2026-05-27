@@ -39,6 +39,8 @@ export default function AdminTimeOffPage() {
   const [selected, setSelected] = useState<HubTimeOff | null>(null);
   const [hrNotes, setHrNotes] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   // Blackout dates
   const [blackouts, setBlackouts] = useState<any[]>([]);
@@ -69,12 +71,9 @@ export default function AdminTimeOffPage() {
     const yearEnd = `${year}-12-31`;
 
     const [usersRes, leavesRes] = await Promise.all([
-      supabase.from('hub_users').select('id, full_name, avatar_url, department, start_date').eq('status', 'active').eq('role', 'contractor'),
+      supabase.from('hub_users').select('id, full_name, avatar_url, department, start_date, annual_pto_days, annual_sick_days').eq('status', 'active').eq('role', 'contractor'),
       supabase.from('hub_time_off').select('contractor_id, type, status, start_date, end_date, half_day').gte('start_date', yearStart).lte('start_date', yearEnd).eq('status', 'approved'),
     ]);
-
-    const PTO_LIMIT = 6;
-    const SICK_LIMIT = 4;
 
     const leavesByUser: Record<string, any[]> = {};
     for (const l of leavesRes.data || []) {
@@ -86,15 +85,17 @@ export default function AdminTimeOffPage() {
       Math.ceil((new Date(b).getTime() - new Date(a).getTime()) / 86400000) + 1;
 
     const result = (usersRes.data || []).map((u: any) => {
+      const ptoLimit = u.annual_pto_days ?? 15;
+      const sickLimit = u.annual_sick_days ?? 10;
       const leaves = leavesByUser[u.id] || [];
-      const ptoUsed = leaves.filter(l => l.type === 'pto' || l.type === 'vacation')
-        .reduce((s, l) => s + (l.half_day ? 0.5 : daysBetween(l.start_date, l.end_date)), 0);
-      const sickUsed = leaves.filter(l => l.type === 'sick')
-        .reduce((s, l) => s + (l.half_day ? 0.5 : daysBetween(l.start_date, l.end_date)), 0);
+      const ptoUsed = leaves.filter((l: any) => l.type === 'pto' || l.type === 'vacation')
+        .reduce((s: number, l: any) => s + (l.half_day ? 0.5 : daysBetween(l.start_date, l.end_date)), 0);
+      const sickUsed = leaves.filter((l: any) => l.type === 'sick')
+        .reduce((s: number, l: any) => s + (l.half_day ? 0.5 : daysBetween(l.start_date, l.end_date)), 0);
       const ptoEligible = u.start_date
         ? new Date() >= new Date(new Date(u.start_date).setMonth(new Date(u.start_date).getMonth() + 6))
         : false;
-      return { ...u, ptoUsed, sickUsed, ptoLeft: Math.max(0, PTO_LIMIT - ptoUsed), sickLeft: Math.max(0, SICK_LIMIT - sickUsed), ptoEligible };
+      return { ...u, ptoUsed, sickUsed, ptoLimit, sickLimit, ptoLeft: Math.max(0, ptoLimit - ptoUsed), sickLeft: Math.max(0, sickLimit - sickUsed), ptoEligible };
     });
 
     setBalances(result);
@@ -160,6 +161,32 @@ export default function AdminTimeOffPage() {
     fetchBlackouts();
   };
 
+  const bulkDecide = async (status: 'approved' | 'rejected') => {
+    if (selectedIds.size === 0) return;
+    setBulkUpdating(true);
+    await supabase.from('hub_time_off').update({ status, admin_notes: null }).in('id', Array.from(selectedIds));
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: status === 'approved' ? 'approve' : 'reject', entity_type: 'time_off', description: `Bulk ${status} ${selectedIds.size} leave request(s)` });
+    setSelectedIds(new Set());
+    setBulkUpdating(false);
+    fetchRequests();
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === requests.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(requests.map(r => r.id!)));
+    }
+  };
+
   const filterTabs = ['pending', 'forwarded', 'approved', 'rejected', 'all'];
 
   return (
@@ -187,7 +214,7 @@ export default function AdminTimeOffPage() {
             <div className="flex items-center justify-between gap-3">
               <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
                 {filterTabs.map((s) => (
-                  <button key={s} onClick={() => setStatusFilter(s)}
+                  <button key={s} onClick={() => { setStatusFilter(s); setSelectedIds(new Set()); }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
                       statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
                     }`}>
@@ -197,6 +224,24 @@ export default function AdminTimeOffPage() {
               </div>
               <span className="text-xs text-gray-400">{requests.length} request{requests.length !== 1 ? 's' : ''}</span>
             </div>
+
+            {/* Bulk action bar */}
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3 px-4 py-2.5 bg-[#111827] rounded-xl">
+                <span className="text-xs text-white/60 flex-1">{selectedIds.size} selected</span>
+                <button onClick={() => bulkDecide('approved')} disabled={bulkUpdating}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 cursor-pointer transition-colors">
+                  <i className="ri-check-line"></i> Approve All
+                </button>
+                <button onClick={() => bulkDecide('rejected')} disabled={bulkUpdating}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50 cursor-pointer transition-colors">
+                  <i className="ri-close-line"></i> Reject All
+                </button>
+                <button onClick={() => setSelectedIds(new Set())} className="text-white/40 hover:text-white cursor-pointer transition-colors">
+                  <i className="ri-close-line text-sm"></i>
+                </button>
+              </div>
+            )}
 
             {/* Forwarded banner for owner */}
             {isOwner && statusFilter !== 'forwarded' && requests.filter((r) => r.status === 'forwarded').length > 0 && (
@@ -227,6 +272,9 @@ export default function AdminTimeOffPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-100">
+                      <th className="px-4 py-3 w-8">
+                        <input type="checkbox" checked={requests.length > 0 && selectedIds.size === requests.length} onChange={toggleSelectAll} className="cursor-pointer" />
+                      </th>
                       {['Contractor', 'Type', 'Dates', 'Days', 'Status', 'Filed', ''].map((h) => (
                         <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
                       ))}
@@ -236,7 +284,10 @@ export default function AdminTimeOffPage() {
                     {requests.map((r) => {
                       const u = r.hub_users as HubUser;
                       return (
-                        <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
+                        <tr key={r.id} className={`hover:bg-gray-50/50 transition-colors ${selectedIds.has(r.id!) ? 'bg-orange-50/50' : ''}`}>
+                          <td className="px-4 py-3.5 w-8">
+                            <input type="checkbox" checked={selectedIds.has(r.id!)} onChange={() => toggleSelect(r.id!)} className="cursor-pointer" />
+                          </td>
                           <td className="px-4 py-3.5">
                             <div className="flex items-center gap-2.5">
                               <div className="w-7 h-7 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
@@ -365,7 +416,7 @@ export default function AdminTimeOffPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Contractor', 'VL Used', 'VL Left', 'SL Used', 'SL Left', 'VL Status'].map(h => (
+                      {['Contractor', 'VL Used', 'VL Left', 'SL Used', 'SL Left', 'Eligibility'].map(h => (
                         <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
                       ))}
                     </tr>
@@ -387,9 +438,9 @@ export default function AdminTimeOffPage() {
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2">
                             <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${Math.min(100, (b.ptoUsed / 6) * 100)}%` }} />
+                              <div className="h-full bg-sky-400 rounded-full" style={{ width: `${Math.min(100, (b.ptoUsed / b.ptoLimit) * 100)}%` }} />
                             </div>
-                            <span className="text-xs text-gray-600">{b.ptoUsed}<span className="text-gray-400">/6</span></span>
+                            <span className="text-xs text-gray-600">{b.ptoUsed}<span className="text-gray-400">/{b.ptoLimit}</span></span>
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
@@ -398,9 +449,9 @@ export default function AdminTimeOffPage() {
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-rose-400 rounded-full" style={{ width: `${Math.min(100, (b.sickUsed / 4) * 100)}%` }} />
+                              <div className="h-full bg-rose-400 rounded-full" style={{ width: `${Math.min(100, (b.sickUsed / b.sickLimit) * 100)}%` }} />
                             </div>
-                            <span className="text-xs text-gray-600">{b.sickUsed}<span className="text-gray-400">/4</span></span>
+                            <span className="text-xs text-gray-600">{b.sickUsed}<span className="text-gray-400">/{b.sickLimit}</span></span>
                           </div>
                         </td>
                         <td className="px-4 py-3.5">

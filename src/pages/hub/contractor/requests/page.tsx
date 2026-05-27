@@ -50,6 +50,9 @@ export default function ContractorRequestsPage() {
     setForm(emptyForm);
     setToast('Request submitted successfully.');
     setTimeout(() => setToast(''), 3000);
+    supabase.functions.invoke('notify-admin', {
+      body: { type: 'request_submitted', data: { contractor_name: user.full_name, request_type: form.type, title: form.title } },
+    }).catch(() => {});
     fetchRequests();
   };
 

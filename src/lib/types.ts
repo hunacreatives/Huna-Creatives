@@ -33,6 +33,9 @@ export interface HubUser {
   shift_start?: string;
   shift_end?: string;
   work_days?: string[];
+  annual_pto_days?: number;
+  annual_sick_days?: number;
+  contract_expiry_date?: string;
   created_at?: string;
   updated_at?: string;
 }

@@ -8,6 +8,7 @@ const navItems = [
   { to: '/hub/admin/requests', label: 'Requests', icon: 'ri-inbox-line' },
   { to: '/hub/admin/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
   { to: '/hub/admin/overtime', label: 'Overtime', icon: 'ri-timer-flash-line' },
+  { to: '/hub/admin/performance', label: 'Performance', icon: 'ri-medal-line' },
   { divider: true, label: 'Finance' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
   { to: '/hub/admin/projects', label: 'Projects', icon: 'ri-folder-line' },
@@ -106,43 +107,16 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
         })}
       </nav>
 
-      {/* User info */}
+      {/* Sign out */}
       <div className="border-t border-white/8 p-3">
-        {!collapsed ? (
-          <div className="flex items-center gap-2.5">
-            {hubUser?.avatar_url ? (
-              <img src={hubUser.avatar_url} alt={hubUser.full_name} className="w-8 h-8 rounded-full object-cover object-top flex-shrink-0" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs font-bold">{hubUser?.full_name?.charAt(0).toUpperCase() || '?'}</span>
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="text-white text-xs font-medium truncate">{hubUser?.full_name}</p>
-                <span className="text-[10px] text-[#FF6B35] font-medium bg-[#FF6B35]/10 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
-                  {hubUser?.role === 'owner' ? 'Owner' : 'Admin'}
-                </span>
-              </div>
-              <p className="text-gray-500 text-xs truncate">{hubUser?.email}</p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="text-gray-500 hover:text-red-400 transition-colors cursor-pointer flex-shrink-0"
-              title="Sign out"
-            >
-              <i className="ri-logout-box-r-line text-sm"></i>
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={handleSignOut}
-            className="w-full flex items-center justify-center text-gray-500 hover:text-red-400 transition-colors cursor-pointer py-1"
-            title="Sign out"
-          >
-            <i className="ri-logout-box-r-line text-sm"></i>
-          </button>
-        )}
+        <button
+          onClick={handleSignOut}
+          className={`flex items-center gap-2.5 text-gray-500 hover:text-red-400 transition-colors cursor-pointer w-full ${collapsed ? 'justify-center' : 'px-1'}`}
+          title="Sign out"
+        >
+          <i className="ri-logout-box-r-line text-sm flex-shrink-0"></i>
+          {!collapsed && <span className="text-xs">Sign out</span>}
+        </button>
       </div>
     </aside>
   );
