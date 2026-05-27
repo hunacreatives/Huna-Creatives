@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import EditHoursModal from './EditHoursModal';
 
 // ----- Types -----
 
@@ -282,6 +283,7 @@ export default function AdminAttendancePage() {
   const [filter, setFilter] = useState<'all' | 'worked' | 'absent'>('all');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [editHours, setEditHours] = useState<{ userId: string; fullName: string; currentHours: number | null } | null>(null);
 
   // ----- Live fetch -----
   const fetchLive = useCallback(async (showRefreshing = false) => {
@@ -709,14 +711,23 @@ export default function AdminAttendancePage() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            r.worked ? 'bg-emerald-100 text-emerald-700' :
-                            r.first_on && !r.last_off ? 'bg-sky-100 text-sky-700' :
-                            r.isDayOff ? 'bg-gray-100 text-gray-400' :
-                            'bg-amber-100 text-amber-700'
-                          }`}>
-                            {r.worked ? 'Worked' : r.first_on && !r.last_off ? 'In Progress' : r.isDayOff ? 'Day Off' : 'Absent'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              r.worked ? 'bg-emerald-100 text-emerald-700' :
+                              r.first_on && !r.last_off ? 'bg-sky-100 text-sky-700' :
+                              r.isDayOff ? 'bg-gray-100 text-gray-400' :
+                              'bg-amber-100 text-amber-700'
+                            }`}>
+                              {r.worked ? 'Worked' : r.first_on && !r.last_off ? 'In Progress' : r.isDayOff ? 'Day Off' : 'Absent'}
+                            </span>
+                            <button
+                              onClick={() => setEditHours({ userId: r.id, fullName: r.full_name, currentHours: r.hours_raw })}
+                              className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-[#FF6B35] hover:bg-orange-50 transition-colors cursor-pointer flex-shrink-0"
+                              title="Edit hours"
+                            >
+                              <i className="ri-pencil-line text-xs"></i>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -728,5 +739,16 @@ export default function AdminAttendancePage() {
         )}
       </div>
     </AdminLayout>
+
+    {editHours && (
+      <EditHoursModal
+        userId={editHours.userId}
+        date={selectedDate}
+        fullName={editHours.fullName}
+        currentHours={editHours.currentHours}
+        onClose={() => setEditHours(null)}
+        onSuccess={() => { setEditHours(null); fetchHistorical(selectedDate); }}
+      />
+    )}
   );
 }
