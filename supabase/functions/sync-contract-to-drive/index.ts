@@ -60,9 +60,11 @@ async function getGoogleAccessToken(): Promise<string> {
 
 const FOLDER_ID = '1Pvqf6N4ZkBWimTVlbwzn1zKi04cP1jkM'; // contractors_agreements
 
-async function uploadToDrive(filename: string, mimeType: string, fileBytes: Uint8Array): Promise<string> {
+async function uploadToDrive(filename: string, mimeType: string, fileBytes: Uint8Array, targetMimeType?: string): Promise<string> {
   const accessToken = await getGoogleAccessToken();
-  const metadata = JSON.stringify({ name: filename, parents: [FOLDER_ID] });
+  const meta: Record<string, unknown> = { name: filename, parents: [FOLDER_ID] };
+  if (targetMimeType) meta.mimeType = targetMimeType;
+  const metadata = JSON.stringify(meta);
 
   const boundary = 'contract_boundary_xyz';
   const enc = new TextEncoder();
@@ -132,7 +134,7 @@ Deno.serve(async (req) => {
       const enc = new TextEncoder();
       fileBytes = enc.encode(signedHtml);
       mimeType = 'text/html';
-      filename = `${safeName}.html`;
+      filename = `${safeName}`;
     } else if (doc?.file_url) {
       console.log('Fetching file from URL:', doc.file_url);
       const fileRes = await fetch(doc.file_url);
@@ -145,9 +147,17 @@ Deno.serve(async (req) => {
       return fail('No content to upload (no generated content and no file_url)');
     }
 
-    console.log(`Uploading "${filename}" (${fileBytes.length} bytes, ${mimeType}) to Drive`);
-    const fileId = await uploadToDrive(filename, mimeType, fileBytes);
+    // Convert HTML contracts to Google Docs so they're viewable in Drive
+    const targetMimeType = mimeType === 'text/html' ? 'application/vnd.google-apps.document' : undefined;
+
+    console.log(`Uploading "${filename}" (${fileBytes.length} bytes, ${mimeType}${targetMimeType ? ' → ' + targetMimeType : ''}) to Drive`);
+    const fileId = await uploadToDrive(filename, mimeType, fileBytes, targetMimeType);
     console.log('Drive upload success, fileId:', fileId);
+
+    await supabase
+      .from('hub_sign_assignments')
+      .update({ drive_file_id: fileId })
+      .eq('id', assignment_id);
 
     return ok({ success: true, filename, fileId });
   } catch (err) {

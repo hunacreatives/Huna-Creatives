@@ -151,7 +151,7 @@ export default function AdminDocumentsPage() {
     setSelectedDoc(doc);
     const { data } = await supabase
       .from('hub_sign_assignments')
-      .select('*, hub_users(full_name, avatar_url)')
+      .select('*, hub_users(full_name, avatar_url), drive_file_id')
       .eq('document_id', doc.id)
       .order('created_at');
     setAssignments((data as HubSignAssignment[]) ?? []);
@@ -178,6 +178,7 @@ export default function AdminDocumentsPage() {
       console.error('Drive upload error:', data?.error, error);
     } else {
       showToast('Uploaded to Google Drive.');
+      setAssignments(prev => prev.map(a => a.id === assignmentId ? { ...a, drive_file_id: data?.fileId ?? 'uploaded' } : a));
     }
   };
 
@@ -468,16 +469,22 @@ export default function AdminDocumentsPage() {
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {a.status === 'signed' && (
-                          <button
-                            onClick={() => uploadAssignmentToDrive(a.id)}
-                            disabled={uploadingToDrive === a.id}
-                            title="Upload to Google Drive"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer disabled:opacity-40"
-                          >
-                            {uploadingToDrive === a.id
-                              ? <i className="ri-loader-4-line animate-spin text-sm"></i>
-                              : <i className="ri-google-fill text-sm"></i>}
-                          </button>
+                          a.drive_file_id ? (
+                            <span title="Saved in Google Drive" className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                              <i className="ri-google-fill text-xs"></i> In Drive
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => uploadAssignmentToDrive(a.id)}
+                              disabled={uploadingToDrive === a.id}
+                              title="Upload to Google Drive"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer disabled:opacity-40"
+                            >
+                              {uploadingToDrive === a.id
+                                ? <i className="ri-loader-4-line animate-spin text-sm"></i>
+                                : <i className="ri-google-fill text-sm"></i>}
+                            </button>
+                          )
                         )}
                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${a.status === 'signed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                           {a.status === 'signed' ? (

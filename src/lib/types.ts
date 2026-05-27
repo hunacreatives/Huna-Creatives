@@ -1,4 +1,4 @@
-export type UserRole = 'owner' | 'admin' | 'contractor';
+export type UserRole = 'owner' | 'admin' | 'hr' | 'contractor';
 
 export interface HubUser {
   id: string;
@@ -56,13 +56,17 @@ export interface HubAttendance {
 export interface HubTimeOff {
   id: number;
   contractor_id: string;
-  type: 'vacation' | 'sick' | 'emergency' | 'unpaid' | 'other';
+  type: 'pto' | 'vacation' | 'sick' | 'emergency' | 'unpaid' | 'other';
   start_date: string;
   end_date: string;
   reason?: string;
   attachment_url?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  admin_notes?: string;
+  status: 'pending' | 'forwarded' | 'approved' | 'rejected';
+  half_day?: boolean;
+  half_day_period?: 'morning' | 'afternoon' | string | null;
+  admin_notes?: string | null;
+  hr_notes?: string | null;
+  forwarded_to_owner?: boolean;
   created_at?: string;
   hub_users?: HubUser;
 }
@@ -86,8 +90,11 @@ export interface HubAnnouncement {
   body: string;
   priority: 'normal' | 'important' | 'urgent';
   category: 'general' | 'payroll' | 'meeting' | 'holiday' | 'policy';
+  type?: string;
   published: boolean;
   posted_by?: string;
+  scheduled_at?: string | null;
+  published_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -162,9 +169,11 @@ export interface HubPayout {
   penalties: number;
   final_payout: number;
   notes?: string;
-  status: 'draft' | 'reviewed' | 'approved' | 'paid';
+  status: 'draft' | 'reviewed' | 'submitted' | 'approved' | 'hr_approved' | 'paid';
   locked: boolean;
   payment_date?: string;
+  submitted_at?: string;
+  approved_at?: string;
   created_by?: string;
   created_at?: string;
   updated_at?: string;
@@ -207,6 +216,7 @@ export interface HubSignAssignment {
   status: 'pending' | 'signed';
   signed_at?: string;
   signed_name?: string;
+  drive_file_id?: string;
   created_at?: string;
   hub_users?: HubUser;
   hub_sign_documents?: HubSignDocument;
