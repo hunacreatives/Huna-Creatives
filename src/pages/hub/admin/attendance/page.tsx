@@ -671,7 +671,7 @@ export default function AdminAttendancePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Contractor', 'Time In', 'Time Out', 'Raw Hrs', 'Capped', 'Status'].map(h => (
+                      {['Contractor', 'Time In', 'Time Out', 'Raw Hrs', 'Billable', 'Status'].map(h => (
                         <th key={h} className="text-left text-xs text-gray-400 font-medium px-4 py-3">{h}</th>
                       ))}
                     </tr>
@@ -699,12 +699,12 @@ export default function AdminAttendancePage() {
                         <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{formatTime(r.first_on)}</td>
                         <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{formatTime(r.last_off)}</td>
                         <td className="px-4 py-3.5">
-                          <span className="text-sm font-semibold text-[#111827] tabular-nums">
+                          <span className={`text-sm font-semibold tabular-nums ${r.hours_raw != null && r.hours_capped != null && r.hours_raw > r.hours_capped ? 'text-amber-600' : 'text-[#111827]'}`}>
                             {r.hours_raw != null ? `${r.hours_raw.toFixed(2)}h` : '—'}
                           </span>
                         </td>
                         <td className="px-4 py-3.5">
-                          <span className={`text-sm tabular-nums ${r.hours_capped != null && r.hours_raw != null && r.hours_capped < r.hours_raw ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
+                          <span className="text-sm text-gray-500 tabular-nums">
                             {r.hours_capped != null ? `${r.hours_capped.toFixed(2)}h` : '—'}
                           </span>
                         </td>
