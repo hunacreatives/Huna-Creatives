@@ -168,11 +168,17 @@ export default function AdminDocumentsPage() {
 
   const uploadAssignmentToDrive = async (assignmentId: string) => {
     setUploadingToDrive(assignmentId);
-    const { error } = await supabase.functions.invoke('sync-contract-to-drive', {
+    const { data, error } = await supabase.functions.invoke('sync-contract-to-drive', {
       body: { assignment_id: assignmentId },
     });
     setUploadingToDrive(null);
-    showToast(error ? 'Drive upload failed — check logs.' : 'Uploaded to Google Drive.');
+    if (error || data?.error) {
+      const msg = data?.error ?? error?.message ?? 'Unknown error';
+      showToast(`Drive upload failed: ${msg}`);
+      console.error('Drive upload error:', data?.error, error);
+    } else {
+      showToast('Uploaded to Google Drive.');
+    }
   };
 
   const signedCount = (doc: HubSignDocument) =>
