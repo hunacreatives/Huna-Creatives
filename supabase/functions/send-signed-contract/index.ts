@@ -146,6 +146,12 @@ async function run(assignment_id: string) {
   } else {
     console.log('Signed contract email sent:', result.id, '→', contractor.email);
   }
+
+  // Auto-upload signed contract to Google Drive
+  const supabaseForDrive = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  supabaseForDrive.functions.invoke('sync-contract-to-drive', { body: { assignment_id } }).catch((e: unknown) => {
+    console.error('Drive upload error:', e);
+  });
 }
 
 Deno.serve(async (req) => {

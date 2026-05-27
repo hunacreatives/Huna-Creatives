@@ -17,6 +17,7 @@ export default function AdminDocumentsPage() {
   const [toast, setToast] = useState('');
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [uploadingToDrive, setUploadingToDrive] = useState<string | null>(null);
 
   // Signing for admins who also have documents assigned to them
   const [myAssignments, setMyAssignments] = useState<any[]>([]);
@@ -164,6 +165,15 @@ export default function AdminDocumentsPage() {
 
   const selectAll = () => setSelectedContractors(contractors.map(c => c.id));
   const clearAll = () => setSelectedContractors([]);
+
+  const uploadAssignmentToDrive = async (assignmentId: string) => {
+    setUploadingToDrive(assignmentId);
+    const { error } = await supabase.functions.invoke('sync-contract-to-drive', {
+      body: { assignment_id: assignmentId },
+    });
+    setUploadingToDrive(null);
+    showToast(error ? 'Drive upload failed — check logs.' : 'Uploaded to Google Drive.');
+  };
 
   const signedCount = (doc: HubSignDocument) =>
     doc.hub_sign_assignments?.filter(a => a.status === 'signed').length ?? 0;
@@ -450,13 +460,27 @@ export default function AdminDocumentsPage() {
                           </p>
                         )}
                       </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${a.status === 'signed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                        {a.status === 'signed' ? (
-                          <><i className="ri-checkbox-circle-line mr-1"></i>Signed</>
-                        ) : (
-                          <><i className="ri-time-line mr-1"></i>Pending</>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {a.status === 'signed' && (
+                          <button
+                            onClick={() => uploadAssignmentToDrive(a.id)}
+                            disabled={uploadingToDrive === a.id}
+                            title="Upload to Google Drive"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer disabled:opacity-40"
+                          >
+                            {uploadingToDrive === a.id
+                              ? <i className="ri-loader-4-line animate-spin text-sm"></i>
+                              : <i className="ri-google-fill text-sm"></i>}
+                          </button>
                         )}
-                      </span>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${a.status === 'signed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          {a.status === 'signed' ? (
+                            <><i className="ri-checkbox-circle-line mr-1"></i>Signed</>
+                          ) : (
+                            <><i className="ri-time-line mr-1"></i>Pending</>
+                          )}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
