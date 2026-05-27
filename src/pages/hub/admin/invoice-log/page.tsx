@@ -43,6 +43,7 @@ interface ScheduledInvoice {
   invoice_number: string;
   client_name: string;
   project_name: string;
+  project_id: number | null;
   to_email: string;
   cc_email: string | null;
   subject: string | null;
@@ -53,6 +54,7 @@ interface ScheduledInvoice {
   cancelled_at: string | null;
   last_error: string | null;
   line_items: { description: string; amount: string }[] | null;
+  payments: { amount: number; paid_at: string; notes: string | null }[] | null;
   show_payments: boolean;
 }
 
@@ -271,6 +273,41 @@ export default function InvoiceLogPage() {
   const cancelScheduledInvoice = async (id: number) => {
     await supabase.from('hub_scheduled_invoices').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', id).eq('status', 'pending');
     setScheduled(prev => prev.map(item => item.id === id ? { ...item, status: 'cancelled', cancelled_at: new Date().toISOString() } : item));
+  };
+
+  const resendScheduledInvoice = async (inv: ScheduledInvoice) => {
+    if (!window.confirm(`Send invoice #${inv.invoice_number.padStart(4, '0')} to ${inv.to_email} now?`)) return;
+    setResending(prev => new Set(prev).add(inv.id));
+    try {
+      const { data, error } = await supabase.functions.invoke('send-invoice', {
+        body: {
+          to: inv.to_email,
+          cc: inv.cc_email || undefined,
+          subject: inv.subject || undefined,
+          client_name: inv.client_name,
+          project_name: inv.project_name,
+          payments: inv.payments ?? [],
+          show_payments: inv.show_payments,
+          line_items: inv.line_items ?? [],
+          invoice_number: inv.invoice_number,
+          project_id: inv.project_id,
+          app_base_url: window.location.origin,
+        },
+      });
+      if (error || data?.error) {
+        const msg = data?.error || error?.message || 'Unknown error';
+        await supabase.from('hub_scheduled_invoices').update({ status: 'failed', last_error: msg }).eq('id', inv.id);
+        setScheduled(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'failed', last_error: msg } : i));
+        alert('Failed to send: ' + msg);
+      } else {
+        const sent_at = new Date().toISOString();
+        await supabase.from('hub_scheduled_invoices').update({ status: 'sent', sent_at, last_error: null }).eq('id', inv.id);
+        setScheduled(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'sent', sent_at } : i));
+        alert(`Invoice sent to ${inv.to_email}`);
+      }
+    } finally {
+      setResending(prev => { const s = new Set(prev); s.delete(inv.id); return s; });
+    }
   };
 
   return (
@@ -509,18 +546,32 @@ export default function InvoiceLogPage() {
                             </div>
                           </div>
                         )}
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <p className="text-xs text-gray-400">
                             {inv.status === 'sent' && inv.sent_at ? `Sent ${fmtDateTime(inv.sent_at)}` : inv.status === 'cancelled' && inv.cancelled_at ? `Cancelled ${fmtDateTime(inv.cancelled_at)}` : 'Waiting to be sent automatically'}
                           </p>
-                          {inv.status === 'pending' && (
-                            <button
-                              onClick={() => cancelScheduledInvoice(inv.id)}
-                              className="px-3 py-1.5 text-xs text-rose-500 border border-rose-200 rounded-lg hover:bg-rose-50 cursor-pointer"
-                            >
-                              Cancel Schedule
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {(inv.status === 'cancelled' || inv.status === 'failed') && (
+                              <button
+                                onClick={() => resendScheduledInvoice(inv)}
+                                disabled={resending.has(inv.id)}
+                                className="flex items-center gap-1 px-3 py-1.5 text-xs text-[#FF6B35] border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer disabled:opacity-50"
+                              >
+                                {resending.has(inv.id)
+                                  ? <><i className="ri-loader-4-line animate-spin"></i> Sending…</>
+                                  : <><i className="ri-send-plane-line"></i> Send Now</>
+                                }
+                              </button>
+                            )}
+                            {inv.status === 'pending' && (
+                              <button
+                                onClick={() => cancelScheduledInvoice(inv.id)}
+                                className="px-3 py-1.5 text-xs text-rose-500 border border-rose-200 rounded-lg hover:bg-rose-50 cursor-pointer"
+                              >
+                                Cancel Schedule
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
