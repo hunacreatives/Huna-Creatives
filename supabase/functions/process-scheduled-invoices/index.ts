@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
           message: invoice.message,
           invoice_number: invoice.invoice_number,
           project_id: invoice.project_id,
+          amount_requested: invoice.amount_requested ?? undefined,
         }),
       });
 

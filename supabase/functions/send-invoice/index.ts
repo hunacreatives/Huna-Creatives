@@ -256,8 +256,7 @@ Deno.serve(async (req) => {
           <!-- Footer -->
           <tr>
             <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:18px 40px;text-align:center;">
-              <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;">This email is not being monitored. Please do not reply directly. If you have questions, contact <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
-              <p style="margin:0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} Huna Creatives · contact@hunacreatives.com</p>
+              <p style="margin:0;font-size:11px;color:#9ca3af;">Questions? Email us at <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a> · © ${new Date().getFullYear()} Huna Creatives</p>
             </td>
           </tr>
 

@@ -498,6 +498,7 @@ export default function AdminProjectsPage() {
       reference: payload.reference ?? null,
       payment_terms: payload.payment_terms ?? null,
       message: payload.message ?? null,
+      amount_requested: payload.amount_requested ?? null,
       scheduled_for: scheduledAt.toISOString(),
     });
     setInvoiceSending(false);

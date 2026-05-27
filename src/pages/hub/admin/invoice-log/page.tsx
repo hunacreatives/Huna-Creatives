@@ -56,6 +56,7 @@ interface ScheduledInvoice {
   line_items: { description: string; amount: string }[] | null;
   payments: { amount: number; paid_at: string; notes: string | null }[] | null;
   show_payments: boolean;
+  amount_requested: number | null;
 }
 
 interface PaymentProof {
@@ -291,6 +292,7 @@ export default function InvoiceLogPage() {
           line_items: inv.line_items ?? [],
           invoice_number: inv.invoice_number,
           project_id: inv.project_id,
+          amount_requested: inv.amount_requested ?? undefined,
           app_base_url: window.location.origin,
         },
       });
