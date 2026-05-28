@@ -778,25 +778,22 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         <section className="space-y-3">
 
           <div className="flex items-center justify-between gap-3">
-            <div className="inline-flex max-w-full gap-1.5 overflow-x-auto rounded-[20px] border border-white/70 bg-white/45 p-1.5 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto">
               {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
                 <button
                   key={tab.key}
                   onClick={() => setStatusFilter(tab.key)}
-                  className={`inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[16px] px-3 text-[13px] transition-colors ${
-                    statusFilter === tab.key
-                      ? 'bg-white/90 text-[#18181b] shadow-[0_8px_18px_rgba(15,23,42,0.08)]'
-                      : 'text-[#6b7280] hover:bg-white/60'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                    statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  <i className={`${tab.icon} text-base ${statusFilter === tab.key ? 'text-[#6e59cf]' : ''}`}></i>
-                  <span>{tab.label}</span>
+                  {tab.label}
                 </button>
               ))}
             </div>
             <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
-              className="inline-flex h-9 items-center gap-1.5 rounded-2xl bg-[#111827] px-3 text-[11px] text-white hover:bg-[#0f172a] cursor-pointer whitespace-nowrap shadow-[0_10px_24px_rgba(17,24,39,0.18)] backdrop-blur-sm">
-              <i className="ri-add-line"></i> New Project
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
+              <i className="ri-add-line text-sm"></i> New Project
             </button>
           </div>
 
