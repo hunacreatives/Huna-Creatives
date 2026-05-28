@@ -815,66 +815,53 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <button
                       key={p.id}
                       onClick={() => setActiveId(p.id)}
-                      className={`relative overflow-hidden w-[292px] shrink-0 rounded-[24px] border bg-white/58 p-3.5 text-left transition-all backdrop-blur-2xl shadow-[0_18px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/50 flex flex-col ${
+                      className={`w-[272px] shrink-0 rounded-xl border bg-white p-4 text-left transition-all flex flex-col gap-3 ${
                         activeId === p.id
-                          ? 'border-[#ddd4ff] ring-2 ring-[#ede8ff] -translate-y-0.5 bg-white/72'
-                          : 'border-white/65 hover:-translate-y-0.5 hover:border-[#d8d8df] hover:bg-white/66'
+                          ? 'border-[#FF6B35] shadow-md'
+                          : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
                       }`}
                     >
-                      <div className="pointer-events-none absolute inset-x-6 top-0 h-16 rounded-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.95),rgba(255,255,255,0))] blur-xl"></div>
-                      <div className="pointer-events-none absolute -right-8 bottom-0 h-24 w-24 rounded-full bg-[rgba(196,181,253,0.18)] blur-2xl"></div>
-                      <div className="grid min-h-[44px] grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5">
-                        <div className="flex items-start gap-2.5 min-w-0">
-                          <div className="w-10 h-10 rounded-full bg-[linear-gradient(135deg,#0f172a_0%,#344155_100%)] text-white flex items-center justify-center text-xs font-semibold shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                            {(p.client_name || p.project_name).slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1 pt-0.5">
-                            <p className="line-clamp-1 min-h-[20px] text-[14px] font-semibold text-[#1f2937]">{p.client_name}</p>
-                            <p className="mt-0.5 min-h-[16px] text-xs text-[#9ca3af]">
-                              {p.start_date
-                                ? new Date(p.start_date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
-                                : 'No start date'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex h-10 items-start gap-1.5">
-                          <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] ${cfg.cls}`}>{cfg.label}</span>
-                          <i className="ri-more-fill text-[#9ca3af] text-base"></i>
+                      {/* Top row: status + assigned avatars */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${cfg.cls}`}>{cfg.label}</span>
+                        <div className="flex -space-x-1.5">
+                          {p.hub_project_contractors.slice(0, 3).map((pc: any) => (
+                            pc.hub_users?.avatar_url
+                              ? <img key={pc.hub_users.id} src={pc.hub_users.avatar_url} alt={pc.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white" />
+                              : <div key={pc.hub_users?.id} className="w-5 h-5 rounded-full bg-gray-200 border border-white flex items-center justify-center text-[8px] font-bold text-gray-500">{pc.hub_users?.full_name?.[0]}</div>
+                          ))}
+                          {p.hub_project_contractors.length > 3 && (
+                            <div className="w-5 h-5 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[8px] text-gray-400">+{p.hub_project_contractors.length - 3}</div>
+                          )}
                         </div>
                       </div>
 
-                      <h3 className="mt-3.5 h-[44px] overflow-hidden text-[18px] leading-tight font-semibold text-[#1a1a1a] line-clamp-2">{p.project_name}</h3>
-
-                      <div className="mt-3 h-[58px] overflow-hidden">
-                        <div className="flex content-start gap-1.5 flex-wrap">
-                        {tags.map(tag => (
-                          <span key={tag} className="rounded-full border border-white/80 bg-white/60 px-2.5 py-1 text-[11px] text-[#6b7280] backdrop-blur-md">
-                            {tag}
-                          </span>
-                        ))}
-                        </div>
+                      {/* Project + client name */}
+                      <div>
+                        <h3 className="text-sm font-semibold text-[#111827] line-clamp-2 leading-snug">{p.project_name}</h3>
+                        <p className="text-xs text-gray-400 mt-0.5 truncate">{p.client_name}</p>
                       </div>
 
-                      <div className="mt-3.5 grid h-[76px] grid-rows-3 gap-2 text-[13px] text-[#6b7280]">
-                        <div className="flex items-center gap-2">
-                          <i className="ri-money-dollar-circle-line text-[14px]"></i>
-                          <span>Contract {fmt(p.contract_price)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <i className="ri-calendar-line text-[14px]"></i>
-                          <span>{p.deadline ? `Due ${new Date(p.deadline).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'No due date set'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <i className="ri-message-2-line text-[14px]"></i>
-                          <span>{p.hub_project_contractors.length} team members assigned</span>
-                        </div>
-                      </div>
+                      {/* Contract value */}
+                      <p className="text-lg font-bold text-[#111827] leading-none">{fmt(p.contract_price)}</p>
 
-                      <div className="mt-auto pt-3">
+                      {/* Tags */}
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {tags.map(tag => (
+                            <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Meta row */}
+                      <div className="mt-auto flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-50 pt-2.5">
+                        <span className="flex items-center gap-1">
+                          <i className="ri-calendar-line"></i>
+                          {p.deadline ? new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No deadline'}
+                        </span>
                         {dl && (
-                          <div className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${dl.cls}`}>
-                            {dl.label}
-                          </div>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${dl.cls}`}>{dl.label}</span>
                         )}
                       </div>
                     </button>
