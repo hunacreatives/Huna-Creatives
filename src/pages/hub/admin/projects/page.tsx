@@ -1180,23 +1180,22 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <p className="text-sm text-gray-400">No projects match this view yet.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:overflow-x-auto lg:gap-4 gap-3 lg:min-w-0 lg:pb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {filtered.map(p => {
                   const d = derived(p);
                   const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                   const dl = deadlineStatus(p.deadline, p.status);
-                  const tags = projectTags(p);
                   return (
                     <button
                       key={p.id}
                       onClick={() => setActiveId(prev => prev === p.id ? null : p.id)}
-                      className={`w-full lg:w-[272px] lg:shrink-0 rounded-xl border bg-white p-4 text-left transition-colors flex flex-col gap-3 ${
+                      className={`rounded-xl border bg-white p-4 text-left transition-all flex flex-col gap-3 ${
                         activeId === p.id
-                          ? 'border-[#FF6B35] shadow-[0_6px_18px_rgba(15,23,42,0.06)]'
+                          ? 'border-[#FF6B35] shadow-[0_6px_18px_rgba(255,107,53,0.10)]'
                           : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_14px_rgba(15,23,42,0.04)]'
                       }`}
                     >
-                      {/* Top row: status + assigned avatars */}
+                      {/* Top row: status + team avatars */}
                       <div className="flex items-center justify-between gap-2">
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${cfg.cls}`}>{cfg.label}</span>
                         <div className="flex -space-x-1.5">
@@ -1213,26 +1212,26 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
                       {/* Project + client name */}
                       <div>
-                        <h3 className="text-sm font-semibold text-[#111827] line-clamp-2 leading-snug">{p.project_name}</h3>
+                        <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{p.client_name}</p>
                       </div>
 
-                      {/* Contract value */}
-                      <p className="text-lg font-bold text-[#111827] leading-none">{fmt(p.contract_price)}</p>
-
-                      {/* Tags */}
-                      {tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {tags.map(tag => (
-                            <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{tag}</span>
-                          ))}
+                      {/* Financial: value + collection progress */}
+                      <div className="mt-auto space-y-1.5">
+                        <div className="flex items-baseline justify-between">
+                          <p className="text-base font-bold text-[#111827] leading-none">{fmt(p.contract_price)}</p>
+                          <span className="text-[11px] text-gray-400">{d.paidPct.toFixed(0)}% paid</span>
                         </div>
-                      )}
+                        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${d.paidPct >= 100 ? 'bg-emerald-400' : d.paidPct > 0 ? 'bg-emerald-300' : 'bg-gray-200'}`}
+                            style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
+                        </div>
+                      </div>
 
-                      {/* Meta row */}
-                      <div className="mt-auto flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-50 pt-2.5">
+                      {/* Bottom: deadline + overdue */}
+                      <div className="flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-50 pt-2.5">
                         <span className="flex items-center gap-1">
-                          <i className="ri-calendar-line"></i>
+                          <i className="ri-calendar-line text-[10px]"></i>
                           {p.deadline ? new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No deadline'}
                         </span>
                         {dl && (
