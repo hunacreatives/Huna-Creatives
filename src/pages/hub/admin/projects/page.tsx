@@ -815,11 +815,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   return (
                     <button
                       key={p.id}
-                      onClick={() => setActiveId(p.id)}
-                      className={`w-full lg:w-[272px] lg:shrink-0 rounded-xl border bg-white p-4 text-left transition-all flex flex-col gap-3 ${
+                      onClick={() => setActiveId(prev => prev === p.id ? null : p.id)}
+                      className={`w-full lg:w-[272px] lg:shrink-0 rounded-xl border bg-white p-4 text-left transition-colors flex flex-col gap-3 ${
                         activeId === p.id
-                          ? 'border-[#FF6B35] shadow-md'
-                          : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
+                          ? 'border-[#FF6B35] shadow-sm'
+                          : 'border-gray-100 hover:border-gray-200'
                       }`}
                     >
                       {/* Top row: status + assigned avatars */}
@@ -895,12 +895,86 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           const unassigned = contractors.filter(c => !activeProject.hub_project_contractors.some(pc => pc.hub_users?.id === c.id));
 
           return (
-            <div className="space-y-4 min-w-0">
+            <>
+              {/* Mobile: bottom sheet overlay */}
+              <div className="lg:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setActiveId(null)} />
+              <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl max-h-[85vh] overflow-y-auto">
+                <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 sticky top-0 bg-white">
+                  <div>
+                    <p className="font-semibold text-[#111827] text-sm">{activeProject.project_name}</p>
+                    <p className="text-xs text-gray-400">{activeProject.client_name}</p>
+                  </div>
+                  <button onClick={() => setActiveId(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 cursor-pointer">
+                    <i className="ri-close-line"></i>
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'Contract', value: fmt(activeProject.contract_price), cls: 'text-gray-800' },
+                      { label: 'Paid', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
+                      { label: 'Balance', value: fmt(d.balance), cls: d.balance > 0 ? 'text-rose-600' : 'text-gray-400' },
+                      { label: 'Costs', value: fmt(d.totalCosts), cls: 'text-orange-600' },
+                    ].map(s => (
+                      <div key={s.label} className="bg-gray-50 rounded-xl p-3">
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
+                        <p className={`text-sm font-bold mt-0.5 ${s.cls}`}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
+                      <i className="ri-mail-send-line"></i> Send Invoice
+                    </button>
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', scope: activeProject.scope ?? '', contract_price: String(activeProject.contract_price), deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '' }); setShowForm(true); }}
+                      className="px-4 flex items-center gap-1.5 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-xl cursor-pointer">
+                      <i className="ri-edit-line"></i>
+                    </button>
+                  </div>
+                  {/* Team */}
+                  {activeProject.hub_project_contractors.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-2">Team</p>
+                      <div className="space-y-2">
+                        {activeProject.hub_project_contractors.map((pc: any) => (
+                          <div key={pc.hub_users?.id} className="flex items-center gap-2.5">
+                            {pc.hub_users?.avatar_url
+                              ? <img src={pc.hub_users.avatar_url} alt={pc.hub_users.full_name} className="w-7 h-7 rounded-full object-cover object-top" />
+                              : <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">{pc.hub_users?.full_name?.[0]}</div>
+                            }
+                            <div>
+                              <p className="text-sm text-[#111827]">{pc.hub_users?.full_name}</p>
+                              <p className="text-xs text-gray-400">{pc.hub_users?.department}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Payments */}
+                  {activeProject.hub_project_payments.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 mb-2">Payments</p>
+                      <div className="space-y-1.5">
+                        {activeProject.hub_project_payments.map((pay: any) => (
+                          <div key={pay.id} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">{pay.label || new Date(pay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            <span className="font-medium text-emerald-600">{fmt(pay.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Desktop: inline panel */}
+            <div className="hidden lg:block space-y-4 min-w-0">
               {/* Header */}
-              <div className="relative overflow-hidden bg-white/62 border border-white/75 rounded-[28px] p-5 backdrop-blur-2xl shadow-[0_16px_36px_rgba(15,23,42,0.08)] ring-1 ring-white/45">
-                <div className="pointer-events-none absolute inset-x-8 top-0 h-20 rounded-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),rgba(255,255,255,0))] blur-2xl"></div>
-                <div className="pointer-events-none absolute -right-10 top-10 h-28 w-28 rounded-full bg-[rgba(191,219,254,0.18)] blur-3xl"></div>
-                <div className="relative z-10">
+              <div className="bg-white border border-gray-100 rounded-2xl p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -943,7 +1017,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     { label: 'Net Profit', value: fmt(d.netProfit), sub: 'after costs', color: 'text-emerald-600' },
                     { label: 'Balance Due', value: fmt(d.balance), sub: `${fmtPct(d.paidPct)} collected`, color: d.balance > 0 ? 'text-amber-600' : 'text-emerald-600' },
                   ].map(card => (
-                    <div key={card.label} className="bg-white/52 border border-white/70 rounded-2xl p-3 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                    <div key={card.label} className="bg-gray-50 border border-gray-100 rounded-xl p-3">
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{card.label}</p>
                       <p className={`text-base font-bold mt-0.5 ${card.color}`}>{card.value}</p>
                       {card.sub && <p className="text-[10px] text-gray-400 mt-0.5">{card.sub}</p>}
@@ -1376,6 +1450,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 )}
               </div>
             </div>
+            </> // end desktop + mobile sheets
           );
         })() : (
           <div className="flex items-center justify-center text-gray-400 py-8">
