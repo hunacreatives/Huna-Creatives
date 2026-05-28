@@ -299,7 +299,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
   );
 
   return (
-    <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden bg-white lg:bg-gradient-to-br lg:from-sky-100 lg:via-indigo-50 lg:to-white`}>
+    <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden bg-[#f0f2f5]`}>
       {isDemo && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-[#111827] text-white text-xs flex items-center justify-between px-4 py-1.5 gap-4">
           <span className="text-white/40 hidden sm:block flex-shrink-0">Demo</span>
