@@ -51,6 +51,28 @@ interface Project {
 
 interface Contractor { id: string; full_name: string; avatar_url: string | null; project_percentage: number | null; department: string | null; }
 
+interface ProjectTask {
+  id: number;
+  project_id: number;
+  title: string;
+  description: string | null;
+  status: 'todo' | 'in_progress' | 'done';
+  priority: 'low' | 'medium' | 'high';
+  assignee_id: string | null;
+  due_date: string | null;
+  created_by: string | null;
+  created_at: string;
+  hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
+}
+
+interface ProjectActivity {
+  id: number;
+  project_id: number;
+  actor_name: string;
+  description: string;
+  created_at: string;
+}
+
 function Avatar({ name, url }: { name: string; url?: string | null }) {
   if (url) return <img src={url} alt={name} className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0" />;
   return <div className="w-7 h-7 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0"><span className="text-white text-xs font-bold">{name[0].toUpperCase()}</span></div>;
@@ -143,6 +165,19 @@ export default function AdminProjectsPage() {
   const [invoiceSending, setInvoiceSending] = useState(false);
   const [invoiceMsg, setInvoiceMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // Tasks
+  const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'overdue'>('all');
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [newTaskDue, setNewTaskDue] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [taskSaving, setTaskSaving] = useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+
+  // Activity
+  const [activity, setActivity] = useState<ProjectActivity[]>([]);
+
   // Payment reminders
   const [reminderDate, setReminderDate] = useState('');
   const [reminderAmount, setReminderAmount] = useState('');
@@ -163,6 +198,72 @@ export default function AdminProjectsPage() {
 
     if (latest.length === 0) return '0001';
     return String(Math.max(...latest) + 1).padStart(4, '0');
+  };
+
+  const fetchTasks = async (projectId: number) => {
+    const [tRes, aRes] = await Promise.all([
+      supabase.from('hub_project_tasks')
+        .select('*, hub_users(id, full_name, avatar_url)')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: true }),
+      supabase.from('hub_project_activity')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+        .limit(20),
+    ]);
+    setTasks((tRes.data as ProjectTask[]) ?? []);
+    setActivity((aRes.data as ProjectActivity[]) ?? []);
+  };
+
+  const logActivity = async (projectId: number, description: string) => {
+    if (isDemo) return;
+    await supabase.from('hub_project_activity').insert({
+      project_id: projectId,
+      actor_id: hubUser?.id ?? null,
+      actor_name: hubUser?.full_name ?? 'Admin',
+      description,
+    });
+  };
+
+  const createTask = async () => {
+    if (!activeId || !newTaskTitle.trim()) return;
+    setTaskSaving(true);
+    const { data, error } = await supabase.from('hub_project_tasks').insert({
+      project_id: activeId,
+      title: newTaskTitle.trim(),
+      status: 'todo',
+      priority: newTaskPriority,
+      assignee_id: newTaskAssignee || null,
+      due_date: newTaskDue || null,
+      created_by: hubUser?.id ?? null,
+    }).select('*, hub_users(id, full_name, avatar_url)').single();
+    setTaskSaving(false);
+    if (error || !data) return;
+    setTasks(prev => [...prev, data as ProjectTask]);
+    const assigneeName = newTaskAssignee
+      ? (activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === newTaskAssignee)?.hub_users?.full_name ?? '')
+      : '';
+    await logActivity(activeId, `${hubUser?.full_name ?? 'Admin'} created task "${newTaskTitle.trim()}"${assigneeName ? ` — assigned to ${assigneeName}` : ''}`);
+    setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue(''); setNewTaskPriority('medium'); setShowTaskForm(false);
+    fetchTasks(activeId);
+  };
+
+  const toggleTask = async (task: ProjectTask) => {
+    if (isDemo) return;
+    const next = task.status === 'done' ? 'todo' : task.status === 'todo' ? 'in_progress' : 'done';
+    await supabase.from('hub_project_tasks').update({ status: next, updated_at: new Date().toISOString() }).eq('id', task.id);
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: next } : t));
+    if (next === 'done') {
+      await logActivity(task.project_id, `${hubUser?.full_name ?? 'Admin'} completed "${task.title}"`);
+      fetchTasks(task.project_id);
+    }
+  };
+
+  const deleteTask = async (task: ProjectTask) => {
+    if (isDemo) return;
+    await supabase.from('hub_project_tasks').delete().eq('id', task.id);
+    setTasks(prev => prev.filter(t => t.id !== task.id));
   };
 
   const fetchAll = async () => {
@@ -772,6 +873,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       setActiveId(filtered[0].id);
     }
   }, [filtered, activeId]);
+
+  useEffect(() => {
+    if (activeId && !isDemo) fetchTasks(activeId);
+    else if (!activeId) { setTasks([]); setActivity([]); }
+  }, [activeId, isDemo]);
 
   const projectTags = (project: Project) => {
     const serviceTag = project.service ? [project.service] : ['General'];
@@ -1486,6 +1592,172 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   </div>
                 )}
               </div>
+              {/* Tasks */}
+              {(() => {
+                const today = new Date().toISOString().slice(0, 10);
+                const isOverdue = (t: ProjectTask) => t.due_date && t.due_date < today && t.status !== 'done';
+                const filtered_tasks = tasks.filter(t => {
+                  if (taskFilter === 'all') return true;
+                  if (taskFilter === 'overdue') return !!isOverdue(t);
+                  return t.status === taskFilter;
+                });
+                const doneCt = tasks.filter(t => t.status === 'done').length;
+                const pct = tasks.length > 0 ? Math.round((doneCt / tasks.length) * 100) : 0;
+                const taskTeam = activeProject.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean);
+                const priorityCls: Record<string, string> = { high: 'bg-rose-100 text-rose-600', medium: 'bg-amber-100 text-amber-600', low: 'bg-gray-100 text-gray-400' };
+                const statusCycle: Record<string, { icon: string; cls: string }> = {
+                  todo: { icon: 'ri-checkbox-blank-circle-line', cls: 'text-gray-300 hover:text-gray-500' },
+                  in_progress: { icon: 'ri-loader-2-line', cls: 'text-sky-400 hover:text-sky-600' },
+                  done: { icon: 'ri-checkbox-circle-fill', cls: 'text-emerald-500' },
+                };
+                return (
+                  <div className="hidden lg:block bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-shrink-0">Tasks</p>
+                        {tasks.length > 0 && (
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-[11px] text-gray-400 flex-shrink-0">{doneCt}/{tasks.length}</span>
+                          </div>
+                        )}
+                      </div>
+                      <button onClick={() => setShowTaskForm(s => !s)}
+                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#FF6B35] cursor-pointer flex-shrink-0 transition-colors">
+                        <i className={showTaskForm ? 'ri-close-line' : 'ri-add-line'}></i>
+                        {showTaskForm ? 'Cancel' : 'Add Task'}
+                      </button>
+                    </div>
+
+                    {/* Filter pills */}
+                    {tasks.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {(['all', 'todo', 'in_progress', 'done', 'overdue'] as const).map(f => {
+                          const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'In Progress', done: 'Done', overdue: 'Overdue' };
+                          const counts: Record<string, number> = {
+                            all: tasks.length,
+                            todo: tasks.filter(t => t.status === 'todo').length,
+                            in_progress: tasks.filter(t => t.status === 'in_progress').length,
+                            done: tasks.filter(t => t.status === 'done').length,
+                            overdue: tasks.filter(t => !!isOverdue(t)).length,
+                          };
+                          if (f !== 'all' && counts[f] === 0) return null;
+                          return (
+                            <button key={f} onClick={() => setTaskFilter(f)}
+                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${taskFilter === f ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                              {labels[f]} <span className="opacity-60">{counts[f]}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Task list */}
+                    {filtered_tasks.length === 0 && !showTaskForm && (
+                      <p className="text-xs text-gray-400">{tasks.length === 0 ? 'No tasks yet. Add the first one.' : 'No tasks in this filter.'}</p>
+                    )}
+
+                    {filtered_tasks.length > 0 && (
+                      <div className="space-y-1">
+                        {filtered_tasks.map(task => {
+                          const sc = statusCycle[task.status];
+                          const overdue = isOverdue(task);
+                          return (
+                            <div key={task.id} className={`flex items-center gap-2.5 py-2 px-2 rounded-lg group hover:bg-gray-50 transition-colors ${task.status === 'done' ? 'opacity-60' : ''}`}>
+                              <button onClick={() => toggleTask(task)} className={`flex-shrink-0 text-base cursor-pointer transition-colors ${sc.cls}`}>
+                                <i className={sc.icon}></i>
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm text-gray-700 truncate ${task.status === 'done' ? 'line-through text-gray-400' : ''}`}>{task.title}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  {task.due_date && (
+                                    <span className={`text-[10px] ${overdue ? 'text-rose-500 font-semibold' : 'text-gray-400'}`}>
+                                      <i className="ri-calendar-line mr-0.5"></i>
+                                      {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                      {overdue && ' · overdue'}
+                                    </span>
+                                  )}
+                                  {task.hub_users && (
+                                    <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                                      {task.hub_users.avatar_url
+                                        ? <img src={task.hub_users.avatar_url} alt={task.hub_users.full_name} className="w-3.5 h-3.5 rounded-full object-cover" />
+                                        : <span className="w-3.5 h-3.5 rounded-full bg-[#FF6B35] flex items-center justify-center text-white" style={{ fontSize: 7 }}>{task.hub_users.full_name[0]}</span>
+                                      }
+                                      {task.hub_users.full_name.split(' ')[0]}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${priorityCls[task.priority]}`}>{task.priority}</span>
+                              <button onClick={() => deleteTask(task)} className="flex-shrink-0 text-gray-200 hover:text-rose-400 opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
+                                <i className="ri-delete-bin-line text-xs"></i>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* New task form */}
+                    {showTaskForm && (
+                      <div className="border-t border-gray-100 pt-3 space-y-2">
+                        <input
+                          value={newTaskTitle}
+                          onChange={e => setNewTaskTitle(e.target.value)}
+                          placeholder="Task title..."
+                          autoFocus
+                          onKeyDown={e => e.key === 'Enter' && createTask()}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                        />
+                        <div className="flex gap-2 flex-wrap">
+                          <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)}
+                            className="flex-1 min-w-0 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
+                            <option value="">Unassigned</option>
+                            {taskTeam.map(u => u && <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                          </select>
+                          <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)}
+                            className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                          <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
+                            className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                          </select>
+                          <button onClick={createTask} disabled={!newTaskTitle.trim() || taskSaving}
+                            className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                            {taskSaving ? '...' : 'Add'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Activity */}
+              {activity.length > 0 && (
+                <div className="hidden lg:block bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recent Activity</p>
+                  <div className="space-y-3">
+                    {activity.map(a => (
+                      <div key={a.id} className="flex gap-2.5">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <i className="ri-time-line text-[9px] text-gray-400"></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-700">{a.description}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(a.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </> // end desktop + mobile sheets
           );
         })() : (

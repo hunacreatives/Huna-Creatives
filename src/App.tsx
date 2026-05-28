@@ -8,7 +8,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { DemoProvider } from "./contexts/DemoContext";
 
 // Pages that use a light/white background
-const LIGHT_BG_ROUTES = ['/about'];
+const LIGHT_BG_ROUTES = ['/about', '/hub'];
 
 function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
   const location = useLocation();
