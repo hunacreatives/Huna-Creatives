@@ -1113,13 +1113,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         <section className="space-y-3">
 
           <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-1 overflow-x-auto w-fit rounded-full bg-transparent">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto w-fit">
               {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
                 <button
                   key={tab.key}
                   onClick={() => setStatusFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                    statusFilter === tab.key ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                    statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   {tab.label}
@@ -1136,7 +1136,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           <div className="flex flex-wrap gap-1.5 items-center">
             <button
               onClick={() => setTypeFilter('all')}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
             >
               All Types
             </button>
@@ -1144,7 +1144,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               <button
                 key={type}
                 onClick={() => setTypeFilter(typeFilter === type ? 'all' : type)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === type ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === type ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
               >
                 {type}
                 <span className="ml-1.5 opacity-50">{projects.filter(p => p.service === type && (statusFilter === 'all' || p.status === statusFilter)).length}</span>
