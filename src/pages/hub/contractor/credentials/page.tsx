@@ -180,15 +180,6 @@ export default function ContractorCredentialsPage() {
       )}
 
       <div className="p-6 space-y-5">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-              <i className="ri-lock-2-line text-[#FF6B35]"></i>
-              Credentials Vault
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Access credentials for your assigned clients</p>
-          </div>
-        </div>
 
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[

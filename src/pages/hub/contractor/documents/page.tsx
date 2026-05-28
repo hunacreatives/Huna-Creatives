@@ -196,10 +196,6 @@ export default function ContractorDocumentsPage() {
 
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Document Center</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Sign contracts and request official documents</p>
-          </div>
           {tab === 'requests' && (
             <button
               onClick={() => setShowForm(true)}
