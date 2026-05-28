@@ -41,6 +41,7 @@ interface Project {
   hub_project_contractors: {
     id: number; percentage: number; payout_type: string; fixed_amount: number | null;
     payout_status: string; paid_at: string | null; notes: string | null;
+    project_role?: string | null;
     hub_users: { id: string; full_name: string; avatar_url: string | null; email: string | null };
     hub_project_contractor_payouts: ContractorPayout[];
   }[];
@@ -59,6 +60,7 @@ export default function AdminProjectsPage() {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('all');
   const [activeId, setActiveId] = useState<number | null>(null);
 
   // Project form
@@ -100,11 +102,12 @@ export default function AdminProjectsPage() {
 
   // Contractor assignment
   const [addCtxId, setAddCtxId] = useState('');
-  const [addCtxPayoutType, setAddCtxPayoutType] = useState<'percentage' | 'fixed'>('percentage');
-  const [addCtxPct, setAddCtxPct] = useState('');
-  const [addCtxFixed, setAddCtxFixed] = useState('');
+  const [addCtxRole, setAddCtxRole] = useState('');
   const [ctxSaving, setCtxSaving] = useState(false);
   const [ctxAddError, setCtxAddError] = useState('');
+  const [ctxConfigSaving, setCtxConfigSaving] = useState<Record<number, boolean>>({});
+  const [ctxConfigError, setCtxConfigError] = useState<Record<number, string>>({});
+  const [ctxConfigForm, setCtxConfigForm] = useState<Record<number, { payoutType: 'percentage' | 'fixed'; percentage: string; fixedAmount: string }>>({});
 
   // Staged contractor payouts: keyed by hub_project_contractors.id
   const [ctxPayForm, setCtxPayForm] = useState<Record<number, { amount: string; date: string; notes: string; receipt: File | null; notify: boolean }>>({});
@@ -307,19 +310,56 @@ export default function AdminProjectsPage() {
 
   const addContractor = async () => {
     if (!activeId || !addCtxId) return;
-    if (addCtxPayoutType === 'percentage' && !addCtxPct) return;
-    if (addCtxPayoutType === 'fixed' && !addCtxFixed) return;
+    const contractorId = addCtxId;
+    const wasAlreadyAssigned = !!activeProject?.hub_project_contractors.some(pc => pc.hub_users?.id === contractorId);
     setCtxSaving(true); setCtxAddError('');
     const { error } = await supabase.from('hub_project_contractors').upsert({
       project_id: activeId,
-      contractor_id: addCtxId,
-      payout_type: addCtxPayoutType,
-      percentage: addCtxPayoutType === 'percentage' ? parseFloat(addCtxPct) : 0,
-      fixed_amount: addCtxPayoutType === 'fixed' ? parseFloat(addCtxFixed) : null,
+      contractor_id: contractorId,
+      project_role: addCtxRole.trim() || null,
+      payout_type: 'percentage',
+      percentage: 0,
+      fixed_amount: null,
     }, { onConflict: 'project_id,contractor_id' });
     setCtxSaving(false);
     if (error) { setCtxAddError(error.message); return; }
-    setAddCtxId(''); setAddCtxPct(''); setAddCtxFixed('');
+    setAddCtxId(''); setAddCtxRole('');
+    if (!wasAlreadyAssigned) {
+      supabase.functions.invoke('notify-project-assigned', {
+        body: { project_id: activeId, contractor_id: contractorId },
+      }).catch(() => {});
+    }
+    fetchAll();
+  };
+
+  const saveContractorPayoutConfig = async (pcId: number) => {
+    const form = ctxConfigForm[pcId];
+    if (!form) return;
+    const isPercentage = form.payoutType === 'percentage';
+    if (isPercentage && !form.percentage) {
+      setCtxConfigError(prev => ({ ...prev, [pcId]: 'Percentage is required.' }));
+      return;
+    }
+    if (!isPercentage && !form.fixedAmount) {
+      setCtxConfigError(prev => ({ ...prev, [pcId]: 'Fixed fee amount is required.' }));
+      return;
+    }
+
+    setCtxConfigSaving(prev => ({ ...prev, [pcId]: true }));
+    setCtxConfigError(prev => ({ ...prev, [pcId]: '' }));
+
+    const { error } = await supabase.from('hub_project_contractors').update({
+      payout_type: form.payoutType,
+      percentage: isPercentage ? parseFloat(form.percentage) : 0,
+      fixed_amount: isPercentage ? null : parseFloat(form.fixedAmount),
+    }).eq('id', pcId);
+
+    setCtxConfigSaving(prev => ({ ...prev, [pcId]: false }));
+    if (error) {
+      setCtxConfigError(prev => ({ ...prev, [pcId]: error.message }));
+      return;
+    }
+
     fetchAll();
   };
 
@@ -672,17 +712,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     }, { once: true });
   };
 
-  const filtered = projects.filter(p =>
-    !search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.project_name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  // Group by service
-  const grouped = filtered.reduce<Record<string, Project[]>>((acc, p) => {
-    const key = p.service || 'Other';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(p);
-    return acc;
-  }, {});
+  const filtered = projects.filter(p => {
+    const matchesSearch = !search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.project_name.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const deadlineStatus = (deadline: string | null, status: string) => {
     if (!deadline || status === 'completed' || status === 'cancelled') return null;
@@ -706,130 +740,182 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     return { contractValue, costs, netProfit, collected, collectionPct };
   })();
 
+  const statusTabs = [
+    { key: 'all' as const, label: 'All', icon: 'ri-apps-2-line', count: projects.length },
+    { key: 'ongoing' as const, label: 'Active', icon: 'ri-flashlight-line', count: projects.filter(p => p.status === 'ongoing').length },
+    { key: 'paused' as const, label: 'Paused', icon: 'ri-pause-circle-line', count: projects.filter(p => p.status === 'paused').length },
+    { key: 'completed' as const, label: 'Completed', icon: 'ri-check-double-line', count: projects.filter(p => p.status === 'completed').length },
+    { key: 'cancelled' as const, label: 'Archived', icon: 'ri-archive-line', count: projects.filter(p => p.status === 'cancelled').length },
+  ];
+
+  useEffect(() => {
+    if (!filtered.length) {
+      setActiveId(null);
+      return;
+    }
+    if (activeId && !filtered.some(p => p.id === activeId)) {
+      setActiveId(filtered[0].id);
+    }
+  }, [filtered, activeId]);
+
+  const projectTags = (project: Project) => {
+    const serviceTag = project.service ? [project.service] : ['General'];
+    const roleTags = project.hub_project_contractors
+      .map(pc => pc.project_role)
+      .filter((role): role is string => !!role)
+      .slice(0, 2);
+    const deptTags = contractors
+      .filter(c => project.hub_project_contractors.some(pc => pc.hub_users?.id === c.id))
+      .map(c => c.department)
+      .filter((dept): dept is string => !!dept)
+      .slice(0, 2);
+    return [...new Set([...serviceTag, ...roleTags, ...deptTags])].slice(0, 3);
+  };
+
   return (
     <AdminLayout title="Projects">
       <div className="space-y-4">
+        <section className="space-y-3">
 
-      {/* Summary strip */}
-      {!loading && projects.length > 0 && (
-        <>
-          {/* Mobile: 2x2 mini grid */}
-          <div className="grid grid-cols-2 gap-2 md:hidden">
-            {[
-              { label: 'Contract',  value: fmt(summaryTotals.contractValue), cls: 'text-gray-800' },
-              { label: 'Costs',     value: fmt(summaryTotals.costs),         cls: 'text-rose-600' },
-              { label: 'Net',       value: fmt(summaryTotals.netProfit),     cls: 'text-teal-600' },
-              { label: 'Collected', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, cls: 'text-emerald-600' },
-            ].map(s => (
-              <div key={s.label} className="bg-white border border-gray-100 rounded-xl px-3 py-2">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
-                <p className={`text-sm font-bold ${s.cls} truncate`}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-          {/* Desktop: cards */}
-          <div className="hidden md:grid grid-cols-4 gap-3">
-            {[
-              { label: 'Total Contract Value',    value: fmt(summaryTotals.contractValue), icon: 'ri-file-list-3-line',         text: 'text-slate-800',   soft: 'bg-slate-50',   chip: 'bg-slate-900 text-white',   border: 'border-slate-200',   glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]' },
-              { label: 'Operational Costs',       value: fmt(summaryTotals.costs),         icon: 'ri-subtract-line',             text: 'text-rose-700',    soft: 'bg-rose-50',    chip: 'bg-rose-500 text-white',    border: 'border-rose-200',    glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]'  },
-              { label: 'Net Profit',              value: fmt(summaryTotals.netProfit),     icon: 'ri-line-chart-line',           text: 'text-teal-700',    soft: 'bg-teal-50',    chip: 'bg-teal-500 text-white',    border: 'border-teal-200',    glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]'  },
-              { label: 'Collected from Clients',  value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, icon: 'ri-money-dollar-circle-line', text: 'text-emerald-700', soft: 'bg-emerald-50', chip: 'bg-emerald-500 text-white', border: 'border-emerald-200', glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]' },
-            ].map(card => (
-              <div key={card.label} className={`${card.soft} ${card.glow} border ${card.border} rounded-2xl p-4`}>
-                <div className={`w-8 h-8 ${card.chip} rounded-xl flex items-center justify-center mb-3 shadow-sm`}>
-                  <i className={`${card.icon} text-sm`}></i>
-                </div>
-                <p className={`text-lg font-bold tracking-tight ${card.text}`}>{card.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{card.label}</p>
-              </div>
-            ))}
-          </div>
-        </>
-
-      )}
-
-      <div className="flex flex-col md:flex-row gap-5 md:h-[calc(100vh-220px)]">
-
-        {/* Left: project list */}
-        <div className={`w-full md:w-80 flex-shrink-0 flex flex-col gap-3 ${activeId ? 'hidden md:flex' : 'flex'}`}>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
-                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="inline-flex max-w-full gap-1.5 overflow-x-auto rounded-[20px] border border-white/70 bg-white/45 p-1.5 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+              {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setStatusFilter(tab.key)}
+                  className={`inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-[16px] px-3 text-[13px] transition-colors ${
+                    statusFilter === tab.key
+                      ? 'bg-white/90 text-[#18181b] shadow-[0_8px_18px_rgba(15,23,42,0.08)]'
+                      : 'text-[#6b7280] hover:bg-white/60'
+                  }`}
+                >
+                  <i className={`${tab.icon} text-base ${statusFilter === tab.key ? 'text-[#6e59cf]' : ''}`}></i>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
             </div>
             <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
-              className="flex items-center gap-1 px-3 py-2 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer whitespace-nowrap">
-              <i className="ri-add-line"></i> New
+              className="inline-flex h-9 items-center gap-1.5 rounded-2xl bg-[#111827] px-3 text-[11px] text-white hover:bg-[#0f172a] cursor-pointer whitespace-nowrap shadow-[0_10px_24px_rgba(17,24,39,0.18)] backdrop-blur-sm">
+              <i className="ri-add-line"></i> New Project
             </button>
           </div>
 
-          <div className="md:flex-1 md:overflow-y-auto space-y-4 pr-1">
+          <div className="overflow-x-auto overflow-y-visible pt-1 pb-3">
             {loading ? (
-              <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-gray-300 text-xl"></i></div>
+              <div className="flex justify-center py-16"><i className="ri-loader-4-line animate-spin text-gray-300 text-2xl"></i></div>
             ) : filtered.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-8">No projects yet.</p>
-            ) : Object.entries(grouped).map(([service, items]) => {
-              const sc = getServiceCfg(service);
-              return (
-              <div key={service}>
-                <div className="flex items-center gap-1.5 px-1 mb-1.5">
-                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${sc.dot}`}></div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{service}</p>
-                </div>
-                <div className="space-y-2">
-                  {items.map(p => {
-                    const d = derived(p);
-                    const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
-                    const dl = deadlineStatus(p.deadline, p.status);
-                    const sc2 = getServiceCfg(p.service);
-                    return (
-                      <button key={p.id} onClick={() => setActiveId(p.id)}
-                        className={`w-full text-left p-3.5 rounded-xl border-l-4 border border-gray-100 transition-all cursor-pointer ${sc2.border} ${activeId === p.id ? 'bg-orange-50 border-r-[#FF6B35] border-t-[#FF6B35] border-b-[#FF6B35]' : 'bg-white hover:border-r-gray-200 hover:border-t-gray-200 hover:border-b-gray-200'}`}>
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-[#111827] leading-tight truncate">{p.project_name}</p>
-                            <p className="text-[11px] text-gray-400">{p.client_name}</p>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
-                            {dl && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${dl.cls}`}>{dl.label}</span>}
-                          </div>
-                        </div>
-                        <div className="mt-2">
-                          <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-                            <span>{fmt(d.totalPaid)} collected</span>
-                            <span>{fmtPct(d.paidPct)}</span>
-                          </div>
-                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${d.paidPct >= 100 ? 'bg-emerald-400' : dl?.cls.includes('red') ? 'bg-red-400' : 'bg-emerald-400'}`}
-                              style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="mx-auto max-w-xl rounded-[28px] border border-dashed border-white/70 bg-white/50 px-5 py-14 text-center backdrop-blur-xl">
+                <p className="text-sm text-[#6b7280]">No projects match this view yet.</p>
               </div>
-              );
-            })}
-          </div>
-        </div>
+            ) : (
+              <div className="flex gap-4 min-w-max px-1 pt-1">
+                {filtered.map(p => {
+                  const d = derived(p);
+                  const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
+                  const dl = deadlineStatus(p.deadline, p.status);
+                  const tags = projectTags(p);
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setActiveId(p.id)}
+                      className={`relative overflow-hidden w-[292px] shrink-0 rounded-[24px] border bg-white/58 p-3.5 text-left transition-all backdrop-blur-2xl shadow-[0_18px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/50 flex flex-col ${
+                        activeId === p.id
+                          ? 'border-[#ddd4ff] ring-2 ring-[#ede8ff] -translate-y-0.5 bg-white/72'
+                          : 'border-white/65 hover:-translate-y-0.5 hover:border-[#d8d8df] hover:bg-white/66'
+                      }`}
+                    >
+                      <div className="pointer-events-none absolute inset-x-6 top-0 h-16 rounded-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.95),rgba(255,255,255,0))] blur-xl"></div>
+                      <div className="pointer-events-none absolute -right-8 bottom-0 h-24 w-24 rounded-full bg-[rgba(196,181,253,0.18)] blur-2xl"></div>
+                      <div className="grid min-h-[44px] grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-[linear-gradient(135deg,#0f172a_0%,#344155_100%)] text-white flex items-center justify-center text-xs font-semibold shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                            {(p.client_name || p.project_name).slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <p className="line-clamp-1 min-h-[20px] text-[14px] font-semibold text-[#1f2937]">{p.client_name}</p>
+                            <p className="mt-0.5 min-h-[16px] text-xs text-[#9ca3af]">
+                              {p.start_date
+                                ? new Date(p.start_date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
+                                : 'No start date'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex h-10 items-start gap-1.5">
+                          <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] ${cfg.cls}`}>{cfg.label}</span>
+                          <i className="ri-more-fill text-[#9ca3af] text-base"></i>
+                        </div>
+                      </div>
 
-        {/* Right: project detail */}
+                      <h3 className="mt-3.5 h-[44px] overflow-hidden text-[18px] leading-tight font-semibold text-[#1a1a1a] line-clamp-2">{p.project_name}</h3>
+
+                      <div className="mt-3 h-[58px] overflow-hidden">
+                        <div className="flex content-start gap-1.5 flex-wrap">
+                        {tags.map(tag => (
+                          <span key={tag} className="rounded-full border border-white/80 bg-white/60 px-2.5 py-1 text-[11px] text-[#6b7280] backdrop-blur-md">
+                            {tag}
+                          </span>
+                        ))}
+                        </div>
+                      </div>
+
+                      <div className="mt-3.5 grid h-[76px] grid-rows-3 gap-2 text-[13px] text-[#6b7280]">
+                        <div className="flex items-center gap-2">
+                          <i className="ri-money-dollar-circle-line text-[14px]"></i>
+                          <span>Contract {fmt(p.contract_price)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <i className="ri-calendar-line text-[14px]"></i>
+                          <span>{p.deadline ? `Due ${new Date(p.deadline).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'No due date set'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <i className="ri-message-2-line text-[14px]"></i>
+                          <span>{p.hub_project_contractors.length} team members assigned</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-auto pt-3">
+                        {dl && (
+                          <div className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${dl.cls}`}>
+                            {dl.label}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {!loading && projects.length > 0 && !activeProject && (
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
+            {[
+              { label: 'Contract', value: fmt(summaryTotals.contractValue), cls: 'text-gray-800' },
+              { label: 'Costs', value: fmt(summaryTotals.costs), cls: 'text-rose-600' },
+              { label: 'Net', value: fmt(summaryTotals.netProfit), cls: 'text-teal-600' },
+              { label: 'Collected', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, cls: 'text-emerald-600' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/55 border border-white/75 rounded-2xl px-3 py-2.5 backdrop-blur-xl shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-white/45">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
+                <p className={`text-sm font-bold ${s.cls} truncate mt-1`}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {activeProject ? (() => {
           const d = derived(activeProject);
           const cfg = statusCfg[activeProject.status] ?? statusCfg.ongoing;
           const unassigned = contractors.filter(c => !activeProject.hub_project_contractors.some(pc => pc.hub_users?.id === c.id));
 
           return (
-            <div className="flex-1 overflow-y-auto space-y-4 min-w-0">
-              {/* Mobile back button */}
-              <button onClick={() => setActiveId(null)} className="md:hidden flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 cursor-pointer">
-                <i className="ri-arrow-left-line"></i> All Projects
-              </button>
+            <div className="space-y-4 min-w-0">
               {/* Header */}
-              <div className="bg-white border border-gray-100 rounded-xl p-5">
+              <div className="relative overflow-hidden bg-white/62 border border-white/75 rounded-[28px] p-5 backdrop-blur-2xl shadow-[0_16px_36px_rgba(15,23,42,0.08)] ring-1 ring-white/45">
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-20 rounded-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),rgba(255,255,255,0))] blur-2xl"></div>
+                <div className="pointer-events-none absolute -right-10 top-10 h-28 w-28 rounded-full bg-[rgba(191,219,254,0.18)] blur-3xl"></div>
+                <div className="relative z-10">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -850,15 +936,15 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={() => void printInvoice(activeProject)}
-                      className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer flex items-center gap-1">
+                      className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-white/55">
                       <i className="ri-printer-line"></i> Print
                     </button>
                     <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
-                      className="text-xs px-2.5 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer flex items-center gap-1">
+                      className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-xl hover:bg-[#0f172a] cursor-pointer flex items-center gap-1 shadow-[0_10px_24px_rgba(17,24,39,0.16)]">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>
                     <button onClick={() => { setEditingProject(activeProject); setForm({ client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '' }); setShowForm(true); }}
-                      className="text-xs text-gray-400 hover:text-gray-700 cursor-pointer flex items-center gap-1">
+                      className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-white/55">
                       <i className="ri-edit-line"></i> Edit
                     </button>
                   </div>
@@ -872,7 +958,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     { label: 'Net Profit', value: fmt(d.netProfit), sub: 'after costs', color: 'text-emerald-600' },
                     { label: 'Balance Due', value: fmt(d.balance), sub: `${fmtPct(d.paidPct)} collected`, color: d.balance > 0 ? 'text-amber-600' : 'text-emerald-600' },
                   ].map(card => (
-                    <div key={card.label} className="bg-gray-50 rounded-xl p-3">
+                    <div key={card.label} className="bg-white/52 border border-white/70 rounded-2xl p-3 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{card.label}</p>
                       <p className={`text-base font-bold mt-0.5 ${card.color}`}>{card.value}</p>
                       {card.sub && <p className="text-[10px] text-gray-400 mt-0.5">{card.sub}</p>}
@@ -886,23 +972,24 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <span>Client payments</span>
                     <span>{fmt(d.totalPaid)} of {fmt(activeProject.contract_price)}</span>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white/55">
                     <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
                   </div>
                 </div>
                 {activeProject.notes && <p className="text-xs text-gray-400 italic mt-3">{activeProject.notes}</p>}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Client Payments */}
-                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+                <div className="bg-white/58 border border-white/75 rounded-[24px] p-4 space-y-3 backdrop-blur-2xl shadow-[0_14px_30px_rgba(15,23,42,0.07)] ring-1 ring-white/45">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Client Payments</p>
                   {activeProject.hub_project_payments.length === 0 ? (
                     <p className="text-xs text-gray-400">No payments logged yet.</p>
                   ) : (
                     <div className="space-y-2">
                       {[...activeProject.hub_project_payments].sort((a, b) => new Date(a.paid_at).getTime() - new Date(b.paid_at).getTime()).map((pp) => (
-                        <div key={pp.id} className="bg-gray-50 rounded-lg overflow-hidden">
+                        <div key={pp.id} className="bg-white/45 border border-white/65 rounded-xl overflow-hidden backdrop-blur-md">
                           {editingPaymentId === pp.id ? (
                             <div className="p-2.5 space-y-2">
                               <div className="flex gap-2">
@@ -1007,7 +1094,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
 
                 {/* Payment Schedule */}
-                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+                <div className="bg-white/58 border border-white/75 rounded-[24px] p-4 space-y-3 backdrop-blur-2xl shadow-[0_14px_30px_rgba(15,23,42,0.07)] ring-1 ring-white/45">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Schedule</p>
                     <span className="text-[10px] text-gray-400">Reminders auto-send on due date</span>
@@ -1021,7 +1108,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         const statusCls = r.status === 'sent' ? 'text-emerald-600 bg-emerald-50' : r.status === 'cancelled' ? 'text-gray-400 bg-gray-100 line-through' : isPast ? 'text-rose-500 bg-rose-50' : 'text-amber-600 bg-amber-50';
                         const statusLabel = r.status === 'sent' ? 'Sent' : r.status === 'cancelled' ? 'Cancelled' : isPast ? 'Overdue' : 'Pending';
                         return (
-                          <div key={r.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                          <div key={r.id} className="flex items-center justify-between gap-2 bg-white/48 border border-white/65 rounded-xl px-3 py-2 backdrop-blur-md">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-medium text-gray-700">
@@ -1062,7 +1149,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
 
                 {/* Operational Costs */}
-                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+                <div className="bg-white/58 border border-white/75 rounded-[24px] p-4 space-y-3 backdrop-blur-2xl shadow-[0_14px_30px_rgba(15,23,42,0.07)] ring-1 ring-white/45">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Operational Costs</p>
                   {activeProject.hub_project_costs.length === 0 ? (
                     <p className="text-xs text-gray-400">No costs logged yet.</p>
@@ -1100,10 +1187,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
               </div>
 
-              {/* Team & Payouts */}
-              <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team & Payouts</p>
-                <p className="text-[11px] text-gray-400">Based on net profit of <strong className="text-emerald-600">{fmt(d.netProfit)}</strong></p>
+              {/* Team */}
+              <div className="bg-white/58 border border-white/75 rounded-[24px] p-4 space-y-3 backdrop-blur-2xl shadow-[0_14px_30px_rgba(15,23,42,0.07)] ring-1 ring-white/45">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team</p>
+                <p className="text-[11px] text-gray-400">Assign people first, then configure payout type and amount for each person.</p>
 
                 {activeProject.hub_project_contractors.length === 0 ? (
                   <p className="text-xs text-gray-400">No contractors assigned to this project yet.</p>
@@ -1112,41 +1199,98 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     {activeProject.hub_project_contractors.map(pc => {
                       const u = pc.hub_users;
                       if (!u) return null;
+                      const configForm = ctxConfigForm[pc.id] ?? {
+                        payoutType: (pc.payout_type === 'fixed' ? 'fixed' : 'percentage') as 'percentage' | 'fixed',
+                        percentage: pc.percentage ? String(pc.percentage) : '',
+                        fixedAmount: pc.fixed_amount != null ? String(pc.fixed_amount) : '',
+                      };
+                      const setConfigForm = (patch: Partial<typeof configForm>) => setCtxConfigForm(prev => ({
+                        ...prev,
+                        [pc.id]: { ...configForm, ...patch },
+                      }));
                       const isFixed = pc.payout_type === 'fixed';
-                      const cut = isFixed ? (pc.fixed_amount ?? 0) : d.netProfit * (pc.percentage / 100);
+                      const hasConfiguredPayout = isFixed ? (pc.fixed_amount ?? 0) > 0 : pc.percentage > 0;
+                      const cut = hasConfiguredPayout ? (isFixed ? (pc.fixed_amount ?? 0) : d.netProfit * (pc.percentage / 100)) : 0;
                       const totalPaidOut = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
                       const paidPct = cut > 0 ? Math.min((totalPaidOut / cut) * 100, 100) : 0;
                       const isFullyPaid = totalPaidOut >= cut && cut > 0;
                       const pf = ctxPayForm[pc.id] ?? { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null, notify: true };
                       const setPf = (patch: Partial<typeof pf>) => setCtxPayForm(prev => ({ ...prev, [pc.id]: { ...pf, ...patch } }));
                       return (
-                        <div key={pc.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                        <div key={pc.id} className="border border-white/70 bg-white/38 rounded-[22px] overflow-hidden backdrop-blur-xl shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
                           {/* Contractor header */}
-                          <div className="flex items-center gap-3 p-3 bg-gray-50">
+                          <div className="flex items-center gap-3 p-3 bg-white/45 backdrop-blur-md">
                             <Avatar name={u.full_name} url={u.avatar_url} />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
-                                {isFixed
-                                  ? <span className="text-xs text-gray-400">Fixed fee → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
-                                  : <span className="text-xs text-gray-400">{pc.percentage}% → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
-                                }
-                                {isFullyPaid
+                                {pc.project_role && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white border border-gray-200 text-gray-500 font-medium">
+                                    {pc.project_role}
+                                  </span>
+                                )}
+                                {!hasConfiguredPayout ? (
+                                  <span className="text-xs text-amber-600">No payout set</span>
+                                ) : isFixed ? (
+                                  <span className="text-xs text-gray-400">Fixed fee → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">{pc.percentage}% → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
+                                )}
+                                {hasConfiguredPayout && (isFullyPaid
                                   ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Paid in full</span>
                                   : totalPaidOut > 0
                                     ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{fmt(totalPaidOut)} paid</span>
                                     : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Unpaid</span>
-                                }
+                                )}
                               </div>
-                              <div className="mt-1.5 h-1 bg-gray-200 rounded-full overflow-hidden w-full">
-                                <div className={`h-full rounded-full transition-all ${isFullyPaid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${paidPct}%` }} />
-                              </div>
+                              {hasConfiguredPayout && (
+                                <div className="mt-1.5 h-1 bg-gray-200 rounded-full overflow-hidden w-full">
+                                  <div className={`h-full rounded-full transition-all ${isFullyPaid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${paidPct}%` }} />
+                                </div>
+                              )}
                             </div>
                             <button onClick={() => removeContractor(pc.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0"><i className="ri-delete-bin-line text-xs"></i></button>
                           </div>
 
+                          <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Payout Setup</p>
+                              <span className="text-[11px] text-gray-400">Net profit basis: <strong className="text-emerald-600">{fmt(d.netProfit)}</strong></span>
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">
+                                <button onClick={() => setConfigForm({ payoutType: 'percentage' })}
+                                  className={`px-2.5 py-1.5 cursor-pointer transition-colors ${configForm.payoutType === 'percentage' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                                  Percentage
+                                </button>
+                                <button onClick={() => setConfigForm({ payoutType: 'fixed' })}
+                                  className={`px-2.5 py-1.5 cursor-pointer transition-colors border-l border-gray-200 ${configForm.payoutType === 'fixed' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                                  Fixed Fee
+                                </button>
+                              </div>
+                              {configForm.payoutType === 'percentage' ? (
+                                <div className="relative w-24">
+                                  <input type="number" value={configForm.percentage} onChange={e => setConfigForm({ percentage: e.target.value })} placeholder="%" min="1" max="100"
+                                    className="w-full px-2.5 py-1.5 pr-6 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
+                                </div>
+                              ) : (
+                                <div className="relative w-40">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">₱</span>
+                                  <input type="number" value={configForm.fixedAmount} onChange={e => setConfigForm({ fixedAmount: e.target.value })} placeholder="Fixed fee amount"
+                                    className="w-full pl-6 pr-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                                </div>
+                              )}
+                              <button onClick={() => saveContractorPayoutConfig(pc.id)} disabled={ctxConfigSaving[pc.id]}
+                                className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                                {ctxConfigSaving[pc.id] ? 'Saving...' : hasConfiguredPayout ? 'Update Payout' : 'Set Payout'}
+                              </button>
+                            </div>
+                            {ctxConfigError[pc.id] && <p className="text-xs text-red-500">{ctxConfigError[pc.id]}</p>}
+                          </div>
+
                           {/* Payout history */}
-                          {pc.hub_project_contractor_payouts.length > 0 && (
+                          {hasConfiguredPayout && pc.hub_project_contractor_payouts.length > 0 && (
                             <div className="px-3 py-2 space-y-1.5 border-t border-gray-100">
                               {pc.hub_project_contractor_payouts.map(pp => (
                                 <div key={pp.id} className="flex items-center justify-between gap-2 text-xs">
@@ -1168,7 +1312,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           )}
 
                           {/* Log payout form */}
-                          {!isFullyPaid && (
+                          {hasConfiguredPayout && !isFullyPaid && (
                             <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
                               <div className="flex gap-2">
                                 <div className="flex-1 flex gap-1">
@@ -1227,57 +1371,34 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <div className="flex gap-2">
                       <select value={addCtxId} onChange={e => {
                         setAddCtxId(e.target.value);
-                        const c = contractors.find(x => x.id === e.target.value);
-                        if (c?.project_percentage) setAddCtxPct(String(c.project_percentage));
                       }}
                         className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
-                        <option value="">Add contractor...</option>
+                        <option value="">Add team member...</option>
                         {unassigned.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.department ? ` — ${c.department}` : ''}</option>)}
                       </select>
-                      {/* Payout type toggle */}
-                      <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs flex-shrink-0">
-                        <button onClick={() => setAddCtxPayoutType('percentage')}
-                          className={`px-2.5 py-1.5 cursor-pointer transition-colors ${addCtxPayoutType === 'percentage' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                          %
-                        </button>
-                        <button onClick={() => setAddCtxPayoutType('fixed')}
-                          className={`px-2.5 py-1.5 cursor-pointer transition-colors border-l border-gray-200 ${addCtxPayoutType === 'fixed' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                          ₱
-                        </button>
-                      </div>
                     </div>
                     <div className="flex gap-2">
-                      {addCtxPayoutType === 'percentage' ? (
-                        <div className="relative flex-1">
-                          <input type="number" value={addCtxPct} onChange={e => setAddCtxPct(e.target.value)} placeholder="%" min="1" max="100"
-                            className="w-full px-2.5 py-1.5 pr-6 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
-                        </div>
-                      ) : (
-                        <div className="relative flex-1">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">₱</span>
-                          <input type="number" value={addCtxFixed} onChange={e => setAddCtxFixed(e.target.value)} placeholder="Fixed fee amount"
-                            className="w-full pl-6 pr-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                        </div>
-                      )}
-                      <button onClick={addContractor} disabled={!addCtxId || (addCtxPayoutType === 'percentage' ? !addCtxPct : !addCtxFixed) || ctxSaving}
+                      <input value={addCtxRole} onChange={e => setAddCtxRole(e.target.value)} placeholder="Project role (optional)"
+                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <button onClick={addContractor} disabled={!addCtxId || ctxSaving}
                         className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
-                        {ctxSaving ? '...' : 'Add'}
+                        {ctxSaving ? '...' : 'Add Team Member'}
                       </button>
                     </div>
                     {ctxAddError && <p className="text-xs text-red-500">{ctxAddError}</p>}
+                    <p className="text-[11px] text-gray-400">Payout can be configured after assignment.</p>
                   </div>
                 )}
               </div>
             </div>
           );
         })() : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
+          <div className="flex items-center justify-center text-gray-400 py-8">
             <div className="text-center space-y-2">
               <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto">
                 <i className="ri-folder-open-line text-2xl text-gray-300"></i>
               </div>
-              <p className="text-sm">Select a project to view details</p>
+              <p className="text-sm">Select a project card to view details</p>
             </div>
           </div>
         )}
@@ -1365,8 +1486,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
         </div>
       )}
-      </div>
-
       {/* Send Invoice modal */}
       {invoiceModal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setInvoiceModal(null)}>
