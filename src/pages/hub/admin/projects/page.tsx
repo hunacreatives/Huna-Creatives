@@ -178,6 +178,13 @@ export default function AdminProjectsPage() {
   // Activity
   const [activity, setActivity] = useState<ProjectActivity[]>([]);
 
+  // Workspace overlay
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  // Collapsible detail sections (all closed by default)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const toggleSection = (key: string) => setOpenSections(s => ({ ...s, [key]: !s[key] }));
+  const teamPayoutsOpen = !!openSections['team'];
+
   // Payment reminders
   const [reminderDate, setReminderDate] = useState('');
   const [reminderAmount, setReminderAmount] = useState('');
@@ -877,6 +884,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   useEffect(() => {
     if (activeId && !isDemo) fetchTasks(activeId);
     else if (!activeId) { setTasks([]); setActivity([]); }
+    setWorkspaceOpen(false);
+    setOpenSections({});
   }, [activeId, isDemo]);
 
   const projectTags = (project: Project) => {
@@ -899,13 +908,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         <section className="space-y-3">
 
           <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto w-fit">
+            <div className="flex gap-1 overflow-x-auto w-fit rounded-full bg-transparent">
               {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
                 <button
                   key={tab.key}
                   onClick={() => setStatusFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                    statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                    statusFilter === tab.key ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                   }`}
                 >
                   {tab.label}
@@ -941,6 +950,23 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             )}
           </div>
 
+          {!loading && projects.length > 0 && !activeProject && (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-sm">
+              {[
+                { label: 'Contract', value: fmt(summaryTotals.contractValue), cls: 'text-gray-800' },
+                { label: 'Costs', value: fmt(summaryTotals.costs), cls: 'text-rose-600' },
+                { label: 'Net', value: fmt(summaryTotals.netProfit), cls: 'text-teal-600' },
+                { label: 'Collected', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, cls: 'text-emerald-600' },
+              ].map((s, index, arr) => (
+                <div key={s.label} className="flex items-baseline gap-2">
+                  <span className="text-[11px] uppercase tracking-[0.12em] text-gray-400">{s.label}</span>
+                  <span className={`font-semibold ${s.cls}`}>{s.value}</span>
+                  {index < arr.length - 1 && <span className="hidden md:inline text-gray-200">/</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="pt-1 pb-3">
             {loading ? (
               <div className="flex justify-center py-16"><i className="ri-loader-4-line animate-spin text-gray-300 text-2xl"></i></div>
@@ -961,8 +987,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       onClick={() => setActiveId(prev => prev === p.id ? null : p.id)}
                       className={`w-full lg:w-[272px] lg:shrink-0 rounded-xl border bg-white p-4 text-left transition-colors flex flex-col gap-3 ${
                         activeId === p.id
-                          ? 'border-[#FF6B35] shadow-sm'
-                          : 'border-gray-100 hover:border-gray-200'
+                          ? 'border-[#FF6B35] shadow-[0_6px_18px_rgba(15,23,42,0.06)]'
+                          : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_14px_rgba(15,23,42,0.04)]'
                       }`}
                     >
                       {/* Top row: status + assigned avatars */}
@@ -1016,22 +1042,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
         </section>
 
-        {!loading && projects.length > 0 && !activeProject && (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-            {[
-              { label: 'Contract', value: fmt(summaryTotals.contractValue), cls: 'text-gray-800' },
-              { label: 'Costs', value: fmt(summaryTotals.costs), cls: 'text-rose-600' },
-              { label: 'Net', value: fmt(summaryTotals.netProfit), cls: 'text-teal-600' },
-              { label: 'Collected', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, cls: 'text-emerald-600' },
-            ].map(s => (
-              <div key={s.label} className="bg-white border border-gray-100 rounded-xl px-3 py-2.5">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
-                <p className={`text-sm font-bold ${s.cls} truncate mt-1`}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
         {activeProject ? (() => {
           const d = derived(activeProject);
           const cfg = statusCfg[activeProject.status] ?? statusCfg.ongoing;
@@ -1072,7 +1082,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', scope: activeProject.scope ?? '', contract_price: String(activeProject.contract_price), deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '' }); setShowForm(true); }}
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: String(activeProject.contract_price), deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '' }); setShowForm(true); }}
                       className="px-4 flex items-center gap-1.5 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-xl cursor-pointer">
                       <i className="ri-edit-line"></i>
                     </button>
@@ -1149,6 +1159,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-white/55">
                       <i className="ri-edit-line"></i> Edit
                     </button>
+                    <button onClick={() => setWorkspaceOpen(true)}
+                      className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors">
+                      <i className="ri-layout-grid-line"></i> Open Workspace
+                    </button>
                   </div>
                 </div>
 
@@ -1185,218 +1199,269 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Client Payments */}
                 <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Client Payments</p>
-                  {activeProject.hub_project_payments.length === 0 ? (
-                    <p className="text-xs text-gray-400">No payments logged yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {[...activeProject.hub_project_payments].sort((a, b) => new Date(a.paid_at).getTime() - new Date(b.paid_at).getTime()).map((pp) => (
-                        <div key={pp.id} className="bg-white/45 border border-white/65 rounded-xl overflow-hidden backdrop-blur-md">
-                          {editingPaymentId === pp.id ? (
-                            <div className="p-2.5 space-y-2">
-                              <div className="flex gap-2">
-                                <input type="number" value={editPayForm.amount} onChange={e => setEditPayForm(f => ({ ...f, amount: e.target.value }))} placeholder="Amount"
-                                  className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                                <input type="date" value={editPayForm.date} onChange={e => setEditPayForm(f => ({ ...f, date: e.target.value }))}
-                                  className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                              </div>
-                              <input value={editPayForm.notes} onChange={e => setEditPayForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)"
-                                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                              <div className="flex items-center gap-2">
-                                <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-white transition-colors flex-1">
-                                  <i className="ri-image-add-line text-gray-400 text-sm"></i>
-                                  <span className="text-xs text-gray-400 truncate">{editPayForm.receipt ? editPayForm.receipt.name : editPayForm.existingReceiptUrl ? 'Replace receipt' : 'Attach proof of payment'}</span>
-                                  <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => setEditPayForm(f => ({ ...f, receipt: e.target.files?.[0] ?? null }))} />
-                                </label>
-                                {editPayForm.existingReceiptUrl && !editPayForm.receipt && (
-                                  <button onClick={() => setLightboxUrl(editPayForm.existingReceiptUrl)} className="cursor-pointer flex-shrink-0">
-                                    <img src={editPayForm.existingReceiptUrl} alt="receipt" className="h-8 w-12 object-cover rounded border border-gray-200 hover:opacity-80" />
-                                  </button>
-                                )}
-                                {(editPayForm.receipt || editPayForm.existingReceiptUrl) && (
-                                  <button onClick={() => setEditPayForm(f => ({ ...f, receipt: null, existingReceiptUrl: null }))} className="text-gray-300 hover:text-rose-400 cursor-pointer text-xs flex-shrink-0">
-                                    <i className="ri-close-line"></i>
-                                  </button>
-                                )}
-                              </div>
-                              {editPayError && <p className="text-xs text-red-500">{editPayError}</p>}
-                              <div className="flex gap-2">
-                                <button onClick={() => setEditingPaymentId(null)} className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-white cursor-pointer">Cancel</button>
-                                <button onClick={updatePayment} disabled={!editPayForm.amount || editPaySaving}
-                                  className="flex-1 py-1.5 text-xs bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40">
-                                  {editPaySaving ? '...' : 'Save'}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-start justify-between gap-2 p-2.5">
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm font-semibold text-emerald-600">{fmt(pp.amount)}</span>
-                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                  <span className="text-[11px] text-gray-400">
-                                    <i className="ri-calendar-line text-[10px] mr-0.5"></i>
-                                    {pp.paid_at ? new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                                  </span>
-                                  {pp.notes && (
-                                    <span className="text-[11px] text-gray-500">
-                                      · <i className="ri-file-text-line text-[10px] mr-0.5"></i>{pp.notes}
-                                    </span>
-                                  )}
+                  <button onClick={() => toggleSection('payments')} className="w-full flex items-center justify-between cursor-pointer group">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Client Payments</p>
+                    <div className="flex items-center gap-2">
+                      {!openSections['payments'] && activeProject.hub_project_payments.length > 0 && (
+                        <span className="text-xs text-emerald-600 font-medium">{activeProject.hub_project_payments.length} payment{activeProject.hub_project_payments.length !== 1 ? 's' : ''}</span>
+                      )}
+                      <i className={`ri-arrow-${openSections['payments'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
+                    </div>
+                  </button>
+                  {openSections['payments'] && (
+                    <>
+                      {activeProject.hub_project_payments.length === 0 ? (
+                        <p className="text-xs text-gray-400">No payments logged yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {[...activeProject.hub_project_payments].sort((a, b) => new Date(a.paid_at).getTime() - new Date(b.paid_at).getTime()).map((pp) => (
+                            <div key={pp.id} className="bg-white/45 border border-white/65 rounded-xl overflow-hidden backdrop-blur-md">
+                              {editingPaymentId === pp.id ? (
+                                <div className="p-2.5 space-y-2">
+                                  <div className="flex gap-2">
+                                    <input type="number" value={editPayForm.amount} onChange={e => setEditPayForm(f => ({ ...f, amount: e.target.value }))} placeholder="Amount"
+                                      className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                                    <input type="date" value={editPayForm.date} onChange={e => setEditPayForm(f => ({ ...f, date: e.target.value }))}
+                                      className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                                  </div>
+                                  <input value={editPayForm.notes} onChange={e => setEditPayForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes (optional)"
+                                    className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                                  <div className="flex items-center gap-2">
+                                    <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-white transition-colors flex-1">
+                                      <i className="ri-image-add-line text-gray-400 text-sm"></i>
+                                      <span className="text-xs text-gray-400 truncate">{editPayForm.receipt ? editPayForm.receipt.name : editPayForm.existingReceiptUrl ? 'Replace receipt' : 'Attach proof of payment'}</span>
+                                      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => setEditPayForm(f => ({ ...f, receipt: e.target.files?.[0] ?? null }))} />
+                                    </label>
+                                    {editPayForm.existingReceiptUrl && !editPayForm.receipt && (
+                                      <button onClick={() => setLightboxUrl(editPayForm.existingReceiptUrl)} className="cursor-pointer flex-shrink-0">
+                                        <img src={editPayForm.existingReceiptUrl} alt="receipt" className="h-8 w-12 object-cover rounded border border-gray-200 hover:opacity-80" />
+                                      </button>
+                                    )}
+                                    {(editPayForm.receipt || editPayForm.existingReceiptUrl) && (
+                                      <button onClick={() => setEditPayForm(f => ({ ...f, receipt: null, existingReceiptUrl: null }))} className="text-gray-300 hover:text-rose-400 cursor-pointer text-xs flex-shrink-0">
+                                        <i className="ri-close-line"></i>
+                                      </button>
+                                    )}
+                                  </div>
+                                  {editPayError && <p className="text-xs text-red-500">{editPayError}</p>}
+                                  <div className="flex gap-2">
+                                    <button onClick={() => setEditingPaymentId(null)} className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 hover:bg-white cursor-pointer">Cancel</button>
+                                    <button onClick={updatePayment} disabled={!editPayForm.amount || editPaySaving}
+                                      className="flex-1 py-1.5 text-xs bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40">
+                                      {editPaySaving ? '...' : 'Save'}
+                                    </button>
+                                  </div>
                                 </div>
-                                {pp.receipt_url && (
-                                  <button onClick={() => setLightboxUrl(pp.receipt_url)} className="mt-1.5 cursor-pointer">
-                                    <img src={pp.receipt_url} alt="receipt" className="h-8 w-14 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
-                                  </button>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                <button onClick={() => { setSendReceiptModal({ payment: pp, project: activeProject }); setSendReceiptEmail(activeProject.contact_email ?? ''); setSendReceiptCc(''); setSendReceiptMsg(null); }}
-                                  className="text-gray-300 hover:text-sky-500 cursor-pointer mt-0.5" title="Send receipt to client">
-                                  <i className="ri-mail-send-line text-xs"></i>
-                                </button>
-                                <button onClick={() => { setEditingPaymentId(pp.id); setEditPayForm({ amount: String(pp.amount), date: pp.paid_at, notes: pp.notes ?? '', receipt: null, existingReceiptUrl: pp.receipt_url }); setEditPayError(''); }}
-                                  className="text-gray-300 hover:text-gray-600 cursor-pointer mt-0.5"><i className="ri-edit-line text-xs"></i></button>
-                                <button onClick={() => deletePayment(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer mt-0.5"><i className="ri-delete-bin-line text-xs"></i></button>
-                              </div>
+                              ) : (
+                                <div className="flex items-start justify-between gap-2 p-2.5">
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-sm font-semibold text-emerald-600">{fmt(pp.amount)}</span>
+                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      <span className="text-[11px] text-gray-400">
+                                        <i className="ri-calendar-line text-[10px] mr-0.5"></i>
+                                        {pp.paid_at ? new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                                      </span>
+                                      {pp.notes && (
+                                        <span className="text-[11px] text-gray-500">
+                                          · <i className="ri-file-text-line text-[10px] mr-0.5"></i>{pp.notes}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {pp.receipt_url && (
+                                      <button onClick={() => setLightboxUrl(pp.receipt_url)} className="mt-1.5 cursor-pointer">
+                                        <img src={pp.receipt_url} alt="receipt" className="h-8 w-14 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <button onClick={() => { setSendReceiptModal({ payment: pp, project: activeProject }); setSendReceiptEmail(activeProject.contact_email ?? ''); setSendReceiptCc(''); setSendReceiptMsg(null); }}
+                                      className="text-gray-300 hover:text-sky-500 cursor-pointer mt-0.5" title="Send receipt to client">
+                                      <i className="ri-mail-send-line text-xs"></i>
+                                    </button>
+                                    <button onClick={() => { setEditingPaymentId(pp.id); setEditPayForm({ amount: String(pp.amount), date: pp.paid_at, notes: pp.notes ?? '', receipt: null, existingReceiptUrl: pp.receipt_url }); setEditPayError(''); }}
+                                      className="text-gray-300 hover:text-gray-600 cursor-pointer mt-0.5"><i className="ri-edit-line text-xs"></i></button>
+                                    <button onClick={() => deletePayment(pp.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer mt-0.5"><i className="ri-delete-bin-line text-xs"></i></button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="border-t border-gray-100 pt-3 space-y-2">
+                        <div className="flex gap-2">
+                          <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="Amount"
+                            className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                          <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
+                            className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                        </div>
+                        <div className="flex gap-2">
+                          <input value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder="Notes (optional)"
+                            className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                          <button onClick={logPayment} disabled={!payAmount || paySaving}
+                            className="px-3 py-1.5 bg-emerald-500 text-white text-xs rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                            {paySaving ? '...' : '+ Log'}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <i className="ri-image-add-line text-gray-400 text-sm"></i>
+                            <span className="text-xs text-gray-400">{payReceipt ? payReceipt.name : 'Attach receipt (optional)'}</span>
+                            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => setPayReceipt(e.target.files?.[0] ?? null)} />
+                          </label>
+                          {payReceipt && (
+                            <button onClick={() => setPayReceipt(null)} className="text-gray-300 hover:text-rose-400 cursor-pointer text-xs">
+                              <i className="ri-close-line"></i>
+                            </button>
                           )}
                         </div>
-                      ))}
-                    </div>
+                        {payError && <p className="text-xs text-red-500">{payError}</p>}
+                      </div>
+                    </>
                   )}
-                  <div className="border-t border-gray-100 pt-3 space-y-2">
-                    <div className="flex gap-2">
-                      <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="Amount"
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                      <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
-                        className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                    </div>
-                    <div className="flex gap-2">
-                      <input value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder="Notes (optional)"
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                      <button onClick={logPayment} disabled={!payAmount || paySaving}
-                        className="px-3 py-1.5 bg-emerald-500 text-white text-xs rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap">
-                        {paySaving ? '...' : '+ Log'}
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-1.5 px-2.5 py-1.5 border border-dashed border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                        <i className="ri-image-add-line text-gray-400 text-sm"></i>
-                        <span className="text-xs text-gray-400">{payReceipt ? payReceipt.name : 'Attach receipt (optional)'}</span>
-                        <input type="file" accept="image/*,application/pdf" className="hidden" onChange={e => setPayReceipt(e.target.files?.[0] ?? null)} />
-                      </label>
-                      {payReceipt && (
-                        <button onClick={() => setPayReceipt(null)} className="text-gray-300 hover:text-rose-400 cursor-pointer text-xs">
-                          <i className="ri-close-line"></i>
-                        </button>
-                      )}
-                    </div>
-                    {payError && <p className="text-xs text-red-500">{payError}</p>}
-                  </div>
                 </div>
 
                 {/* Payment Schedule */}
                 <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
+                  <button onClick={() => toggleSection('schedule')} className="w-full flex items-center justify-between cursor-pointer group">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Schedule</p>
-                    <span className="text-[10px] text-gray-400">Reminders auto-send on due date</span>
-                  </div>
-                  {(activeProject.hub_payment_reminders ?? []).length === 0 ? (
-                    <p className="text-xs text-gray-400">No reminders scheduled.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {[...(activeProject.hub_payment_reminders ?? [])].sort((a, b) => a.send_date.localeCompare(b.send_date)).map(r => {
-                        const isPast = r.send_date < new Date().toISOString().slice(0, 10);
-                        const statusCls = r.status === 'sent' ? 'text-emerald-600 bg-emerald-50' : r.status === 'cancelled' ? 'text-gray-400 bg-gray-100 line-through' : isPast ? 'text-rose-500 bg-rose-50' : 'text-amber-600 bg-amber-50';
-                        const statusLabel = r.status === 'sent' ? 'Sent' : r.status === 'cancelled' ? 'Cancelled' : isPast ? 'Overdue' : 'Pending';
-                        return (
-                          <div key={r.id} className="flex items-center justify-between gap-2 bg-white/48 border border-white/65 rounded-xl px-3 py-2 backdrop-blur-md">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-medium text-gray-700">
-                                  {new Date(r.send_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </span>
-                                {r.amount_due && <span className="text-xs font-semibold text-[#FF6B35]">{fmt(r.amount_due)}</span>}
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusCls}`}>{statusLabel}</span>
+                    <div className="flex items-center gap-2">
+                      {!openSections['schedule'] && (activeProject.hub_payment_reminders ?? []).length > 0 && (
+                        <span className="text-xs text-amber-600 font-medium">{(activeProject.hub_payment_reminders ?? []).length} reminder{(activeProject.hub_payment_reminders ?? []).length !== 1 ? 's' : ''}</span>
+                      )}
+                      <i className={`ri-arrow-${openSections['schedule'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
+                    </div>
+                  </button>
+                  {openSections['schedule'] && (
+                    <>
+                      <p className="text-[10px] text-gray-400">Reminders auto-send on due date</p>
+                      {(activeProject.hub_payment_reminders ?? []).length === 0 ? (
+                        <p className="text-xs text-gray-400">No reminders scheduled.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {[...(activeProject.hub_payment_reminders ?? [])].sort((a, b) => a.send_date.localeCompare(b.send_date)).map(r => {
+                            const isPast = r.send_date < new Date().toISOString().slice(0, 10);
+                            const statusCls = r.status === 'sent' ? 'text-emerald-600 bg-emerald-50' : r.status === 'cancelled' ? 'text-gray-400 bg-gray-100 line-through' : isPast ? 'text-rose-500 bg-rose-50' : 'text-amber-600 bg-amber-50';
+                            const statusLabel = r.status === 'sent' ? 'Sent' : r.status === 'cancelled' ? 'Cancelled' : isPast ? 'Overdue' : 'Pending';
+                            return (
+                              <div key={r.id} className="flex items-center justify-between gap-2 bg-white/48 border border-white/65 rounded-xl px-3 py-2 backdrop-blur-md">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-medium text-gray-700">
+                                      {new Date(r.send_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </span>
+                                    {r.amount_due && <span className="text-xs font-semibold text-[#FF6B35]">{fmt(r.amount_due)}</span>}
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusCls}`}>{statusLabel}</span>
+                                  </div>
+                                  {r.notes && <p className="text-[11px] text-gray-400 mt-0.5">{r.notes}</p>}
+                                </div>
+                                {r.status === 'pending' && (
+                                  <button onClick={() => deleteReminder(r.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0">
+                                    <i className="ri-delete-bin-line text-xs"></i>
+                                  </button>
+                                )}
                               </div>
-                              {r.notes && <p className="text-[11px] text-gray-400 mt-0.5">{r.notes}</p>}
-                            </div>
-                            {r.status === 'pending' && (
-                              <button onClick={() => deleteReminder(r.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0">
-                                <i className="ri-delete-bin-line text-xs"></i>
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div className="border-t border-gray-100 pt-3 space-y-2">
+                        <div className="flex gap-2">
+                          <input type="date" value={reminderDate} onChange={e => setReminderDate(e.target.value)}
+                            className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                          <input type="number" value={reminderAmount} onChange={e => setReminderAmount(e.target.value)} placeholder="Amount (optional)"
+                            className="w-32 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                        </div>
+                        <div className="flex gap-2">
+                          <input value={reminderNotes} onChange={e => setReminderNotes(e.target.value)} placeholder="Note e.g. 2nd installment"
+                            className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                          <button onClick={addReminder} disabled={!reminderDate || reminderSaving}
+                            className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                            {reminderSaving ? '...' : '+ Add'}
+                          </button>
+                        </div>
+                        {reminderError && <p className="text-xs text-red-500">{reminderError}</p>}
+                      </div>
+                    </>
                   )}
-                  <div className="border-t border-gray-100 pt-3 space-y-2">
-                    <div className="flex gap-2">
-                      <input type="date" value={reminderDate} onChange={e => setReminderDate(e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                      <input type="number" value={reminderAmount} onChange={e => setReminderAmount(e.target.value)} placeholder="Amount (optional)"
-                        className="w-32 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                    </div>
-                    <div className="flex gap-2">
-                      <input value={reminderNotes} onChange={e => setReminderNotes(e.target.value)} placeholder="Note e.g. 2nd installment"
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                      <button onClick={addReminder} disabled={!reminderDate || reminderSaving}
-                        className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap">
-                        {reminderSaving ? '...' : '+ Add'}
-                      </button>
-                    </div>
-                    {reminderError && <p className="text-xs text-red-500">{reminderError}</p>}
-                  </div>
                 </div>
 
                 {/* Operational Costs */}
                 <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Operational Costs</p>
-                  {activeProject.hub_project_costs.length === 0 ? (
-                    <p className="text-xs text-gray-400">No costs logged yet.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {activeProject.hub_project_costs.map(cc => (
-                        <div key={cc.id} className="flex items-center justify-between gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-700 text-xs">{cc.label}</span>
-                            <span className="font-medium text-rose-500 ml-2">{fmt(cc.amount)}</span>
-                            <span className="text-xs text-gray-400 ml-1">· {new Date(cc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                          </div>
-                          <button onClick={() => deleteCost(cc.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer"><i className="ri-delete-bin-line text-xs"></i></button>
+                  <button onClick={() => toggleSection('costs')} className="w-full flex items-center justify-between cursor-pointer group">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Operational Costs</p>
+                    <div className="flex items-center gap-2">
+                      {!openSections['costs'] && activeProject.hub_project_costs.length > 0 && (
+                        <span className="text-xs text-rose-500 font-medium">{fmt(activeProject.hub_project_costs.reduce((s, c) => s + c.amount, 0))}</span>
+                      )}
+                      <i className={`ri-arrow-${openSections['costs'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
+                    </div>
+                  </button>
+                  {openSections['costs'] && (
+                    <>
+                      {activeProject.hub_project_costs.length === 0 ? (
+                        <p className="text-xs text-gray-400">No costs logged yet.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {activeProject.hub_project_costs.map(cc => (
+                            <div key={cc.id} className="flex items-center justify-between gap-2 text-sm">
+                              <div>
+                                <span className="text-gray-700 text-xs">{cc.label}</span>
+                                <span className="font-medium text-rose-500 ml-2">{fmt(cc.amount)}</span>
+                                <span className="text-xs text-gray-400 ml-1">· {new Date(cc.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                              </div>
+                              <button onClick={() => deleteCost(cc.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer"><i className="ri-delete-bin-line text-xs"></i></button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      )}
+                      <div className="border-t border-gray-100 pt-3 space-y-2">
+                        <div className="flex gap-2">
+                          <input value={costLabel} onChange={e => setCostLabel(e.target.value)} placeholder="e.g. Hosting, Domain"
+                            className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                          <input type="number" value={costAmount} onChange={e => setCostAmount(e.target.value)} placeholder="Amount"
+                            className="w-24 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                        </div>
+                        <div className="flex gap-2">
+                          <input type="date" value={costDate} onChange={e => setCostDate(e.target.value)}
+                            className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                          <button onClick={logCost} disabled={!costLabel.trim() || !costAmount || costSaving}
+                            className="flex-1 px-3 py-1.5 bg-rose-500 text-white text-xs rounded-lg hover:bg-rose-600 cursor-pointer disabled:opacity-40">
+                            {costSaving ? '...' : '+ Log Cost'}
+                          </button>
+                        </div>
+                        {costError && <p className="text-xs text-red-500">{costError}</p>}
+                      </div>
+                    </>
                   )}
-                  <div className="border-t border-gray-100 pt-3 space-y-2">
-                    <div className="flex gap-2">
-                      <input value={costLabel} onChange={e => setCostLabel(e.target.value)} placeholder="e.g. Hosting, Domain"
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                      <input type="number" value={costAmount} onChange={e => setCostAmount(e.target.value)} placeholder="Amount"
-                        className="w-24 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                    </div>
-                    <div className="flex gap-2">
-                      <input type="date" value={costDate} onChange={e => setCostDate(e.target.value)}
-                        className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                      <button onClick={logCost} disabled={!costLabel.trim() || !costAmount || costSaving}
-                        className="flex-1 px-3 py-1.5 bg-rose-500 text-white text-xs rounded-lg hover:bg-rose-600 cursor-pointer disabled:opacity-40">
-                        {costSaving ? '...' : '+ Log Cost'}
-                      </button>
-                    </div>
-                    {costError && <p className="text-xs text-red-500">{costError}</p>}
-                  </div>
                 </div>
               </div>
 
               {/* Team */}
               <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team</p>
-                <p className="text-[11px] text-gray-400">Assign people first, then configure payout type and amount for each person.</p>
-
-                {activeProject.hub_project_contractors.length === 0 ? (
+                <button onClick={() => toggleSection('team')} className="w-full flex items-center justify-between cursor-pointer group">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team & Payouts</p>
+                  <i className={`ri-arrow-${teamPayoutsOpen ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
+                </button>
+                {!teamPayoutsOpen && activeProject.hub_project_contractors.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    {activeProject.hub_project_contractors.slice(0, 5).map(pc => pc.hub_users && (
+                      <div key={pc.hub_users.id} title={pc.hub_users.full_name}>
+                        {pc.hub_users.avatar_url
+                          ? <img src={pc.hub_users.avatar_url} alt={pc.hub_users.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white -ml-1 first:ml-0" />
+                          : <div className="w-7 h-7 rounded-full bg-[#FF6B35] border-2 border-white flex items-center justify-center -ml-1 first:ml-0"><span className="text-white text-[10px] font-bold">{pc.hub_users.full_name[0]}</span></div>
+                        }
+                      </div>
+                    ))}
+                    <span className="text-xs text-gray-400 ml-1">{activeProject.hub_project_contractors.length} member{activeProject.hub_project_contractors.length !== 1 ? 's' : ''} · click to expand</span>
+                  </div>
+                )}
+                {teamPayoutsOpen && (
+                  <>
+                  <p className="text-[11px] text-gray-400">Assign people first, then configure payout type and amount for each person.</p>
+                  {activeProject.hub_project_contractors.length === 0 ? (
                   <p className="text-xs text-gray-400">No contractors assigned to this project yet.</p>
-                ) : (
+                  ) : (
                   <div className="space-y-3">
                     {activeProject.hub_project_contractors.map(pc => {
                       const u = pc.hub_users;
@@ -1566,34 +1631,35 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       );
                     })}
                   </div>
-                )}
-
-                {unassigned.length > 0 && (
-                  <div className="border-t border-gray-100 pt-3 space-y-2">
-                    <div className="flex gap-2">
-                      <select value={addCtxId} onChange={e => {
-                        setAddCtxId(e.target.value);
-                      }}
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
-                        <option value="">Add team member...</option>
-                        {unassigned.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.department ? ` — ${c.department}` : ''}</option>)}
-                      </select>
+                  )}
+                  {unassigned.length > 0 && (
+                    <div className="border-t border-gray-100 pt-3 space-y-2">
+                      <div className="flex gap-2">
+                        <select value={addCtxId} onChange={e => {
+                          setAddCtxId(e.target.value);
+                        }}
+                          className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
+                          <option value="">Add team member...</option>
+                          {unassigned.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.department ? ` — ${c.department}` : ''}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <input value={addCtxRole} onChange={e => setAddCtxRole(e.target.value)} placeholder="Project role (optional)"
+                          className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                        <button onClick={addContractor} disabled={!addCtxId || ctxSaving}
+                          className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                          {ctxSaving ? '...' : 'Add Team Member'}
+                        </button>
+                      </div>
+                      {ctxAddError && <p className="text-xs text-red-500">{ctxAddError}</p>}
+                      <p className="text-[11px] text-gray-400">Payout can be configured after assignment.</p>
                     </div>
-                    <div className="flex gap-2">
-                      <input value={addCtxRole} onChange={e => setAddCtxRole(e.target.value)} placeholder="Project role (optional)"
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                      <button onClick={addContractor} disabled={!addCtxId || ctxSaving}
-                        className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
-                        {ctxSaving ? '...' : 'Add Team Member'}
-                      </button>
-                    </div>
-                    {ctxAddError && <p className="text-xs text-red-500">{ctxAddError}</p>}
-                    <p className="text-[11px] text-gray-400">Payout can be configured after assignment.</p>
-                  </div>
+                  )}
+                  </>
                 )}
               </div>
-              {/* Tasks */}
-              {(() => {
+              {/* Workspace overlay */}
+              {workspaceOpen && activeProject && (() => {
                 const today = new Date().toISOString().slice(0, 10);
                 const isOverdue = (t: ProjectTask) => t.due_date && t.due_date < today && t.status !== 'done';
                 const filtered_tasks = tasks.filter(t => {
@@ -1611,152 +1677,200 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   done: { icon: 'ri-checkbox-circle-fill', cls: 'text-emerald-500' },
                 };
                 return (
-                  <div className="hidden lg:block bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-shrink-0">Tasks</p>
-                        {tasks.length > 0 && (
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-[11px] text-gray-400 flex-shrink-0">{doneCt}/{tasks.length}</span>
-                          </div>
-                        )}
+                  <div className="hidden lg:flex fixed inset-0 z-30 items-stretch" style={{ left: 'var(--sidebar-width, 260px)' }} onClick={() => setWorkspaceOpen(false)}>
+                  <div className="flex-1 flex flex-col bg-white/90 backdrop-blur-xl rounded-[34px] m-4 overflow-hidden shadow-2xl border border-white/80" onClick={e => e.stopPropagation()}>
+
+                    {/* Workspace header */}
+                    <div className="flex items-center justify-between px-7 py-5 border-b border-gray-100 flex-shrink-0">
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <i className="ri-layout-grid-line text-indigo-500 text-sm"></i>
+                          <span className="text-[11px] font-semibold text-indigo-500 uppercase tracking-widest">Workspace</span>
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900">{activeProject.project_name}</h2>
+                        <p className="text-sm text-gray-400 mt-0.5">{activeProject.client_name}{activeProject.service ? ` · ${activeProject.service}` : ''}</p>
                       </div>
-                      <button onClick={() => setShowTaskForm(s => !s)}
-                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#FF6B35] cursor-pointer flex-shrink-0 transition-colors">
-                        <i className={showTaskForm ? 'ri-close-line' : 'ri-add-line'}></i>
-                        {showTaskForm ? 'Cancel' : 'Add Task'}
+                      <button onClick={() => setWorkspaceOpen(false)} className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 cursor-pointer transition-colors">
+                        <i className="ri-close-line"></i>
                       </button>
                     </div>
 
-                    {/* Filter pills */}
-                    {tasks.length > 0 && (
-                      <div className="flex gap-1 flex-wrap">
-                        {(['all', 'todo', 'in_progress', 'done', 'overdue'] as const).map(f => {
-                          const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'In Progress', done: 'Done', overdue: 'Overdue' };
-                          const counts: Record<string, number> = {
-                            all: tasks.length,
-                            todo: tasks.filter(t => t.status === 'todo').length,
-                            in_progress: tasks.filter(t => t.status === 'in_progress').length,
-                            done: tasks.filter(t => t.status === 'done').length,
-                            overdue: tasks.filter(t => !!isOverdue(t)).length,
-                          };
-                          if (f !== 'all' && counts[f] === 0) return null;
-                          return (
-                            <button key={f} onClick={() => setTaskFilter(f)}
-                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${taskFilter === f ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                              {labels[f]} <span className="opacity-60">{counts[f]}</span>
-                            </button>
-                          );
-                        })}
+                    <div className="flex-1 overflow-y-auto p-7 space-y-6">
+
+                      {/* Stats row */}
+                      <div className="grid grid-cols-4 gap-3">
+                        {[
+                          { label: 'Total Tasks', value: tasks.length, icon: 'ri-task-line', cls: 'text-gray-700' },
+                          { label: 'Done', value: tasks.filter(t => t.status === 'done').length, icon: 'ri-checkbox-circle-line', cls: 'text-emerald-600' },
+                          { label: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', cls: 'text-sky-600' },
+                          { label: 'Overdue', value: tasks.filter(t => !!isOverdue(t)).length, icon: 'ri-alarm-warning-line', cls: 'text-rose-600' },
+                        ].map(s => (
+                          <div key={s.label} className="bg-gray-50 rounded-2xl p-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <i className={`${s.icon} ${s.cls} text-sm`}></i>
+                              <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">{s.label}</span>
+                            </div>
+                            <p className={`text-2xl font-bold ${s.cls}`}>{s.value}</p>
+                          </div>
+                        ))}
                       </div>
-                    )}
 
-                    {/* Task list */}
-                    {filtered_tasks.length === 0 && !showTaskForm && (
-                      <p className="text-xs text-gray-400">{tasks.length === 0 ? 'No tasks yet. Add the first one.' : 'No tasks in this filter.'}</p>
-                    )}
+                      {/* Task list */}
+                      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                        {/* Task list header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-semibold text-gray-800">Tasks</h3>
+                            {tasks.length > 0 && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="text-xs text-gray-400">{doneCt}/{tasks.length}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* Filter pills */}
+                            <div className="flex gap-1">
+                              {(['all', 'todo', 'in_progress', 'done', 'overdue'] as const).map(f => {
+                                const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'In Progress', done: 'Done', overdue: 'Overdue' };
+                                const counts: Record<string, number> = {
+                                  all: tasks.length, todo: tasks.filter(t => t.status === 'todo').length,
+                                  in_progress: tasks.filter(t => t.status === 'in_progress').length,
+                                  done: tasks.filter(t => t.status === 'done').length,
+                                  overdue: tasks.filter(t => !!isOverdue(t)).length,
+                                };
+                                if (f !== 'all' && counts[f] === 0) return null;
+                                return (
+                                  <button key={f} onClick={() => setTaskFilter(f)}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${taskFilter === f ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                    {labels[f]}{f !== 'all' && <span className="ml-1 opacity-60">{counts[f]}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button onClick={() => setShowTaskForm(s => !s)}
+                              className="flex items-center gap-1 text-xs px-3 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-full cursor-pointer transition-colors font-medium">
+                              <i className={showTaskForm ? 'ri-close-line' : 'ri-add-line'}></i>
+                              {showTaskForm ? 'Cancel' : 'Add Task'}
+                            </button>
+                          </div>
+                        </div>
 
-                    {filtered_tasks.length > 0 && (
-                      <div className="space-y-1">
-                        {filtered_tasks.map(task => {
-                          const sc = statusCycle[task.status];
-                          const overdue = isOverdue(task);
-                          return (
-                            <div key={task.id} className={`flex items-center gap-2.5 py-2 px-2 rounded-lg group hover:bg-gray-50 transition-colors ${task.status === 'done' ? 'opacity-60' : ''}`}>
-                              <button onClick={() => toggleTask(task)} className={`flex-shrink-0 text-base cursor-pointer transition-colors ${sc.cls}`}>
-                                <i className={sc.icon}></i>
+                        {/* Add task form */}
+                        {showTaskForm && (
+                          <div className="px-5 py-3 bg-indigo-50/50 border-b border-indigo-100/60 space-y-2">
+                            <input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Task title..."
+                              autoFocus onKeyDown={e => e.key === 'Enter' && createTask()}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 bg-white" />
+                            <div className="flex gap-2">
+                              <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)}
+                                className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">
+                                <option value="">Unassigned</option>
+                                {taskTeam.map(u => u && <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                              </select>
+                              <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)}
+                                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                              <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
+                                className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                              </select>
+                              <button onClick={createTask} disabled={!newTaskTitle.trim() || taskSaving}
+                                className="px-4 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                                {taskSaving ? '...' : 'Add'}
                               </button>
-                              <div className="flex-1 min-w-0">
-                                <p className={`text-sm text-gray-700 truncate ${task.status === 'done' ? 'line-through text-gray-400' : ''}`}>{task.title}</p>
-                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tasks */}
+                        {filtered_tasks.length === 0 ? (
+                          <div className="px-5 py-10 text-center">
+                            <p className="text-sm text-gray-400">{tasks.length === 0 ? 'No tasks yet — add the first one.' : 'No tasks in this filter.'}</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-gray-50">
+                            {filtered_tasks.map((task, idx) => {
+                              const sc = statusCycle[task.status];
+                              const overdue = isOverdue(task);
+                              return (
+                                <div key={task.id} className={`flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/70 group transition-colors ${idx === 0 ? '' : ''}`}>
+                                  <button onClick={() => toggleTask(task)} className={`flex-shrink-0 text-xl cursor-pointer transition-colors ${sc.cls}`}>
+                                    <i className={sc.icon}></i>
+                                  </button>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
+                                  </div>
+                                  {task.hub_users && (
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                      {task.hub_users.avatar_url
+                                        ? <img src={task.hub_users.avatar_url} alt={task.hub_users.full_name} className="w-5 h-5 rounded-full object-cover" />
+                                        : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center" style={{ fontSize: 8 }}><span className="text-white font-bold">{task.hub_users.full_name[0]}</span></div>
+                                      }
+                                      <span className="text-xs text-gray-400">{task.hub_users.full_name.split(' ')[0]}</span>
+                                    </div>
+                                  )}
                                   {task.due_date && (
-                                    <span className={`text-[10px] ${overdue ? 'text-rose-500 font-semibold' : 'text-gray-400'}`}>
-                                      <i className="ri-calendar-line mr-0.5"></i>
+                                    <span className={`text-xs flex-shrink-0 ${overdue ? 'text-rose-500 font-semibold' : 'text-gray-400'}`}>
                                       {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                       {overdue && ' · overdue'}
                                     </span>
                                   )}
-                                  {task.hub_users && (
-                                    <span className="flex items-center gap-1 text-[10px] text-gray-400">
-                                      {task.hub_users.avatar_url
-                                        ? <img src={task.hub_users.avatar_url} alt={task.hub_users.full_name} className="w-3.5 h-3.5 rounded-full object-cover" />
-                                        : <span className="w-3.5 h-3.5 rounded-full bg-[#FF6B35] flex items-center justify-center text-white" style={{ fontSize: 7 }}>{task.hub_users.full_name[0]}</span>
-                                      }
-                                      {task.hub_users.full_name.split(' ')[0]}
-                                    </span>
-                                  )}
+                                  <div className="w-20 flex items-center gap-2 flex-shrink-0">
+                                    <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                      <div className={`h-full rounded-full ${task.status === 'done' ? 'bg-emerald-400' : task.status === 'in_progress' ? 'bg-sky-400' : 'bg-gray-200'}`}
+                                        style={{ width: task.status === 'done' ? '100%' : task.status === 'in_progress' ? '50%' : '0%' }} />
+                                    </div>
+                                    <span className="text-[10px] text-gray-400 w-7 text-right">{task.status === 'done' ? '100%' : task.status === 'in_progress' ? '50%' : '0%'}</span>
+                                  </div>
+                                  <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium border ${
+                                    task.status === 'done' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' :
+                                    task.status === 'in_progress' ? 'border-sky-200 text-sky-600 bg-sky-50' :
+                                    overdue ? 'border-rose-200 text-rose-600 bg-rose-50' :
+                                    'border-gray-200 text-gray-500 bg-gray-50'
+                                  }`}>
+                                    {task.status === 'done' ? 'Done' : task.status === 'in_progress' ? 'In Progress' : overdue ? 'Overdue' : 'To Do'}
+                                  </span>
+                                  <button onClick={() => deleteTask(task)} className="flex-shrink-0 text-gray-200 hover:text-rose-400 opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
+                                    <i className="ri-delete-bin-line text-xs"></i>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Activity */}
+                      {activity.length > 0 && (
+                        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                          <h3 className="font-semibold text-gray-800 mb-4">Recent Activity</h3>
+                          <div className="space-y-4">
+                            {activity.map(a => (
+                              <div key={a.id} className="flex gap-3 items-start">
+                                <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-indigo-500 font-bold text-[10px]">{a.actor_name[0].toUpperCase()}</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-gray-700">{a.description}</p>
+                                  <p className="text-[11px] text-gray-400 mt-0.5">
+                                    {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(a.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                  </p>
                                 </div>
                               </div>
-                              <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${priorityCls[task.priority]}`}>{task.priority}</span>
-                              <button onClick={() => deleteTask(task)} className="flex-shrink-0 text-gray-200 hover:text-rose-400 opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
-                                <i className="ri-delete-bin-line text-xs"></i>
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* New task form */}
-                    {showTaskForm && (
-                      <div className="border-t border-gray-100 pt-3 space-y-2">
-                        <input
-                          value={newTaskTitle}
-                          onChange={e => setNewTaskTitle(e.target.value)}
-                          placeholder="Task title..."
-                          autoFocus
-                          onKeyDown={e => e.key === 'Enter' && createTask()}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                        />
-                        <div className="flex gap-2 flex-wrap">
-                          <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)}
-                            className="flex-1 min-w-0 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
-                            <option value="">Unassigned</option>
-                            {taskTeam.map(u => u && <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                          </select>
-                          <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)}
-                            className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                          <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
-                            className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                          </select>
-                          <button onClick={createTask} disabled={!newTaskTitle.trim() || taskSaving}
-                            className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
-                            {taskSaving ? '...' : 'Add'}
-                          </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+
+                    </div>
+                  </div>
                   </div>
                 );
               })()}
-
-              {/* Activity */}
-              {activity.length > 0 && (
-                <div className="hidden lg:block bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recent Activity</p>
-                  <div className="space-y-3">
-                    {activity.map(a => (
-                      <div key={a.id} className="flex gap-2.5">
-                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <i className="ri-time-line text-[9px] text-gray-400"></i>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-gray-700">{a.description}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(a.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
             </> // end desktop + mobile sheets
           );
