@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_OVERTIME } from '@/lib/demoData';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
@@ -14,6 +16,7 @@ const statusLabels: Record<string, string> = {
 
 export default function AdminOvertimePage() {
   const { hubUser } = useAuth();
+  const { isDemo } = useDemo();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('pending');
@@ -33,7 +36,15 @@ export default function AdminOvertimePage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchRequests(); }, [statusFilter]);
+  useEffect(() => {
+    if (isDemo) {
+      const filtered = statusFilter === 'all' ? DEMO_OVERTIME : DEMO_OVERTIME.filter(r => r.status === statusFilter);
+      setRequests(filtered);
+      setLoading(false);
+      return;
+    }
+    fetchRequests();
+  }, [isDemo, statusFilter]);
 
   const openReview = (r: any) => {
     setSelected(r);

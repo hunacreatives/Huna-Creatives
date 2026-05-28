@@ -55,9 +55,20 @@ function Avatar({ name, url }: { name: string; url: string | null }) {
   );
 }
 
+const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'] as const;
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 3 }, (_, i) => currentYear + i); // current to +2
+
+function parsePeriod(label: string): { year: number; quarter: string } | null {
+  const m = label.match(/^(Q[1-4])\s+(\d{4})$/);
+  if (!m) return null;
+  return { quarter: m[1], year: parseInt(m[2]) };
+}
+
 const emptyForm = {
   contractor_id: '',
-  period_label: '',
+  period_year: currentYear,
+  period_quarter: 'Q2' as string,
   overall_rating: 3,
   attendance_rating: 3,
   quality_rating: 3,
@@ -95,13 +106,14 @@ export default function AdminPerformancePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.contractor_id || !form.period_label) return;
+    if (!form.contractor_id || !form.period_quarter || !form.period_year) return;
     setSaving(true);
 
+    const period_label = `${form.period_quarter} ${form.period_year}`;
     const payload = {
       contractor_id: form.contractor_id,
       reviewer_id: hubUser?.id,
-      period_label: form.period_label.trim(),
+      period_label,
       overall_rating: form.overall_rating,
       attendance_rating: form.attendance_rating,
       quality_rating: form.quality_rating,
@@ -120,7 +132,7 @@ export default function AdminPerformancePage() {
     }
 
     const name = contractors.find(c => c.id === form.contractor_id)?.full_name || form.contractor_id;
-    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: editingId ? 'update' : 'create', entity_type: 'performance_review', description: `${editingId ? 'Updated' : 'Created'} performance review for ${name} — ${form.period_label}` });
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: editingId ? 'update' : 'create', entity_type: 'performance_review', description: `${editingId ? 'Updated' : 'Created'} performance review for ${name} — ${form.period_quarter} ${form.period_year}` });
 
     setSaving(false);
     setShowForm(false);
@@ -130,9 +142,11 @@ export default function AdminPerformancePage() {
   };
 
   const startEdit = (r: Review) => {
+    const parsed = parsePeriod(r.period_label);
     setForm({
       contractor_id: r.contractor_id,
-      period_label: r.period_label,
+      period_year: parsed?.year ?? currentYear,
+      period_quarter: parsed?.quarter ?? 'Q1',
       overall_rating: r.overall_rating ?? 3,
       attendance_rating: r.attendance_rating ?? 3,
       quality_rating: r.quality_rating ?? 3,
@@ -158,6 +172,27 @@ export default function AdminPerformancePage() {
   const filtered = filterContractor
     ? reviews.filter(r => r.contractor_id === filterContractor)
     : reviews;
+
+  // Group by year desc → quarter desc
+  const grouped = (() => {
+    const byYear: Record<number, Record<string, Review[]>> = {};
+    for (const r of filtered) {
+      const p = parsePeriod(r.period_label);
+      const year = p?.year ?? 0;
+      const quarter = p?.quarter ?? r.period_label;
+      if (!byYear[year]) byYear[year] = {};
+      if (!byYear[year][quarter]) byYear[year][quarter] = [];
+      byYear[year][quarter].push(r);
+    }
+    return Object.entries(byYear)
+      .sort(([a], [b]) => Number(b) - Number(a))
+      .map(([year, quarters]) => ({
+        year: Number(year),
+        quarters: Object.entries(quarters)
+          .sort(([a], [b]) => b.localeCompare(a))
+          .map(([quarter, items]) => ({ quarter, items })),
+      }));
+  })();
 
   const avgRating = (r: Review) => {
     const vals = [r.overall_rating, r.attendance_rating, r.quality_rating, r.communication_rating, r.initiative_rating].filter(Boolean) as number[];
@@ -199,57 +234,68 @@ export default function AdminPerformancePage() {
             <p className="text-xs text-gray-400 mt-1">Create your first performance review to get started</p>
           </div>
         ) : (
-          <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    {['Contractor', 'Period', 'Overall', 'Attendance', 'Quality', 'Communication', 'Initiative', 'Reviewed by', ''].map(h => (
-                      <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3 whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filtered.map(r => {
-                    const avg = avgRating(r);
-                    return (
-                      <tr key={r.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => setSelectedReview(r)}>
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <Avatar name={(r.hub_users as any)?.full_name || '?'} url={(r.hub_users as any)?.avatar_url || null} />
-                            <div>
-                              <p className="text-sm font-medium text-[#111827]">{(r.hub_users as any)?.full_name}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">{r.period_label}</td>
-                        <td className="px-4 py-3.5">
-                          {avg != null && (
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${RATING_COLORS[Math.round(avg)]}`}>
-                              {avg.toFixed(1)} · {RATING_LABELS[Math.round(avg)]}
-                            </span>
-                          )}
-                        </td>
-                        {[r.attendance_rating, r.quality_rating, r.communication_rating, r.initiative_rating].map((v, i) => (
-                          <td key={i} className="px-4 py-3.5">
-                            {v != null ? (
-                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${RATING_COLORS[v]}`}>{v}/5</span>
-                            ) : <span className="text-gray-300">—</span>}
-                          </td>
-                        ))}
-                        <td className="px-4 py-3.5 text-xs text-gray-400">{(r.reviewer as any)?.full_name || '—'}</td>
-                        <td className="px-4 py-3.5">
-                          <button onClick={e => { e.stopPropagation(); startEdit(r); }}
-                            className="text-gray-300 hover:text-[#FF6B35] transition-colors cursor-pointer">
-                            <i className="ri-pencil-line text-sm"></i>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="space-y-6">
+            {grouped.map(({ year, quarters }) => (
+              <div key={year}>
+                <p className="text-sm font-bold text-[#111827] mb-3">{year || 'Other'}</p>
+                <div className="space-y-4">
+                  {quarters.map(({ quarter, items }) => (
+                    <div key={quarter}>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1">{quarter}</p>
+                      <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-gray-100 bg-gray-50">
+                                {['Contractor', 'Overall', 'Attendance', 'Quality', 'Communication', 'Initiative', 'Reviewed by', ''].map(h => (
+                                  <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-2.5 whitespace-nowrap">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {items.map(r => {
+                                const avg = avgRating(r);
+                                return (
+                                  <tr key={r.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => setSelectedReview(r)}>
+                                    <td className="px-4 py-3">
+                                      <div className="flex items-center gap-2.5">
+                                        <Avatar name={(r.hub_users as any)?.full_name || '?'} url={(r.hub_users as any)?.avatar_url || null} />
+                                        <p className="text-sm font-medium text-[#111827]">{(r.hub_users as any)?.full_name}</p>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      {avg != null ? (
+                                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${RATING_COLORS[Math.round(avg)]}`}>
+                                          {avg.toFixed(1)} · {RATING_LABELS[Math.round(avg)]}
+                                        </span>
+                                      ) : <span className="text-gray-300">—</span>}
+                                    </td>
+                                    {[r.attendance_rating, r.quality_rating, r.communication_rating, r.initiative_rating].map((v, i) => (
+                                      <td key={i} className="px-4 py-3">
+                                        {v != null ? (
+                                          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${RATING_COLORS[v]}`}>{v}/5</span>
+                                        ) : <span className="text-gray-300">—</span>}
+                                      </td>
+                                    ))}
+                                    <td className="px-4 py-3 text-xs text-gray-400">{(r.reviewer as any)?.full_name || '—'}</td>
+                                    <td className="px-4 py-3">
+                                      <button onClick={e => { e.stopPropagation(); startEdit(r); }}
+                                        className="text-gray-300 hover:text-[#FF6B35] transition-colors cursor-pointer">
+                                        <i className="ri-pencil-line text-sm"></i>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -276,9 +322,17 @@ export default function AdminPerformancePage() {
                 </div>
                 <div className="space-y-1 col-span-2">
                   <label className="text-xs font-medium text-gray-700">Period *</label>
-                  <input required value={form.period_label} onChange={e => setF({ period_label: e.target.value })}
-                    placeholder="e.g. Q2 2026, May 2026, H1 2026"
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  <div className="flex gap-2">
+                    <select value={form.period_quarter} onChange={e => setF({ period_quarter: e.target.value })}
+                      className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
+                      {QUARTERS.map(q => <option key={q} value={q}>{q}</option>)}
+                    </select>
+                    <select value={form.period_year} onChange={e => setF({ period_year: parseInt(e.target.value) })}
+                      className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
+                      {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+                  <p className="text-[11px] text-gray-400">Will be saved as: {form.period_quarter} {form.period_year}</p>
                 </div>
               </div>
 

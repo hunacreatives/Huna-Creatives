@@ -6,14 +6,19 @@ const BLACK_LOGO = '/images/547b59870e776a20eb28e4f20931787c.png';
 
 const LIGHT_BG_PAGES = ['/about', '/portfolio/email-marketing'];
 
-export default function Navigation() {
+interface NavigationProps {
+  theme?: 'light' | 'dark';
+  showContent?: boolean;
+}
+
+export default function Navigation({ theme }: NavigationProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isLightPage = LIGHT_BG_PAGES.includes(location.pathname);
+  const isLightPage = theme ? theme === 'light' : LIGHT_BG_PAGES.includes(location.pathname);
   const isContactPage = location.pathname === '/contact';
   const logoSrc = isLightPage ? BLACK_LOGO : WHITE_LOGO;
 
@@ -22,7 +27,7 @@ export default function Navigation() {
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         setScrolled(window.scrollY > 50);
-        rafRef.current = undefined;
+        rafRef.current = null;
       });
     };
     window.addEventListener('scroll', handleScroll, { passive: true });

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_INVOICES } from '@/lib/demoData';
 
 const fmt = (n: number | null) =>
   n == null ? '—' : '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -80,6 +82,7 @@ interface PaymentProof {
 type Tab = 'invoices' | 'scheduled' | 'proofs' | 'receipts';
 
 export default function InvoiceLogPage() {
+  const { isDemo } = useDemo();
   const [tab, setTab] = useState<Tab>('invoices');
   const [invoices, setInvoices] = useState<InvoiceLog[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledInvoice[]>([]);
@@ -92,6 +95,14 @@ export default function InvoiceLogPage() {
   const [resending, setResending] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    if (isDemo) {
+      setInvoices(DEMO_INVOICES as unknown as InvoiceLog[]);
+      setScheduled([]);
+      setProofs([]);
+      setReceipts([]);
+      setLoading(false);
+      return;
+    }
     const fetch = async () => {
       setLoading(true);
       const [iRes, sRes, pRes, rRes] = await Promise.all([
@@ -107,7 +118,7 @@ export default function InvoiceLogPage() {
       setLoading(false);
     };
     fetch();
-  }, []);
+  }, [isDemo]);
 
   const q = search.toLowerCase();
   const filteredInvoices = invoices.filter(i =>

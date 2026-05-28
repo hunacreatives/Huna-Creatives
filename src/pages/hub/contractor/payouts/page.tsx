@@ -240,6 +240,10 @@ export default function ContractorPayoutsPage() {
     : allPeriods;
   const [selectedPeriod, setSelectedPeriod] = useState(periods[periods.length - 1]);
   const [days, setDays] = useState<DayRow[]>([]);
+
+  // Button unlocks on the cutoff day itself (compare date only, not time)
+  const todayPHT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const canSubmitPeriod = todayPHT >= selectedPeriod.end;
   const [loading, setLoading] = useState(true);
   const [existingPayout, setExistingPayout] = useState<any>(null);
   const [rateHistory, setRateHistory] = useState<RateEntry[]>([]);
@@ -382,7 +386,7 @@ export default function ContractorPayoutsPage() {
       cutoff_start: selectedPeriod.start,
       cutoff_end: selectedPeriod.end,
       approved_hours: totalHoursBillable,
-      hourly_rate: paymentType === 'hourly' ? hourlyRate : monthlyRate / 176,
+      hourly_rate: paymentType === 'hourly' ? displayHourlyRate : displayMonthlyRate / 176,
       base_pay: basePay,
       bonus: 0,
       incentives: 0,
@@ -414,6 +418,7 @@ export default function ContractorPayoutsPage() {
       contractor_id: hubUser.id,
       reason: disputeReason.trim(),
     });
+    supabase.functions.invoke('notify-payslip-submitted', { body: { payout_id: existingPayout.id, type: 'dispute' } }).catch(() => {});
     setDisputeSaving(false);
     setDisputeModal(false);
     setDisputeReason('');
@@ -452,20 +457,19 @@ export default function ContractorPayoutsPage() {
       <div className="max-w-2xl space-y-5">
 
         {/* Period selector */}
-        <div className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4">
-          <div>
+        <div className="bg-white border border-gray-100 rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-gray-800">Pay Period</p>
-            <p className="text-xs text-gray-400 mt-0.5">{selectedPeriod.start} — {selectedPeriod.end}</p>
+            <select
+              value={selectedPeriod.start}
+              onChange={(e) => setSelectedPeriod(periods.find(p => p.start === e.target.value)!)}
+              className="flex-1 max-w-[220px] border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer"
+            >
+              {periods.map((p) => (
+                <option key={p.start} value={p.start}>{p.label}</option>
+              ))}
+            </select>
           </div>
-          <select
-            value={selectedPeriod.start}
-            onChange={(e) => setSelectedPeriod(periods.find(p => p.start === e.target.value)!)}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer"
-          >
-            {periods.map((p) => (
-              <option key={p.start} value={p.start}>{p.label}</option>
-            ))}
-          </select>
         </div>
 
         {loading ? (
@@ -531,14 +535,12 @@ export default function ContractorPayoutsPage() {
                   <div className="space-y-1.5">
                     {days.map((d) => (
                       <div key={d.date} className="flex items-center gap-2 text-sm py-1.5 border-b border-gray-50 last:border-0">
-                        <span className="text-gray-500 min-w-0 flex-1 truncate">{fmtDate(d.date)}</span>
-                        <span className="text-gray-400 text-xs w-16 flex-shrink-0 text-center">{fmtTime(d.first_on)}</span>
-                        <i className="ri-arrow-right-line text-gray-300 text-xs flex-shrink-0"></i>
-                        <span className="text-gray-400 text-xs w-16 flex-shrink-0 text-center">{fmtTime(d.last_off)}</span>
+                        <span className="text-gray-500 min-w-0 w-24 flex-shrink-0 text-xs">{fmtDate(d.date)}</span>
+                        <span className="text-gray-400 text-xs flex-shrink-0 hidden sm:block">{fmtTime(d.first_on)}<i className="ri-arrow-right-line text-gray-300 mx-1"></i>{fmtTime(d.last_off)}</span>
                         <span className="flex-1 text-right">
-                          <span className="font-medium text-gray-800">{d.hours_capped.toFixed(2)}h</span>
+                          <span className="font-medium text-gray-800 text-sm">{d.hours_capped.toFixed(2)}h</span>
                           {d.hours_raw > d.hours_capped && (
-                            <span className="text-xs text-amber-500 ml-1.5" title="Capped at 8h">(raw {d.hours_raw.toFixed(2)}h)</span>
+                            <span className="text-xs text-amber-500 ml-1" title="Capped at 8h">↑{d.hours_raw.toFixed(1)}h</span>
                           )}
                         </span>
                         {d.overtime_hours > 0 && (
@@ -590,7 +592,7 @@ export default function ContractorPayoutsPage() {
               <div className="space-y-3">
                 <div className={`rounded-xl px-4 py-3.5 flex items-center gap-3 ${
                   existingPayout.status === 'paid' ? 'bg-emerald-50 border border-emerald-100' :
-                  existingPayout.status === 'approved' ? 'bg-sky-50 border border-sky-100' :
+                  existingPayout.status === 'hr_approved' ? 'bg-sky-50 border border-sky-100' :
                   'bg-amber-50 border border-amber-100'
                 }`}>
                   <i className={`text-lg ${
@@ -613,7 +615,7 @@ export default function ContractorPayoutsPage() {
                     {existingPayout.status === 'submitted' && (
                       <p className="text-xs text-amber-600 mt-0.5">Your payslip is under review.</p>
                     )}
-                    {existingPayout.status === 'approved' && (
+                    {existingPayout.status === 'hr_approved' && (
                       <p className="text-xs text-sky-600 mt-0.5">Approved! Payment will be sent within 2 days.</p>
                     )}
                   </div>
@@ -659,14 +661,22 @@ export default function ContractorPayoutsPage() {
               <div className="space-y-3">
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting || days.length === 0 || new Date() <= new Date(selectedPeriod.end + 'T23:59:59')}
+                  disabled={submitting || days.length === 0 || !canSubmitPeriod}
                   className="w-full flex items-center justify-center gap-2 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-40 text-white font-medium py-3 rounded-xl transition-colors cursor-pointer"
                 >
                   {submitting ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-send-plane-line"></i>}
                   {submitting ? 'Submitting...' : 'Submit for Payment'}
                 </button>
-                {new Date() <= new Date(selectedPeriod.end + 'T23:59:59') && (
-                  <p className="text-xs text-center text-gray-400">Available after pay period ends ({selectedPeriod.end})</p>
+                {!canSubmitPeriod && (
+                  <p className="text-xs text-center text-gray-400">Available on {selectedPeriod.end} (cutoff day)</p>
+                )}
+                {canSubmitPeriod && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                    <i className="ri-time-line text-amber-500 text-sm flex-shrink-0 mt-0.5"></i>
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      Please complete your shift before submitting to ensure your hours are fully reflected.
+                    </p>
+                  </div>
                 )}
                 <button
                   onClick={handleDownload}

@@ -6,6 +6,12 @@ export function getPeriods(): { label: string; start: string; end: string }[] {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   const lastDay = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const lastWorkingDay = (y: number, m: number) => {
+    const d = new Date(y, m + 1, 0); // last calendar day
+    if (d.getDay() === 6) d.setDate(d.getDate() - 1); // Sat → Fri
+    if (d.getDay() === 0) d.setDate(d.getDate() - 2); // Sun → Fri
+    return d.getDate();
+  };
 
   let year = 2026;
   let month = 0;
@@ -17,11 +23,12 @@ export function getPeriods(): { label: string; start: string; end: string }[] {
       : `${year}-${pad(month + 1)}-16`;
     if (new Date(start) > now) break;
 
-    const endDay = firstHalf ? 15 : lastDay(year, month);
+    const endDay = firstHalf ? 15 : lastWorkingDay(year, month);
+    const calEndDay = firstHalf ? 15 : lastDay(year, month);
     const end = `${year}-${pad(month + 1)}-${pad(endDay)}`;
     const label = firstHalf
       ? `${MONTHS[month]} 1–15, ${year}`
-      : `${MONTHS[month]} 16–${endDay}, ${year}`;
+      : `${MONTHS[month]} 16–${calEndDay}, ${year}`;
 
     periods.push({ label, start, end });
 
@@ -34,6 +41,54 @@ export function getPeriods(): { label: string; start: string; end: string }[] {
     }
   }
   return periods;
+}
+
+export function getNextPayrollCutoff(): { date: string; label: string; daysAway: number } {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const now = new Date();
+
+  const phtParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+
+  const year = Number(phtParts.find(p => p.type === 'year')?.value);
+  const month = Number(phtParts.find(p => p.type === 'month')?.value);
+  const day = Number(phtParts.find(p => p.type === 'day')?.value);
+
+  const todayUtc = new Date(Date.UTC(year, month - 1, day));
+
+  const lastWorkingDay = (y: number, m1: number) => {
+    const d = new Date(Date.UTC(y, m1, 0));
+    const dow = d.getUTCDay();
+    if (dow === 6) d.setUTCDate(d.getUTCDate() - 1);
+    if (dow === 0) d.setUTCDate(d.getUTCDate() - 2);
+    return d;
+  };
+
+  const candidates: Date[] = [];
+  for (let offset = 0; offset <= 1; offset++) {
+    const base = new Date(Date.UTC(year, month - 1 + offset, 1));
+    const y = base.getUTCFullYear();
+    const m = base.getUTCMonth() + 1;
+    candidates.push(new Date(Date.UTC(y, m - 1, 15)));
+    candidates.push(lastWorkingDay(y, m));
+  }
+
+  for (const cutoff of candidates.sort((a, b) => a.getTime() - b.getTime())) {
+    if (cutoff >= todayUtc) {
+      const daysAway = Math.round((cutoff.getTime() - todayUtc.getTime()) / 86400000);
+      return {
+        date: `${cutoff.getUTCFullYear()}-${pad(cutoff.getUTCMonth() + 1)}-${pad(cutoff.getUTCDate())}`,
+        label: cutoff.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' }),
+        daysAway,
+      };
+    }
+  }
+
+  return { date: '', label: '', daysAway: 0 };
 }
 
 export function fmtCurrency(val: number, currency = 'PHP') {

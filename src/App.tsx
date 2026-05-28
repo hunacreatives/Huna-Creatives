@@ -5,6 +5,7 @@ import i18n from "./i18n";
 import { useEffect, useRef } from "react";
 import ScrollToTop from "./components/feature/ScrollToTop";
 import { AuthProvider } from "./contexts/AuthContext";
+import { DemoProvider } from "./contexts/DemoContext";
 
 // Pages that use a light/white background
 const LIGHT_BG_ROUTES = ['/about'];
@@ -40,12 +41,14 @@ function App() {
   return (
     <I18nextProvider i18n={i18n}>
       <BrowserRouter basename={__BASE_PATH__}>
-        <AuthProvider>
-          <PageTransitionWrapper>
-            <AppRoutes />
-          </PageTransitionWrapper>
-          <ScrollToTop />
-        </AuthProvider>
+        <DemoProvider>
+          <AuthProvider>
+            <PageTransitionWrapper>
+              <AppRoutes />
+            </PageTransitionWrapper>
+            <ScrollToTop />
+          </AuthProvider>
+        </DemoProvider>
       </BrowserRouter>
     </I18nextProvider>
   );

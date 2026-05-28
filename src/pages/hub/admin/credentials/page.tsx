@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 
 interface Credential {
   id: string;
@@ -59,6 +60,17 @@ const STATUS_DOT: Record<string, string> = {
 
 export default function CredentialsVaultPage() {
   const { hubUser } = useAuth();
+  const { isDemo } = useDemo();
+
+  if (isDemo) return (
+    <AdminLayout>
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400">
+        <i className="ri-lock-2-line text-3xl opacity-40"></i>
+        <p className="text-sm font-medium">Not available in demo</p>
+        <p className="text-xs text-gray-300">This section requires a live account.</p>
+      </div>
+    </AdminLayout>
+  );
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [requests, setRequests] = useState<CredentialRequest[]>([]);
   const [loading, setLoading] = useState(true);

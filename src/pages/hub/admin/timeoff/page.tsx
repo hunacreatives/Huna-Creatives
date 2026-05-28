@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import { HubTimeOff, HubUser } from '@/lib/types';
 import { logAudit } from '@/lib/audit';
+import { DEMO_TIME_OFF } from '@/lib/demoData';
 
 const typeLabels: Record<string, string> = {
   pto: 'PTO', vacation: 'PTO', sick: 'Sick', emergency: 'Emergency', unpaid: 'Unpaid', other: 'Other',
@@ -28,7 +30,8 @@ const daysBetween = (a: string, b: string) =>
 
 export default function AdminTimeOffPage() {
   const { hubUser } = useAuth();
-  const isOwner = hubUser?.role === 'owner';
+  const { isDemo } = useDemo();
+  const isOwner = isDemo ? true : hubUser?.role === 'owner';
 
   const [tab, setTab] = useState<'requests' | 'blackouts' | 'balances'>('requests');
   const [balances, setBalances] = useState<any[]>([]);
@@ -102,7 +105,15 @@ export default function AdminTimeOffPage() {
     setBalancesLoading(false);
   };
 
-  useEffect(() => { fetchRequests(); }, [statusFilter]);
+  useEffect(() => {
+    if (isDemo) {
+      const filtered = statusFilter === 'all' ? DEMO_TIME_OFF : DEMO_TIME_OFF.filter(r => r.status === statusFilter);
+      setRequests(filtered);
+      setLoading(false);
+      return;
+    }
+    fetchRequests();
+  }, [isDemo, statusFilter]);
   useEffect(() => { fetchBlackouts(); }, []);
   useEffect(() => { if (tab === 'balances') fetchBalances(); }, [tab]);
 
@@ -123,7 +134,7 @@ export default function AdminTimeOffPage() {
       admin_notes: hrNotes,
       forwarded_to_owner: true,
     }).eq('id', selected.id);
-    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'time_off', entity_id: selected.id, description: `Forwarded ${selected.type} request from ${(selected as any).hub_users?.full_name} to owner` });
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'time_off', entity_id: String(selected.id), description: `Forwarded ${selected.type} request from ${(selected as any).hub_users?.full_name} to owner` });
     setUpdating(false);
     setSelected(null);
     fetchRequests();
@@ -138,7 +149,7 @@ export default function AdminTimeOffPage() {
       admin_notes: hrNotes,
       hr_notes: hrNotes,
     }).eq('id', selected.id);
-    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: status === 'approved' ? 'approve' : 'reject', entity_type: 'time_off', entity_id: selected.id, description: `${status === 'approved' ? 'Approved' : 'Rejected'} ${selected.type} request from ${(selected as any).hub_users?.full_name} (${selected.start_date} – ${selected.end_date})` });
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: status === 'approved' ? 'approve' : 'reject', entity_type: 'time_off', entity_id: String(selected.id), description: `${status === 'approved' ? 'Approved' : 'Rejected'} ${selected.type} request from ${(selected as any).hub_users?.full_name} (${selected.start_date} – ${selected.end_date})` });
     setUpdating(false);
     setSelected(null);
     fetchRequests();

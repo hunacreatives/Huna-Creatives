@@ -25,14 +25,14 @@ export default function HomePage() {
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         setIsScrolled(window.scrollY > 60);
-        rafRef.current = undefined;
+        rafRef.current = null;
       });
     };
     window.addEventListener('scroll', handleScroll, { passive: true });

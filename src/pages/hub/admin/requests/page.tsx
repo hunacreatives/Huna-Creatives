@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubRequest, HubUser } from '@/lib/types';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_REQUESTS } from '@/lib/demoData';
 
 const typeLabels: Record<string, string> = {
   reimbursement: 'Reimbursement', account_access: 'Account Access',
@@ -13,6 +15,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function RequestsPage() {
+  const { isDemo } = useDemo();
   const [requests, setRequests] = useState<HubRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -28,7 +31,15 @@ export default function RequestsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetch(); }, [statusFilter]);
+  useEffect(() => {
+    if (isDemo) {
+      const filtered = statusFilter === 'all' ? DEMO_REQUESTS : DEMO_REQUESTS.filter(r => r.status === statusFilter);
+      setRequests(filtered);
+      setLoading(false);
+      return;
+    }
+    fetch();
+  }, [isDemo, statusFilter]);
 
   const updateStatus = async (id: number, status: string) => {
     setUpdating(true);

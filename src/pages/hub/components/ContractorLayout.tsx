@@ -1,6 +1,8 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHubAuth } from '@/hooks/useHubAuth';
+import { useDemo } from '@/contexts/DemoContext';
 import ContractorSidebar from './ContractorSidebar';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
@@ -12,16 +14,18 @@ interface Props {
 }
 
 export default function ContractorLayout({ children, title, actions }: Props) {
-  const { hubUser, loading, session } = useAuth();
+  const { loading, session } = useAuth();
+  const { hubUser } = useHubAuth();
+  const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && !session) {
+    if (!isDemo && !loading && !session) {
       navigate('/hub/login', { replace: true });
     }
-  }, [loading, session]);
+  }, [loading, session, isDemo]);
 
   useEffect(() => {
     if (!loading && hubUser && hubUser.role === 'contractor' && hubUser.onboarding_completed === false) {
@@ -33,14 +37,34 @@ export default function ContractorLayout({ children, title, actions }: Props) {
     // developer viewing as contractor bypasses onboarding check
   }, [loading, hubUser]);
 
-  if (loading || !hubUser) return (
+  if (!isDemo && (loading || !hubUser)) return (
     <div className="flex h-screen items-center justify-center bg-[#FAFAFA]">
       <i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i>
     </div>
   );
 
   return (
-    <div className="flex h-screen bg-[#FAFAFA] overflow-hidden">
+    <div className={`flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} bg-[#FAFAFA] overflow-hidden`}>
+      {isDemo && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-[#111827] text-white text-xs flex items-center justify-between px-4 py-1.5 gap-4">
+          <span className="text-white/40 hidden sm:block flex-shrink-0">Demo</span>
+          <div className="flex items-center gap-1 flex-1 justify-center">
+            {(['owner', 'admin', 'contractor'] as const).map(role => (
+              <button
+                key={role}
+                onClick={() => {
+                  setDemoRole(role);
+                  navigate(role === 'contractor' ? '/hub/contractor/dashboard' : '/hub/admin/dashboard');
+                }}
+                className={`px-3 py-1 rounded-full text-[11px] font-medium capitalize transition-colors cursor-pointer ${demoRole === role ? 'bg-white text-[#111827]' : 'text-white/50 hover:text-white'}`}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { demoSignOut(); navigate('/hub/demo'); }} className="text-white/40 hover:text-white transition-colors cursor-pointer flex-shrink-0 text-[11px]">Exit</button>
+        </div>
+      )}
       <div className="hidden lg:block">
         <ContractorSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </div>

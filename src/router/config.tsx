@@ -1,5 +1,6 @@
-import { lazy } from 'react';
+import { lazy, ReactNode } from 'react';
 import { RouteObject } from 'react-router-dom';
+import HubRouteGate from '@/components/feature/HubRouteGate';
 
 const HomePage = lazy(() => import('../pages/home/page'));
 const AboutPage = lazy(() => import('../pages/about/page'));
@@ -55,6 +56,15 @@ const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnai
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
+const HubDemoPage = lazy(() => import('../pages/hub/demo/page'));
+
+const withAdminGate = (element: ReactNode) => (
+  <HubRouteGate allowedRoles={['owner', 'admin', 'hr']}>{element}</HubRouteGate>
+);
+
+const withContractorGate = (element: ReactNode) => (
+  <HubRouteGate allowedRoles={['contractor']}>{element}</HubRouteGate>
+);
 
 const routes: RouteObject[] = [
   {
@@ -113,42 +123,43 @@ const routes: RouteObject[] = [
   { path: '/hub/signup', element: <HubSignupPage /> },
   { path: '/hub/forgot-password', element: <HubForgotPasswordPage /> },
   { path: '/hub/reset-password', element: <HubResetPasswordPage /> },
-  { path: '/hub/admin/dashboard', element: <HubAdminDashboard /> },
-  { path: '/hub/admin/contractors', element: <HubAdminContractors /> },
-  { path: '/hub/admin/contractors/:id', element: <HubAdminContractorDetail /> },
-  { path: '/hub/admin/attendance', element: <HubAdminAttendance /> },
-  { path: '/hub/admin/requests', element: <HubAdminRequests /> },
-  { path: '/hub/admin/timeoff', element: <HubAdminTimeOff /> },
-  { path: '/hub/admin/announcements', element: <HubAdminAnnouncements /> },
-  { path: '/hub/admin/sop', element: <HubAdminSop /> },
-  { path: '/hub/admin/clients', element: <HubAdminClients /> },
-  { path: '/hub/admin/assets', element: <HubAdminAssets /> },
-  { path: '/hub/admin/auditlog', element: <HubAdminAuditLog /> },
-  { path: '/hub/admin/performance', element: <HubAdminPerformance /> },
-  { path: '/hub/admin/settings', element: <HubAdminSettings /> },
-  { path: '/hub/admin/payroll', element: <HubAdminPayroll /> },
-  { path: '/hub/admin/payouts', element: <HubAdminPayouts /> },
-  { path: '/hub/admin/docrequests', element: <HubAdminDocRequests /> },
-  { path: '/hub/admin/credentials', element: <HubAdminCredentials /> },
-  { path: '/hub/contractor/dashboard', element: <HubContractorDashboard /> },
-  { path: '/hub/contractor/attendance', element: <HubContractorAttendance /> },
-  { path: '/hub/contractor/requests', element: <HubContractorRequests /> },
-  { path: '/hub/contractor/timeoff', element: <HubContractorTimeOff /> },
-  { path: '/hub/contractor/sop', element: <HubContractorSop /> },
-  { path: '/hub/contractor/announcements', element: <HubContractorAnnouncements /> },
-  { path: '/hub/contractor/profile', element: <HubContractorProfile /> },
-  { path: '/hub/contractor/payouts', element: <HubContractorPayouts /> },
-  { path: '/hub/contractor/documents', element: <HubContractorDocuments /> },
-  { path: '/hub/contractor/credentials', element: <HubContractorCredentials /> },
-  { path: '/hub/contractor/overtime', element: <HubContractorOvertime /> },
-  { path: '/hub/contractor/onboarding', element: <HubContractorOnboarding /> },
-  { path: '/hub/contractor/clients', element: <HubContractorClients /> },
-  { path: '/hub/contractor/projects', element: <HubContractorProjects /> },
-  { path: '/hub/admin/projects', element: <HubAdminProjects /> },
-  { path: '/hub/admin/overtime', element: <HubAdminOvertime /> },
-  { path: '/hub/admin/documents', element: <HubAdminDocuments /> },
-  { path: '/hub/admin/invoice-log', element: <HubAdminInvoiceLog /> },
-  { path: '/hub/admin/questionnaires', element: <HubAdminQuestionnaires /> },
+  { path: '/hub/admin/dashboard', element: withAdminGate(<HubAdminDashboard />) },
+  { path: '/hub/admin/contractors', element: withAdminGate(<HubAdminContractors />) },
+  { path: '/hub/admin/contractors/:id', element: withAdminGate(<HubAdminContractorDetail />) },
+  { path: '/hub/admin/attendance', element: withAdminGate(<HubAdminAttendance />) },
+  { path: '/hub/admin/requests', element: withAdminGate(<HubAdminRequests />) },
+  { path: '/hub/admin/timeoff', element: withAdminGate(<HubAdminTimeOff />) },
+  { path: '/hub/admin/announcements', element: withAdminGate(<HubAdminAnnouncements />) },
+  { path: '/hub/admin/sop', element: withAdminGate(<HubAdminSop />) },
+  { path: '/hub/admin/clients', element: withAdminGate(<HubAdminClients />) },
+  { path: '/hub/admin/assets', element: withAdminGate(<HubAdminAssets />) },
+  { path: '/hub/admin/auditlog', element: withAdminGate(<HubAdminAuditLog />) },
+  { path: '/hub/admin/performance', element: withAdminGate(<HubAdminPerformance />) },
+  { path: '/hub/admin/settings', element: withAdminGate(<HubAdminSettings />) },
+  { path: '/hub/admin/payroll', element: withAdminGate(<HubAdminPayroll />) },
+  { path: '/hub/admin/payouts', element: withAdminGate(<HubAdminPayouts />) },
+  { path: '/hub/admin/docrequests', element: withAdminGate(<HubAdminDocRequests />) },
+  { path: '/hub/admin/credentials', element: withAdminGate(<HubAdminCredentials />) },
+  { path: '/hub/contractor/dashboard', element: withContractorGate(<HubContractorDashboard />) },
+  { path: '/hub/contractor/attendance', element: withContractorGate(<HubContractorAttendance />) },
+  { path: '/hub/contractor/requests', element: withContractorGate(<HubContractorRequests />) },
+  { path: '/hub/contractor/timeoff', element: withContractorGate(<HubContractorTimeOff />) },
+  { path: '/hub/contractor/sop', element: withContractorGate(<HubContractorSop />) },
+  { path: '/hub/contractor/announcements', element: withContractorGate(<HubContractorAnnouncements />) },
+  { path: '/hub/contractor/profile', element: withContractorGate(<HubContractorProfile />) },
+  { path: '/hub/contractor/payouts', element: withContractorGate(<HubContractorPayouts />) },
+  { path: '/hub/contractor/documents', element: withContractorGate(<HubContractorDocuments />) },
+  { path: '/hub/contractor/credentials', element: withContractorGate(<HubContractorCredentials />) },
+  { path: '/hub/contractor/overtime', element: withContractorGate(<HubContractorOvertime />) },
+  { path: '/hub/contractor/onboarding', element: withContractorGate(<HubContractorOnboarding />) },
+  { path: '/hub/contractor/clients', element: withContractorGate(<HubContractorClients />) },
+  { path: '/hub/contractor/projects', element: withContractorGate(<HubContractorProjects />) },
+  { path: '/hub/admin/projects', element: withAdminGate(<HubAdminProjects />) },
+  { path: '/hub/admin/overtime', element: withAdminGate(<HubAdminOvertime />) },
+  { path: '/hub/admin/documents', element: withAdminGate(<HubAdminDocuments />) },
+  { path: '/hub/admin/invoice-log', element: withAdminGate(<HubAdminInvoiceLog />) },
+  { path: '/hub/admin/questionnaires', element: withAdminGate(<HubAdminQuestionnaires />) },
+  { path: '/hub/demo', element: <HubDemoPage /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },
   {

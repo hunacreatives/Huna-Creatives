@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
-import { MONTHS, FULL_MONTHS, getPeriods, fmtCurrency as fmt } from '@/lib/formatUtils';
+import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
+import { useDemo } from '@/contexts/DemoContext';
+import { MONTHS, FULL_MONTHS, getPeriods, fmtCurrency as fmt, getNextPayrollCutoff } from '@/lib/formatUtils';
 import { logAudit } from '@/lib/audit';
 import { getSetting, setSetting } from '@/lib/settings';
+import { DEMO_PAYOUTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 
 interface Contractor {
   id: string;
@@ -70,7 +72,8 @@ function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null 
 
 export default function AdminPayrollPage() {
   const { hubUser } = useAuth();
-  const isOwner = (hubUser as any)?.role === 'owner';
+  const { isDemo } = useDemo();
+  const isOwner = isDemo ? true : (hubUser as any)?.role === 'owner';
 
   const periods = getPeriods();
   const lastPeriod = periods[periods.length - 1];
@@ -103,6 +106,8 @@ export default function AdminPayrollPage() {
 
   // Disputes map: payout_id → dispute
   const [disputesMap, setDisputesMap] = useState<Record<string, any>>({});
+  // Notes input per dispute (dispute_id → note text)
+  const [disputeNotesMap, setDisputeNotesMap] = useState<Record<string, string>>({});
 
   // Row edit overrides (before approval)
   const [editRowId, setEditRowId] = useState<string | null>(null);
@@ -218,6 +223,7 @@ export default function AdminPayrollPage() {
       cutoff_start: selectedPeriod.start,
       cutoff_end: selectedPeriod.end,
       final_payout: finalPay,
+      overtime_pay: computedOTPay,
       status: existing?.status || 'pending',
       locked: existing?.locked ?? false,
       adjustments: finalAdjItems,
@@ -252,7 +258,7 @@ export default function AdminPayrollPage() {
     const [payoutsRes, batchRes] = await Promise.all([
       supabase
         .from('hub_payouts')
-        .select('id, contractor_id, status, final_payout, payment_date, batch_id, adjustments')
+        .select('id, contractor_id, status, final_payout, payment_date, batch_id, adjustments, payslip_sent_at, overtime_pay')
         .eq('cutoff_start', selectedPeriod.start),
       supabase
         .from('hub_payroll_batches')
@@ -299,6 +305,53 @@ export default function AdminPayrollPage() {
       });
     }
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'payout', entity_id: contractorId, description: `Approved payout of ${fmt(finalPay)} for ${contractorName} — ${selectedPeriod.label}` });
+    // Notify contractor of approval (fire-and-forget)
+    const approvedPayout = existing
+      ? { id: existing.id }
+      : (await supabase.from('hub_payouts').select('id').eq('contractor_id', contractorId).eq('cutoff_start', selectedPeriod.start).single()).data;
+    if (approvedPayout?.id) {
+      supabase.functions.invoke('notify-contractor', { body: { payout_id: approvedPayout.id, type: 'hr_approved' } }).catch(() => {});
+    }
+    await fetchWorkflow();
+    setWorkflowLoading(false);
+  };
+
+  const approveAll = async () => {
+    const toApprove = rows.filter(r => {
+      const p = payoutsMap[r.contractor.id];
+      return !batch && (!p || p.status === 'pending' || p.status === 'submitted');
+    });
+    if (toApprove.length === 0) return;
+    setWorkflowLoading(true);
+    const now = new Date().toISOString();
+    await Promise.all(toApprove.map(async r => {
+      const finalPay = rowOverrides[r.contractor.id]?.pay ?? r.pay;
+      const existing = payoutsMap[r.contractor.id];
+      if (existing) {
+        await supabase.from('hub_payouts').update({ status: 'hr_approved', approved_at: now, final_payout: finalPay }).eq('id', existing.id);
+      } else {
+        await supabase.from('hub_payouts').insert({
+          contractor_id: r.contractor.id,
+          cutoff_start: selectedPeriod.start,
+          cutoff_end: selectedPeriod.end,
+          final_payout: finalPay,
+          status: 'hr_approved',
+          approved_at: now,
+        });
+      }
+    }));
+    // Notify each contractor (fire-and-forget — fetch IDs after batch update)
+    const { data: newPayouts } = await supabase
+      .from('hub_payouts')
+      .select('id, contractor_id')
+      .eq('cutoff_start', selectedPeriod.start)
+      .eq('status', 'hr_approved');
+    for (const np of newPayouts ?? []) {
+      if (toApprove.some(r => r.contractor.id === np.contractor_id)) {
+        supabase.functions.invoke('notify-contractor', { body: { payout_id: np.id, type: 'hr_approved' } }).catch(() => {});
+      }
+    }
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'payout', entity_id: selectedPeriod.start, description: `Bulk approved ${toApprove.length} payouts for ${selectedPeriod.label}` });
     await fetchWorkflow();
     setWorkflowLoading(false);
   };
@@ -392,9 +445,59 @@ export default function AdminPayrollPage() {
   };
 
   useEffect(() => {
+    if (isDemo) {
+      // Build PayRow[] from DEMO_PAYOUTS
+      const demoRows: PayRow[] = DEMO_PAYOUTS.map(p => {
+        const c = DEMO_CONTRACTORS.find(x => x.id === p.contractor_id)!;
+        const isFixed = c.payment_type === 'fixed';
+        return {
+          contractor: {
+            id: c.id,
+            full_name: c.full_name,
+            avatar_url: null,
+            department: c.department || null,
+            currency: c.currency || 'PHP',
+            payment_type: (c.payment_type || 'hourly') as 'hourly' | 'fixed' | 'fixed_flexible',
+            hourly_rate: c.hourly_rate || null,
+            monthly_rate: c.monthly_rate || null,
+            start_date: c.start_date || null,
+            work_days: c.work_days || null,
+          },
+          hours: p.approved_hours,
+          cappedHours: p.approved_hours,
+          overtimeHours: p.overtime_pay > 0 ? p.overtime_pay / (c.hourly_rate || 1) : 0,
+          overtimePay: p.overtime_pay,
+          derivedHourlyRate: c.hourly_rate || (c.monthly_rate ? c.monthly_rate / 176 : 0),
+          pay: p.base_pay,
+          days: isFixed ? 10 : Math.round(p.approved_hours / 8),
+          prorated: false,
+        };
+      });
+      // Build payouts map from DEMO_PAYOUTS
+      const map: Record<string, any> = {};
+      for (const p of DEMO_PAYOUTS) {
+        map[p.contractor_id] = {
+          id: p.id,
+          contractor_id: p.contractor_id,
+          status: p.status,
+          final_payout: p.final_payout,
+          payment_date: null,
+          batch_id: null,
+          adjustments: [],
+          payslip_sent_at: null,
+          overtime_pay: p.overtime_pay,
+        };
+      }
+      setRows(demoRows);
+      setPayoutsMap(map);
+      setBatch(null);
+      setLoading(false);
+      setWorkflowLoading(false);
+      return;
+    }
     fetchPayroll();
     fetchWorkflow();
-  }, [selectedPeriod, usdRate]);
+  }, [isDemo, selectedPeriod, usdRate]);
 
   const fetchPayroll = async () => {
     setLoading(true);
@@ -742,6 +845,28 @@ export default function AdminPayrollPage() {
     <AdminLayout title="Payroll">
       <div className="space-y-5">
 
+        {/* Payroll cutoff banner */}
+        {(() => {
+          const cutoff = getNextPayrollCutoff();
+          const urgent = cutoff.daysAway <= 3;
+          const soon = cutoff.daysAway <= 7;
+          return (
+            <div className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${urgent ? 'bg-red-50 border-red-200' : soon ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
+              <i className={`ri-calendar-check-line text-lg flex-shrink-0 ${urgent ? 'text-red-500' : soon ? 'text-amber-500' : 'text-gray-400'}`}></i>
+              <div className="min-w-0">
+                <p className={`text-xs font-semibold ${urgent ? 'text-red-700' : soon ? 'text-amber-700' : 'text-gray-600'}`}>
+                  Payroll processing deadline — {cutoff.label}
+                </p>
+                <p className={`text-xs ${urgent ? 'text-red-500' : soon ? 'text-amber-500' : 'text-gray-400'}`}>
+                  {cutoff.daysAway === 0 ? 'Due today — review and approve all pending payslips' : cutoff.daysAway === 1 ? 'Due tomorrow — ensure all submissions are reviewed' : `${cutoff.daysAway} days remaining to process this period`}
+                </p>
+              </div>
+              {urgent && <span className="ml-auto text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-red-100 text-red-600 flex-shrink-0">Urgent</span>}
+              {!urgent && soon && <span className="ml-auto text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 flex-shrink-0">Soon</span>}
+            </div>
+          );
+        })()}
+
         {/* Header card */}
         <div className="bg-[#111827] rounded-2xl p-5 text-white">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -974,7 +1099,17 @@ export default function AdminPayrollPage() {
                         hr_approved: { label: 'HR Approved', cls: 'bg-sky-100 text-sky-700' },
                         paid:        { label: 'Paid',        cls: 'bg-emerald-100 text-emerald-700' },
                       }[p.status as string] || { label: p.status, cls: 'bg-gray-100 text-gray-500' };
-                      return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>;
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
+                          {p.status === 'paid' && p.payslip_sent_at && (
+                            <span title={`Receipt sent ${new Date(p.payslip_sent_at).toLocaleString()}`} className="text-emerald-400"><i className="ri-mail-check-line text-xs"></i></span>
+                          )}
+                          {p.status === 'paid' && !p.payslip_sent_at && (
+                            <span title="Receipt email pending" className="text-amber-400"><i className="ri-mail-line text-xs"></i></span>
+                          )}
+                        </div>
+                      );
                     })()}
                     <div className="flex items-center gap-2">
                       {confirmCancelId === c.id ? (
@@ -1011,9 +1146,16 @@ export default function AdminPayrollPage() {
             {rows.length > 0 && (
               <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-700">Total</span>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-900">{fmt(totalPay, 'PHP')}</p>
-                  <p className="text-xs text-gray-400">{totalHours.toFixed(1)}h</p>
+                <div className="flex items-center gap-3">
+                  {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
+                    <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
+                      Approve All
+                    </button>
+                  )}
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-gray-900">{fmt(totalPay, 'PHP')}</p>
+                    <p className="text-xs text-gray-400">{totalHours.toFixed(1)}h</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1186,7 +1328,17 @@ export default function AdminPayrollPage() {
                                     hr_approved: { label: 'HR Approved', cls: 'bg-sky-100 text-sky-700' },
                                     paid:        { label: 'Paid',        cls: 'bg-emerald-100 text-emerald-700' },
                                   }[p.status as string] || { label: p.status, cls: 'bg-gray-100 text-gray-500' };
-                                  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${cfg.cls}`}>{cfg.label}</span>;
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${cfg.cls}`}>{cfg.label}</span>
+                                      {p.status === 'paid' && p.payslip_sent_at && (
+                                        <span title={`Receipt sent ${new Date(p.payslip_sent_at).toLocaleString()}`} className="text-emerald-400"><i className="ri-mail-check-line text-xs"></i></span>
+                                      )}
+                                      {p.status === 'paid' && !p.payslip_sent_at && (
+                                        <span title="Receipt email pending" className="text-amber-400"><i className="ri-mail-line text-xs"></i></span>
+                                      )}
+                                    </div>
+                                  );
                                 })()}
                                 {(() => {
                                   const batchApproved = batch?.status === 'owner_approved';
@@ -1230,7 +1382,13 @@ export default function AdminPayrollPage() {
                       <td className="px-5 py-3.5 font-semibold text-gray-800 text-sm">{totalHours.toFixed(2)}h</td>
                       <td className="px-5 py-3.5"></td>
                       <td className="px-5 py-3.5 font-bold text-gray-900">{fmt(totalPay, 'PHP')}</td>
-                      <td className="px-5 py-3.5"></td>
+                      <td className="px-5 py-3.5 text-right">
+                        {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
+                          <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
+                            Approve All
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   </tfoot>
                 )}
@@ -1348,21 +1506,40 @@ export default function AdminPayrollPage() {
                   const dispute = payout ? disputesMap[payout.id] : null;
                   if (!dispute) return null;
                   return (
-                    <div className="flex items-start gap-3 p-3 bg-rose-50 border border-rose-100 rounded-xl">
-                      <i className="ri-flag-fill text-rose-500 text-sm mt-0.5 flex-shrink-0"></i>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-rose-700">Flagged by contractor</p>
-                        <p className="text-xs text-rose-600 mt-0.5">{dispute.reason}</p>
+                    <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl space-y-2">
+                      <div className="flex items-start gap-3">
+                        <i className="ri-flag-fill text-rose-500 text-sm mt-0.5 flex-shrink-0"></i>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-rose-700">Flagged by contractor</p>
+                          <p className="text-xs text-rose-600 mt-0.5">{dispute.reason}</p>
+                          {dispute.admin_notes && (
+                            <p className="text-xs text-gray-500 mt-1 italic">Note: {dispute.admin_notes}</p>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        onClick={async () => {
-                          await supabase.from('hub_payslip_disputes').update({ status: 'resolved' }).eq('id', dispute.id);
-                          await fetchWorkflow();
-                        }}
-                        className="text-xs px-2 py-1 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer flex-shrink-0 whitespace-nowrap"
-                      >
-                        Resolve
-                      </button>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          placeholder="Resolution note (optional)"
+                          value={disputeNotesMap[dispute.id] ?? ''}
+                          onChange={e => setDisputeNotesMap(prev => ({ ...prev, [dispute.id]: e.target.value }))}
+                          className="flex-1 text-xs border border-rose-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-rose-300 placeholder-gray-300"
+                        />
+                        <button
+                          onClick={async () => {
+                            const note = disputeNotesMap[dispute.id]?.trim() || null;
+                            await supabase.from('hub_payslip_disputes').update({ status: 'resolved', admin_notes: note }).eq('id', dispute.id);
+                            if (payout?.id) {
+                              supabase.functions.invoke('notify-contractor', { body: { payout_id: payout.id, type: 'dispute_resolved' } }).catch(() => {});
+                            }
+                            setDisputeNotesMap(prev => { const n = { ...prev }; delete n[dispute.id]; return n; });
+                            await fetchWorkflow();
+                          }}
+                          className="text-xs px-2 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer flex-shrink-0 whitespace-nowrap"
+                        >
+                          Resolve
+                        </button>
+                      </div>
                     </div>
                   );
                 })()}

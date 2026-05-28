@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { getHubHomePath } from '@/lib/hubAuth';
 
 export default function HubSignupPage() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function HubSignupPage() {
       supabase.auth.getSession().then(async ({ data }) => {
         if (data.session) {
           const { data: hubUser } = await supabase.from('hub_users').select('role').eq('id', data.session.user.id).maybeSingle();
-          navigate(hubUser?.role === 'admin' ? '/hub/admin/dashboard' : '/hub/contractor/dashboard', { replace: true });
+          navigate(getHubHomePath(hubUser?.role), { replace: true });
         } else {
           navigate('/hub/login', { replace: true });
         }
@@ -55,7 +56,7 @@ export default function HubSignupPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: hubUser } = await supabase.from('hub_users').select('role').eq('id', user.id).maybeSingle();
-      navigate(hubUser?.role === 'admin' ? '/hub/admin/dashboard' : '/hub/contractor/dashboard', { replace: true });
+      navigate(getHubHomePath(hubUser?.role), { replace: true });
     } else {
       navigate('/hub/login', { replace: true });
     }

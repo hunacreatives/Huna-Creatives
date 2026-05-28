@@ -37,6 +37,29 @@ interface ProjectRow {
   };
 }
 
+interface ProjectRowRaw {
+  id: number;
+  percentage: number;
+  payout_type: string;
+  fixed_amount: number | null;
+  payout_status: string;
+  paid_at: string | null;
+  hub_project_contractor_payouts: ContractorPayout[];
+  hub_projects: {
+    id: number;
+    client_name: string;
+    project_name: string;
+    service: string | null;
+    contract_price: number;
+    status: string;
+    start_date: string | null;
+    deadline: string | null;
+    notes: string | null;
+    hub_project_payments: { amount: number }[];
+    hub_project_costs: { amount: number }[];
+  }[];
+}
+
 export default function ContractorProjectsPage() {
   const { hubUser } = useAuth();
   const [rows, setRows] = useState<ProjectRow[]>([]);
@@ -50,7 +73,12 @@ export default function ContractorProjectsPage() {
       .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, hub_project_payments(amount), hub_project_costs(amount))')
       .eq('contractor_id', hubUser.id)
       .then(({ data }) => {
-        setRows((data as ProjectRow[]) ?? []);
+        const normalized = ((data ?? []) as ProjectRowRaw[]).map((row) => ({
+          ...row,
+          hub_project_contractor_payouts: row.hub_project_contractor_payouts ?? [],
+          hub_projects: row.hub_projects[0],
+        }));
+        setRows(normalized);
         setLoading(false);
       });
   }, [hubUser]);

@@ -3,6 +3,8 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_ANNOUNCEMENTS } from '@/lib/demoData';
 
 const priorityColors: Record<string, string> = {
   normal: 'bg-gray-100 text-gray-600',
@@ -21,6 +23,7 @@ const emptyForm = { title: '', body: '', priority: 'normal', category: 'general'
 
 export default function AnnouncementsPage() {
   const { hubUser } = useAuth();
+  const { isDemo } = useDemo();
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -53,7 +56,14 @@ export default function AnnouncementsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchAnnouncements(); }, []);
+  useEffect(() => {
+    if (isDemo) {
+      setAnnouncements(DEMO_ANNOUNCEMENTS);
+      setLoading(false);
+      return;
+    }
+    fetchAnnouncements();
+  }, [isDemo]);
 
   const openNew = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
   const openEdit = (a: HubAnnouncement) => {

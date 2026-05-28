@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubClient, HubClientAssignment, HubUser } from '@/lib/types';
-import { useAuth } from '@/contexts/AuthContext';
+import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
+import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
 import { getSetting } from '@/lib/settings';
+import { DEMO_CLIENTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 
 const statusColors: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-700',
@@ -14,6 +16,19 @@ const statusColors: Record<string, string> = {
 
 const fmtPHP = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const emptyForm = { client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' };
+
+type AssignmentUser = NonNullable<HubClientAssignment['hub_users']>;
+type AssignmentRow = Omit<HubClientAssignment, 'hub_users'> & {
+  hub_users?: AssignmentUser | AssignmentUser[];
+};
+
+function normalizeAssignment(row: AssignmentRow): HubClientAssignment {
+  const nestedUser = Array.isArray(row.hub_users) ? row.hub_users[0] : row.hub_users;
+  return {
+    ...row,
+    hub_users: nestedUser,
+  };
+}
 
 function Avatar({ name, avatar_url, size = 7 }: { name: string; avatar_url?: string | null; size?: number }) {
   const s = `w-${size} h-${size}`;
@@ -27,7 +42,8 @@ function Avatar({ name, avatar_url, size = 7 }: { name: string; avatar_url?: str
 
 export default function ClientsPage() {
   const { hubUser } = useAuth();
-  const isOwner = hubUser?.role === 'owner';
+  const { isDemo } = useDemo();
+  const isOwner = isDemo ? true : hubUser?.role === 'owner';
   const [usdRate, setUsdRate] = useState(56);
   const [clients, setClients] = useState<HubClient[]>([]);
   const [contractors, setContractors] = useState<HubUser[]>([]);
@@ -64,14 +80,26 @@ export default function ClientsPage() {
       const { data: fallback } = await supabase.from('hub_clients').select('*').order('client_name');
       setClients((fallback as HubClient[]) ?? []);
     } else {
-      setClients((clientsRes.data as HubClient[]) ?? []);
+      const normalizedClients = ((clientsRes.data ?? []) as (HubClient & { hub_client_assignments?: AssignmentRow[] })[]).map((client) => ({
+        ...client,
+        hub_client_assignments: (client.hub_client_assignments ?? []).map(normalizeAssignment),
+      }));
+      setClients(normalizedClients);
     }
 
     setContractors((usersRes.data as HubUser[]) ?? []);
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (isDemo) {
+      setClients(DEMO_CLIENTS);
+      setContractors(DEMO_CONTRACTORS as HubUser[]);
+      setLoading(false);
+      return;
+    }
+    fetchData();
+  }, [isDemo]);
 
   const filtered = clients.filter(c =>
     !search || c.client_name.toLowerCase().includes(search.toLowerCase())
@@ -133,7 +161,7 @@ export default function ClientsPage() {
       .from('hub_client_assignments')
       .select('id, contractor_id, role, hub_users(id, full_name, avatar_url, department)')
       .eq('client_id', assignClient.id);
-    setAssignments((data as HubClientAssignment[]) ?? []);
+    setAssignments(((data ?? []) as AssignmentRow[]).map(normalizeAssignment));
     fetchData();
   };
 

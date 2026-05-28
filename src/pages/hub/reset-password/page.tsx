@@ -1,6 +1,7 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { getHubHomePath } from '@/lib/hubAuth';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export default function ResetPasswordPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: hubUser } = await supabase.from('hub_users').select('role').eq('id', user.id).maybeSingle();
-      setTimeout(() => navigate(hubUser?.role === 'admin' ? '/hub/admin/dashboard' : '/hub/contractor/dashboard'), 2000);
+      setTimeout(() => navigate(getHubHomePath(hubUser?.role)), 2000);
     } else {
       setTimeout(() => navigate('/hub/login'), 2000);
     }

@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
-import { useAuth } from '@/contexts/AuthContext';
+import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
+import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
+import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF } from '@/lib/demoData';
 
 const REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
 
@@ -272,6 +274,7 @@ interface SlackTeamRecord {
 
 export default function ContractorDashboard() {
   const { user } = useAuth();
+  const { isDemo } = useDemo();
   const navigate = useNavigate();
   const now = useClock();
   const [slackStatus, setSlackStatus] = useState<'on' | 'off' | 'absent' | null>(null);
@@ -282,6 +285,7 @@ export default function ContractorDashboard() {
   const [requests, setRequests] = useState<HubRequest[]>([]);
   const [timeOffs, setTimeOffs] = useState<HubTimeOff[]>([]);
   const [teamStatus, setTeamStatus] = useState<SlackTeamRecord[]>([]);
+  const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -306,14 +310,38 @@ export default function ContractorDashboard() {
   const maxHours = daysElapsed * 8;
   const hoursProgress = maxHours > 0 ? Math.min((hoursThisCutoff / maxHours) * 100, 100) : 0;
 
+  // Last working day of current month (Sat→Fri, Sun→Fri)
+  const _lastWorkingDay = (() => {
+    const last = new Date(_y, _m + 1, 0);
+    const dow = last.getDay();
+    if (dow === 6) last.setDate(last.getDate() - 1);
+    if (dow === 0) last.setDate(last.getDate() - 2);
+    return last.getDate();
+  })();
+  const cutoffDeadlineDay = isFirstHalf ? 15 : _lastWorkingDay;
+  const cutoffDeadlineDate = new Date(_y, _m, cutoffDeadlineDay);
+  const todayMidnight = new Date(_y, _m, today.getDate());
+  const daysUntilCutoff = Math.round((cutoffDeadlineDate.getTime() - todayMidnight.getTime()) / 86400000);
+  const showPayslipBanner = daysUntilCutoff <= 3 && !['submitted','hr_approved','paid'].includes(payoutStatus ?? '');
+
   const fetchData = async () => {
+    if (isDemo) {
+      setHoursThisCutoff(62.5);
+      setEstimatedPayout(28750);
+      setAnnouncements(DEMO_ANNOUNCEMENTS as HubAnnouncement[]);
+      setRequests(DEMO_REQUESTS.slice(0, 2) as HubRequest[]);
+      setTimeOffs(DEMO_TIME_OFF.slice(0, 1) as HubTimeOff[]);
+      setPayoutStatus('pending');
+      setLoading(false);
+      return;
+    }
     if (!user) return;
     setLoading(true);
 
     const periodStartStr = cutoffStartStr;
     const periodEndStr   = cutoffEndStr;
 
-    const [attResult, annResult, reqResult, toResult, slackResult, rateRes] = await Promise.all([
+    const [attResult, annResult, reqResult, toResult, slackResult, rateRes, payoutRes] = await Promise.all([
       supabase
         .from('hub_daily_hours')
         .select('hours_capped, overtime_hours, date')
@@ -329,6 +357,11 @@ export default function ContractorDashboard() {
         .eq('contractor_id', user.id)
         .lte('effective_date', periodEndStr)
         .order('effective_date', { ascending: true }),
+      supabase.from('hub_payouts')
+        .select('status')
+        .eq('contractor_id', user.id)
+        .eq('cutoff_start', periodStartStr)
+        .maybeSingle(),
     ]);
 
     const days = attResult.data ?? [];
@@ -398,10 +431,11 @@ export default function ContractorDashboard() {
     setAnnouncements((annResult.data as HubAnnouncement[]) ?? []);
     setRequests((reqResult.data as HubRequest[]) ?? []);
     setTimeOffs((toResult.data as HubTimeOff[]) ?? []);
+    setPayoutStatus(payoutRes.data?.status ?? null);
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [user]);
+  useEffect(() => { fetchData(); }, [user, isDemo]);
 
   const hour = now.getHours();
   const phTime = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true });
@@ -427,6 +461,29 @@ export default function ContractorDashboard() {
         <div className="flex justify-center py-20"><i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i></div>
       ) : (
         <div className="max-w-6xl mx-auto space-y-4 w-full">
+
+            {/* Payslip submission reminder */}
+            {showPayslipBanner && (
+              <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3">
+                <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${daysUntilCutoff === 0 ? 'bg-rose-400' : 'bg-amber-400'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-700">
+                    {daysUntilCutoff === 0 ? 'Payslip due today' : daysUntilCutoff === 1 ? 'Payslip due tomorrow' : `Payslip due in ${daysUntilCutoff} days`}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {daysUntilCutoff === 0
+                      ? 'Confirm your hours are complete before submitting your payslip.'
+                      : 'Review your hours and submit your payslip before the cutoff.'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate('/hub/contractor/payouts')}
+                  className="flex-shrink-0 text-xs font-medium text-[#FF6B35] hover:text-[#e55a27] transition-colors cursor-pointer"
+                >
+                  Submit →
+                </button>
+              </div>
+            )}
 
             {/* Hero greeting — full width */}
             <div className="bg-[#111827] rounded-2xl p-5 text-white relative overflow-hidden">

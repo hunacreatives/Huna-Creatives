@@ -15,7 +15,7 @@ export default function Hero() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mousePosRef = useRef({ x: -9999, y: -9999 });
   const bubblesRef = useRef<Bubble[]>([]);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     const els = sectionRef.current?.querySelectorAll<HTMLElement>('.hero-animate');

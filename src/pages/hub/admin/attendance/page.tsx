@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_ATTENDANCE, DEMO_ATTENDANCE_HISTORY } from '@/lib/demoData';
 import EditHoursModal from './EditHoursModal';
 
 // ----- Types -----
 
 interface AttendanceRecord {
+  id: string;
   hub_user_id: string | null;
   email: string | null;
   full_name: string;
@@ -14,6 +17,8 @@ interface AttendanceRecord {
   status: 'on' | 'off' | 'absent';
   last_punch: string | null;
   overtime_today: number;
+  hours_raw: number | null;
+  hours_capped: number | null;
   punches: { status: 'on' | 'off'; time: string }[];
 }
 
@@ -31,10 +36,9 @@ interface HistoricalRow {
   isDayOff?: boolean;
 }
 
-interface HubUser {
+interface ContractorSummary {
   id: string;
   full_name: string;
-  avatar_url: string | null;
   department: string | null;
   start_date: string | null;
 }
@@ -144,7 +148,7 @@ async function generateAttendancePDF(start: string, end: string, label: string) 
     cur.setDate(cur.getDate() + 1);
   }
 
-  const sortedContractors = (contractors || []).slice().sort((a: HubUser, b: HubUser) =>
+  const sortedContractors = (contractors || []).slice().sort((a: ContractorSummary, b: ContractorSummary) =>
     a.full_name.localeCompare(b.full_name)
   );
 
@@ -157,7 +161,7 @@ async function generateAttendancePDF(start: string, end: string, label: string) 
     const dateLabel = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     const dayEntries = hoursIndex[date] || {};
 
-    const eligibleOnDate = sortedContractors.filter((c: HubUser) =>
+    const eligibleOnDate = sortedContractors.filter((c: ContractorSummary) =>
       !c.start_date || c.start_date <= date
     );
 
@@ -283,6 +287,7 @@ async function generateAttendancePDF(start: string, end: string, label: string) 
 // ----- Main Component -----
 
 export default function AdminAttendancePage() {
+  const { isDemo } = useDemo();
   const todayStr = toDateStr(new Date());
 
   const [selectedDate, setSelectedDate] = useState(todayStr);
@@ -378,6 +383,45 @@ export default function AdminAttendancePage() {
 
   // ----- Effects -----
   useEffect(() => {
+    if (isDemo) {
+      if (isToday) {
+        // Map demo attendance to AttendanceRecord shape
+        const demoRecords: AttendanceRecord[] = DEMO_ATTENDANCE.map(a => ({
+          id: a.hub_user_id || '',
+          hub_user_id: a.hub_user_id,
+          email: null,
+          full_name: a.full_name,
+          avatar_url: a.avatar_url,
+          department: a.department,
+          status: a.status,
+          last_punch: a.last_punch,
+          overtime_today: a.overtime_today,
+          hours_raw: a.hours_today,
+          hours_capped: a.hours_today,
+          punches: [],
+        }));
+        setRecords(demoRecords);
+        setLoading(false);
+      } else {
+        // Map demo attendance history to HistoricalRow shape
+        const demoHist: HistoricalRow[] = DEMO_ATTENDANCE_HISTORY.map(h => ({
+          id: h.user_id,
+          full_name: h.full_name,
+          avatar_url: h.avatar_url,
+          department: h.department || null,
+          hours_raw: h.hours_raw,
+          hours_capped: h.hours_capped,
+          overtime_hours: h.overtime_hours,
+          first_on: h.first_on,
+          last_off: h.last_off,
+          worked: true,
+          isDayOff: false,
+        }));
+        setHistRows(demoHist);
+        setHistLoading(false);
+      }
+      return;
+    }
     if (isToday) {
       fetchLive();
       const interval = setInterval(() => fetchLive(true), 60000);
@@ -385,7 +429,7 @@ export default function AdminAttendancePage() {
     } else {
       fetchHistorical(selectedDate);
     }
-  }, [selectedDate, isToday, fetchLive, fetchHistorical]);
+  }, [isDemo, selectedDate, isToday, fetchLive, fetchHistorical]);
 
   // Reset filter when switching modes
   useEffect(() => {

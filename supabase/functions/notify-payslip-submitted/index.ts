@@ -18,7 +18,7 @@ function fmt(val: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val);
 }
 
-async function sendNotification(payout_id: string) {
+async function sendNotification(payout_id: string, type: 'submitted' | 'dispute' = 'submitted') {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
   const { data: payout } = await supabase
@@ -31,7 +31,7 @@ async function sendNotification(payout_id: string) {
 
   const { data: contractor } = await supabase
     .from('hub_users')
-    .select('full_name, department')
+    .select('full_name, department, email')
     .eq('id', payout.contractor_id)
     .single();
 
@@ -40,11 +40,14 @@ async function sendNotification(payout_id: string) {
   const periodStart = new Date(payout.cutoff_start);
   const periodEnd = new Date(payout.cutoff_end);
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const calendarEndDay = periodStart.getDate() >= 16
+    ? new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 0).getDate()
+    : periodEnd.getDate();
   const periodLabel = periodStart.getMonth() === periodEnd.getMonth()
-    ? `${months[periodStart.getMonth()]} ${periodStart.getDate()}–${periodEnd.getDate()}, ${periodStart.getFullYear()}`
-    : `${months[periodStart.getMonth()]} ${periodStart.getDate()} – ${months[periodEnd.getMonth()]} ${periodEnd.getDate()}, ${periodStart.getFullYear()}`;
+    ? `${months[periodStart.getMonth()]} ${periodStart.getDate()}–${calendarEndDay}, ${periodStart.getFullYear()}`
+    : `${months[periodStart.getMonth()]} ${periodStart.getDate()} – ${months[periodEnd.getMonth()]} ${calendarEndDay}, ${periodStart.getFullYear()}`;
 
-  const payrollUrl = 'https://hunacreatives.com/hub/admin/payroll';
+  const payrollUrl = 'https://ops.hunacreatives.com/hub/admin/payroll';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -98,6 +101,36 @@ async function sendNotification(payout_id: string) {
 </body>
 </html>`;
 
+  const slackPost = async (path: string, body: unknown) => {
+    const res = await fetch(`https://slack.com/api/${path}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) {
+      console.error(`Slack API failed: ${path}`, { status: res.status, response: json });
+      throw new Error(`Slack API failed: ${path} - ${json.error ?? res.status}`);
+    }
+    return json;
+  };
+
+  if (type === 'dispute') {
+    if (SLACK_BOT_TOKEN) {
+      try {
+        const dm = await slackPost('conversations.open', { users: ABIGAIL_SLACK_ID });
+        await slackPost('chat.postMessage', {
+          channel: dm.channel.id,
+          text: `🚩 *Payslip disputed* — *${contractor.full_name}* has flagged their payslip for *${periodLabel}* (${fmt(payout.final_payout)}). Review it here: ${payrollUrl}`,
+        });
+      } catch (slackErr) {
+        console.error('Slack DM failed (dispute notification):', slackErr);
+      }
+    }
+    return;
+  }
+
+  // type === 'submitted': notify admins + send confirmation to contractor
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -109,21 +142,60 @@ async function sendNotification(payout_id: string) {
     }),
   });
 
-  // Slack DM to Abigail
-  const slackPost = async (path: string, body: object) => {
-    const res = await fetch(`https://slack.com/api/${path}`, {
+  // Confirmation email to contractor
+  if (contractor.email) {
+    const confirmHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background:#111827;padding:24px 32px;">
+      <p style="color:#FF6B35;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">Huna Creatives</p>
+      <h1 style="color:#fff;font-size:22px;font-weight:800;margin:0;">Payslip Received</h1>
+      <p style="color:#6b7280;font-size:13px;margin:6px 0 0;">We've got it — awaiting HR review</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="font-size:14px;color:#374151;margin:0 0 20px;">Hi <strong>${contractor.full_name}</strong>, your payslip for <strong>${periodLabel}</strong> has been successfully submitted and is now under review. You'll hear from us once it's approved.</p>
+      <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:10px;overflow:hidden;">
+        <tr><td style="padding:14px 16px;border-bottom:1px solid #f3f4f6;">
+          <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Pay Period</p>
+          <p style="margin:4px 0 0;font-size:14px;font-weight:600;color:#111827;">${periodLabel}</p>
+        </td></tr>
+        <tr><td style="padding:14px 16px;">
+          <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Amount</p>
+          <p style="margin:4px 0 0;font-size:22px;font-weight:800;color:#FF6B35;">${fmt(payout.final_payout)}</p>
+        </td></tr>
+      </table>
+    </div>
+    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #f3f4f6;">
+      <p style="font-size:11px;color:#d1d5db;margin:0;text-align:center;">© ${new Date().getFullYear()} Huna Creatives · payroll@hunacreatives.com</p>
+    </div>
+  </div>
+</body>
+</html>`;
+    await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: `Huna Creatives Payroll <${FROM_EMAIL}>`,
+        to: contractor.email,
+        subject: `We received your payslip — ${periodLabel}`,
+        html: confirmHtml,
+      }),
     });
-    return res.json();
-  };
-  const dm = await slackPost('conversations.open', { users: ABIGAIL_SLACK_ID });
-  if (dm.ok) {
-    await slackPost('chat.postMessage', {
-      channel: dm.channel.id,
-      text: `💰 *Payslip submitted* — *${contractor.full_name}* has submitted their payslip for *${periodLabel}* (${fmt(payout.final_payout)}). Review it here: ${payrollUrl}`,
-    });
+  }
+
+  // Slack DM to Abigail — isolated so email success is not masked
+  if (SLACK_BOT_TOKEN) {
+    try {
+      const dm = await slackPost('conversations.open', { users: ABIGAIL_SLACK_ID });
+      await slackPost('chat.postMessage', {
+        channel: dm.channel.id,
+        text: `💰 *Payslip submitted* — *${contractor.full_name}* has submitted their payslip for *${periodLabel}* (${fmt(payout.final_payout)}). Review it here: ${payrollUrl}`,
+      });
+    } catch (slackErr) {
+      console.error('Slack DM failed (submit notification):', slackErr);
+    }
   }
 }
 
@@ -131,11 +203,19 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const { payout_id } = await req.json();
+    const { payout_id, type } = await req.json();
     if (!payout_id) return new Response(JSON.stringify({ error: 'payout_id required' }), { status: 400, headers: cors });
 
+    const notifType = type === 'dispute' ? 'dispute' : 'submitted';
+    const payout_id_str = String(payout_id);
     // @ts-ignore
-    EdgeRuntime.waitUntil(sendNotification(String(payout_id)));
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        await sendNotification(payout_id_str, notifType);
+      } catch (error) {
+        console.error('notify-payslip-submitted background task failed', { payout_id: payout_id_str, type: notifType, error });
+      }
+    })());
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {

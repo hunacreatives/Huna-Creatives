@@ -15,6 +15,18 @@ interface ClientAssignment {
   };
 }
 
+interface ClientAssignmentRow {
+  id: number;
+  role: string | null;
+  hub_clients: {
+    id: number;
+    client_name: string;
+    platform: string | null;
+    status: string;
+    notes: string | null;
+  }[];
+}
+
 const statusColors: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-700',
   paused: 'bg-amber-100 text-amber-700',
@@ -33,7 +45,11 @@ export default function ContractorClientsPage() {
       .select('id, role, hub_clients(id, client_name, platform, status, notes)')
       .eq('contractor_id', hubUser.id)
       .then(({ data }) => {
-        setAssignments((data as ClientAssignment[]) ?? []);
+        const normalized = ((data ?? []) as ClientAssignmentRow[]).map((assignment) => ({
+          ...assignment,
+          hub_clients: assignment.hub_clients[0],
+        }));
+        setAssignments(normalized);
         setLoading(false);
       });
   }, [hubUser]);

@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
+import { useDemo } from '@/contexts/DemoContext';
 import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { getSetting } from '@/lib/settings';
+import { DEMO_ATTENDANCE, DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_INVOICES, DEMO_DASHBOARD } from '@/lib/demoData';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -121,6 +123,7 @@ function loadWidgetPrefs(): Record<WidgetKey, boolean> {
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
   const { hubUser, effectiveRole } = useAuth();
+  const { isDemo } = useDemo();
   const [attendance, setAttendance] = useState<SlackRecord[]>([]);
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>([]);
   const [pendingRequests, setPendingRequests] = useState<HubRequest[]>([]);
@@ -175,6 +178,23 @@ export default function AdminDashboardPage() {
     : new Date(today.getFullYear(), today.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 
   useEffect(() => {
+    if (isDemo) {
+      setAttendance(DEMO_ATTENDANCE);
+      setAnnouncements(DEMO_ANNOUNCEMENTS);
+      setPendingRequests(DEMO_REQUESTS);
+      setPendingTimeOff(DEMO_TIME_OFF);
+      setTotalPayroll(DEMO_DASHBOARD.totalPayroll);
+      setTotalHours(DEMO_DASHBOARD.totalHours);
+      setTotalNetProfit(DEMO_DASHBOARD.totalNetProfit);
+      setTotalContractValue(DEMO_DASHBOARD.totalContractValue);
+      setTotalCollected(DEMO_DASHBOARD.totalCollected);
+      setActiveProjectCount(DEMO_DASHBOARD.activeProjectCount);
+      setMonthlyRetainerTotal(DEMO_DASHBOARD.monthlyRetainerTotal);
+      setBirthdays([]);
+      setOutstandingInvoices(DEMO_INVOICES);
+      setLoading(false);
+      return;
+    }
     const fetchAll = async () => {
       const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult] = await Promise.all([
         supabase.functions.invoke('slack-attendance'),
@@ -335,7 +355,7 @@ export default function AdminDashboardPage() {
       setLoading(false);
     };
     fetchAll();
-  }, []);
+  }, [isDemo]);
 
   const counts = {
     on: attendance.filter(r => r.status === 'on').length,
@@ -704,18 +724,28 @@ export default function AdminDashboardPage() {
             {(show('payroll') || show('netProfit') || show('retainer') || show('requests') || show('timeOff')) && (
               <div className={`${show('teamStatus') ? 'md:col-span-2' : 'md:col-span-5'} space-y-4`}>
                 {show('payroll') && (
-                  <div className="bg-[#FF6B35] rounded-xl p-4 text-white">
+                  <div
+                    className="rounded-2xl p-4"
+                    style={{
+                      background: 'rgba(254,215,196,0.95)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      border: '1px solid rgba(255,107,53,0.35)',
+                      boxShadow: '0 4px 24px rgba(255,107,53,0.15)',
+                    }}
+                  >
                     <div className="flex items-center gap-2 mb-3">
-                      <i className="ri-money-dollar-circle-line text-white/70 text-sm"></i>
-                      <p className="text-white/70 text-xs">Estimated Payroll</p>
+                      <i className="ri-money-dollar-circle-line text-[#FF6B35]/60 text-sm"></i>
+                      <p className="text-[#c4522a] text-xs font-medium tracking-wide uppercase">Estimated Payroll</p>
                     </div>
-                    <p className="text-2xl font-bold">₱{totalPayroll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-white/60 text-xs mt-1">
+                    <p className="text-2xl font-bold text-[#7a2e10]">₱{totalPayroll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-[#c4522a]/70 text-xs mt-1">
                       {isFirstHalf ? `${today.toLocaleDateString('en-US', { month: 'short' })} 1–15` : `${today.toLocaleDateString('en-US', { month: 'short' })} 16–${new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()}`} cutoff
                     </p>
                     <button
                       onClick={() => navigate('/hub/admin/payroll')}
-                      className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                      className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-[#c4522a] hover:bg-[#FF6B35]/10"
+                      style={{ background: 'rgba(255,107,53,0.10)' }}
                     >
                       View Payroll
                     </button>
@@ -725,25 +755,35 @@ export default function AdminDashboardPage() {
                 {show('netProfit') && isOwnerOrAdmin && (() => {
                   const collectionPct = totalContractValue > 0 ? Math.min((totalCollected / totalContractValue) * 100, 100) : 0;
                   return (
-                    <div className="bg-teal-600 rounded-xl p-4 text-white">
+                    <div
+                      className="rounded-2xl p-4"
+                      style={{
+                        background: 'rgba(179,240,228,0.95)',
+                        backdropFilter: 'blur(16px)',
+                        WebkitBackdropFilter: 'blur(16px)',
+                        border: '1px solid rgba(20,184,166,0.35)',
+                        boxShadow: '0 4px 24px rgba(20,184,166,0.15)',
+                      }}
+                    >
                       <div className="flex items-center gap-2 mb-3">
-                        <i className="ri-folder-chart-line text-white/70 text-sm"></i>
-                        <p className="text-white/70 text-xs">Projects Net Profit</p>
+                        <i className="ri-folder-chart-line text-teal-500/60 text-sm"></i>
+                        <p className="text-teal-700 text-xs font-medium tracking-wide uppercase">Projects Net Profit</p>
                       </div>
-                      <p className="text-2xl font-bold">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                      <p className="text-white/60 text-xs mt-1">{activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
+                      <p className="text-2xl font-bold text-teal-900">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                      <p className="text-teal-600/70 text-xs mt-1">{activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
                       <div className="mt-3">
-                        <div className="flex justify-between text-[10px] text-white/50 mb-1">
+                        <div className="flex justify-between text-[10px] text-teal-600/50 mb-1">
                           <span>Client collections</span>
                           <span>₱{totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 0 })} / ₱{totalContractValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })} ({collectionPct.toFixed(0)}%)</span>
                         </div>
-                        <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                          <div className="h-full bg-white/70 rounded-full transition-all" style={{ width: `${collectionPct}%` }} />
+                        <div className="h-1.5 bg-teal-500/15 rounded-full overflow-hidden">
+                          <div className="h-full bg-teal-500/50 rounded-full transition-all" style={{ width: `${collectionPct}%` }} />
                         </div>
                       </div>
                       <button
                         onClick={() => navigate('/hub/admin/projects')}
-                        className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                        className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-teal-700 hover:bg-teal-500/10"
+                        style={{ background: 'rgba(20,184,166,0.08)' }}
                       >
                         View Projects
                       </button>
@@ -752,16 +792,26 @@ export default function AdminDashboardPage() {
                 })()}
 
                 {show('retainer') && isOwner && (
-                  <div className="bg-violet-600 rounded-xl p-4 text-white">
+                  <div
+                    className="rounded-2xl p-4"
+                    style={{
+                      background: 'rgba(216,207,254,0.95)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      border: '1px solid rgba(139,92,246,0.35)',
+                      boxShadow: '0 4px 24px rgba(139,92,246,0.15)',
+                    }}
+                  >
                     <div className="flex items-center gap-2 mb-3">
-                      <i className="ri-calendar-check-line text-white/70 text-sm"></i>
-                      <p className="text-white/70 text-xs">Monthly Retainers</p>
+                      <i className="ri-calendar-check-line text-violet-400/70 text-sm"></i>
+                      <p className="text-violet-700 text-xs font-medium tracking-wide uppercase">Monthly Retainers</p>
                     </div>
-                    <p className="text-2xl font-bold">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-white/60 text-xs mt-1">active client contracts · converted to PHP</p>
+                    <p className="text-2xl font-bold text-violet-900">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-violet-500/70 text-xs mt-1">active client contracts · converted to PHP</p>
                     <button
                       onClick={() => navigate('/hub/admin/clients')}
-                      className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                      className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-violet-700 hover:bg-violet-500/10"
+                      style={{ background: 'rgba(139,92,246,0.08)' }}
                     >
                       View Clients
                     </button>

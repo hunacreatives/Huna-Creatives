@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubSop } from '@/lib/types';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_SOPS } from '@/lib/demoData';
 
 const categoryIcons: Record<string, string> = {
   onboarding: 'ri-user-add-line',
@@ -25,6 +27,7 @@ const categoryColors: Record<string, string> = {
 const emptyForm = { title: '', content: '', category: 'general', video_url: '', published: true, visibility: 'all' };
 
 export default function SopPage() {
+  const { isDemo } = useDemo();
   const [sops, setSops] = useState<HubSop[]>([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -42,7 +45,14 @@ export default function SopPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchSops(); }, []);
+  useEffect(() => {
+    if (isDemo) {
+      setSops(DEMO_SOPS);
+      setLoading(false);
+      return;
+    }
+    fetchSops();
+  }, [isDemo]);
 
   const categories = ['all', ...Array.from(new Set(sops.map((s) => s.category)))];
 

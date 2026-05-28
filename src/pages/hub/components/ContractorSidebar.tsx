@@ -1,6 +1,7 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHubAuth } from '@/hooks/useHubAuth';
 import { supabase } from '@/lib/supabase';
 
 const baseNavItems = [
@@ -26,18 +27,44 @@ interface Props {
 }
 
 export default function ContractorSidebar({ collapsed, onToggle }: Props) {
-  const { hubUser, signOut } = useAuth();
+  const { signOut } = useAuth();
+  const { hubUser } = useHubAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [hasProjects, setHasProjects] = useState(false);
 
-  useEffect(() => {
-    if (!hubUser) return;
-    supabase
+  const refreshProjectAccess = useCallback(async () => {
+    if (!hubUser?.id) {
+      setHasProjects(false);
+      return;
+    }
+
+    const { count } = await supabase
       .from('hub_project_contractors')
       .select('id', { count: 'exact', head: true })
-      .eq('contractor_id', hubUser.id)
-      .then(({ count }) => setHasProjects((count ?? 0) > 0));
+      .eq('contractor_id', hubUser.id);
+
+    setHasProjects((count ?? 0) > 0);
   }, [hubUser?.id]);
+
+  useEffect(() => {
+    void refreshProjectAccess();
+  }, [refreshProjectAccess, location.pathname]);
+
+  useEffect(() => {
+    const handleFocus = () => { void refreshProjectAccess(); };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void refreshProjectAccess();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [refreshProjectAccess]);
 
   const isProjectBased = hubUser?.payment_type === 'project_based';
   const filteredBase = isProjectBased

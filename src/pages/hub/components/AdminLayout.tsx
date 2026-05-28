@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import AdminSidebar from './AdminSidebar';
 import NotificationBell from './NotificationBell';
@@ -274,57 +275,80 @@ function GlobalSearch() {
 
 export default function AdminLayout({ children, title, actions }: Props) {
   const { hubUser, loading, session } = useAuth();
+  const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const toggleCollapsed = () => setCollapsed(prev => {
+    const next = !prev;
+    localStorage.setItem('sidebar-collapsed', String(next));
+    return next;
+  });
+
   useEffect(() => {
-    if (!loading && !session) {
+    if (!isDemo && !loading && !session) {
       navigate('/hub/login', { replace: true });
     }
-  }, [loading, session]);
+  }, [loading, session, isDemo]);
 
-  if (loading || !hubUser) return (
+  if (!isDemo && (loading || !hubUser)) return (
     <div className="flex h-screen items-center justify-center bg-white">
       <i className="ri-loader-4-line animate-spin text-2xl text-[#cbd5e1]"></i>
     </div>
   );
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-white">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 left-12 w-80 h-80 rounded-full bg-[#f3f4f6] blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-[#eef2ff] blur-3xl"></div>
-      </div>
+    <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden bg-white lg:bg-gradient-to-br lg:from-sky-100 lg:via-indigo-50 lg:to-white`}>
+      {isDemo && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-[#111827] text-white text-xs flex items-center justify-between px-4 py-1.5 gap-4">
+          <span className="text-white/40 hidden sm:block flex-shrink-0">Demo</span>
+          <div className="flex items-center gap-1 flex-1 justify-center">
+            {(['owner', 'admin', 'contractor'] as const).map(role => (
+              <button
+                key={role}
+                onClick={() => {
+                  setDemoRole(role);
+                  navigate(role === 'contractor' ? '/hub/contractor/dashboard' : '/hub/admin/dashboard');
+                }}
+                className={`px-3 py-1 rounded-full text-[11px] font-medium capitalize transition-colors cursor-pointer ${demoRole === role ? 'bg-white text-[#111827]' : 'text-white/50 hover:text-white'}`}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { demoSignOut(); navigate('/hub/demo'); }} className="text-white/40 hover:text-white transition-colors cursor-pointer flex-shrink-0 text-[11px]">Exit</button>
+        </div>
+      )}
       {/* Desktop sidebar */}
       <div className="hidden lg:block relative z-10">
-        <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+        <AdminSidebar collapsed={collapsed} onToggle={() => toggleCollapsed()} />
       </div>
 
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-[220px]">
+          <div className="w-[260px] flex-shrink-0">
             <AdminSidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
           </div>
-          <div className="flex-1 bg-black/50" onClick={() => setMobileOpen(false)} />
+          <div className="flex-1 bg-black/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
         </div>
       )}
 
       {/* Main content */}
-      <div className="relative z-10 flex-1 min-w-0 overflow-hidden px-4 pb-4 pt-5 md:px-5 md:pb-5">
-        <div className="flex h-full flex-col rounded-[34px] border border-[#e5e7eb] bg-white shadow-[0_30px_100px_rgba(15,23,42,0.08)] overflow-hidden">
+      <div className="relative z-10 flex-1 min-w-0 overflow-hidden lg:px-4 lg:pb-4 lg:pt-5 md:px-5 md:pb-5">
+        <div className="flex h-full flex-col lg:rounded-[34px] lg:border lg:border-white/70 bg-white overflow-hidden lg:shadow-xl lg:shadow-indigo-100/50">
         {/* Top bar */}
-        <header className="border-b border-[#e5e7eb] px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-white/95 backdrop-blur-sm">
+        <header className="border-b border-gray-100/80 px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-white/90 backdrop-blur-sm">
           <button
             onClick={() => setMobileOpen(true)}
-            className="lg:hidden w-10 h-10 rounded-2xl border border-[#e5e7eb] bg-white text-[#6b7280] hover:text-[#111827] cursor-pointer"
+            className="lg:hidden w-10 h-10 rounded-2xl border border-gray-100 bg-white text-gray-500 hover:text-gray-900 cursor-pointer"
           >
             <i className="ri-menu-line text-lg"></i>
           </button>
           <div className="flex-1 min-w-0">
             {title && (
-              <h1 className="text-[#1f1a15] font-semibold text-[28px] leading-tight truncate">{title}</h1>
+              <h1 className="text-gray-900 font-semibold text-[28px] leading-tight truncate">{title}</h1>
             )}
           </div>
           <div className="flex items-center gap-3 min-w-0">

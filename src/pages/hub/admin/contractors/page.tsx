@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubUser } from '@/lib/types';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_CONTRACTORS } from '@/lib/demoData';
 import AddContractorModal from './AddContractorModal';
 
 type ConfirmAction = { type: 'deactivate' | 'delete' | 'resend-invite'; contractor: HubUser };
@@ -10,6 +12,7 @@ type Toast = { id: number; message: string; type: 'success' | 'error' };
 
 export default function ContractorsPage() {
   const navigate = useNavigate();
+  const { isDemo } = useDemo();
   const [contractors, setContractors] = useState<HubUser[]>([]);
   const [filtered, setFiltered] = useState<HubUser[]>([]);
   const [search, setSearch] = useState('');
@@ -41,7 +44,15 @@ export default function ContractorsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchContractors(); }, []);
+  useEffect(() => {
+    if (isDemo) {
+      setContractors(DEMO_CONTRACTORS);
+      setFiltered(DEMO_CONTRACTORS);
+      setLoading(false);
+      return;
+    }
+    fetchContractors();
+  }, [isDemo]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

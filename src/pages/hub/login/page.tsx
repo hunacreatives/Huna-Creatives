@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { getHubHomePath } from '@/lib/hubAuth';
 
 export default function HubLoginPage() {
   const { signIn, hubUser } = useAuth();
@@ -15,14 +16,8 @@ export default function HubLoginPage() {
   const [showPass, setShowPass] = useState(false);
 
   useEffect(() => {
-    if (hubUser) {
-      if (hubUser.role === 'contractor') {
-        navigate('/hub/contractor/dashboard', { replace: true });
-      } else {
-        navigate('/hub/admin/dashboard', { replace: true });
-      }
-    }
-  }, [hubUser]);
+    if (hubUser) navigate(getHubHomePath(hubUser.role), { replace: true });
+  }, [hubUser, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -35,18 +30,10 @@ export default function HubLoginPage() {
         setLoading(false);
         return;
       }
-      // Fetch role directly, then hard-redirect to avoid React state race conditions
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
-        const { data: profile } = await supabase
-          .from('hub_users')
-          .select('role')
-          .eq('id', authUser.id)
-          .maybeSingle();
-        const dest = profile?.role === 'contractor'
-          ? '/hub/contractor/dashboard'
-          : '/hub/admin/dashboard';
-        window.location.href = dest;
+        const { data: profile } = await supabase.from('hub_users').select('role').eq('id', authUser.id).maybeSingle();
+        window.location.href = getHubHomePath(profile?.role);
       } else {
         setError('Could not load your profile. Please try again.');
         setLoading(false);
@@ -58,95 +45,128 @@ export default function HubLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex">
-      {/* Left panel */}
-      <div className="hidden lg:flex lg:w-[45%] bg-[#080c14] flex-col p-10 gap-8">
-        {/* Wordmark */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-sm font-black">S</span>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #e8f0fe 0%, #eef2ff 40%, #fdf4ef 100%)' }}>
+
+      <style>{`
+        @keyframes orb-drift-1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33%       { transform: translate(40px, -30px) scale(1.08); }
+          66%       { transform: translate(-20px, 20px) scale(0.95); }
+        }
+        @keyframes orb-drift-2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          40%       { transform: translate(-50px, 30px) scale(1.1); }
+          70%       { transform: translate(25px, -20px) scale(0.92); }
+        }
+        @keyframes orb-drift-3 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50%       { transform: translate(30px, 40px) scale(1.06); }
+        }
+        @keyframes orb-drift-4 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          35%       { transform: translate(-35px, -25px) scale(1.12); }
+          75%       { transform: translate(20px, 15px) scale(0.9); }
+        }
+        @keyframes orb-drift-5 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          45%       { transform: translate(45px, -40px) scale(1.07); }
+          80%       { transform: translate(-15px, 30px) scale(0.96); }
+        }
+        .orb-1 { animation: orb-drift-1 18s ease-in-out infinite; }
+        .orb-2 { animation: orb-drift-2 22s ease-in-out infinite; }
+        .orb-3 { animation: orb-drift-3 16s ease-in-out infinite; }
+        .orb-4 { animation: orb-drift-4 25s ease-in-out infinite; }
+        .orb-5 { animation: orb-drift-5 20s ease-in-out infinite; }
+      `}</style>
+
+      {/* Animated ambient orbs */}
+      <div className="orb-1 absolute top-[-80px] right-[-60px] w-[520px] h-[520px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(255,107,53,0.18) 0%, transparent 65%)' }} />
+      <div className="orb-2 absolute bottom-[-120px] left-[-80px] w-[480px] h-[480px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 65%)' }} />
+      <div className="orb-3 absolute top-[35%] left-[5%] w-[320px] h-[320px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.12) 0%, transparent 65%)' }} />
+      <div className="orb-4 absolute bottom-[15%] right-[10%] w-[280px] h-[280px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.10) 0%, transparent 65%)' }} />
+      <div className="orb-5 absolute top-[10%] left-[30%] w-[220px] h-[220px] rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(255,107,53,0.08) 0%, transparent 65%)' }} />
+
+      {/* Card */}
+      <div className="relative w-full max-w-[400px] mx-4">
+
+        {/* Logo mark */}
+        <div className="flex flex-col items-center mb-7">
+          <div
+            className="w-12 h-12 rounded-2xl bg-[#FF6B35] flex items-center justify-center mb-3 shadow-lg"
+            style={{ boxShadow: '0 8px 24px rgba(255,107,53,0.30)' }}
+          >
+            <span className="text-white text-lg font-black">S</span>
           </div>
-          <span className="text-white font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
+          <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Huna Creatives</p>
+          <p className="text-gray-800 text-lg font-bold leading-tight">Sentro</p>
         </div>
 
-        {/* Team photo */}
-        <div className="rounded-2xl overflow-hidden ring-1 ring-white/10">
-          <img
-            src="https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/f4405f8d-bb2d-4158-8112-4d2c495073e8/Screenshot+2025-08-05+at+12.46.35%E2%80%AFPM.png"
-            alt="Team"
-            className="w-full h-[380px] object-cover"
-            style={{ objectPosition: '70% center' }}
-          />
-        </div>
-
-        {/* Copy */}
-        <div className="space-y-3">
-          <p className="text-white/35 text-xs tracking-[0.28em] uppercase font-medium">Team Portal</p>
-          <h2 className="text-white text-2xl font-semibold leading-snug">
-            Your agency ops, all in one place.
-          </h2>
-          <p className="text-white/50 text-sm leading-relaxed">
-            Sentro OS is your internal operations hub — attendance, payroll, time-off, announcements, SOPs, and contracts, all in one private portal built for your team.
-          </p>
-          <p className="text-white/25 text-xs">Private access — authorized team members only.</p>
-        </div>
-      </div>
-
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-md space-y-8">
-          {/* Mobile wordmark */}
-          <div className="lg:hidden flex items-center gap-2">
-            <div className="w-7 h-7 bg-[#FF6B35] rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-black">S</span>
-            </div>
-            <span className="text-[#111827] font-bold text-sm tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-[#111827] text-2xl font-bold">Sign in to your account</h1>
-            <p className="text-gray-500 text-sm">Enter your credentials to continue</p>
+        {/* Glass form card */}
+        <div
+          className="rounded-3xl p-8"
+          style={{
+            background: 'rgba(255,255,255,0.65)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.85)',
+            boxShadow: '0 8px 40px rgba(99,120,200,0.12), inset 0 1px 0 rgba(255,255,255,0.95)',
+          }}
+        >
+          <div className="mb-6">
+            <h1 className="text-gray-800 text-xl font-bold">Welcome back</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Sign in to access your workspace</p>
           </div>
 
           {justSignedUp && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-xl mb-5">
               <i className="ri-checkbox-circle-line text-emerald-500 text-sm flex-shrink-0"></i>
-              <p className="text-emerald-700 text-sm">Account created! Sign in with your new credentials.</p>
+              <p className="text-emerald-700 text-sm">Account created! Sign in to continue.</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-700">Email address</label>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</label>
               <div className="relative">
-                <div className="w-10 h-full absolute left-0 top-0 flex items-center justify-center">
-                  <i className="ri-mail-line text-gray-400 text-sm"></i>
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300">
+                  <i className="ri-mail-line text-sm"></i>
                 </div>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@yourcompany.com"
+                  placeholder="name@hunacreatives.com"
                   required
-                  className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white transition-all"
+                  className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl outline-none transition-all text-gray-800 placeholder-gray-300"
+                  style={{
+                    background: 'rgba(255,255,255,0.55)',
+                    border: '1px solid rgba(200,210,240,0.6)',
+                  }}
+                  onFocus={e => e.currentTarget.style.border = '1px solid rgba(255,107,53,0.4)'}
+                  onBlur={e => e.currentTarget.style.border = '1px solid rgba(200,210,240,0.6)'}
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">Password</label>
                 <button
                   type="button"
                   onClick={() => navigate('/hub/forgot-password')}
-                  className="text-xs text-[#FF6B35] hover:underline cursor-pointer whitespace-nowrap"
+                  className="text-xs text-[#FF6B35] hover:text-[#e55a27] transition-colors cursor-pointer"
                 >
                   Forgot password?
                 </button>
               </div>
               <div className="relative">
-                <div className="w-10 h-full absolute left-0 top-0 flex items-center justify-center">
-                  <i className="ri-lock-line text-gray-400 text-sm"></i>
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300">
+                  <i className="ri-lock-line text-sm"></i>
                 </div>
                 <input
                   type={showPass ? 'text' : 'password'}
@@ -154,12 +174,18 @@ export default function HubLoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
-                  className="w-full pl-9 pr-10 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white transition-all"
+                  className="w-full pl-9 pr-10 py-2.5 text-sm rounded-xl outline-none transition-all text-gray-800 placeholder-gray-300"
+                  style={{
+                    background: 'rgba(255,255,255,0.55)',
+                    border: '1px solid rgba(200,210,240,0.6)',
+                  }}
+                  onFocus={e => e.currentTarget.style.border = '1px solid rgba(255,107,53,0.4)'}
+                  onBlur={e => e.currentTarget.style.border = '1px solid rgba(200,210,240,0.6)'}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 cursor-pointer transition-colors"
                 >
                   <i className={showPass ? 'ri-eye-off-line text-sm' : 'ri-eye-line text-sm'}></i>
                 </button>
@@ -167,8 +193,8 @@ export default function HubLoginPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-lg">
-                <i className="ri-error-warning-line text-red-500 text-sm flex-shrink-0"></i>
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
+                <i className="ri-error-warning-line text-red-400 text-sm flex-shrink-0"></i>
                 <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
@@ -176,22 +202,22 @@ export default function HubLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#FF6B35] text-white py-2.5 rounded-lg text-sm font-medium hover:bg-[#e55a27] transition-colors disabled:opacity-60 cursor-pointer whitespace-nowrap"
+              className="w-full bg-[#FF6B35] hover:bg-[#e55a27] text-white py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 cursor-pointer mt-1"
+              style={{ boxShadow: '0 4px 16px rgba(255,107,53,0.30)' }}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <i className="ri-loader-4-line animate-spin text-sm"></i>
-                  Signing in...
+                  Signing in…
                 </span>
-              ) : 'Sign in'}
+              ) : 'Sign In'}
             </button>
           </form>
-
-          <p className="text-center text-xs text-gray-400">
-            Private portal — authorized team members only.<br />
-            Contact your admin if you need access.
-          </p>
         </div>
+
+        <p className="text-center text-xs text-gray-400/70 mt-5">
+          Restricted access · authorized personnel only
+        </p>
       </div>
     </div>
   );

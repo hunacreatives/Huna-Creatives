@@ -26,7 +26,7 @@ async function sendNotification(batch_id: string, type: 'fund_request' | 'fund_a
   if (error || !batch) { console.error('batch not found:', error); return; }
 
   const total = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(batch.total_amount);
-  const payrollUrl = 'https://hunacreatives.com/hub/admin/payroll';
+  const payrollUrl = 'https://ops.hunacreatives.com/hub/admin/payroll';
 
   let to: string;
   let subject: string;
@@ -134,7 +134,13 @@ Deno.serve(async (req) => {
 
     const notifType = type === 'fund_approved' ? 'fund_approved' : 'fund_request';
     // @ts-ignore
-    EdgeRuntime.waitUntil(sendNotification(String(batch_id), notifType));
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        await sendNotification(String(batch_id), notifType);
+      } catch (error) {
+        console.error('notify-owner background task failed', { batch_id, type: notifType, error });
+      }
+    })());
 
     return new Response(JSON.stringify({ ok: true, queued: true }), { headers: cors });
   } catch (err) {

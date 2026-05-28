@@ -28,7 +28,7 @@ async function sendPayslip(payout_id: string) {
 
   const { data: contractor, error: contractorErr } = await supabase
     .from('hub_users')
-    .select('id, full_name, email, payment_type, hourly_rate, monthly_rate, department, currency')
+    .select('id, full_name, email, payment_type, hourly_rate, monthly_rate, department, currency, slack_id')
     .eq('id', payout.contractor_id)
     .single();
 
@@ -54,18 +54,23 @@ async function sendPayslip(payout_id: string) {
 
   const adjustments: { label: string; amount: number; type: string }[] = payout.adjustments || [];
   const adjTotal = adjustments.reduce((s: number, a: any) => s + (a.amount || 0), 0);
-  const basePay = payout.final_payout - adjTotal;
+  const otPay = payout.overtime_pay ?? 0;
+  const basePay = payout.final_payout - adjTotal - otPay;
 
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const shortMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   const periodStart = new Date(payout.cutoff_start);
   const periodEnd = new Date(payout.cutoff_end);
+  // Show full calendar period (e.g. May 16–31), not the internal cutoff day (May 29)
+  const calendarEndDay = periodStart.getDate() >= 16
+    ? new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 0).getDate()
+    : periodEnd.getDate();
   const periodLabel = periodStart.getMonth() === periodEnd.getMonth()
-    ? `${months[periodStart.getMonth()]} ${periodStart.getDate()}–${periodEnd.getDate()}, ${periodStart.getFullYear()}`
-    : `${months[periodStart.getMonth()]} ${periodStart.getDate()} – ${months[periodEnd.getMonth()]} ${periodEnd.getDate()}, ${periodStart.getFullYear()}`;
+    ? `${months[periodStart.getMonth()]} ${periodStart.getDate()}–${calendarEndDay}, ${periodStart.getFullYear()}`
+    : `${months[periodStart.getMonth()]} ${periodStart.getDate()} – ${months[periodEnd.getMonth()]} ${calendarEndDay}, ${periodStart.getFullYear()}`;
 
-  const issuedDate = new Date(payout.paid_at || payout.payment_date || new Date());
+  const issuedDate = new Date(payout.payment_date || payout.approved_at || new Date());
   const issuedLabel = `${shortMonths[issuedDate.getMonth()]} ${issuedDate.getDate()}, ${issuedDate.getFullYear()}`;
 
   const invoiceNo = `INV-${(payout.cutoff_start || '').replace(/-/g,'').slice(0,8)}-${String(payout_id).slice(-4).toUpperCase()}`;
@@ -93,14 +98,14 @@ async function sendPayslip(payout_id: string) {
       </td>
     </tr>`).join('');
 
-  const otRow = totalOT > 0 ? `
+  const otRow = otPay > 0 ? `
     <tr>
       <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
         <p style="margin:0;font-size:13px;color:#374151;">Overtime Pay</p>
         <p style="margin:2px 0 0;font-size:11px;color:#9ca3af;">${totalOT.toFixed(2)} hours overtime</p>
       </td>
       <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-size:13px;font-weight:600;color:#7c3aed;">
-        ${fmt(payout.final_payout - basePay - adjTotal)}
+        ${fmt(otPay)}
       </td>
     </tr>` : '';
 
@@ -227,6 +232,33 @@ async function sendPayslip(payout_id: string) {
     console.error('Resend error:', JSON.stringify(result));
   } else {
     console.log('Resend success:', result.id);
+    await supabase.from('hub_payouts').update({ payslip_sent_at: new Date().toISOString() }).eq('id', payout_id);
+  }
+
+  // Slack DM to contractor — isolated so a Slack failure doesn't shadow email success
+  const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
+  if (SLACK_BOT_TOKEN && contractor.slack_id) {
+    try {
+      const slackPost = async (path: string, body: unknown) => {
+        const res = await fetch(`https://slack.com/api/${path}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) {
+          throw new Error(`Slack API failed: ${path} - ${json.error ?? res.status}`);
+        }
+        return json;
+      };
+      const dm = await slackPost('conversations.open', { users: contractor.slack_id });
+      await slackPost('chat.postMessage', {
+        channel: dm.channel.id,
+        text: `💸 *Payment sent!* Your payslip for *${periodLabel}* has been processed — *${fmt(payout.final_payout)}* is on its way. Check your email for the full receipt.`,
+      });
+    } catch (slackErr) {
+      console.error('Slack DM failed (payslip already sent):', slackErr);
+    }
   }
 }
 
@@ -237,9 +269,15 @@ Deno.serve(async (req) => {
     const { payout_id } = await req.json();
     if (!payout_id) return new Response(JSON.stringify({ error: 'payout_id required' }), { status: 400, headers: cors });
 
-    // Return immediately so the client connection doesn't drop (EarlyDrop prevention)
+    const payout_id_str = String(payout_id);
     // @ts-ignore
-    EdgeRuntime.waitUntil(sendPayslip(String(payout_id)));
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        await sendPayslip(payout_id_str);
+      } catch (error) {
+        console.error('sendPayslip background task failed', { payout_id: payout_id_str, error });
+      }
+    })());
 
     return new Response(JSON.stringify({ ok: true, queued: true }), { headers: cors });
   } catch (err) {

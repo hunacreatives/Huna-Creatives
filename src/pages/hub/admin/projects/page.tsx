@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
+import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
+import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
@@ -56,6 +58,7 @@ function Avatar({ name, url }: { name: string; url?: string | null }) {
 
 export default function AdminProjectsPage() {
   const { hubUser } = useAuth();
+  const { isDemo } = useDemo();
   const [projects, setProjects] = useState<Project[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,7 +178,15 @@ export default function AdminProjectsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (isDemo) {
+      setProjects(DEMO_PROJECTS as unknown as Project[]);
+      setContractors(DEMO_CONTRACTORS.map(c => ({ id: c.id, full_name: c.full_name, avatar_url: null, project_percentage: null, department: c.department || null })));
+      setLoading(false);
+      return;
+    }
+    fetchAll();
+  }, [isDemo]);
 
   const activeProject = projects.find(p => p.id === activeId) ?? null;
 
@@ -1475,7 +1486,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   </div>
                 )}
               </div>
-            </div>
             </> // end desktop + mobile sheets
           );
         })() : (
