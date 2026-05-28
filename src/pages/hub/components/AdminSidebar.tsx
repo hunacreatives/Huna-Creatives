@@ -51,7 +51,10 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
 
         {/* Logo */}
         <div className={`flex items-center gap-3 px-5 h-[74px] border-b border-white/8 ${collapsed ? 'justify-center px-0' : ''}`}>
-          <div className="w-10 h-10 rounded-2xl bg-[#FF6B35] text-white flex items-center justify-center shadow-sm flex-shrink-0">
+          <div
+            onClick={collapsed ? onToggle : undefined}
+            className={`w-10 h-10 rounded-2xl bg-[#FF6B35] text-white flex items-center justify-center shadow-sm flex-shrink-0 ${collapsed ? 'cursor-pointer hover:bg-[#e55a27] transition-colors' : ''}`}
+          >
             <span className="text-sm font-black tracking-tight">S</span>
           </div>
           {!collapsed && (
