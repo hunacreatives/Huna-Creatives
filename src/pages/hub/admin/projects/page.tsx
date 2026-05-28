@@ -61,6 +61,7 @@ export default function AdminProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [activeId, setActiveId] = useState<number | null>(null);
 
   // Project form
@@ -712,10 +713,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     }, { once: true });
   };
 
+  const projectTypes = Array.from(new Set(projects.map(p => p.service).filter(Boolean) as string[])).sort();
+
   const filtered = projects.filter(p => {
     const matchesSearch = !search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.project_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilter === 'all' || p.service === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
   });
 
   const deadlineStatus = (deadline: string | null, status: string) => {
@@ -797,6 +801,27 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               <span className="hidden sm:inline">New Project</span>
             </button>
           </div>
+
+          {projectTypes.length > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setTypeFilter('all')}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              >
+                All Types
+              </button>
+              {projectTypes.map(type => (
+                <button
+                  key={type}
+                  onClick={() => setTypeFilter(typeFilter === type ? 'all' : type)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === type ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                >
+                  {type}
+                  <span className="ml-1.5 opacity-50">{projects.filter(p => p.service === type && (statusFilter === 'all' || p.status === statusFilter)).length}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="pt-1 pb-3">
             {loading ? (
