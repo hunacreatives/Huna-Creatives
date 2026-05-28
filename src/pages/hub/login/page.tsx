@@ -1,7 +1,6 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { getHubHomePath } from '@/lib/hubAuth';
 
 export default function HubLoginPage() {
@@ -28,16 +27,8 @@ export default function HubLoginPage() {
       if (err) {
         setError(err.message || 'Invalid email or password. Please try again.');
         setLoading(false);
-        return;
       }
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        const { data: profile } = await supabase.from('hub_users').select('role').eq('id', authUser.id).maybeSingle();
-        window.location.href = getHubHomePath(profile?.role);
-      } else {
-        setError('Could not load your profile. Please try again.');
-        setLoading(false);
-      }
+      // Navigation handled by useEffect watching hubUser
     } catch {
       setError('Something went wrong. Please try again.');
       setLoading(false);
