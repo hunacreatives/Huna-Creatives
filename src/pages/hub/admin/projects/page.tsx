@@ -778,7 +778,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         <section className="space-y-3">
 
           <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto flex-1 min-w-0">
               {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
                 <button
                   key={tab.key}
@@ -793,19 +793,20 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             </div>
             <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
               className="flex items-center gap-1.5 px-3 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
-              <i className="ri-add-line text-sm"></i> New Project
+              <i className="ri-add-line text-sm"></i>
+              <span className="hidden sm:inline">New Project</span>
             </button>
           </div>
 
-          <div className="overflow-x-auto overflow-y-visible pt-1 pb-3">
+          <div className="pt-1 pb-3">
             {loading ? (
               <div className="flex justify-center py-16"><i className="ri-loader-4-line animate-spin text-gray-300 text-2xl"></i></div>
             ) : filtered.length === 0 ? (
-              <div className="mx-auto max-w-xl rounded-[28px] border border-dashed border-white/70 bg-white/50 px-5 py-14 text-center backdrop-blur-xl">
-                <p className="text-sm text-[#6b7280]">No projects match this view yet.</p>
+              <div className="rounded-xl border border-dashed border-gray-200 px-5 py-14 text-center">
+                <p className="text-sm text-gray-400">No projects match this view yet.</p>
               </div>
             ) : (
-              <div className="flex gap-4 min-w-max px-1 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:overflow-x-auto lg:gap-4 gap-3 lg:min-w-0 lg:pb-2">
                 {filtered.map(p => {
                   const d = derived(p);
                   const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
@@ -815,7 +816,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <button
                       key={p.id}
                       onClick={() => setActiveId(p.id)}
-                      className={`w-[272px] shrink-0 rounded-xl border bg-white p-4 text-left transition-all flex flex-col gap-3 ${
+                      className={`w-full lg:w-[272px] lg:shrink-0 rounded-xl border bg-white p-4 text-left transition-all flex flex-col gap-3 ${
                         activeId === p.id
                           ? 'border-[#FF6B35] shadow-md'
                           : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
@@ -880,7 +881,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               { label: 'Net', value: fmt(summaryTotals.netProfit), cls: 'text-teal-600' },
               { label: 'Collected', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, cls: 'text-emerald-600' },
             ].map(s => (
-              <div key={s.label} className="bg-white/55 border border-white/75 rounded-2xl px-3 py-2.5 backdrop-blur-xl shadow-[0_10px_24px_rgba(15,23,42,0.05)] ring-1 ring-white/45">
+              <div key={s.label} className="bg-white border border-gray-100 rounded-xl px-3 py-2.5">
                 <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
                 <p className={`text-sm font-bold ${s.cls} truncate mt-1`}>{s.value}</p>
               </div>
