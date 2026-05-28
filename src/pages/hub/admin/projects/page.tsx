@@ -778,7 +778,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         <section className="space-y-3">
 
           <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto flex-1 min-w-0">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto w-fit">
               {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
                 <button
                   key={tab.key}
