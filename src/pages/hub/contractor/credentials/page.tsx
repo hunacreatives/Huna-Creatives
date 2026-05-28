@@ -172,7 +172,7 @@ export default function ContractorCredentialsPage() {
   const myPending = myRequests.filter((r) => r.status === 'pending').length;
 
   return (
-    <ContractorLayout>
+    <ContractorLayout title="Credentials">
       {toast && (
         <div className="fixed top-5 right-5 z-50 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">
           {toast}

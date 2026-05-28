@@ -187,7 +187,7 @@ export default function ContractorDocumentsPage() {
   const pendingSignCount = assignments.filter(a => a.status === 'pending').length;
 
   return (
-    <ContractorLayout>
+    <ContractorLayout title="Documents">
       {toast && (
         <div className="fixed top-5 right-5 z-50 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">
           {toast}
