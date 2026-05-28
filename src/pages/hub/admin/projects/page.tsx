@@ -999,7 +999,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <i className="ri-printer-line"></i> Print
                     </button>
                     <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
-                      className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-xl hover:bg-[#0f172a] cursor-pointer flex items-center gap-1 shadow-[0_10px_24px_rgba(17,24,39,0.16)]">
+                      className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-xl hover:bg-[#0f172a] cursor-pointer flex items-center gap-1">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>
                     <button onClick={() => { setEditingProject(activeProject); setForm({ client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '' }); setShowForm(true); }}
@@ -1041,7 +1041,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Client Payments */}
-                <div className="bg-white/58 border border-white/75 rounded-[24px] p-4 space-y-3 backdrop-blur-2xl shadow-[0_14px_30px_rgba(15,23,42,0.07)] ring-1 ring-white/45">
+                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Client Payments</p>
                   {activeProject.hub_project_payments.length === 0 ? (
                     <p className="text-xs text-gray-400">No payments logged yet.</p>
@@ -1153,7 +1153,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
 
                 {/* Payment Schedule */}
-                <div className="bg-white/58 border border-white/75 rounded-[24px] p-4 space-y-3 backdrop-blur-2xl shadow-[0_14px_30px_rgba(15,23,42,0.07)] ring-1 ring-white/45">
+                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Schedule</p>
                     <span className="text-[10px] text-gray-400">Reminders auto-send on due date</span>
@@ -1208,7 +1208,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
 
                 {/* Operational Costs */}
-                <div className="bg-white/58 border border-white/75 rounded-[24px] p-4 space-y-3 backdrop-blur-2xl shadow-[0_14px_30px_rgba(15,23,42,0.07)] ring-1 ring-white/45">
+                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Operational Costs</p>
                   {activeProject.hub_project_costs.length === 0 ? (
                     <p className="text-xs text-gray-400">No costs logged yet.</p>
@@ -1247,7 +1247,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               </div>
 
               {/* Team */}
-              <div className="bg-white/58 border border-white/75 rounded-[24px] p-4 space-y-3 backdrop-blur-2xl shadow-[0_14px_30px_rgba(15,23,42,0.07)] ring-1 ring-white/45">
+              <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team</p>
                 <p className="text-[11px] text-gray-400">Assign people first, then configure payout type and amount for each person.</p>
 
@@ -1276,7 +1276,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       const pf = ctxPayForm[pc.id] ?? { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null, notify: true };
                       const setPf = (patch: Partial<typeof pf>) => setCtxPayForm(prev => ({ ...prev, [pc.id]: { ...pf, ...patch } }));
                       return (
-                        <div key={pc.id} className="border border-white/70 bg-white/38 rounded-[22px] overflow-hidden backdrop-blur-xl shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                        <div key={pc.id} className="border border-gray-100 bg-white rounded-xl overflow-hidden">
                           {/* Contractor header */}
                           <div className="flex items-center gap-3 p-3 bg-white/45 backdrop-blur-md">
                             <Avatar name={u.full_name} url={u.avatar_url} />
