@@ -47,7 +47,7 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
         collapsed ? 'w-[92px]' : 'w-[290px]'
       }`}
     >
-      <div className="flex flex-col flex-1 min-h-0 rounded-[30px] bg-[#111827] overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 rounded-[30px] bg-[#0a0a0a] overflow-hidden">
 
         {/* Logo */}
         <div className={`flex items-center gap-3 px-5 h-[74px] border-b border-white/8 ${collapsed ? 'justify-center px-0' : ''}`}>
