@@ -29,7 +29,6 @@ function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const search = useCallback(async (q: string) => {
     if (q.trim().length < 2) { setResults([]); return; }
@@ -66,26 +65,21 @@ function GlobalSearch() {
   }, [query, search]);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        inputRef.current?.focus();
         setOpen(true);
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 10);
+    return () => clearTimeout(t);
+  }, [open]);
 
   const go = (result: SearchResult) => {
     navigate(result.path);
@@ -97,66 +91,184 @@ function GlobalSearch() {
   const typeColors: Record<string, string> = {
     contractor: 'text-[#FF6B35]', project: 'text-teal-600', invoice: 'text-sky-600', request: 'text-violet-600',
   };
+  const quickActions = [
+    { label: 'Dashboard page', path: '/hub/admin/dashboard', icon: 'ri-home-5-line' },
+    { label: 'Projects page', path: '/hub/admin/projects', icon: 'ri-folder-line' },
+    { label: 'Payroll page', path: '/hub/admin/payroll', icon: 'ri-bank-card-line' },
+    { label: 'Contractors page', path: '/hub/admin/contractors', icon: 'ri-team-line' },
+    { label: 'Attendance page', path: '/hub/admin/attendance', icon: 'ri-time-line' },
+    { label: 'Schedule invoice', path: '/hub/admin/invoice-log', icon: 'ri-calendar-schedule-line' },
+  ];
+  const activeFilter = query.length >= 2 ? 'Results' : 'All';
 
   return (
-    <div ref={containerRef} className="relative">
-      <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5 w-52">
-        <i className="ri-search-line text-gray-400 text-sm flex-shrink-0"></i>
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={e => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={e => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, results.length - 1)); }
-            if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
-            if (e.key === 'Enter' && results[activeIdx]) go(results[activeIdx]);
-            if (e.key === 'Escape') { setOpen(false); inputRef.current?.blur(); }
-          }}
-          placeholder="Search…"
-          className="bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none w-full"
-        />
-        {query && (
-          <button onClick={() => { setQuery(''); setResults([]); }} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0">
-            <i className="ri-close-line text-sm"></i>
-          </button>
-        )}
-        {!query && <kbd className="hidden sm:inline text-[10px] text-gray-400 bg-white border border-gray-200 rounded px-1 flex-shrink-0">⌘K</kbd>}
-      </div>
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-3 min-w-[260px] rounded-2xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-colors hover:bg-white"
+      >
+        <i className="ri-search-line text-[#9ca3af] text-base flex-shrink-0"></i>
+        <span className="flex-1 text-sm text-[#6b7280] truncate">Search projects, people, or type a command...</span>
+        <kbd className="hidden sm:inline text-[10px] text-[#6b7280] bg-[#f9fafb] border border-[#e5e7eb] rounded-lg px-1.5 py-0.5 flex-shrink-0">⌘ K</kbd>
+      </button>
 
-      {open && query.length >= 2 && (
-        <div className="absolute top-full right-0 mt-1.5 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-6">
-              <i className="ri-loader-4-line animate-spin text-gray-300"></i>
+      {open && (
+        <div className="fixed inset-0 z-[70] bg-[rgba(34,25,16,0.22)] backdrop-blur-[2px] p-4 md:p-8" onClick={() => setOpen(false)}>
+          <div className="mx-auto mt-[6vh] w-full max-w-4xl rounded-[32px] border border-[#e5e7eb] bg-white shadow-[0_40px_120px_rgba(15,23,42,0.16)] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="border-b border-[#e5e7eb] px-6 pt-5 pb-4">
+              <div className="flex items-center gap-3 rounded-[22px] border border-[#e5e7eb] bg-white px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                <i className="ri-search-line text-[#9ca3af] text-xl flex-shrink-0"></i>
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, Math.max(results.length - 1, 0))); }
+                    if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
+                    if (e.key === 'Enter' && results[activeIdx]) go(results[activeIdx]);
+                    if (e.key === 'Escape') setOpen(false);
+                  }}
+                  placeholder="Search meetings, people, or type a command..."
+                  className="w-full bg-transparent text-[17px] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none"
+                />
+                {query ? (
+                  <button onClick={() => { setQuery(''); setResults([]); }} className="text-[#9ca3af] hover:text-[#4b5563] cursor-pointer">
+                    <i className="ri-close-line text-lg"></i>
+                  </button>
+                ) : (
+                  <kbd className="text-[11px] text-[#6b7280] bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-2 py-1">⌘ K</kbd>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {['All', 'Training', 'Interview', 'Design task', 'Review', 'Onboarding', activeFilter].filter((value, idx, arr) => arr.indexOf(value) === idx).map(label => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`rounded-2xl border px-3.5 py-1.5 text-sm transition-colors ${label === activeFilter ? 'border-[#e9e2fb] bg-[#ede8ff] text-[#6e59cf]' : 'border-[#e5e7eb] bg-white text-[#4b5563]'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-          ) : results.length === 0 ? (
-            <div className="px-4 py-5 text-center">
-              <p className="text-sm text-gray-400">No results for "{query}"</p>
-            </div>
-          ) : (
-            <div className="py-1.5">
-              {results.map((r, i) => (
-                <button
-                  key={`${r.type}-${r.id}`}
-                  onClick={() => go(r)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors cursor-pointer ${i === activeIdx ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
-                >
-                  <div className={`w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0`}>
-                    <i className={`${r.icon} text-sm ${typeColors[r.type]}`}></i>
+
+            <div className="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
+              <div className="border-b lg:border-b-0 lg:border-r border-[#e5e7eb]">
+                <div className="px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[15px] font-semibold text-[#374151]">{query.length >= 2 ? `Search results (${results.length})` : 'Recent surfaces'}</p>
+                    <div className="flex items-center gap-2 text-[#9ca3af]">
+                      <button className="w-8 h-8 rounded-xl border border-[#e5e7eb] bg-white"><i className="ri-arrow-left-s-line"></i></button>
+                      <button className="w-8 h-8 rounded-xl border border-[#e5e7eb] bg-white"><i className="ri-arrow-right-s-line"></i></button>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{r.title}</p>
-                    <p className="text-xs text-gray-400 truncate capitalize">{r.subtitle}</p>
+                </div>
+
+                {query.length >= 2 ? (
+                  <div className="px-4 pb-4">
+                    {loading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <i className="ri-loader-4-line animate-spin text-2xl text-[#cbd5e1]"></i>
+                      </div>
+                    ) : results.length === 0 ? (
+                      <div className="rounded-[24px] border border-dashed border-[#e5e7eb] bg-[#fcfcfd] px-5 py-12 text-center">
+                        <p className="text-sm text-[#6b7280]">No results for "{query}"</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {results.map((r, i) => (
+                          <button
+                            key={`${r.type}-${r.id}`}
+                            onClick={() => go(r)}
+                            className={`rounded-[24px] border px-4 py-4 text-left bg-white transition-all shadow-[0_10px_30px_rgba(15,23,42,0.04)] ${i === activeIdx ? 'border-[#ddd4ff] ring-2 ring-[#ede8ff]' : 'border-[#e5e7eb] hover:border-[#ddd4ff]'}`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="w-11 h-11 rounded-2xl bg-[#f3f4f6] flex items-center justify-center flex-shrink-0">
+                                <i className={`${r.icon} text-lg ${typeColors[r.type]}`}></i>
+                              </div>
+                              <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-[#6b7280]">{r.type}</span>
+                            </div>
+                            <p className="mt-5 text-[17px] font-semibold leading-tight text-[#201c18]">{r.title}</p>
+                            <p className="mt-1 text-sm text-[#6b7280]">{r.subtitle}</p>
+                            <div className="mt-4 inline-flex items-center gap-1 rounded-full bg-[#f9fafb] px-2.5 py-1 text-xs text-[#6b7280]">
+                              Open
+                              <i className="ri-arrow-right-up-line"></i>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0 capitalize`}>{r.type}</span>
-                </button>
-              ))}
+                ) : (
+                  <div className="px-4 pb-4">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      {[
+                        { name: 'Projects', meta: 'Project browser', icon: 'ri-folder-line', tone: 'bg-[#f3f4f6]', text: 'text-[#201c18]' },
+                        { name: 'Team', meta: 'Contractors', icon: 'ri-team-line', tone: 'bg-[#eef5ff]', text: 'text-[#2d5fa7]' },
+                        { name: 'Payroll', meta: 'Payments', icon: 'ri-bank-card-line', tone: 'bg-[#eff8ef]', text: 'text-[#2f7a4c]' },
+                        { name: 'Attendance', meta: 'Daily sync', icon: 'ri-time-line', tone: 'bg-[#fff3ea]', text: 'text-[#d1673d]' },
+                      ].map(card => (
+                        <div key={card.name} className="rounded-[24px] border border-[#e5e7eb] bg-white px-4 py-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+                          <div className={`w-12 h-12 rounded-2xl ${card.tone} ${card.text} flex items-center justify-center`}>
+                            <i className={`${card.icon} text-xl`}></i>
+                          </div>
+                          <p className="mt-6 text-[17px] font-semibold text-[#201c18]">{card.name}</p>
+                          <p className="mt-1 text-sm text-[#6b7280]">{card.meta}</p>
+                          <button
+                            onClick={() => navigate(card.name === 'Projects' ? '/hub/admin/projects' : card.name === 'Team' ? '/hub/admin/contractors' : card.name === 'Payroll' ? '/hub/admin/payroll' : '/hub/admin/attendance')}
+                            className="mt-4 w-full rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2 text-sm text-[#374151] hover:bg-white cursor-pointer"
+                          >
+                            Detail
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-5">
+                <p className="text-[15px] font-semibold text-[#374151]">Quick actions ({quickActions.length})</p>
+                <div className="mt-4 space-y-1">
+                  {quickActions.map(action => (
+                    <button
+                      key={action.label}
+                      onClick={() => { navigate(action.path); setOpen(false); }}
+                      className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[#374151] hover:bg-[#f9fafb] transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-xl border border-[#e5e7eb] bg-white flex items-center justify-center text-[#9ca3af]">
+                        <i className={`${action.icon} text-base`}></i>
+                      </div>
+                      <span className="flex-1 text-[15px]">{action.label}</span>
+                      <div className="w-8 h-8 rounded-xl border border-transparent bg-transparent text-[#9ca3af] flex items-center justify-center group-hover:border-[#e5e7eb] group-hover:bg-white">
+                        <i className="ri-arrow-right-s-line"></i>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-8 rounded-[24px] border border-dashed border-[#e5e7eb] bg-[#fcfcfd] px-4 py-4">
+                  <div className="flex items-center justify-between text-sm text-[#6b7280]">
+                    <span>Use</span>
+                    <span className="inline-flex items-center gap-1">
+                      <kbd className="rounded-lg border border-[#e5e7eb] bg-white px-2 py-0.5 text-[11px]">↑</kbd>
+                      <kbd className="rounded-lg border border-[#e5e7eb] bg-white px-2 py-0.5 text-[11px]">↓</kbd>
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-sm text-[#6b7280]">
+                    <span>to navigate</span>
+                    <span className="inline-flex items-center gap-1">
+                      Type
+                      <kbd className="rounded-lg border border-[#e5e7eb] bg-white px-2 py-0.5 text-[11px]">/</kbd>
+                      for commands
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -173,15 +285,19 @@ export default function AdminLayout({ children, title, actions }: Props) {
   }, [loading, session]);
 
   if (loading || !hubUser) return (
-    <div className="flex h-screen items-center justify-center bg-[#FAFAFA]">
-      <i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i>
+    <div className="flex h-screen items-center justify-center bg-white">
+      <i className="ri-loader-4-line animate-spin text-2xl text-[#cbd5e1]"></i>
     </div>
   );
 
   return (
-    <div className="flex h-screen bg-[#FAFAFA] overflow-hidden">
+    <div className="relative flex h-screen overflow-hidden bg-white">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-24 left-12 w-80 h-80 rounded-full bg-[#f3f4f6] blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-[#eef2ff] blur-3xl"></div>
+      </div>
       {/* Desktop sidebar */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block relative z-10">
         <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </div>
 
@@ -196,45 +312,35 @@ export default function AdminLayout({ children, title, actions }: Props) {
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="relative z-10 flex-1 min-w-0 overflow-hidden px-4 pb-4 pt-5 md:px-5 md:pb-5">
+        <div className="flex h-full flex-col rounded-[34px] border border-[#e5e7eb] bg-white shadow-[0_30px_100px_rgba(15,23,42,0.08)] overflow-hidden">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-100 px-4 md:px-6 h-[57px] flex items-center gap-4 flex-shrink-0">
+        <header className="border-b border-[#e5e7eb] px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-white/95 backdrop-blur-sm">
           <button
             onClick={() => setMobileOpen(true)}
-            className="lg:hidden text-gray-500 hover:text-gray-700 cursor-pointer"
+            className="lg:hidden w-10 h-10 rounded-2xl border border-[#e5e7eb] bg-white text-[#6b7280] hover:text-[#111827] cursor-pointer"
           >
             <i className="ri-menu-line text-lg"></i>
           </button>
           <div className="flex-1 min-w-0">
-            {title && <h1 className="text-[#111827] font-semibold text-base truncate">{title}</h1>}
+            {title && (
+              <h1 className="text-[#1f1a15] font-semibold text-[28px] leading-tight truncate">{title}</h1>
+            )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {actions}
             <GlobalSearch />
             <NotificationBell />
-            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
-              <span className="text-gray-400">|</span>
-              {hubUser.avatar_url ? (
-                <img src={hubUser.avatar_url} alt={hubUser.full_name} className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0" />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-xs font-bold">{hubUser.full_name.charAt(0)}</span>
-                </div>
-              )}
-              <span className="font-medium text-gray-700 whitespace-nowrap">{hubUser.full_name}</span>
-              <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                {hubUser.role === 'owner' ? 'Owner' : 'Admin'}
-              </span>
-            </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-white">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </main>
+        </div>
       </div>
       <DevToolbar />
     </div>
