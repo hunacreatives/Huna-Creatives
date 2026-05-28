@@ -1,6 +1,6 @@
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { useRoutes, useLocation } from "react-router-dom";
-import { useEffect, Suspense } from "react";
+import { useEffect } from "react";
 import routes from "./config";
 
 let navigateResolver: (navigate: ReturnType<typeof useNavigate>) => void;
@@ -45,5 +45,5 @@ export function AppRoutes() {
     import('../pages/hub/contractor/attendance/page');
   }, []);
 
-  return <Suspense fallback={null}>{element}</Suspense>;
+  return element;
 }
