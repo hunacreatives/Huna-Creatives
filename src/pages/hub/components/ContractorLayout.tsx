@@ -44,7 +44,7 @@ export default function ContractorLayout({ children, title, actions }: Props) {
   );
 
   return (
-    <div className={`flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} bg-[#FAFAFA] overflow-hidden`}>
+    <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden bg-gradient-to-br from-sky-100 via-indigo-50 to-white`}>
       {isDemo && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-[#111827] text-white text-xs flex items-center justify-between px-4 py-1.5 gap-4">
           <span className="text-white/40 hidden sm:block flex-shrink-0">Demo</span>
@@ -65,50 +65,51 @@ export default function ContractorLayout({ children, title, actions }: Props) {
           <button onClick={() => { demoSignOut(); navigate('/hub/demo'); }} className="text-white/40 hover:text-white transition-colors cursor-pointer flex-shrink-0 text-[11px]">Exit</button>
         </div>
       )}
-      <div className="hidden lg:block">
+
+      {/* Desktop sidebar */}
+      <div className="hidden lg:block relative z-10">
         <ContractorSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </div>
 
+      {/* Mobile sidebar overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-[220px]">
+          <div className="w-[220px] flex-shrink-0">
             <ContractorSidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
           </div>
-          <div className="flex-1 bg-black/50" onClick={() => setMobileOpen(false)} />
+          <div className="flex-1 bg-black/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
         </div>
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="bg-white border-b border-gray-100 px-4 md:px-6 h-[57px] flex items-center gap-4 flex-shrink-0">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="lg:hidden text-gray-500 hover:text-gray-700 cursor-pointer"
-          >
-            <i className="ri-menu-line text-lg"></i>
-          </button>
-          <div className="flex-1 min-w-0">
-            {title && <h1 className="text-[#111827] font-semibold text-base truncate">{title}</h1>}
-          </div>
-          <div className="flex items-center gap-3">
-            {actions}
-            <NotificationBell />
-            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
-              <span className="text-gray-400">|</span>
-              <img
-                src={hubUser?.avatar_url || ''}
-                alt={hubUser?.full_name}
-                className="w-6 h-6 rounded-full object-cover object-top"
-              />
-              <span className="font-medium text-gray-700 whitespace-nowrap">{hubUser.full_name}</span>
+      {/* Main content */}
+      <div className="relative z-10 flex-1 min-w-0 overflow-hidden lg:px-4 lg:pb-4 lg:pt-5 md:px-5 md:pb-5">
+        <div className="flex h-full flex-col lg:rounded-[34px] overflow-hidden lg:shadow-xl lg:shadow-indigo-100/50"
+          style={{ background: 'rgba(255,255,255,0.60)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.75)' }}
+        >
+          {/* Top bar */}
+          <header className="border-b border-white/60 px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-transparent">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden w-10 h-10 rounded-2xl border border-gray-100 bg-white text-gray-500 hover:text-gray-900 cursor-pointer"
+            >
+              <i className="ri-menu-line text-lg"></i>
+            </button>
+            <div className="flex-1 min-w-0">
+              {title && <h1 className="text-gray-900 font-semibold text-[28px] leading-tight truncate">{title}</h1>}
             </div>
-          </div>
-        </header>
+            <div className="flex items-center gap-3">
+              {actions}
+              <NotificationBell />
+            </div>
+          </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+          {/* Page content */}
+          <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-transparent">
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
       <DevToolbar />
     </div>
