@@ -1156,17 +1156,17 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
 
           {!loading && projects.length > 0 && !activeProject && (
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {[
-                { label: 'Contract', value: fmt(summaryTotals.contractValue), cls: 'text-gray-800' },
-                { label: 'Costs', value: fmt(summaryTotals.costs), cls: 'text-rose-600' },
-                { label: 'Net', value: fmt(summaryTotals.netProfit), cls: 'text-teal-600' },
-                { label: 'Collected', value: `${fmt(summaryTotals.collected)} (${summaryTotals.collectionPct.toFixed(0)}%)`, cls: 'text-emerald-600' },
-              ].map((s, index, arr) => (
-                <div key={s.label} className="flex items-baseline gap-2">
-                  <span className="text-[11px] uppercase tracking-[0.12em] text-gray-400">{s.label}</span>
-                  <span className={`font-semibold ${s.cls}`}>{s.value}</span>
-                  {index < arr.length - 1 && <span className="hidden md:inline text-gray-200">/</span>}
+                { label: 'Contract', value: fmt(summaryTotals.contractValue), cls: 'text-gray-800', icon: 'ri-file-list-3-line' },
+                { label: 'Costs', value: fmt(summaryTotals.costs), cls: 'text-rose-500', icon: 'ri-arrow-down-circle-line' },
+                { label: 'Net Profit', value: fmt(summaryTotals.netProfit), cls: 'text-teal-600', icon: 'ri-line-chart-line' },
+                { label: 'Collected', value: `${fmt(summaryTotals.collected)}`, sub: `${summaryTotals.collectionPct.toFixed(0)}% of contract`, cls: 'text-emerald-600', icon: 'ri-money-dollar-circle-line' },
+              ].map(s => (
+                <div key={s.label} className="bg-white border border-gray-100 rounded-xl px-4 py-3">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium mb-1">{s.label}</p>
+                  <p className={`text-sm font-bold ${s.cls}`}>{s.value}</p>
+                  {'sub' in s && s.sub && <p className="text-[10px] text-gray-400 mt-0.5">{s.sub}</p>}
                 </div>
               ))}
             </div>
