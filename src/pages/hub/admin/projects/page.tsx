@@ -802,26 +802,27 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             </button>
           </div>
 
-          {projectTypes.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <button
+              onClick={() => setTypeFilter('all')}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              All Types
+            </button>
+            {projectTypes.map(type => (
               <button
-                onClick={() => setTypeFilter('all')}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                key={type}
+                onClick={() => setTypeFilter(typeFilter === type ? 'all' : type)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === type ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
               >
-                All Types
+                {type}
+                <span className="ml-1.5 opacity-50">{projects.filter(p => p.service === type && (statusFilter === 'all' || p.status === statusFilter)).length}</span>
               </button>
-              {projectTypes.map(type => (
-                <button
-                  key={type}
-                  onClick={() => setTypeFilter(typeFilter === type ? 'all' : type)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === type ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                >
-                  {type}
-                  <span className="ml-1.5 opacity-50">{projects.filter(p => p.service === type && (statusFilter === 'all' || p.status === statusFilter)).length}</span>
-                </button>
-              ))}
-            </div>
-          )}
+            ))}
+            {projectTypes.length === 0 && (
+              <span className="text-xs text-gray-300 italic">Set a service type on a project to filter here</span>
+            )}
+          </div>
 
           <div className="pt-1 pb-3">
             {loading ? (
