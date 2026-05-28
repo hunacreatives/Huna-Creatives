@@ -1180,67 +1180,101 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <p className="text-sm text-gray-400">No projects match this view yet.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filtered.map(p => {
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {filtered.map((p, idx) => {
                   const d = derived(p);
-                  const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                   const dl = deadlineStatus(p.deadline, p.status);
+                  const palette = [
+                    { bg: '#dde8e0', blob: '#aecfba', text: '#1a4a30' },
+                    { bg: '#e8e0d4', blob: '#cfc0a8', text: '#4a3318' },
+                    { bg: '#dcd8ee', blob: '#bcb5dd', text: '#2c2058' },
+                    { bg: '#d8e4ee', blob: '#aec4d8', text: '#183050' },
+                    { bg: '#e8d8d8', blob: '#d8b0b0', text: '#4a1818' },
+                    { bg: '#e4e0cc', blob: '#ccc898', text: '#383018' },
+                  ];
+                  const svcPalette: Record<string, typeof palette[0]> = {
+                    'Website Design':          palette[0],
+                    'Website Maintenance':     palette[3],
+                    'Branding & Identity':     palette[2],
+                    'Graphic Design':          palette[4],
+                    'Social Media Management': palette[1],
+                    'Content Creation':        palette[5],
+                    'SEO':                     palette[0],
+                    'Digital Ads':             palette[4],
+                    'Email Marketing':         palette[3],
+                  };
+                  const color = svcPalette[p.service ?? ''] ?? palette[idx % palette.length];
+                  const statusLabel = { ongoing: 'Active', completed: 'Done', paused: 'Paused', cancelled: 'Archived' }[p.status] ?? p.status;
                   return (
                     <button
                       key={p.id}
                       onClick={() => setActiveId(prev => prev === p.id ? null : p.id)}
-                      className={`rounded-xl border bg-white p-4 text-left transition-all flex flex-col gap-3 ${
+                      style={{ backgroundColor: color.bg }}
+                      className={`relative rounded-3xl p-4 text-left transition-all flex flex-col min-h-[156px] overflow-hidden ${
                         activeId === p.id
-                          ? 'border-[#FF6B35] shadow-[0_6px_18px_rgba(255,107,53,0.10)]'
-                          : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_14px_rgba(15,23,42,0.04)]'
+                          ? 'ring-2 ring-[#FF6B35] ring-offset-2 brightness-[0.96]'
+                          : 'hover:brightness-[0.97]'
                       }`}
                     >
-                      {/* Top row: status + team avatars */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${cfg.cls}`}>{cfg.label}</span>
-                        <div className="flex -space-x-1.5">
-                          {p.hub_project_contractors.slice(0, 3).map((pc: any) => (
+                      {/* Decorative blob */}
+                      <div className="absolute bottom-[-24px] right-[-24px] w-28 h-28 rounded-full pointer-events-none"
+                        style={{ backgroundColor: color.blob, opacity: 0.55 }} />
+
+                      {/* Top row */}
+                      <div className="flex items-start justify-between gap-1 mb-3">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide bg-white/50"
+                          style={{ color: color.text }}>
+                          {statusLabel}
+                        </span>
+                        <div className="flex -space-x-1 flex-shrink-0">
+                          {p.hub_project_contractors.slice(0, 3).map((pc: any) =>
                             pc.hub_users?.avatar_url
-                              ? <img key={pc.hub_users.id} src={pc.hub_users.avatar_url} alt={pc.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white" />
-                              : <div key={pc.hub_users?.id} className="w-5 h-5 rounded-full bg-gray-200 border border-white flex items-center justify-center text-[8px] font-bold text-gray-500">{pc.hub_users?.full_name?.[0]}</div>
-                          ))}
+                              ? <img key={pc.hub_users.id} src={pc.hub_users.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover object-top border border-white/70" />
+                              : <div key={pc.hub_users?.id} className="w-5 h-5 rounded-full bg-white/50 border border-white/70 flex items-center justify-center text-[8px] font-bold" style={{ color: color.text }}>{pc.hub_users?.full_name?.[0]}</div>
+                          )}
                           {p.hub_project_contractors.length > 3 && (
-                            <div className="w-5 h-5 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[8px] text-gray-400">+{p.hub_project_contractors.length - 3}</div>
+                            <div className="w-5 h-5 rounded-full bg-white/40 border border-white/70 flex items-center justify-center text-[8px] font-bold" style={{ color: color.text }}>+{p.hub_project_contractors.length - 3}</div>
                           )}
                         </div>
                       </div>
 
-                      {/* Project + client name */}
-                      <div>
-                        <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
-                        <p className="text-xs text-gray-400 mt-0.5 truncate">{p.client_name}</p>
+                      {/* Names */}
+                      <div className="flex-1">
+                        <h3 className="text-sm font-bold line-clamp-2 leading-snug" style={{ color: color.text }}>{p.project_name}</h3>
+                        <p className="text-[11px] mt-0.5 line-clamp-1 opacity-60" style={{ color: color.text }}>{p.client_name}</p>
                       </div>
 
-                      {/* Financial: value + collection progress */}
-                      <div className="mt-auto space-y-1.5">
-                        <div className="flex items-baseline justify-between">
-                          <p className="text-base font-bold text-[#111827] leading-none">{fmt(p.contract_price)}</p>
-                          <span className="text-[11px] text-gray-400">{d.paidPct.toFixed(0)}% paid</span>
+                      {/* Footer */}
+                      <div className="flex items-end justify-between mt-3 gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold" style={{ color: color.text }}>{fmt(p.contract_price)}</p>
+                          <div className="h-1 bg-white/30 rounded-full overflow-hidden mt-1.5">
+                            <div className="h-full rounded-full bg-white/70 transition-all" style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
+                          </div>
+                          {dl && (
+                            <span className={`inline-block mt-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${dl.cls}`}>{dl.label}</span>
+                          )}
                         </div>
-                        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${d.paidPct >= 100 ? 'bg-emerald-400' : d.paidPct > 0 ? 'bg-emerald-300' : 'bg-gray-200'}`}
-                            style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
+                        <div className="w-7 h-7 rounded-full bg-white/40 flex items-center justify-center flex-shrink-0">
+                          <i className="ri-arrow-right-line text-xs" style={{ color: color.text }}></i>
                         </div>
-                      </div>
-
-                      {/* Bottom: deadline + overdue */}
-                      <div className="flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-50 pt-2.5">
-                        <span className="flex items-center gap-1">
-                          <i className="ri-calendar-line text-[10px]"></i>
-                          {p.deadline ? new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No deadline'}
-                        </span>
-                        {dl && (
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${dl.cls}`}>{dl.label}</span>
-                        )}
                       </div>
                     </button>
                   );
                 })}
+
+                {/* Add New Project card */}
+                <button
+                  onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
+                  className="relative rounded-3xl p-4 text-left transition-all flex flex-col min-h-[156px] overflow-hidden border-2 border-dashed border-gray-200 hover:border-gray-300 hover:bg-gray-50/60"
+                >
+                  <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                      <i className="ri-add-line text-lg text-gray-400"></i>
+                    </div>
+                    <p className="text-sm font-medium text-gray-400">New Project</p>
+                  </div>
+                </button>
               </div>
             )}
           </div>
