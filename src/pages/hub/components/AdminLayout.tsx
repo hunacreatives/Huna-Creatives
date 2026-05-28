@@ -359,7 +359,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-white">
+        <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-gradient-to-br from-sky-50 via-indigo-50/60 to-white">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
