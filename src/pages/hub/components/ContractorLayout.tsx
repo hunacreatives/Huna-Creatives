@@ -44,7 +44,7 @@ export default function ContractorLayout({ children, title, actions }: Props) {
   );
 
   return (
-    <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden bg-gradient-to-br from-sky-100 via-indigo-50 to-white`}>
+    <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden`} style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
       {isDemo && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-[#111827] text-white text-xs flex items-center justify-between px-4 py-1.5 gap-4">
           <span className="text-white/40 hidden sm:block flex-shrink-0">Demo</span>
