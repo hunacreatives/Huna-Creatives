@@ -299,7 +299,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
   );
 
   return (
-    <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden bg-[#f0f2f5]`}>
+    <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden bg-gradient-to-br from-sky-100 via-indigo-50 to-white`}>
       {isDemo && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-[#111827] text-white text-xs flex items-center justify-between px-4 py-1.5 gap-4">
           <span className="text-white/40 hidden sm:block flex-shrink-0">Demo</span>
@@ -337,9 +337,11 @@ export default function AdminLayout({ children, title, actions }: Props) {
 
       {/* Main content */}
       <div className="relative z-10 flex-1 min-w-0 overflow-hidden lg:px-4 lg:pb-4 lg:pt-5 md:px-5 md:pb-5">
-        <div className="flex h-full flex-col lg:rounded-[34px] lg:border lg:border-white/70 bg-white overflow-hidden lg:shadow-xl lg:shadow-indigo-100/50">
+        <div className="flex h-full flex-col lg:rounded-[34px] overflow-hidden lg:shadow-xl lg:shadow-indigo-100/50"
+          style={{ background: 'rgba(255,255,255,0.60)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.75)' }}
+        >
         {/* Top bar */}
-        <header className="border-b border-gray-100/80 px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-white/90 backdrop-blur-sm">
+        <header className="border-b border-white/60 px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-transparent">
           <button
             onClick={() => setMobileOpen(true)}
             className="lg:hidden w-10 h-10 rounded-2xl border border-gray-100 bg-white text-gray-500 hover:text-gray-900 cursor-pointer"
@@ -359,7 +361,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-gradient-to-br from-sky-50 via-indigo-50/60 to-white">
+        <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-transparent">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
