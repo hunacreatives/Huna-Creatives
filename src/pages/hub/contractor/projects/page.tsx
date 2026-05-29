@@ -580,9 +580,6 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
       className="w-full text-left rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
       style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
 
-      {/* Gradient accent bar */}
-      <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${palette.from}, ${palette.to})` }} />
-
       <div className="p-5 space-y-4">
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
@@ -1869,7 +1866,6 @@ export default function ContractorProjectsPage() {
               <div className="flex items-center gap-3">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Active Projects</p>
                 <div className="flex-1 h-px bg-gray-200/60"></div>
-                <span className="text-[11px] text-gray-400">{active.length}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {active.map((r, i) => (
