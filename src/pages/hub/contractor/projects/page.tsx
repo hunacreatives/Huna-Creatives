@@ -45,6 +45,7 @@ interface ProjectTask {
   status: 'todo' | 'in_progress' | 'done';
   priority: 'low' | 'medium' | 'high';
   due_date: string | null;
+  start_date: string | null;
   assigned_to: string | null;
 }
 
@@ -52,6 +53,7 @@ const emptyTaskForm = () => ({
   title: '',
   description: '',
   priority: 'medium' as ProjectTask['priority'],
+  start_date: '',
   due_date: '',
   assigned_to: '',
 });
@@ -76,6 +78,145 @@ function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-bold text-gray-900" style={{ fontSize: size < 60 ? 13 : 22 }}>{pct}%</span>
         {size >= 100 && <span className="text-[10px] text-gray-400 mt-0.5">complete</span>}
+      </div>
+    </div>
+  );
+}
+
+// ── Gantt timeline ────────────────────────────────────────────────────────
+function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
+  tasks: ProjectTask[];
+  projectStart: string | null;
+  projectEnd: string | null;
+  today: string;
+}) {
+  const dated = tasks.filter(t => t.due_date);
+  if (dated.length === 0 && !projectStart && !projectEnd) return null;
+
+  const parseD = (s: string) => new Date(s + 'T00:00:00');
+  const addDays = (s: string, n: number) => {
+    const d = parseD(s); d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  const diff = (a: string, b: string) =>
+    Math.round((parseD(b).getTime() - parseD(a).getTime()) / 86400000);
+
+  const allDates: string[] = [today,
+    ...dated.flatMap(t => [t.start_date, t.due_date].filter(Boolean) as string[]),
+    ...[projectStart, projectEnd].filter(Boolean) as string[],
+  ].sort();
+
+  const rawStart = allDates[0];
+  const rawEnd = allDates[allDates.length - 1];
+
+  let rangeStart = addDays(rawStart, -2);
+  let rangeEnd = addDays(rawEnd, 2);
+  if (diff(rangeStart, rangeEnd) < 21) rangeEnd = addDays(rangeStart, 21);
+
+  const totalDays = diff(rangeStart, rangeEnd);
+  const COL = 32;
+
+  const segments: { label: string; dayIndex: number }[] = [];
+  let lastMonth = -1;
+  for (let i = 0; i <= totalDays; i++) {
+    const d = parseD(rangeStart); d.setDate(d.getDate() + i);
+    if (d.getMonth() !== lastMonth) {
+      lastMonth = d.getMonth();
+      segments.push({
+        label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        dayIndex: i,
+      });
+    }
+  }
+
+  const todayOff = diff(rangeStart, today);
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
+        <i className="ri-timeline-view text-gray-400 text-sm"></i>
+        <h3 className="font-semibold text-gray-800 text-sm">Timeline</h3>
+      </div>
+      <div className="overflow-x-auto">
+        <div style={{ width: 140 + totalDays * COL }}>
+          {/* Month header */}
+          <div className="flex border-b border-gray-100 bg-gray-50/50">
+            <div className="w-[140px] flex-shrink-0 border-r border-gray-100" />
+            <div className="relative flex-1" style={{ height: 28 }}>
+              {segments.map(seg => (
+                <div key={seg.label + seg.dayIndex}
+                  style={{ position: 'absolute', left: seg.dayIndex * COL, top: 0, height: '100%' }}
+                  className="px-2 flex items-center border-l border-gray-200 first:border-l-0">
+                  <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">{seg.label}</span>
+                </div>
+              ))}
+              {todayOff >= 0 && todayOff <= totalDays && (
+                <div style={{ position: 'absolute', left: todayOff * COL + COL / 2 - 0.5, top: 0, bottom: 0, width: 1 }}
+                  className="bg-[#FF6B35]/40" />
+              )}
+            </div>
+          </div>
+
+          {/* Task rows */}
+          {tasks.map(task => {
+            if (!task.due_date) return null;
+            const startStr = task.start_date ?? task.due_date;
+            const endStr = task.due_date;
+            const startOff = Math.max(0, diff(rangeStart, startStr));
+            const endOff = Math.min(totalDays, diff(rangeStart, endStr));
+            const barW = Math.max(COL * 0.8, (endOff - startOff + 1) * COL - 4);
+            const barL = startOff * COL + 2;
+            const isOverdue = task.due_date < today && task.status !== 'done';
+            const barBg = task.status === 'done' ? '#34d399'
+              : isOverdue ? '#fb7185'
+              : task.status === 'in_progress' ? '#38bdf8'
+              : '#a5b4fc';
+
+            return (
+              <div key={task.id} className="flex items-center border-b border-gray-50 last:border-0 hover:bg-gray-50/40">
+                <div className="w-[140px] flex-shrink-0 px-3 py-2 border-r border-gray-100">
+                  <p className="text-xs font-medium text-gray-700 truncate leading-tight">{task.title}</p>
+                  <p className={`text-[10px] ${isOverdue ? 'text-rose-400' : 'text-gray-400'}`}>
+                    {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                <div className="flex-1 relative" style={{ height: 40 }}>
+                  {todayOff >= 0 && todayOff <= totalDays && (
+                    <div style={{ position: 'absolute', left: todayOff * COL + COL / 2 - 0.5, top: 0, bottom: 0, width: 1 }}
+                      className="bg-[#FF6B35]/20" />
+                  )}
+                  <div style={{
+                    position: 'absolute',
+                    left: barL,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: barW,
+                    height: 20,
+                    background: barBg,
+                    borderRadius: 999,
+                    opacity: task.status === 'done' ? 0.65 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    overflow: 'hidden',
+                  }}>
+                    {barW > 60 && (
+                      <span className="text-[10px] text-white font-medium px-2.5 truncate leading-none">{task.title}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {dated.length === 0 && (
+            <div className="flex">
+              <div className="w-[140px] flex-shrink-0 border-r border-gray-100" />
+              <div className="flex-1 py-6 flex items-center justify-center">
+                <p className="text-xs text-gray-300">Add due dates to tasks to see them on the timeline</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -435,6 +576,7 @@ export default function ContractorProjectsPage() {
       title: task.title,
       description: task.description ?? '',
       priority: task.priority,
+      start_date: task.start_date ?? '',
       due_date: task.due_date ?? '',
       assigned_to: task.assigned_to ?? '',
     });
@@ -448,6 +590,7 @@ export default function ContractorProjectsPage() {
       title: taskForm.title.trim(),
       description: taskForm.description.trim() || null,
       priority: taskForm.priority,
+      start_date: taskForm.start_date || null,
       due_date: taskForm.due_date || null,
       assigned_to: taskForm.assigned_to || null,
     };
@@ -492,7 +635,7 @@ export default function ContractorProjectsPage() {
           const [{ data: taskData }, { data: teamData }] = await Promise.all([
             supabase
               .from('hub_project_tasks')
-              .select('id, project_id, title, description, status, priority, due_date, assigned_to')
+              .select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to')
               .in('project_id', projectIds),
             supabase
               .from('hub_project_contractors')
@@ -604,6 +747,13 @@ export default function ContractorProjectsPage() {
                 </div>
               ))}
             </div>
+
+            <GanttTimeline
+              tasks={wsTasks}
+              projectStart={wsProject.start_date}
+              projectEnd={wsProject.deadline}
+              today={wsToday}
+            />
 
             <div className="flex gap-6">
               {/* Task list */}
@@ -938,7 +1088,7 @@ export default function ContractorProjectsPage() {
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none"
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Priority</label>
                   <select
@@ -949,6 +1099,15 @@ export default function ContractorProjectsPage() {
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                   </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Start Date <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="date"
+                    value={taskForm.start_date}
+                    onChange={e => setTaskForm(f => ({ ...f, start_date: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                  />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Due Date <span className="text-gray-400 font-normal">(optional)</span></label>
