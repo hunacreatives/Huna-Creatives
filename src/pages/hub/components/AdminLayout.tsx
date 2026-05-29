@@ -114,11 +114,14 @@ function GlobalSearch() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[70] bg-[rgba(34,25,16,0.22)] backdrop-blur-[2px] p-4 md:p-8" onClick={() => setOpen(false)}>
-          <div className="mx-auto mt-[4vh] w-full max-w-4xl rounded-[20px] sm:rounded-[32px] border border-[#e5e7eb] bg-white shadow-[0_40px_120px_rgba(15,23,42,0.16)] overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="border-b border-[#e5e7eb] px-6 pt-5 pb-4">
-              <div className="flex items-center gap-3 rounded-[22px] border border-[#e5e7eb] bg-white px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-                <i className="ri-search-line text-[#9ca3af] text-xl flex-shrink-0"></i>
+        {/* Mobile: bottom sheet. Desktop: centered modal */}
+        <div className="fixed inset-0 z-[70] bg-[rgba(34,25,16,0.22)] backdrop-blur-[2px] flex items-end sm:items-start sm:p-8" onClick={() => setOpen(false)}>
+          <div className="w-full sm:mx-auto sm:mt-[6vh] sm:max-w-2xl rounded-t-[24px] sm:rounded-[32px] border border-[#e5e7eb] bg-white shadow-[0_40px_120px_rgba(15,23,42,0.16)] overflow-hidden max-h-[75vh] sm:max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="border-b border-[#e5e7eb] px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 flex-shrink-0">
+              {/* Drag handle on mobile */}
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3 sm:hidden"></div>
+              <div className="flex items-center gap-3 rounded-[16px] border border-[#e5e7eb] bg-white px-3 sm:px-4 py-2.5 sm:py-3">
+                <i className="ri-search-line text-[#9ca3af] text-base sm:text-xl flex-shrink-0"></i>
                 <input
                   ref={inputRef}
                   value={query}
@@ -129,8 +132,8 @@ function GlobalSearch() {
                     if (e.key === 'Enter' && results[activeIdx]) go(results[activeIdx]);
                     if (e.key === 'Escape') setOpen(false);
                   }}
-                  placeholder="Search meetings, people, or type a command..."
-                  className="w-full bg-transparent text-[17px] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none"
+                  placeholder="Search…"
+                  className="w-full bg-transparent text-[15px] sm:text-[17px] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none"
                 />
                 {query ? (
                   <button onClick={() => { setQuery(''); setResults([]); }} className="text-[#9ca3af] hover:text-[#4b5563] cursor-pointer">
@@ -153,7 +156,7 @@ function GlobalSearch() {
               </div>
             </div>
 
-            <div className="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
+            <div className="overflow-y-auto flex-1 grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
               <div className="border-b lg:border-b-0 lg:border-r border-[#e5e7eb]">
                 <div className="px-6 py-4">
                   <div className="flex items-center justify-between">

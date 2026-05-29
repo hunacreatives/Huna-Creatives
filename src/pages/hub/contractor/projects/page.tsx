@@ -1083,7 +1083,7 @@ export default function ContractorProjectsPage() {
       </div>
 
       {wsSearchOpen && (
-        <div className="absolute right-0 top-full mt-2 w-[min(320px,90vw)] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-2 w-[min(320px,90vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden overflow-y-auto z-50">
           {/* Empty: show all sections */}
           {!wsQ && (
             <>
