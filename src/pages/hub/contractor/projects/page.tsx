@@ -649,6 +649,7 @@ export default function ContractorProjectsPage() {
   const [taskForm, setTaskForm] = useState(emptyTaskForm());
   const [taskSaving, setTaskSaving] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
 
   const cycleTask = async (task: ProjectTask) => {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
@@ -776,8 +777,17 @@ export default function ContractorProjectsPage() {
   const getProjectName = (projectId: number) =>
     rows.find(r => r.hub_projects?.id === projectId)?.hub_projects?.project_name ?? '';
 
-  const active = rows.filter(r => r.hub_projects?.status === 'ongoing');
-  const other = rows.filter(r => r.hub_projects?.status !== 'ongoing');
+  const searchLower = search.toLowerCase();
+  const filteredRows = search
+    ? rows.filter(r => {
+        const p = r.hub_projects;
+        return p?.project_name?.toLowerCase().includes(searchLower)
+          || p?.client_name?.toLowerCase().includes(searchLower)
+          || p?.service?.toLowerCase().includes(searchLower);
+      })
+    : rows;
+  const active = filteredRows.filter(r => r.hub_projects?.status === 'ongoing');
+  const other = filteredRows.filter(r => r.hub_projects?.status !== 'ongoing');
 
   const wsRow = workspaceRow;
   const wsProject = wsRow?.hub_projects;
@@ -1110,13 +1120,29 @@ export default function ContractorProjectsPage() {
       ) : (
         <div className="space-y-6">
 
-          {/* Greeting */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{greeting}, {firstName} 👋</h2>
-            <p className="text-sm text-gray-400 mt-0.5">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              {tasks.length > 0 && <> · {subline}</>}
-            </p>
+          {/* Header */}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">My Projects</h2>
+              <p className="text-sm text-gray-400 mt-0.5">
+                {greeting}, {firstName} · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </p>
+            </div>
+            <div className="relative flex-shrink-0">
+              <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search projects…"
+                className="pl-8 pr-4 py-2 text-sm bg-white/70 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 w-48 sm:w-56 transition-all placeholder-gray-400"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <i className="ri-close-line text-sm"></i>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Dashboard: ring + task feed */}
@@ -1174,6 +1200,15 @@ export default function ContractorProjectsPage() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* No search results */}
+          {search && active.length === 0 && other.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <i className="ri-search-line text-3xl text-gray-200"></i>
+              <p className="text-sm text-gray-400">No projects match <span className="font-medium text-gray-600">"{search}"</span></p>
+              <button onClick={() => setSearch('')} className="text-xs text-indigo-500 hover:underline cursor-pointer">Clear search</button>
             </div>
           )}
 
