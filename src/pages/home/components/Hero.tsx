@@ -244,8 +244,7 @@ export default function Hero() {
             { value: '5.0★', label: 'Partner Rating' },
             { value: '100%', label: 'Satisfaction Rate' },
           ].map((stat, i, arr) => (
-            <>
-              <div key={stat.label} className="text-center flex-1 min-w-0 py-5 sm:py-6">
+            <div key={stat.label} className="text-center flex-1 min-w-0 py-5 sm:py-6">
                 <div
                   className="text-base sm:text-xl md:text-2xl font-bold font-display"
                   style={{
@@ -260,8 +259,7 @@ export default function Hero() {
                 <div className="text-[8px] sm:text-[9px] tracking-widest uppercase text-white/30 mt-0.5 font-body">
                   {stat.label}
                 </div>
-              </div>
-            </>
+            </div>
           ))}
         </div>
       </div>

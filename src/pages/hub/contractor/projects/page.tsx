@@ -323,6 +323,7 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
 }) {
   const p = row.hub_projects;
   const today = new Date().toISOString().slice(0, 10);
+  const isInternal = p.project_type === 'internal';
   const totalPaid = p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
   const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
   const netProfit = p.contract_price - totalCosts;
@@ -366,7 +367,7 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">{p.service}</span>
               )}
             </div>
-            <p className="text-sm text-gray-400 mt-0.5">{p.client_name}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{isInternal ? 'Internal Project' : p.client_name}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:text-gray-700 cursor-pointer flex-shrink-0">
             <i className="ri-close-line"></i>
@@ -397,7 +398,7 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
               </div>
             )}
 
-            {/* Progress + payout stats */}
+            {/* Progress + payout/ops stats */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
                 <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Task Progress</p>
@@ -410,30 +411,40 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Your Payout</p>
-                <p className="text-lg font-bold text-gray-900 leading-none">{fmt(myCut)}</p>
-                <p className="text-[11px] text-gray-400">{isFixed ? 'Fixed fee' : `${row.percentage}% of net`}</p>
-                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${isFullyPaid ? 'bg-emerald-400' : 'bg-blue-400'}`} style={{ width: `${payoutPct}%` }} />
+              {isInternal ? (
+                <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Project</p>
+                  <p className="text-sm font-bold text-gray-900 leading-none">Internal</p>
+                  <p className="text-[11px] text-gray-400">No payout applicable</p>
                 </div>
-                <p className={`text-[11px] font-medium ${isFullyPaid ? 'text-emerald-600' : 'text-gray-400'}`}>
-                  {isFullyPaid ? 'Paid in full ✓' : `${fmt(totalPaidOut)} received`}
-                </p>
-              </div>
+              ) : (
+                <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Your Payout</p>
+                  <p className="text-lg font-bold text-gray-900 leading-none">{fmt(myCut)}</p>
+                  <p className="text-[11px] text-gray-400">{isFixed ? 'Fixed fee' : `${row.percentage}% of net`}</p>
+                  <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${isFullyPaid ? 'bg-emerald-400' : 'bg-blue-400'}`} style={{ width: `${payoutPct}%` }} />
+                  </div>
+                  <p className={`text-[11px] font-medium ${isFullyPaid ? 'text-emerald-600' : 'text-gray-400'}`}>
+                    {isFullyPaid ? 'Paid in full ✓' : `${fmt(totalPaidOut)} received`}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Project overall payment progress */}
-            <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Project Collections</p>
-                <p className="text-xs font-semibold text-gray-600">{fmt(totalPaid)} / {fmt(p.contract_price)}</p>
+            {/* Project overall payment progress — client only */}
+            {!isInternal && (
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Project Collections</p>
+                  <p className="text-xs font-semibold text-gray-600">{fmt(totalPaid)} / {fmt(p.contract_price)}</p>
+                </div>
+                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${p.contract_price > 0 ? Math.min((totalPaid / p.contract_price) * 100, 100) : 0}%` }} />
+                </div>
+                <p className="text-[11px] text-gray-400">{p.contract_price > 0 ? ((totalPaid / p.contract_price) * 100).toFixed(0) : 0}% collected from client</p>
               </div>
-              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min((totalPaid / p.contract_price) * 100, 100)}%` }} />
-              </div>
-              <p className="text-[11px] text-gray-400">{((totalPaid / p.contract_price) * 100).toFixed(0)}% collected from client</p>
-            </div>
+            )}
 
             {/* Tasks */}
             {tasks.length > 0 && (
@@ -490,8 +501,8 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
               </div>
             )}
 
-            {/* Payout history */}
-            {payouts.length > 0 && (
+            {/* Payout history — client only */}
+            {!isInternal && payouts.length > 0 && (
               <div>
                 <p className="text-sm font-semibold text-gray-800 mb-3">Payout History</p>
                 <div className="space-y-2">

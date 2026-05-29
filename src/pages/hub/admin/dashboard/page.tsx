@@ -6,6 +6,7 @@ import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { getSetting } from '@/lib/settings';
+import { getPeriods } from '@/lib/formatUtils';
 import { DEMO_ATTENDANCE, DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_INVOICES, DEMO_DASHBOARD } from '@/lib/demoData';
 
 function useClock() {
@@ -28,8 +29,6 @@ interface SlackRecord {
   overtime_today: number;
 }
 
-interface HoursRow { user_id: string; hours_capped: number; overtime_hours: number; }
-
 interface OutstandingInvoice {
   id: number;
   invoice_number: string;
@@ -46,6 +45,22 @@ interface BirthdayPerson {
   birthday: string;
   daysUntil: number;
   isToday: boolean;
+}
+
+const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function countWorkingDays(startDate: string, endDate: string, workDays: string[]): number {
+  const scheduled = workDays.length > 0
+    ? new Set(workDays.map(d => DAY_MAP[d]))
+    : new Set([1, 2, 3, 4, 5]);
+  let count = 0;
+  const end = new Date(endDate + 'T00:00:00');
+  const cur = new Date(startDate + 'T00:00:00');
+  while (cur <= end) {
+    if (scheduled.has(cur.getDay())) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
 }
 
 function getBirthdayAlerts(contractors: { full_name: string; avatar_url?: string; birthday?: string }[]): BirthdayPerson[] {
@@ -154,17 +169,13 @@ export default function AdminDashboardPage() {
   };
 
   const today = new Date();
-  const isFirstHalf = today.getDate() <= 15;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const y = today.getFullYear();
-  const m = today.getMonth();
-  const cutoffStart = isFirstHalf
-    ? `${y}-${pad(m + 1)}-01`
-    : `${y}-${pad(m + 1)}-16`;
-  const lastDayOfMonth = new Date(y, m + 1, 0).getDate();
-  const cutoffEnd = isFirstHalf
-    ? `${y}-${pad(m + 1)}-15`
-    : `${y}-${pad(m + 1)}-${pad(lastDayOfMonth)}`;
+  const currentPeriod = getPeriods().at(-1) ?? {
+    label: '',
+    start: today.toISOString().slice(0, 10),
+    end: today.toISOString().slice(0, 10),
+  };
+  const cutoffStart = currentPeriod.start;
+  const cutoffEnd = currentPeriod.end;
 
   // Payroll period progress
   const periodStart = new Date(cutoffStart);
@@ -173,9 +184,7 @@ export default function AdminDashboardPage() {
   const daysElapsed = Math.min(Math.round((today.getTime() - periodStart.getTime()) / 86400000) + 1, totalDays);
   const daysLeft = Math.max(totalDays - daysElapsed, 0);
   const periodProgress = Math.round((daysElapsed / totalDays) * 100);
-  const paydayLabel = isFirstHalf
-    ? `${today.toLocaleDateString('en-US', { month: 'long' })} 15`
-    : new Date(today.getFullYear(), today.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  const paydayLabel = currentPeriod.label;
 
   useEffect(() => {
     if (isDemo) {
@@ -196,18 +205,19 @@ export default function AdminDashboardPage() {
       return;
     }
     const fetchAll = async () => {
-      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult] = await Promise.all([
+      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult, payoutsResult] = await Promise.all([
         supabase.functions.invoke('slack-attendance'),
         supabase.from('hub_announcements').select('*, hub_users(full_name)').order('created_at', { ascending: false }).limit(4),
         supabase.from('hub_requests').select('*, hub_users(full_name, avatar_url)').in('status', ['open', 'in_review']).order('created_at', { ascending: false }),
         supabase.from('hub_time_off').select('*, hub_users(full_name, avatar_url)').eq('status', 'pending').order('created_at', { ascending: false }),
-        supabase.from('hub_users').select('id, full_name, avatar_url, payment_type, hourly_rate, monthly_rate, currency, birthday').eq('status', 'active').in('role', ['contractor', 'admin']),
-        supabase.from('hub_daily_hours').select('user_id, hours_capped, overtime_hours, date').gte('date', cutoffStart).lte('date', cutoffEnd),
+        supabase.from('hub_users').select('id, full_name, avatar_url, payment_type, hourly_rate, monthly_rate, currency, birthday, start_date, work_days').eq('status', 'active').in('role', ['contractor', 'admin']),
+        supabase.from('hub_daily_hours').select('user_id, hours_capped, hours_raw, overtime_hours, date').gte('date', cutoffStart).lte('date', cutoffEnd),
         supabase.from('hub_projects').select('contract_price, status, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
         supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').eq('settled', false).order('sent_at', { ascending: false }),
         supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
+        supabase.from('hub_payouts').select('contractor_id, adjustments').eq('cutoff_start', cutoffStart),
       ]);
 
       if (!slackResult.error && slackResult.data?.attendance) {
@@ -217,17 +227,19 @@ export default function AdminDashboardPage() {
       let hrs = 0;
       for (const h of (hoursResult.data as any[]) || []) hrs += h.hours_capped;
 
-      // --- payroll total: same computation as payroll page ---
       const eligibleContractors = ((contractorsResult.data as any[]) || []).filter((c: any) =>
-        !c.start_date || c.start_date <= cutoffEnd
+        c.payment_type !== 'project_based' &&
+        (!c.start_date || c.start_date <= cutoffEnd)
       );
-      const hoursMap: Record<string, { capped: number; overtime: number }> = {};
+      const hoursMap: Record<string, { capped: number; raw: number; overtime: number; days: number }> = {};
       const hoursByDate: Record<string, Record<string, number>> = {};
       const overtimeByDate: Record<string, Record<string, number>> = {};
       for (const h of (hoursResult.data as any[]) || []) {
-        if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, overtime: 0 };
+        if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, raw: 0, overtime: 0, days: 0 };
         hoursMap[h.user_id].capped += h.hours_capped;
+        hoursMap[h.user_id].raw += h.hours_raw;
         hoursMap[h.user_id].overtime += h.overtime_hours || 0;
+        hoursMap[h.user_id].days += 1;
         if (!hoursByDate[h.user_id]) hoursByDate[h.user_id] = {};
         hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + h.hours_capped;
         if (h.overtime_hours) {
@@ -236,33 +248,35 @@ export default function AdminDashboardPage() {
         }
       }
       const ids = eligibleContractors.map((c: any) => c.id);
-      const [{ data: rateHistoryAll }, { data: payoutsData }] = await Promise.all([
-        ids.length > 0
-          ? supabase.from('hub_rate_history').select('contractor_id, effective_date, hourly_rate, monthly_rate').in('contractor_id', ids).lte('effective_date', cutoffEnd).order('effective_date', { ascending: true })
-          : Promise.resolve({ data: [] as any[] }),
-        ids.length > 0
-          ? supabase.from('hub_payouts').select('contractor_id, adjustments').in('contractor_id', ids).eq('cutoff_start', cutoffStart)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
+      const { data: rateHistoryAll } = ids.length > 0
+        ? await supabase
+            .from('hub_rate_history')
+            .select('contractor_id, effective_date, payment_type, hourly_rate, monthly_rate')
+            .in('contractor_id', ids)
+            .lte('effective_date', cutoffEnd)
+            .order('effective_date', { ascending: true })
+        : { data: [] as any[] };
+
       const rateHistoryMap: Record<string, any[]> = {};
       for (const r of rateHistoryAll || []) {
         if (!rateHistoryMap[r.contractor_id]) rateHistoryMap[r.contractor_id] = [];
         rateHistoryMap[r.contractor_id].push(r);
       }
       const adjMap: Record<string, number> = {};
-      for (const p of payoutsData || []) {
+      for (const p of (payoutsResult.data as any[]) || []) {
         const adjs: any[] = p.adjustments || [];
         adjMap[p.contractor_id] = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
       }
       const usdRate = parseFloat(usdRateStr);
       let payrollTotal = 0;
       for (const c of eligibleContractors) {
-        const h = hoursMap[c.id] || { capped: 0, overtime: 0 };
+        const h = hoursMap[c.id] || { capped: 0, raw: 0, overtime: 0, days: 0 };
         const payType = c.payment_type || 'hourly';
         const history = rateHistoryMap[c.id] || [];
         const changeInPeriod = history.find((r: any) => r.effective_date >= cutoffStart && r.effective_date <= cutoffEnd);
         const rateAtStart = [...history].filter((r: any) => r.effective_date < cutoffStart).pop() || null;
         let pay = 0;
+        let overtimePay = 0;
         if (changeInPeriod) {
           const beforeChange = [...history].filter((r: any) => r.effective_date < changeInPeriod.effective_date).pop();
           const oldMonthly = beforeChange ? (beforeChange.monthly_rate || 0) : (c.monthly_rate || 0);
@@ -285,7 +299,8 @@ export default function AdminDashboardPage() {
               if (date < changeInPeriod.effective_date) otAtOld += ot as number;
               else otAtNew += ot as number;
             }
-            pay = basePay + otAtOld * oldOT + otAtNew * newOT;
+            overtimePay = otAtOld * oldOT + otAtNew * newOT;
+            pay = basePay;
           } else {
             const datesMap = hoursByDate[c.id] || {};
             let hrsAtOld = 0, hrsAtNew = 0;
@@ -293,20 +308,31 @@ export default function AdminDashboardPage() {
               if (date < changeInPeriod.effective_date) hrsAtOld += hv as number;
               else hrsAtNew += hv as number;
             }
-            pay = hrsAtOld * oldHourly + hrsAtNew * newHourly + h.overtime * newHourly;
+            overtimePay = h.overtime * newHourly;
+            pay = hrsAtOld * oldHourly + hrsAtNew * newHourly;
           }
         } else {
           const monthly = rateAtStart?.monthly_rate ?? c.monthly_rate ?? 0;
           const hourly  = rateAtStart?.hourly_rate  ?? c.hourly_rate  ?? 0;
-          const otRate  = payType === 'fixed' ? (hourly || monthly / 176) : hourly;
-          if (payType === 'fixed') {
-            pay = monthly / 2 + h.overtime * otRate;
+          const derivedHourlyRate = payType === 'fixed' ? (hourly || monthly / 176) : hourly;
+          overtimePay = h.overtime * derivedHourlyRate;
+          if (payType === 'hourly') {
+            pay = h.capped * derivedHourlyRate;
           } else {
-            pay = h.capped * hourly + h.overtime * hourly;
+            const currentDate = new Date().toISOString().slice(0, 10);
+            const isCurrentPeriod = currentDate >= cutoffStart && currentDate <= cutoffEnd;
+            if (isCurrentPeriod && cutoffStart >= '2026-06-01') {
+              const totalWorkDays = countWorkingDays(cutoffStart, cutoffEnd, c.work_days || []);
+              const accrualRatio = totalWorkDays > 0 ? Math.min(h.days / totalWorkDays, 1) : 0;
+              pay = (monthly / 2) * accrualRatio;
+            } else {
+              pay = monthly / 2;
+            }
           }
         }
         const inPHP = c.currency === 'USD' ? pay * usdRate : pay;
-        payrollTotal += inPHP + (adjMap[c.id] || 0);
+        const otInPHP = c.currency === 'USD' ? overtimePay * usdRate : overtimePay;
+        payrollTotal += inPHP + otInPHP + (adjMap[c.id] || 0);
       }
       setTotalPayroll(payrollTotal);
       setTotalHours(parseFloat(hrs.toFixed(1)));
@@ -530,7 +556,7 @@ export default function AdminDashboardPage() {
             <div className="bg-white/10 rounded-xl px-4 py-3 w-full sm:w-auto sm:min-w-[200px]">
               <p className="text-white/50 text-xs mb-1">Current Pay Period</p>
               <p className="text-white font-semibold text-sm">
-                {isFirstHalf ? `${today.toLocaleDateString('en-US', { month: 'short' })} 1–15` : `${today.toLocaleDateString('en-US', { month: 'short' })} 16–${new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()}`}
+                {currentPeriod.label}
               </p>
               <div className="mt-2 h-1.5 rounded-full bg-white/20 overflow-hidden">
                 <div className="h-full bg-[#FF6B35] rounded-full transition-all" style={{ width: `${periodProgress}%` }} />
@@ -740,7 +766,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <p className="text-2xl font-bold text-[#7a2e10]">₱{totalPayroll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
                     <p className="text-[#c4522a]/70 text-xs mt-1">
-                      {isFirstHalf ? `${today.toLocaleDateString('en-US', { month: 'short' })} 1–15` : `${today.toLocaleDateString('en-US', { month: 'short' })} 16–${new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()}`} cutoff
+                      {currentPeriod.label} cutoff
                     </p>
                     <button
                       onClick={() => navigate('/hub/admin/payroll')}

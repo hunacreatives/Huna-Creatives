@@ -88,6 +88,7 @@ export default function AdminProjectsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('ongoing');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [projectTypeFilter, setProjectTypeFilter] = useState<'all' | 'client' | 'internal'>('all');
   const [activeId, setActiveId] = useState<number | null>(null);
 
   // Project form
@@ -310,6 +311,39 @@ export default function AdminProjectsPage() {
 
   const isInternalProject = (project: Project | null | undefined) => project?.project_type === 'internal';
 
+  const getProjectHealth = (
+    project: Project,
+    teamCount: number,
+    tasksDone: number,
+    tasksTotal: number,
+    today: string,
+  ): string => {
+    if (project.status === 'cancelled' || project.status === 'archived') return 'Archived';
+    if (project.status === 'completed') return 'Completed';
+    if (teamCount === 0) return 'No team assigned';
+    if (tasksTotal === 0) return 'No tasks yet';
+    if (project.deadline && project.deadline < today && project.status !== 'completed') {
+      if (project.project_type === 'client') {
+        const d = derived(project);
+        if (d.balance > 0) return 'Waiting on payment';
+      }
+      return 'Overdue';
+    }
+    if (project.deadline) {
+      const daysLeft = Math.ceil((new Date(project.deadline).getTime() - new Date(today).getTime()) / 86400000);
+      if (daysLeft <= 7) return 'Due this week';
+    }
+    if (project.project_type === 'client') {
+      const d = derived(project);
+      if (d.paidPct >= 100) return 'Fully paid';
+    }
+    if (project.project_type === 'internal') {
+      const hasInProgress = tasksTotal > tasksDone && tasksTotal > 0;
+      if (hasInProgress) return 'Internal sprint';
+    }
+    return 'In progress';
+  };
+
   const saveProject = async () => {
     const isInternal = form.project_type === 'internal';
     if (!form.project_name.trim()) { setFormError('Project name is required.'); return; }
@@ -344,10 +378,15 @@ export default function AdminProjectsPage() {
 
   const deleteProject = async (project: Project) => {
     if (isDemo) return;
-    const confirmed = window.confirm(`Delete "${project.project_name}"? This removes the project, team assignments, tasks, activity, costs, and payments that cascade with it.`);
+    const hasData = project.hub_project_payments.length > 0 || project.hub_project_contractors.length > 0;
+    const dataWarning = hasData ? '\n\nThis project has data (payments, team assignments) that will also be deleted.' : '';
+    const confirmed = window.confirm(
+      `Delete "${project.project_name}"?\n\nThis will permanently delete the project, all assignments, tasks, activity, payments, costs, and reminders. This cannot be undone.${dataWarning}`
+    );
     if (!confirmed) return;
     const { error } = await supabase.from('hub_projects').delete().eq('id', project.id);
     if (error) {
+      console.error('Delete project error:', error);
       window.alert(`Could not delete project: ${error.message}`);
       return;
     }
@@ -879,7 +918,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     const matchesSearch = !search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.project_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     const matchesType = typeFilter === 'all' || p.service === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+    const matchesProjectType = projectTypeFilter === 'all' || p.project_type === projectTypeFilter;
+    return matchesSearch && matchesStatus && matchesType && matchesProjectType;
   });
 
   const deadlineStatus = (deadline: string | null, status: string) => {
@@ -1288,11 +1328,24 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
 
           <div className="flex flex-wrap gap-1.5 items-center">
+            {/* Project type filter: Client | Internal */}
+            <div className="flex gap-1 mr-1">
+              {(['all', 'client', 'internal'] as const).map(pt => (
+                <button
+                  key={pt}
+                  onClick={() => setProjectTypeFilter(pt)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${projectTypeFilter === pt ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100'}`}
+                >
+                  {pt === 'all' ? 'All' : pt === 'client' ? 'Client' : 'Internal'}
+                </button>
+              ))}
+            </div>
+            <span className="text-gray-200 text-xs">|</span>
             <button
               onClick={() => setTypeFilter('all')}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
             >
-              All Types
+              All Services
             </button>
             {projectTypes.map(type => (
               <button
@@ -1322,6 +1375,22 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   const d = derived(p);
                   const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                   const dl = deadlineStatus(p.deadline, p.status);
+                  const todayStr = new Date().toISOString().slice(0, 10);
+                  const pTasks = tasks.filter(t => t.project_id === p.id);
+                  const pTasksDone = pTasks.filter(t => t.status === 'done').length;
+                  const healthLabel = getProjectHealth(p, p.hub_project_contractors.length, pTasksDone, pTasks.length, todayStr);
+                  const healthCls: Record<string, string> = {
+                    'Archived': 'bg-gray-100 text-gray-400',
+                    'Completed': 'bg-emerald-100 text-emerald-600',
+                    'No team assigned': 'bg-amber-100 text-amber-600',
+                    'No tasks yet': 'bg-gray-100 text-gray-400',
+                    'Overdue': 'bg-rose-100 text-rose-600',
+                    'Due this week': 'bg-amber-100 text-amber-700',
+                    'Waiting on payment': 'bg-orange-100 text-orange-600',
+                    'Fully paid': 'bg-emerald-100 text-emerald-600',
+                    'Internal sprint': 'bg-indigo-100 text-indigo-600',
+                    'In progress': 'bg-sky-100 text-sky-600',
+                  };
                   return (
                     <button
                       key={p.id}
@@ -1332,9 +1401,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_14px_rgba(15,23,42,0.04)]'
                       }`}
                     >
-                      {/* Top row: status + team avatars */}
+                      {/* Top row: status badge + type badge + team avatars */}
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${cfg.cls}`}>{cfg.label}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${cfg.cls}`}>{cfg.label}</span>
+                          {p.project_type === 'internal' && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Internal</span>
+                          )}
+                        </div>
                         <div className="flex -space-x-1.5">
                           {p.hub_project_contractors.slice(0, 3).map((pc: any) => (
                             pc.hub_users?.avatar_url
@@ -1344,46 +1418,54 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           {p.hub_project_contractors.length > 3 && (
                             <div className="w-5 h-5 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[8px] text-gray-400">+{p.hub_project_contractors.length - 3}</div>
                           )}
+                          {p.hub_project_contractors.length === 0 && (
+                            <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center" title="No team">
+                              <i className="ri-user-line text-[8px] text-gray-400"></i>
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       {/* Project + client name */}
-                    <div>
-                      <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
+                      <div>
+                        <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
                         <p className="text-xs text-gray-400 mt-0.5 truncate">
-                          {p.project_type === 'internal' ? 'Internal Project' : p.client_name}
+                          {p.project_type === 'internal' ? 'Internal Project · Internal' : `${p.client_name} · Client`}
                         </p>
                       </div>
 
-                      {/* Financial: value + collection progress */}
-                      <div className="mt-auto space-y-1.5">
-                        {p.project_type === 'internal' ? (
-                          <div className="rounded-lg bg-gray-50 px-2.5 py-2">
-                            <p className="text-[11px] font-medium text-gray-600">
-                              {p.hub_project_contractors.length} team member{p.hub_project_contractors.length !== 1 ? 's' : ''}
-                            </p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">Operational workspace only</p>
-                          </div>
-                        ) : (
+                      {/* Middle row: due date + team count + task progress */}
+                      <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <i className="ri-calendar-line text-[10px]"></i>
+                          {p.deadline ? `Due ${new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'No deadline'}
+                        </span>
+                        <span className="text-gray-200">·</span>
+                        <span className="flex items-center gap-1">
+                          <i className="ri-team-line text-[10px]"></i>
+                          {p.hub_project_contractors.length}
+                        </span>
+                        {pTasks.length > 0 && (
                           <>
-                            <div className="flex items-baseline justify-between">
-                              <p className="text-base font-bold text-[#111827] leading-none">{fmt(p.contract_price)}</p>
-                              <span className="text-[11px] text-gray-400">{d.paidPct.toFixed(0)}% paid</span>
-                            </div>
-                            <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full transition-all ${d.paidPct >= 100 ? 'bg-emerald-400' : d.paidPct > 0 ? 'bg-emerald-300' : 'bg-gray-200'}`}
-                                style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
-                            </div>
+                            <span className="text-gray-200">·</span>
+                            <span className="flex items-center gap-1">
+                              <i className="ri-task-line text-[10px]"></i>
+                              {pTasksDone}/{pTasks.length}
+                            </span>
                           </>
                         )}
                       </div>
 
-                      {/* Bottom: deadline + overdue */}
-                      <div className="flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-50 pt-2.5">
-                        <span className="flex items-center gap-1">
-                          <i className="ri-calendar-line text-[10px]"></i>
-                          {p.deadline ? new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No deadline'}
+                      {/* Bottom: health label + finance signal */}
+                      <div className="flex items-center justify-between gap-2 border-t border-gray-50 pt-2.5">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${healthCls[healthLabel] ?? 'bg-gray-100 text-gray-500'}`}>
+                          {healthLabel}
                         </span>
+                        {p.project_type === 'client' && p.contract_price > 0 && (
+                          <span className="text-[10px] text-gray-400">
+                            {d.paidPct >= 100 ? 'Fully paid' : `${d.paidPct.toFixed(0)}% collected`}
+                          </span>
+                        )}
                         {dl && (
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${dl.cls}`}>{dl.label}</span>
                         )}
@@ -1536,37 +1618,41 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   </div>
                 </div>
 
-                {/* Financials */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                  {(internalProject ? [
-                    { label: 'Project Type', value: 'Internal', sub: 'non-billable', color: 'text-gray-900' },
-                    { label: 'Team Members', value: String(activeProject.hub_project_contractors.length), sub: null, color: 'text-gray-900' },
-                    { label: 'Tasks', value: String(tasks.length), sub: `${tasks.filter(t => t.status === 'done').length} completed`, color: 'text-indigo-600' },
-                    { label: 'Status', value: cfg.label, sub: null, color: 'text-gray-500' },
-                  ] : [
-                    { label: 'Contract Price', value: fmt(activeProject.contract_price), sub: null, color: 'text-gray-900' },
-                    { label: 'Operational Costs', value: fmt(d.totalCosts), sub: null, color: 'text-rose-600' },
-                    { label: 'Net Profit', value: fmt(d.netProfit), sub: 'after costs', color: 'text-emerald-600' },
-                    { label: 'Balance Due', value: fmt(d.balance), sub: `${fmtPct(d.paidPct)} collected`, color: d.balance > 0 ? 'text-amber-600' : 'text-emerald-600' },
-                  ]).map(card => (
-                    <div key={card.label} className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                      <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{card.label}</p>
-                      <p className={`text-base font-bold mt-0.5 ${card.color}`}>{card.value}</p>
-                      {card.sub && <p className="text-[10px] text-gray-400 mt-0.5">{card.sub}</p>}
+                {/* Ops stats strip — always shown, finance only for client */}
+                {internalProject ? (
+                  <div className="mt-4 flex items-center gap-4 text-sm text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
+                    <span><span className="font-semibold text-gray-800">{activeProject.hub_project_contractors.length}</span> <span className="text-gray-400 text-xs">members</span></span>
+                    <span className="text-gray-200">|</span>
+                    <span><span className="font-semibold text-gray-800">{tasks.length}</span> <span className="text-gray-400 text-xs">tasks</span></span>
+                    <span className="text-gray-200">|</span>
+                    <span><span className="font-semibold text-emerald-600">{tasks.filter(t => t.status === 'done').length}</span> <span className="text-gray-400 text-xs">done</span></span>
+                    <span className="text-gray-200">|</span>
+                    <span className={`text-xs font-medium ${cfg.cls} px-2 py-0.5 rounded-full`}>{cfg.label}</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Client finance strip — secondary, not headline */}
+                    <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
+                      <span>Contract: <strong className="text-gray-700">{fmt(activeProject.contract_price)}</strong></span>
+                      <span className="text-gray-200">|</span>
+                      <span>Collected: <strong className="text-emerald-600">{fmt(d.totalPaid)}</strong></span>
+                      <span className="text-gray-200">|</span>
+                      <span>Costs: <strong className="text-rose-500">{fmt(d.totalCosts)}</strong></span>
+                      <span className="text-gray-200">|</span>
+                      <span>Balance: <strong className={d.balance > 0 ? 'text-amber-600' : 'text-emerald-600'}>{fmt(d.balance)}</strong></span>
                     </div>
-                  ))}
-                </div>
-
-                {/* Collection progress */}
-                {!internalProject && <div className="mt-3">
-                  <div className="flex justify-between text-xs text-gray-400 mb-1">
-                    <span>Client payments</span>
-                    <span>{fmt(d.totalPaid)} of {fmt(activeProject.contract_price)}</span>
-                  </div>
-                  <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white/55">
-                    <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
-                  </div>
-                </div>}
+                    {/* Collection progress */}
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>Client payments</span>
+                        <span>{fmt(d.totalPaid)} of {fmt(activeProject.contract_price)}</span>
+                      </div>
+                      <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white/55">
+                        <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
+                      </div>
+                    </div>
+                  </>
+                )}
                 {activeProject.notes && <p className="text-xs text-gray-400 italic mt-3">{activeProject.notes}</p>}
                 </div>
               </div>
@@ -1815,7 +1901,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               {/* Team */}
               <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                 <button onClick={() => toggleSection('team')} className="w-full flex items-center justify-between cursor-pointer group">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{internalProject ? 'Team' : 'Team & Payouts'}</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team</p>
                   <i className={`ri-arrow-${teamPayoutsOpen ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
                 </button>
                 {!teamPayoutsOpen && activeProject.hub_project_contractors.length > 0 && (
@@ -1834,7 +1920,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 {teamPayoutsOpen && (
                   <>
                   <p className="text-[11px] text-gray-400">
-                    {internalProject ? 'Assign people and roles so they can collaborate in the workspace.' : 'Assign people first, then configure payout type and amount for each person.'}
+                    {internalProject ? 'Assign people and roles. Tasks and workspace access start immediately.' : 'Assign people first, then configure payout type and amount for each person.'}
                   </p>
                   {activeProject.hub_project_contractors.length === 0 ? (
                   <p className="text-xs text-gray-400">No contractors assigned to this project yet.</p>
@@ -2031,7 +2117,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         </button>
                       </div>
                       {ctxAddError && <p className="text-xs text-red-500">{ctxAddError}</p>}
-                      <p className="text-[11px] text-gray-400">{internalProject ? 'Tasks and workspace access start immediately after assignment.' : 'Payout can be configured after assignment.'}</p>
+                      <p className="text-[11px] text-gray-400">{internalProject ? 'Assign people and roles. Tasks and workspace access start immediately.' : 'Payout can be configured after assignment.'}</p>
                     </div>
                   )}
                   </>
