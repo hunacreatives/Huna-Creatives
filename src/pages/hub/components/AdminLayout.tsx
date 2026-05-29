@@ -106,16 +106,16 @@ function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-3 w-full sm:min-w-[200px] sm:max-w-[320px] rounded-2xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-colors hover:bg-white"
+        className="flex items-center gap-3 w-9 sm:w-auto sm:min-w-[200px] sm:max-w-[320px] rounded-2xl border border-[#e5e7eb] bg-white px-2.5 sm:px-4 py-2.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-colors hover:bg-white"
       >
         <i className="ri-search-line text-[#9ca3af] text-base flex-shrink-0"></i>
-        <span className="flex-1 text-sm text-[#6b7280] truncate">Search projects, people, or type a command...</span>
+        <span className="hidden sm:block flex-1 text-sm text-[#6b7280] truncate">Search projects, people…</span>
         <kbd className="hidden sm:inline text-[10px] text-[#6b7280] bg-[#f9fafb] border border-[#e5e7eb] rounded-lg px-1.5 py-0.5 flex-shrink-0">⌘ K</kbd>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-[70] bg-[rgba(34,25,16,0.22)] backdrop-blur-[2px] p-4 md:p-8" onClick={() => setOpen(false)}>
-          <div className="mx-auto mt-[6vh] w-full max-w-4xl rounded-[32px] border border-[#e5e7eb] bg-white shadow-[0_40px_120px_rgba(15,23,42,0.16)] overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="mx-auto mt-[4vh] w-full max-w-4xl rounded-[20px] sm:rounded-[32px] border border-[#e5e7eb] bg-white shadow-[0_40px_120px_rgba(15,23,42,0.16)] overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="border-b border-[#e5e7eb] px-6 pt-5 pb-4">
               <div className="flex items-center gap-3 rounded-[22px] border border-[#e5e7eb] bg-white px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
                 <i className="ri-search-line text-[#9ca3af] text-xl flex-shrink-0"></i>
@@ -350,7 +350,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
           </button>
           <div className="flex-1 min-w-0">
             {title && (
-              <h1 className="text-gray-900 font-semibold text-[28px] leading-tight truncate">{title}</h1>
+              <h1 className="text-gray-900 font-semibold text-lg sm:text-[28px] leading-tight truncate">{title}</h1>
             )}
           </div>
           <div className="flex items-center gap-2 min-w-0 flex-shrink overflow-hidden">

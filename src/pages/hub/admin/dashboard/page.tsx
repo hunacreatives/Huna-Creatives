@@ -514,7 +514,7 @@ export default function AdminDashboardPage() {
 
           <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1">
-              <p className="text-white/50 text-xs mb-1 flex items-center gap-1.5">
+              <p className="text-white/50 text-xs mb-1 flex flex-wrap items-center gap-1.5">
                 {dateStr}
                 <span className="text-white/30">·</span>
                 <i className="ri-time-line text-white/40 text-xs"></i>
@@ -527,7 +527,7 @@ export default function AdminDashboardPage() {
               </p>
             </div>
             {/* Payroll period card */}
-            <div className="bg-white/10 rounded-xl px-4 py-3 min-w-[200px]">
+            <div className="bg-white/10 rounded-xl px-4 py-3 w-full sm:w-auto sm:min-w-[200px]">
               <p className="text-white/50 text-xs mb-1">Current Pay Period</p>
               <p className="text-white font-semibold text-sm">
                 {isFirstHalf ? `${today.toLocaleDateString('en-US', { month: 'short' })} 1–15` : `${today.toLocaleDateString('en-US', { month: 'short' })} 16–${new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()}`}

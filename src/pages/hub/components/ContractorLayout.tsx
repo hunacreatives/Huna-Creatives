@@ -210,7 +210,7 @@ export default function ContractorLayout({ children, title, titleContent, action
 
               {/* Global search — hidden in workspace mode */}
               {!hideGlobalSearch && <div className="relative" ref={searchRef}>
-                <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 w-44 sm:w-56 transition-all ${searchOpen ? 'border-indigo-300 ring-2 ring-indigo-100' : 'border-gray-200'}`}>
+                <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 w-9 sm:w-44 md:w-56 transition-all ${searchOpen ? 'border-indigo-300 ring-2 ring-indigo-100 !w-40 sm:!w-44 md:!w-56' : 'border-gray-200'}`}>
                   <i className="ri-search-line text-gray-400 text-sm flex-shrink-0"></i>
                   <input
                     ref={searchInputRef}
@@ -226,7 +226,7 @@ export default function ContractorLayout({ children, title, titleContent, action
                       if (e.key === 'Escape') { setGlobalSearch(''); setSearchOpen(false); }
                     }}
                     placeholder="Search…"
-                    className="flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0"
+                    className="flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0 hidden sm:block"
                   />
                   {globalSearch
                     ? <button onClick={() => { setGlobalSearch(''); setSearchOpen(false); }} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0"><i className="ri-close-line text-sm"></i></button>
@@ -236,7 +236,7 @@ export default function ContractorLayout({ children, title, titleContent, action
 
                 {/* Dropdown */}
                 {searchOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+                  <div className="absolute right-0 top-full mt-2 w-[min(320px,90vw)] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
 
                     {/* No query: quick actions */}
                     {!q && (

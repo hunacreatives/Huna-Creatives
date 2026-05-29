@@ -1059,7 +1059,7 @@ export default function ContractorProjectsPage() {
 
   const wsSearchActions = workspaceRow && wsProject ? (
     <div className="relative" ref={wsSearchRef}>
-      <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 w-52 transition-all ${wsSearchOpen ? 'border-indigo-300 ring-2 ring-indigo-100' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 w-9 sm:w-52 transition-all ${wsSearchOpen ? 'border-indigo-300 ring-2 ring-indigo-100 !w-44 sm:!w-52' : 'border-gray-200'}`}>
         <i className="ri-search-line text-gray-400 text-sm flex-shrink-0"></i>
         <input
           type="text"
@@ -1073,8 +1073,8 @@ export default function ContractorProjectsPage() {
               else if (wsFilterResults[0]) { setTaskFilter(wsFilterResults[0].filter); setWsSearch(''); setWsSearchOpen(false); }
             }
           }}
-          placeholder={`Search ${wsProject.project_name}…`}
-          className="flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0"
+          placeholder="Search…"
+          className="flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0 hidden sm:block"
         />
         {wsSearch
           ? <button onClick={() => { setWsSearch(''); setWsSearchOpen(false); }} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0"><i className="ri-close-line text-sm"></i></button>
@@ -1083,7 +1083,7 @@ export default function ContractorProjectsPage() {
       </div>
 
       {wsSearchOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-2 w-[min(320px,90vw)] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
           {/* Empty: show all sections */}
           {!wsQ && (
             <>
