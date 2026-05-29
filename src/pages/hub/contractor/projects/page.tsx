@@ -1021,6 +1021,20 @@ export default function ContractorProjectsPage() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greetingEmoji = hour < 6 ? '🌙' : hour < 12 ? '☀️' : hour < 17 ? '🌤️' : hour < 20 ? '🌇' : '🌙';
+  const greetingGradient = hour < 6
+    ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'   // night — indigo-violet
+    : hour < 10
+    ? 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)'   // early morning — amber-rose
+    : hour < 12
+    ? 'linear-gradient(135deg, #f97316 0%, #eab308 100%)'   // morning — orange-yellow
+    : hour < 15
+    ? 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)'   // afternoon — sky-indigo
+    : hour < 18
+    ? 'linear-gradient(135deg, #10b981 0%, #0ea5e9 100%)'   // late afternoon — emerald-sky
+    : hour < 20
+    ? 'linear-gradient(135deg, #f97316 0%, #8b5cf6 100%)'   // evening — orange-violet
+    : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';  // night — indigo-violet
   const today = new Date().toISOString().slice(0, 10);
   const firstName = hubUser?.full_name?.split(' ')[0] ?? '';
 
@@ -1776,8 +1790,12 @@ export default function ContractorProjectsPage() {
             {/* Greeting */}
             <div>
               <p className="text-xs text-gray-400 mb-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-              <h2 className="text-[28px] font-bold tracking-tight text-gray-900 leading-tight">
-                {greeting}, {firstName}.<br />
+              <h2 className="text-[28px] font-bold tracking-tight leading-tight">
+                <span style={{ background: greetingGradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                  {greeting}, {firstName}.
+                </span>
+                {' '}<span className="not-italic" style={{ WebkitTextFillColor: 'initial' }}>{greetingEmoji}</span>
+                <br />
                 <span className="text-gray-400 font-normal text-xl">
                   {todayDueTasks.length > 0
                     ? `You've got ${todayDueTasks.length} task${todayDueTasks.length > 1 ? 's' : ''} due today.`
