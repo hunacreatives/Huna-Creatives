@@ -1,10 +1,36 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
+import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
 import { supabase } from '@/lib/supabase';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
 import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
+
+// ── SVG progress ring ──────────────────────────────────────────────────────
+function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
+  const r = (size / 2) - 10;
+  const circ = 2 * Math.PI * r;
+  const filled = Math.max(0, Math.min(pct, 100)) / 100 * circ;
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e5e7eb" strokeWidth={size < 60 ? 7 : 9} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke="#3b82f6" strokeWidth={size < 60 ? 7 : 9}
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${circ}`}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: 'stroke-dasharray 1s ease' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-bold text-gray-900" style={{ fontSize: size < 60 ? 13 : 22 }}>{pct}%</span>
+        {size >= 100 && <span className="text-[10px] text-gray-400 mt-0.5">complete</span>}
+      </div>
+    </div>
+  );
+}
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
@@ -184,6 +210,8 @@ export default function AdminProjectsPage() {
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   // Collapsible detail sections (all closed by default)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  // Collapsed task groups in workspace
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const toggleSection = (key: string) => setOpenSections(s => ({ ...s, [key]: !s[key] }));
   const teamPayoutsOpen = !!openSections['team'];
 
@@ -370,6 +398,16 @@ export default function AdminProjectsPage() {
       const { data, error } = await supabase.from('hub_projects').insert(payload).select('id').single();
       if (error) { setFormError(error.message); setFormSaving(false); return; }
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'project', description: `Created ${isInternal ? 'internal' : 'client'} project "${form.project_name}"` });
+      // Auto-assign the creator (owner/admin) to the new project
+      if (data && hubUser?.id) {
+        await supabase.from('hub_project_contractors').insert({
+          project_id: data.id,
+          contractor_id: hubUser.id,
+          payout_type: 'percentage',
+          percentage: 0,
+          payout_status: 'pending',
+        }).then(({ error: e }) => { if (e) console.error('Auto-assign owner failed:', e); });
+      }
       if (data) setActiveId(data.id);
     }
     setFormSaving(false); setShowForm(false); setEditingProject(null); setForm(emptyForm);
@@ -1037,194 +1075,466 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
   return (
     <AdminLayout title="Projects">
-      {workspaceOpen && activeProject && (
-        <div className="flex flex-col -mx-4 -my-4 md:-mx-6 md:-my-6 min-h-full">
-          {/* Breadcrumb nav */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white/70 backdrop-blur-sm flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <button onClick={() => setWorkspaceOpen(false)} className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 cursor-pointer transition-colors text-sm">
-                <i className="ri-arrow-left-s-line text-base"></i>
-                <span>Projects</span>
-              </button>
-              <i className="ri-arrow-right-s-line text-gray-300 text-sm"></i>
-              <span className="text-sm text-gray-500 font-medium truncate max-w-[180px]">{activeProject.project_name}</span>
-              <i className="ri-arrow-right-s-line text-gray-300 text-sm"></i>
-              <div className="flex items-center gap-1.5">
-                <i className="ri-layout-grid-line text-indigo-500 text-sm"></i>
-                <span className="text-sm font-semibold text-gray-900">Workspace</span>
+      {workspaceOpen && activeProject && (() => {
+        const p = activeProject;
+        const internalProject = isInternalProject(p);
+        const statusColors: Record<string, string> = {
+          ongoing: 'bg-emerald-100 text-emerald-700',
+          completed: 'bg-blue-100 text-blue-700',
+          paused: 'bg-amber-100 text-amber-700',
+          cancelled: 'bg-gray-100 text-gray-500',
+        };
+        const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' };
+        const wsTeam = p.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean) as { id: string; full_name: string; avatar_url: string | null }[];
+        const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
+        const isDeadlineOver = daysLeft !== null && daysLeft < 0 && p.status !== 'completed';
+        const d = derived(p);
+        // Map tasks for GanttTimeline (admin tasks have assignee_id, no start_date — compatible via any cast)
+        const ganttTasks = tasks.map(t => ({
+          id: t.id,
+          project_id: t.project_id,
+          title: t.title,
+          description: t.description,
+          status: t.status,
+          priority: t.priority,
+          due_date: t.due_date,
+          start_date: null,
+          assigned_to: t.assignee_id,
+        }));
+
+        return (
+          <div className="flex flex-col -mx-4 -my-4 md:-mx-6 md:-py-6 min-h-full bg-gray-50/50">
+            {/* ── Header strip ── */}
+            <div className="px-5 md:px-6 pt-4 pb-2 flex-shrink-0">
+              {/* Back button row */}
+              <div className="flex items-center gap-2 mb-3">
+                <button onClick={() => { setWorkspaceOpen(false); setCollapsedGroups({}); }}
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
+                  <i className="ri-arrow-left-s-line text-base"></i>
+                </button>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate leading-tight">{p.project_name}</p>
+                  <p className="text-xs text-gray-400 truncate">{internalProject ? 'Internal Project' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
+                </div>
+              </div>
+
+              {/* Info card */}
+              <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
+                <div className="flex items-start justify-between gap-6">
+                  {/* Left */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[p.status] ?? statusColors.ongoing}`}>
+                        {statusLabels[p.status] ?? p.status}
+                      </span>
+                      {p.service && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getServiceCfg(p.service).badge}`}>{p.service}</span>
+                      )}
+                      {internalProject && (
+                        <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Internal</span>
+                      )}
+                    </div>
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{p.project_name}</h2>
+                    <p className="text-sm text-gray-400 mt-0.5">{internalProject ? 'Internal Project' : p.client_name}</p>
+
+                    {wsTeam.length > 0 && (
+                      <div className="flex items-center gap-2 mt-3">
+                        <div className="flex -space-x-2">
+                          {wsTeam.slice(0, 5).map(m => (
+                            m.avatar_url
+                              ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white object-cover object-top shadow-sm" />
+                              : <div key={m.id} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white bg-indigo-400 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">{m.full_name[0]}</div>
+                          ))}
+                        </div>
+                        <span className="text-xs text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+
+                    {daysLeft !== null && (
+                      <div className="mt-3">
+                        {isDeadlineOver ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full font-medium">
+                            <i className="ri-alarm-warning-line text-xs"></i>{Math.abs(daysLeft)}d overdue
+                          </span>
+                        ) : daysLeft === 0 ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                            <i className="ri-time-line text-xs"></i>Due today
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${daysLeft <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-500 bg-gray-50 border-gray-200'}`}>
+                            <i className="ri-calendar-line text-xs"></i>
+                            {daysLeft}d left · {new Date(p.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: progress ring */}
+                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <ProgressRing pct={wsPct} size={88} />
+                    <span className="text-[10px] text-gray-400">{wsDoneCt}/{tasks.length} tasks</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <span className="text-xs text-gray-400 hidden sm:block">{activeProject.client_name}{activeProject.service ? ` · ${activeProject.service}` : ''}</span>
-          </div>
 
-          <div className="flex-1 p-6 md:p-7 space-y-6">
-            {/* Stats row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: 'Total Tasks', value: tasks.length, icon: 'ri-task-line', cls: 'text-gray-700' },
-                { label: 'Done', value: tasks.filter(t => t.status === 'done').length, icon: 'ri-checkbox-circle-line', cls: 'text-emerald-600' },
-                { label: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', cls: 'text-sky-600' },
-                { label: 'Overdue', value: tasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', cls: 'text-rose-600' },
-              ].map(s => (
-                <div key={s.label} className="bg-gray-50 rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <i className={`${s.icon} ${s.cls} text-sm`}></i>
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">{s.label}</span>
+            <div className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
+              {/* ── Stats row ── */}
+              <div id="ws-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Total', value: tasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
+                  { label: 'Done', value: tasks.filter(t => t.status === 'done').length, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
+                  { label: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', iconBg: 'bg-sky-100', iconClr: 'text-sky-600', valClr: 'text-sky-700' },
+                  { label: 'Overdue', value: tasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', iconBg: 'bg-rose-100', iconClr: 'text-rose-500', valClr: 'text-rose-600' },
+                ].map(s => (
+                  <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
+                    <div className={`w-8 h-8 rounded-xl ${s.iconBg} flex items-center justify-center mb-3`}>
+                      <i className={`${s.icon} ${s.iconClr} text-sm`}></i>
+                    </div>
+                    <p className={`text-2xl font-bold ${s.valClr} leading-none`}>{s.value}</p>
+                    <p className="text-[11px] text-gray-400 mt-1">{s.label}</p>
                   </div>
-                  <p className={`text-2xl font-bold ${s.cls}`}>{s.value}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
-            {/* Task list */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-semibold text-gray-800">Tasks</h3>
-                  {tasks.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${wsPct}%` }} />
+              {/* ── Calendar / Timeline ── */}
+              <div id="ws-timeline">
+                <GanttTimeline
+                  tasks={ganttTasks as any}
+                  projectStart={p.start_date}
+                  projectEnd={p.deadline}
+                  today={wsToday}
+                />
+              </div>
+
+              {/* ── Two-column: tasks + sidebar ── */}
+              <div className="flex gap-6">
+                {/* Task list */}
+                <div id="ws-tasks" className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-50 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-semibold text-gray-800">Tasks</h3>
+                        {tasks.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${wsPct}%` }} />
+                            </div>
+                            <span className="text-xs text-gray-400">{wsDoneCt}/{tasks.length}</span>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-xs text-gray-400">{wsDoneCt}/{tasks.length}</span>
+                      <button onClick={() => setShowTaskForm(s => !s)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
+                        <i className={showTaskForm ? 'ri-close-line' : 'ri-add-line'}></i>
+                        {showTaskForm ? 'Cancel' : 'Add Task'}
+                      </button>
+                    </div>
+                    <div className="flex gap-1 flex-wrap">
+                      {(['all', 'todo', 'in_progress', 'done', 'overdue'] as const).map(f => {
+                        const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'Active', done: 'Done', overdue: 'Overdue' };
+                        const counts: Record<string, number> = {
+                          all: tasks.length,
+                          todo: tasks.filter(t => t.status === 'todo').length,
+                          in_progress: tasks.filter(t => t.status === 'in_progress').length,
+                          done: tasks.filter(t => t.status === 'done').length,
+                          overdue: tasks.filter(t => !!wsIsOverdue(t)).length,
+                        };
+                        if (f !== 'all' && counts[f] === 0) return null;
+                        return (
+                          <button key={f} onClick={() => setTaskFilter(f)}
+                            className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${taskFilter === f ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                            {labels[f]}{f !== 'all' && <span className="ml-1 opacity-60">{counts[f]}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Add task form */}
+                  {showTaskForm && (
+                    <div className="px-5 py-3 bg-indigo-50/50 border-b border-indigo-100/60 space-y-2">
+                      <input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Task title..."
+                        autoFocus onKeyDown={e => e.key === 'Enter' && createTask()}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 bg-white" />
+                      <div className="flex gap-2">
+                        <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)}
+                          className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">
+                          <option value="">Unassigned</option>
+                          {wsTaskTeam.map(u => u && <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                        </select>
+                        <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)}
+                          className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                        <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
+                          className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                        <button onClick={createTask} disabled={!newTaskTitle.trim() || taskSaving}
+                          className="px-4 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                          {taskSaving ? '...' : 'Add'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Task content */}
+                  {tasks.length === 0 ? (
+                    <div className="py-14 text-center">
+                      <i className="ri-task-line text-3xl text-gray-200 block mb-2"></i>
+                      <p className="text-sm text-gray-400 mb-3">No tasks yet</p>
+                      <button onClick={() => setShowTaskForm(true)} className="text-sm text-[#FF6B35] hover:underline cursor-pointer">Add the first task</button>
+                    </div>
+                  ) : wsFilteredTasks.length === 0 ? (
+                    <div className="py-10 text-center">
+                      <p className="text-sm text-gray-400">No tasks in this filter</p>
+                    </div>
+                  ) : taskFilter !== 'all' ? (
+                    /* Flat list for specific filter */
+                    <div className="p-3 space-y-2">
+                      {wsFilteredTasks.map(task => {
+                        const sc = wsStatusCycle[task.status];
+                        const overdue = wsIsOverdue(task);
+                        const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
+                        const daysLeft = task.due_date
+                          ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
+                          : null;
+                        return (
+                          <div key={task.id}
+                            className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 ${priorityBorder} group`}>
+                            <div className="flex items-start gap-2.5">
+                              <button onClick={() => toggleTask(task)} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
+                                <i className={`${sc.icon} text-lg`}></i>
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+                              </div>
+                              <button onClick={() => deleteTask(task)}
+                                className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all">
+                                <i className="ri-delete-bin-line text-sm"></i>
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
+                              {task.due_date && (
+                                <div className="flex items-center gap-1">
+                                  <i className="ri-calendar-line text-[10px] text-gray-400"></i>
+                                  <span className={`text-[10px] font-medium ${overdue ? 'text-rose-600' : daysLeft === 0 ? 'text-amber-600' : 'text-gray-500'}`}>
+                                    {overdue ? `Overdue ${Math.abs(daysLeft!)}d` : daysLeft === 0 ? 'Due today' : daysLeft === 1 ? 'Tomorrow' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                </div>
+                              )}
+                              {task.hub_users && (
+                                <div className="flex items-center gap-1 ml-auto">
+                                  {task.hub_users.avatar_url
+                                    ? <img src={task.hub_users.avatar_url} alt={task.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
+                                    : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center text-[9px] font-bold text-white">{task.hub_users.full_name[0]}</div>
+                                  }
+                                  <span className="text-[10px] text-gray-500 font-medium">{task.hub_users.full_name.split(' ')[0]}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Grouped sections (taskFilter === 'all') */
+                    <div>
+                      {(() => {
+                        const overdueGroup  = wsFilteredTasks.filter(t => !!wsIsOverdue(t));
+                        const inProgGroup   = wsFilteredTasks.filter(t => t.status === 'in_progress' && !wsIsOverdue(t));
+                        const todoGroup     = wsFilteredTasks.filter(t => t.status === 'todo' && !wsIsOverdue(t));
+                        const doneGroup     = wsFilteredTasks.filter(t => t.status === 'done');
+
+                        type GroupKey = 'overdue' | 'in_progress' | 'todo' | 'done';
+                        const groups = [
+                          { key: 'overdue' as GroupKey,     label: 'Overdue',     icon: 'ri-alarm-warning-line',         headerCls: 'bg-rose-50/60',    iconCls: 'text-rose-500',    labelCls: 'text-rose-700',    badgeCls: 'bg-rose-100 text-rose-600',    chevronCls: 'text-rose-300',    items: overdueGroup },
+                          { key: 'in_progress' as GroupKey, label: 'In Progress', icon: 'ri-loader-2-line',               headerCls: 'bg-sky-50/50',     iconCls: 'text-sky-500',     labelCls: 'text-sky-700',     badgeCls: 'bg-sky-100 text-sky-600',      chevronCls: 'text-sky-400',     items: inProgGroup },
+                          { key: 'todo' as GroupKey,        label: 'To Do',       icon: 'ri-checkbox-blank-circle-line',  headerCls: 'bg-gray-50/60',   iconCls: 'text-gray-400',    labelCls: 'text-gray-600',    badgeCls: 'bg-gray-100 text-gray-500',    chevronCls: 'text-gray-300',    items: todoGroup },
+                          { key: 'done' as GroupKey,        label: 'Done',        icon: 'ri-checkbox-circle-fill',        headerCls: 'bg-emerald-50/40', iconCls: 'text-emerald-500', labelCls: 'text-emerald-700', badgeCls: 'bg-emerald-100 text-emerald-600', chevronCls: 'text-emerald-300', items: doneGroup },
+                        ];
+
+                        return groups.filter(g => g.items.length > 0).map(g => {
+                          const collapsed = !!collapsedGroups[g.key];
+                          return (
+                            <div key={g.key} className="border-b border-gray-50 last:border-0">
+                              <div
+                                className={`flex items-center gap-2 px-5 py-2.5 ${g.headerCls} cursor-pointer select-none`}
+                                onClick={() => setCollapsedGroups(prev => ({ ...prev, [g.key]: !prev[g.key] }))}
+                              >
+                                <i className={`${g.icon} ${g.iconCls} text-sm`}></i>
+                                <span className={`text-xs font-semibold ${g.labelCls}`}>{g.label}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${g.badgeCls}`}>{g.items.length}</span>
+                                <i className={`${collapsed ? 'ri-arrow-right-s-line' : 'ri-arrow-down-s-line'} ${g.chevronCls} ml-auto text-sm`}></i>
+                              </div>
+                              {!collapsed && (
+                                <div className="p-3 space-y-2">
+                                  {g.items.map(task => {
+                                    const sc = wsStatusCycle[task.status];
+                                    const overdue = wsIsOverdue(task);
+                                    const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
+                                    const tDaysLeft = task.due_date
+                                      ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
+                                      : null;
+                                    return (
+                                      <div key={task.id}
+                                        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 ${priorityBorder} group`}>
+                                        <div className="flex items-start gap-2.5">
+                                          <button onClick={() => toggleTask(task)} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
+                                            <i className={`${sc.icon} text-lg`}></i>
+                                          </button>
+                                          <div className="flex-1 min-w-0">
+                                            <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+                                          </div>
+                                          <button onClick={() => deleteTask(task)}
+                                            className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all">
+                                            <i className="ri-delete-bin-line text-sm"></i>
+                                          </button>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
+                                          {task.due_date && (
+                                            <div className="flex items-center gap-1">
+                                              <i className="ri-calendar-line text-[10px] text-gray-400"></i>
+                                              <span className={`text-[10px] font-medium ${overdue ? 'text-rose-600' : tDaysLeft === 0 ? 'text-amber-600' : 'text-gray-500'}`}>
+                                                {overdue ? `Overdue ${Math.abs(tDaysLeft!)}d` : tDaysLeft === 0 ? 'Due today' : tDaysLeft === 1 ? 'Tomorrow' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {task.hub_users && (
+                                            <div className="flex items-center gap-1 ml-auto">
+                                              {task.hub_users.avatar_url
+                                                ? <img src={task.hub_users.avatar_url} alt={task.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
+                                                : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center text-[9px] font-bold text-white">{task.hub_users.full_name[0]}</div>
+                                              }
+                                              <span className="text-[10px] text-gray-500 font-medium">{task.hub_users.full_name.split(' ')[0]}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1 overflow-x-auto">
-                    {(['all', 'todo', 'in_progress', 'done', 'overdue'] as const).map(f => {
-                      const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'In Progress', done: 'Done', overdue: 'Overdue' };
-                      const counts: Record<string, number> = {
-                        all: tasks.length, todo: tasks.filter(t => t.status === 'todo').length,
-                        in_progress: tasks.filter(t => t.status === 'in_progress').length,
-                        done: tasks.filter(t => t.status === 'done').length,
-                        overdue: tasks.filter(t => !!wsIsOverdue(t)).length,
-                      };
-                      if (f !== 'all' && counts[f] === 0) return null;
-                      return (
-                        <button key={f} onClick={() => setTaskFilter(f)}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${taskFilter === f ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                          {labels[f]}{f !== 'all' && <span className="ml-1 opacity-60">{counts[f]}</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button onClick={() => setShowTaskForm(s => !s)}
-                    className="flex items-center gap-1 text-xs px-3 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-full cursor-pointer transition-colors font-medium">
-                    <i className={showTaskForm ? 'ri-close-line' : 'ri-add-line'}></i>
-                    {showTaskForm ? 'Cancel' : 'Add Task'}
-                  </button>
-                </div>
-              </div>
 
-              {showTaskForm && (
-                <div className="px-5 py-3 bg-indigo-50/50 border-b border-indigo-100/60 space-y-2">
-                  <input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Task title..."
-                    autoFocus onKeyDown={e => e.key === 'Enter' && createTask()}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 bg-white" />
-                  <div className="flex gap-2">
-                    <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)}
-                      className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">
-                      <option value="">Unassigned</option>
-                      {wsTaskTeam.map(u => u && <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                    </select>
-                    <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)}
-                      className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                    <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
-                      className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                    <button onClick={createTask} disabled={!newTaskTitle.trim() || taskSaving}
-                      className="px-4 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 cursor-pointer disabled:opacity-40 whitespace-nowrap">
-                      {taskSaving ? '...' : 'Add'}
-                    </button>
+                {/* Right sidebar */}
+                <div id="ws-sidebar" className="hidden lg:flex flex-col gap-4 w-64 flex-shrink-0">
+                  {/* Dates & Notes card */}
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+                    {(p.start_date || p.deadline) && (
+                      <div className="space-y-2.5">
+                        {p.start_date && (
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400 flex items-center gap-1.5"><i className="ri-play-circle-line text-gray-300"></i>Start</span>
+                            <span className="font-medium text-gray-700">{new Date(p.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                          </div>
+                        )}
+                        {p.deadline && (
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400 flex items-center gap-1.5"><i className="ri-flag-line text-gray-300"></i>Due</span>
+                            <span className={`font-medium ${p.deadline < wsToday && p.status !== 'completed' ? 'text-rose-500' : 'text-gray-700'}`}>
+                              {new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {p.notes && (
+                      <div className={`${(p.start_date || p.deadline) ? 'border-t border-gray-50 pt-3' : ''}`}>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium mb-1.5">Notes</p>
+                        <p className="text-xs text-gray-500 leading-relaxed">{p.notes}</p>
+                      </div>
+                    )}
+                    {!p.start_date && !p.deadline && !p.notes && (
+                      <p className="text-xs text-gray-300 text-center py-2">No dates set</p>
+                    )}
                   </div>
-                </div>
-              )}
 
-              {wsFilteredTasks.length === 0 ? (
-                <div className="px-5 py-10 text-center">
-                  <p className="text-sm text-gray-400">{tasks.length === 0 ? 'No tasks yet — add the first one.' : 'No tasks in this filter.'}</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {wsFilteredTasks.map((task) => {
-                    const sc = wsStatusCycle[task.status];
-                    const overdue = wsIsOverdue(task);
-                    return (
-                      <div key={task.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/70 group transition-colors">
-                        <button onClick={() => toggleTask(task)} className={`flex-shrink-0 text-xl cursor-pointer transition-colors ${sc.cls}`}>
-                          <i className={sc.icon}></i>
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
-                        </div>
-                        {task.hub_users && (
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            {task.hub_users.avatar_url
-                              ? <img src={task.hub_users.avatar_url} alt={task.hub_users.full_name} className="w-5 h-5 rounded-full object-cover" />
-                              : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center" style={{ fontSize: 8 }}><span className="text-white font-bold">{task.hub_users.full_name[0]}</span></div>
+                  {/* Team card */}
+                  {wsTeam.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                      <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Team</p>
+                      <div className="space-y-2.5">
+                        {wsTeam.map(m => (
+                          <div key={m.id} className="flex items-center gap-2.5">
+                            {m.avatar_url
+                              ? <img src={m.avatar_url} alt={m.full_name} className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0" />
+                              : <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">{m.full_name[0]}</div>
                             }
-                            <span className="text-xs text-gray-400">{task.hub_users.full_name.split(' ')[0]}</span>
+                            <span className="text-sm text-gray-700 truncate">{m.full_name}</span>
                           </div>
-                        )}
-                        {task.due_date && (
-                          <span className={`text-xs flex-shrink-0 ${overdue ? 'text-rose-500 font-semibold' : 'text-gray-400'}`}>
-                            {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            {overdue && ' · overdue'}
-                          </span>
-                        )}
-                        <div className="w-20 flex items-center gap-2 flex-shrink-0">
-                          <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${task.status === 'done' ? 'bg-emerald-400' : task.status === 'in_progress' ? 'bg-sky-400' : 'bg-gray-200'}`}
-                              style={{ width: task.status === 'done' ? '100%' : task.status === 'in_progress' ? '50%' : '0%' }} />
-                          </div>
-                          <span className="text-[10px] text-gray-400 w-7 text-right">{task.status === 'done' ? '100%' : task.status === 'in_progress' ? '50%' : '0%'}</span>
-                        </div>
-                        <span className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium border ${
-                          task.status === 'done' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' :
-                          task.status === 'in_progress' ? 'border-sky-200 text-sky-600 bg-sky-50' :
-                          overdue ? 'border-rose-200 text-rose-600 bg-rose-50' :
-                          'border-gray-200 text-gray-500 bg-gray-50'
-                        }`}>
-                          {task.status === 'done' ? 'Done' : task.status === 'in_progress' ? 'In Progress' : overdue ? 'Overdue' : 'To Do'}
-                        </span>
-                        <button onClick={() => deleteTask(task)} className="flex-shrink-0 text-gray-200 hover:text-rose-400 opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
-                          <i className="ri-delete-bin-line text-xs"></i>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Activity */}
-            {activity.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <h3 className="font-semibold text-gray-800 mb-4">Recent Activity</h3>
-                <div className="space-y-4">
-                  {activity.map(a => (
-                    <div key={a.id} className="flex gap-3 items-start">
-                      <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                        <span className="text-indigo-500 font-bold text-[10px]">{(a.actor_name?.[0] ?? '?').toUpperCase()}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700">{a.description}</p>
-                        <p className="text-[11px] text-gray-400 mt-0.5">
-                          {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {new Date(a.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                        </p>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Activity card */}
+                  {activity.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                      <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Activity</p>
+                      <div className="space-y-3">
+                        {activity.slice(0, 5).map(a => {
+                          const diff = Math.floor((Date.now() - new Date(a.created_at).getTime()) / 1000);
+                          const time = diff < 60 ? 'just now' : diff < 3600 ? `${Math.floor(diff / 60)}m ago` : diff < 86400 ? `${Math.floor(diff / 3600)}h ago` : new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          return (
+                            <div key={a.id} className="flex items-start gap-2.5">
+                              <div className="w-6 h-6 rounded-full bg-indigo-50 border border-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span className="text-indigo-500 font-bold text-[9px]">{(a.actor_name?.[0] ?? '?').toUpperCase()}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-600 leading-snug truncate">{a.description}</p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{time}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Finance strip card — client projects only */}
+                  {!internalProject && (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+                      <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Financials</p>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">Contract</span>
+                          <span className="font-semibold text-gray-700">{fmt(p.contract_price)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">Collected</span>
+                          <span className="font-semibold text-emerald-600">{fmt(d.totalPaid)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">Balance</span>
+                          <span className={`font-semibold ${d.balance > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{fmt(d.balance)}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                          <span>Collection progress</span>
+                          <span>{d.paidPct.toFixed(0)}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {!workspaceOpen && (
       <div className="space-y-4">
 
