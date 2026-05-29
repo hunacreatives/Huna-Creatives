@@ -663,46 +663,67 @@ export default function ContractorDashboard() {
             </div>
 
             {/* Active Projects */}
-            {activeProjects.length > 0 && (
-              <div className="space-y-2.5">
-                <h3 className="text-sm font-semibold text-[#111827]">Active Projects</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {activeProjects.map(p => {
-                    const pct = p.tasksTotal > 0 ? Math.round((p.tasksDone / p.tasksTotal) * 100) : 0;
-                    const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date().getTime()) / 86400000) : null;
-                    return (
-                      <button key={p.id} onClick={() => navigate('/hub/contractor/projects')}
-                        className="text-left bg-white/70 backdrop-blur-sm border border-white/80 rounded-2xl p-4 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-gray-900 text-sm truncate">{p.project_name}</p>
-                            <p className="text-xs text-gray-400 truncate">{p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
-                          </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold uppercase tracking-wide flex-shrink-0">Active</span>
-                        </div>
-                        {p.tasksTotal > 0 && (
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-[11px] text-gray-400">
-                              <span>{p.tasksDone}/{p.tasksTotal} tasks</span>
-                              <span>{pct}%</span>
+            {activeProjects.length > 0 && (() => {
+              const PALETTE = [
+                { from: '#6366f1', to: '#8b5cf6', light: 'rgba(99,102,241,0.08)', bar: '#6366f1' },
+                { from: '#0ea5e9', to: '#6366f1', light: 'rgba(14,165,233,0.08)', bar: '#0ea5e9' },
+                { from: '#10b981', to: '#0ea5e9', light: 'rgba(16,185,129,0.08)', bar: '#10b981' },
+                { from: '#f59e0b', to: '#ef4444', light: 'rgba(245,158,11,0.08)', bar: '#f59e0b' },
+                { from: '#ec4899', to: '#8b5cf6', light: 'rgba(236,72,153,0.08)', bar: '#ec4899' },
+                { from: '#14b8a6', to: '#6366f1', light: 'rgba(20,184,166,0.08)', bar: '#14b8a6' },
+              ];
+              return (
+                <div className="space-y-2.5">
+                  <h3 className="text-sm font-semibold text-[#111827]">Active Projects</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {activeProjects.map((p, idx) => {
+                      const pal = PALETTE[idx % PALETTE.length];
+                      const pct = p.tasksTotal > 0 ? Math.round((p.tasksDone / p.tasksTotal) * 100) : 0;
+                      const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date().getTime()) / 86400000) : null;
+                      const isOverdue = daysLeft !== null && daysLeft < 0;
+                      const isDueSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
+                      return (
+                        <button key={p.id} onClick={() => navigate('/hub/contractor/projects')}
+                          className="text-left rounded-2xl p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer space-y-3 overflow-hidden"
+                          style={{ background: `linear-gradient(135deg, ${pal.light} 0%, rgba(255,255,255,0.9) 100%)`, border: `1px solid rgba(255,255,255,0.8)`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              {p.service && (
+                                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: pal.from }}>{p.service}</p>
+                              )}
+                              <p className="font-bold text-gray-900 text-sm leading-snug truncate">{p.project_name}</p>
+                              <p className="text-xs text-gray-400 truncate mt-0.5">{p.client_name}</p>
                             </div>
-                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full ${pct === 100 ? 'bg-emerald-400' : 'bg-indigo-400'}`} style={{ width: `${pct}%` }} />
+                            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
+                              <i className="ri-folder-line text-white text-sm"></i>
                             </div>
                           </div>
-                        )}
-                        {daysLeft !== null && (
-                          <p className={`text-[11px] font-medium ${daysLeft < 0 ? 'text-rose-500' : daysLeft <= 7 ? 'text-amber-600' : 'text-gray-400'}`}>
-                            {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
-                            {p.deadline ? ` · ${new Date(p.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
-                          </p>
-                        )}
-                      </button>
-                    );
-                  })}
+                          {p.tasksTotal > 0 ? (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="text-gray-500">{p.tasksDone}/{p.tasksTotal} tasks</span>
+                                <span className="font-bold" style={{ color: pct === 100 ? '#10b981' : pal.from }}>{pct}%</span>
+                              </div>
+                              <div className="h-1.5 bg-black/5 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? '#10b981' : `linear-gradient(90deg, ${pal.from}, ${pal.to})` }} />
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-gray-400 italic">No tasks yet</p>
+                          )}
+                          {daysLeft !== null && (
+                            <p className={`text-[11px] font-semibold ${isOverdue ? 'text-rose-500' : isDueSoon ? 'text-amber-600' : 'text-gray-400'}`}>
+                              {isOverdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
+                              {p.deadline && !isOverdue && ` · ${new Date(p.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Announcements */}
             {announcements.length > 0 && (
