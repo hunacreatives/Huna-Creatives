@@ -106,7 +106,7 @@ function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-3 min-w-[260px] rounded-2xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-colors hover:bg-white"
+        className="flex items-center gap-3 w-full sm:min-w-[200px] sm:max-w-[320px] rounded-2xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-colors hover:bg-white"
       >
         <i className="ri-search-line text-[#9ca3af] text-base flex-shrink-0"></i>
         <span className="flex-1 text-sm text-[#6b7280] truncate">Search projects, people, or type a command...</span>
@@ -353,7 +353,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
               <h1 className="text-gray-900 font-semibold text-[28px] leading-tight truncate">{title}</h1>
             )}
           </div>
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-shrink overflow-hidden">
             {actions}
             <GlobalSearch />
             <NotificationBell />

@@ -324,14 +324,9 @@ export default function InvoiceLogPage() {
   };
 
   return (
-    <AdminLayout>
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Invoice Log</h1>
-          <p className="text-sm text-gray-500 mt-1">Full audit trail of sent invoices and payment receipts</p>
-        </div>
-
-        <div className="mb-5 space-y-3">
+    <AdminLayout title="Invoice Log">
+      <div className="space-y-4">
+        <div className="space-y-3">
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
             <div className="flex bg-gray-100 rounded-lg p-1 gap-1 w-max sm:w-auto">
               <button
@@ -441,7 +436,7 @@ export default function InvoiceLogPage() {
                           </div>
                         </div>
                       )}
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Total</p>
                           <p className="font-semibold text-gray-900">{fmt(inv.contract_price)}</p>
@@ -730,7 +725,7 @@ export default function InvoiceLogPage() {
                   </button>
                   {expanded === -r.id && (
                     <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-3">
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                         <div>
                           <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Amount</p>
                           <p className="font-semibold text-emerald-600">{fmt(r.payment_amount)}</p>

@@ -18,8 +18,16 @@ export default function ContractorLayout({ children, title, actions }: Props) {
   const { hubUser } = useHubAuth();
   const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('contractor_sidebar_collapsed') === 'true');
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('contractor_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!isDemo && !loading && !session) {
@@ -68,7 +76,7 @@ export default function ContractorLayout({ children, title, actions }: Props) {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:block relative z-10">
-        <ContractorSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+        <ContractorSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       </div>
 
       {/* Mobile sidebar overlay */}

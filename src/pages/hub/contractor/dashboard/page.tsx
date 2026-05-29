@@ -460,7 +460,7 @@ export default function ContractorDashboard() {
       {loading ? (
         <div className="flex justify-center py-20"><i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i></div>
       ) : (
-        <div className="max-w-6xl mx-auto space-y-4 w-full">
+        <div className="space-y-4 w-full">
 
             {/* Payslip submission reminder */}
             {showPayslipBanner && (

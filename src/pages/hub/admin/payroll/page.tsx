@@ -908,7 +908,7 @@ export default function AdminPayrollPage() {
               </div>
 
               {/* KPIs inline */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { label: 'Total Payroll', value: fmt(totalPay, 'PHP'), accent: true },
                   { label: 'Total Hours', value: `${totalHours.toFixed(1)}h` },

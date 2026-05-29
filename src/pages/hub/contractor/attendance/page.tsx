@@ -118,7 +118,7 @@ export default function ContractorAttendancePage() {
 
   return (
     <ContractorLayout title="My Attendance">
-      <div className="max-w-3xl space-y-5">
+      <div className="space-y-5">
 
         {/* Today header */}
         <div className="flex items-center justify-between">

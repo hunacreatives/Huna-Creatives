@@ -181,7 +181,7 @@ export default function ContractorTimeOffPage() {
 
   return (
     <ContractorLayout title="Time Off">
-      <div className="space-y-5 max-w-3xl">
+      <div className="space-y-5">
 
         {/* Balance cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -398,7 +398,7 @@ export default function ContractorTimeOffPage() {
               )}
 
               {/* Dates */}
-              <div className={`grid gap-3 ${halfDay ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              <div className={`grid gap-3 ${halfDay ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">{halfDay ? 'Date' : 'Start Date'}</label>
                   <input

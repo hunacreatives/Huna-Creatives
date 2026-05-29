@@ -918,6 +918,42 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     done: { icon: 'ri-checkbox-circle-fill', cls: 'text-emerald-500' },
   };
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = hubUser?.full_name?.split(' ')[0] ?? 'there';
+
+  const monthlyCollections = (() => {
+    const now = new Date();
+    const months: { key: string; label: string; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'short' });
+      months.push({ key, label, total: 0 });
+    }
+    for (const p of projects) {
+      for (const pay of p.hub_project_payments) {
+        const k = pay.paid_at.slice(0, 7);
+        const mo = months.find(m => m.key === k);
+        if (mo) mo.total += pay.amount;
+      }
+    }
+    return months;
+  })();
+
+  const serviceBreakdown = (() => {
+    const map: Record<string, number> = {};
+    for (const p of projects) {
+      const key = p.service || 'General';
+      map[key] = (map[key] ?? 0) + p.contract_price;
+    }
+    const total = Object.values(map).reduce((s, v) => s + v, 0) || 1;
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, value]) => ({ name, value, pct: Math.round((value / total) * 100) }));
+  })();
+
   return (
     <AdminLayout title="Projects">
       {workspaceOpen && activeProject && (
@@ -974,7 +1010,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 overflow-x-auto">
                     {(['all', 'todo', 'in_progress', 'done', 'overdue'] as const).map(f => {
                       const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'In Progress', done: 'Done', overdue: 'Overdue' };
                       const counts: Record<string, number> = {
@@ -1110,6 +1146,83 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       )}
       {!workspaceOpen && (
       <div className="space-y-4">
+
+        {/* Dashboard header */}
+        {!loading && projects.length > 0 && (
+          <div className="space-y-3 pb-2">
+            <div>
+              <h2 className="text-[22px] font-bold text-[#111827]">{greeting}, {firstName}!</h2>
+              <p className="text-sm text-gray-400 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="col-span-2 lg:col-span-1 rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' }}>
+                <p className="text-[11px] text-blue-200 uppercase tracking-widest font-semibold">Contract Value</p>
+                <p className="text-[22px] font-bold text-white mt-1.5 leading-none">{fmt(summaryTotals.contractValue)}</p>
+                <p className="text-xs text-blue-200 mt-1.5">{projects.length} project{projects.length !== 1 ? 's' : ''} total</p>
+              </div>
+              <div className="rounded-2xl p-5 bg-white border border-gray-100">
+                <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Active</p>
+                <p className="text-[22px] font-bold text-[#111827] mt-1.5 leading-none">{projects.filter(p => p.status === 'ongoing').length}</p>
+                <p className="text-xs text-gray-400 mt-1.5">In progress</p>
+              </div>
+              <div className="rounded-2xl p-5 bg-white border border-gray-100">
+                <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Net Profit</p>
+                <p className="text-[22px] font-bold text-teal-600 mt-1.5 leading-none">{fmt(summaryTotals.netProfit)}</p>
+                <p className="text-xs text-gray-400 mt-1.5">{summaryTotals.collectionPct.toFixed(0)}% collected</p>
+              </div>
+              <div className="rounded-2xl p-5 bg-white border border-gray-100">
+                <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Collected</p>
+                <p className="text-[22px] font-bold text-emerald-600 mt-1.5 leading-none">{fmt(summaryTotals.collected)}</p>
+                <p className="text-xs text-gray-400 mt-1.5">of {fmt(summaryTotals.contractValue)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-5">
+                <p className="text-sm font-semibold text-[#111827] mb-4">Monthly Collections</p>
+                {(() => {
+                  const maxVal = Math.max(...monthlyCollections.map(m => m.total), 1);
+                  return (
+                    <div className="flex items-end gap-2 h-28">
+                      {monthlyCollections.map(m => (
+                        <div key={m.key} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                          <span className="text-[9px] text-gray-400 font-medium">{m.total > 0 ? `₱${(m.total / 1000).toFixed(0)}k` : ''}</span>
+                          <div className="w-full rounded-t-lg transition-all" style={{ height: `${Math.max((m.total / maxVal) * 80, m.total > 0 ? 6 : 2)}px`, background: m.total > 0 ? '#2563eb' : '#e5e7eb' }} />
+                          <span className="text-[10px] text-gray-400">{m.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="bg-white border border-gray-100 rounded-2xl p-5">
+                <p className="text-sm font-semibold text-[#111827] mb-4">By Service</p>
+                {serviceBreakdown.length === 0 ? (
+                  <p className="text-xs text-gray-300 italic">No services set</p>
+                ) : (
+                  <div className="space-y-3">
+                    {serviceBreakdown.map((s, i) => {
+                      const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+                      return (
+                        <div key={s.name}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] text-gray-600 font-medium truncate">{s.name}</span>
+                            <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">{s.pct}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${s.pct}%`, background: colors[i % colors.length] }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <section className="space-y-3">
 
           <div className="flex items-center justify-between gap-3">
@@ -1154,23 +1267,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               <span className="text-xs text-gray-300 italic">Set a service type on a project to filter here</span>
             )}
           </div>
-
-          {!loading && projects.length > 0 && !activeProject && (
-            <div className="bg-white border border-gray-100 rounded-xl px-5 py-3 grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-100">
-              {[
-                { label: 'Contract', value: fmt(summaryTotals.contractValue), cls: 'text-gray-800' },
-                { label: 'Costs', value: fmt(summaryTotals.costs), cls: 'text-rose-500' },
-                { label: 'Net Profit', value: fmt(summaryTotals.netProfit), cls: 'text-teal-600' },
-                { label: 'Collected', value: fmt(summaryTotals.collected), sub: `${summaryTotals.collectionPct.toFixed(0)}% of contract`, cls: 'text-emerald-600' },
-              ].map(s => (
-                <div key={s.label} className="px-4 first:pl-0 last:pr-0 py-1">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium mb-1">{s.label}</p>
-                  <p className={`text-sm font-bold ${s.cls}`}>{s.value}</p>
-                  {'sub' in s && s.sub && <p className="text-[10px] text-gray-400 mt-0.5">{s.sub}</p>}
-                </div>
-              ))}
-            </div>
-          )}
 
           <div className="pt-1 pb-3">
             {loading ? (
@@ -1887,7 +1983,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               <button onClick={() => { setShowForm(false); setEditingProject(null); }} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>
             </div>
             <div className="p-5 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Client Name *</label>
                   <input value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} placeholder="e.g. FS Architects"
@@ -1899,7 +1995,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Service</label>
                   <select value={SERVICES.includes(form.service) ? form.service : 'Other'}
@@ -1919,7 +2015,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Status</label>
                   <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">

@@ -1,8 +1,6 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useCallback, useEffect, useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
-import { supabase } from '@/lib/supabase';
 
 const baseNavItems = [
   { to: '/hub/contractor/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
@@ -27,57 +25,21 @@ interface Props {
 }
 
 export default function ContractorSidebar({ collapsed, onToggle }: Props) {
-  const { signOut } = useAuth();
+  const { signOut, hubUser: realHubUser } = useAuth();
   const { hubUser } = useHubAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [hasProjects, setHasProjects] = useState(false);
-
-  const refreshProjectAccess = useCallback(async () => {
-    if (!hubUser?.id) {
-      setHasProjects(false);
-      return;
-    }
-
-    const { count } = await supabase
-      .from('hub_project_contractors')
-      .select('id', { count: 'exact', head: true })
-      .eq('contractor_id', hubUser.id);
-
-    setHasProjects((count ?? 0) > 0);
-  }, [hubUser?.id]);
-
-  useEffect(() => {
-    void refreshProjectAccess();
-  }, [refreshProjectAccess, location.pathname]);
-
-  useEffect(() => {
-    const handleFocus = () => { void refreshProjectAccess(); };
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') void refreshProjectAccess();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [refreshProjectAccess]);
 
   const isProjectBased = hubUser?.payment_type === 'project_based';
   const filteredBase = isProjectBased
     ? baseNavItems.filter(i => !['My Attendance', 'Time-Off', 'Overtime', 'Requests'].includes((i as any).label))
     : baseNavItems;
   const dividerIdx = filteredBase.findIndex(i => (i as any).divider);
-  const navItems = hasProjects
-    ? [
-        ...filteredBase.slice(0, dividerIdx),
-        { to: '/hub/contractor/projects', label: 'My Projects', icon: 'ri-folder-line' },
-        ...filteredBase.slice(dividerIdx),
-      ]
-    : filteredBase;
+  const navItems = [
+    ...filteredBase.slice(0, dividerIdx),
+    { to: '/hub/contractor/projects', label: 'My Projects', icon: 'ri-folder-line' },
+    ...filteredBase.slice(dividerIdx),
+  ];
 
   const handleSignOut = async () => {
     await signOut();

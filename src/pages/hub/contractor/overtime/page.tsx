@@ -75,7 +75,7 @@ export default function ContractorOvertimePage() {
 
   return (
     <ContractorLayout title="Overtime Requests">
-      <div className="space-y-5 max-w-2xl">
+      <div className="space-y-5">
 
         {/* Info card */}
         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 space-y-1">
@@ -155,7 +155,7 @@ export default function ContractorOvertimePage() {
                   <p className="text-xs text-rose-600">{formError}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Date</label>
                   <input

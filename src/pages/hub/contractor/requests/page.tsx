@@ -61,7 +61,7 @@ export default function ContractorRequestsPage() {
       {toast && (
         <div className="fixed top-5 right-5 z-[60] bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">{toast}</div>
       )}
-      <div className="space-y-4 max-w-3xl">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">{requests.length} total request{requests.length !== 1 ? 's' : ''}</p>
           <button onClick={() => setShowModal(true)} className="flex items-center gap-1.5 px-4 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">

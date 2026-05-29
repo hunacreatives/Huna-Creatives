@@ -659,7 +659,7 @@ export default function AdminAttendancePage() {
                         {r.department && <p className="text-xs text-gray-400">{r.department}</p>}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="flex flex-col items-end w-40 flex-shrink-0">
+                        <div className="flex flex-col items-end sm:w-40 flex-shrink-0">
                           <div className="flex items-center gap-1.5">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               r.status === 'on' ? 'bg-emerald-100 text-emerald-700' : r.status === 'off' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700'

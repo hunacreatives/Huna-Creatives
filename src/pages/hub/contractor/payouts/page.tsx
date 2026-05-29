@@ -453,7 +453,7 @@ export default function ContractorPayoutsPage() {
   };
 
   return (
-    <ContractorLayout title="My Payslip">
+    <ContractorLayout title="My Payouts">
       <div className="max-w-2xl space-y-5">
 
         {/* Period selector */}

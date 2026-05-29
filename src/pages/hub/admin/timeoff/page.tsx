@@ -205,7 +205,8 @@ export default function AdminTimeOffPage() {
       <div className="space-y-4">
 
         {/* Tab: Requests / Blackouts / Balances */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit overflow-x-auto">
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-max sm:w-fit">
           {[{ key: 'requests', label: 'Leave Requests' }, { key: 'blackouts', label: 'Blackout Dates' }, { key: 'balances', label: 'Leave Balances' }].map((t) => (
             <button
               key={t.key}
@@ -218,22 +219,25 @@ export default function AdminTimeOffPage() {
             </button>
           ))}
         </div>
+        </div>
 
         {tab === 'requests' && (
           <>
             {/* Status filter */}
             <div className="flex items-center justify-between gap-3">
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-                {filterTabs.map((s) => (
-                  <button key={s} onClick={() => { setStatusFilter(s); setSelectedIds(new Set()); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
-                      statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                    }`}>
-                    {s === 'all' ? 'All' : statusLabels[s]}
-                  </button>
-                ))}
+              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 flex-1">
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-max sm:w-fit">
+                  {filterTabs.map((s) => (
+                    <button key={s} onClick={() => { setStatusFilter(s); setSelectedIds(new Set()); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
+                        statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}>
+                      {s === 'all' ? 'All' : statusLabels[s]}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <span className="text-xs text-gray-400">{requests.length} request{requests.length !== 1 ? 's' : ''}</span>
+              <span className="text-xs text-gray-400 flex-shrink-0">{requests.length} request{requests.length !== 1 ? 's' : ''}</span>
             </div>
 
             {/* Bulk action bar */}
@@ -355,7 +359,7 @@ export default function AdminTimeOffPage() {
             <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
               <h3 className="text-sm font-semibold text-[#111827]">Add Blackout Period</h3>
               <p className="text-xs text-gray-400">Contractors cannot file PTO or sick leave during blackout dates. Emergencies are exempt.</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Start Date</label>
                   <input type="date" value={bdForm.start_date} onChange={(e) => setBdForm({ ...bdForm, start_date: e.target.value })}
@@ -366,7 +370,7 @@ export default function AdminTimeOffPage() {
                   <input type="date" value={bdForm.end_date} min={bdForm.start_date} onChange={(e) => setBdForm({ ...bdForm, end_date: e.target.value })}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
-                <div className="col-span-2 space-y-1">
+                <div className="col-span-1 sm:col-span-2 space-y-1">
                   <label className="text-xs font-medium text-gray-700">Reason <span className="text-gray-400 font-normal">(shown to contractors)</span></label>
                   <input value={bdForm.reason} onChange={(e) => setBdForm({ ...bdForm, reason: e.target.value })}
                     placeholder="e.g. Client launch period, Q4 crunch"
