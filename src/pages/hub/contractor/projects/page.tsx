@@ -557,6 +557,7 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
   const tasksPct = projectTasks.length > 0 ? Math.round((tasksDone / projectTasks.length) * 100) : 0;
   const overdueCount = projectTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done').length;
   const inProgressCount = projectTasks.filter(t => t.status === 'in_progress').length;
+  const todoCount = projectTasks.filter(t => t.status === 'todo').length;
   const internalProject = p.project_type === 'internal';
   const isFixed = row.payout_type === 'fixed';
   const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
@@ -574,6 +575,25 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
     : null;
 
   const statusLabel = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' }[p.status] ?? p.status;
+  const healthLabel = (() => {
+    if (p.status === 'cancelled') return 'Archived';
+    if (p.status === 'completed') return 'Completed';
+    if (overdueCount > 0) return 'Overdue';
+    if (projectTasks.length === 0) return 'No tasks yet';
+    if (daysLeft !== null && daysLeft <= 7) return 'Due this week';
+    if (internalProject && inProgressCount > 0) return 'Internal sprint';
+    if (showPayout && isFullyPaid) return 'Fully paid';
+    return 'In progress';
+  })();
+  const healthCls =
+    healthLabel === 'Archived' ? 'bg-gray-100 text-gray-500' :
+    healthLabel === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+    healthLabel === 'Overdue' ? 'bg-rose-100 text-rose-600' :
+    healthLabel === 'Due this week' ? 'bg-amber-100 text-amber-700' :
+    healthLabel === 'Internal sprint' ? 'bg-indigo-100 text-indigo-600' :
+    healthLabel === 'Fully paid' ? 'bg-emerald-100 text-emerald-700' :
+    healthLabel === 'No tasks yet' ? 'bg-gray-100 text-gray-500' :
+    'bg-sky-100 text-sky-600';
 
   return (
     <button onClick={onClick}
@@ -590,7 +610,7 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
                 {p.service}
               </span>
             )}
-            <h3 className="font-bold text-gray-900 text-lg leading-tight line-clamp-1 group-hover:text-gray-700 transition-colors">
+            <h3 className="font-bold text-gray-900 text-lg leading-tight line-clamp-2 min-h-[3.5rem] group-hover:text-gray-700 transition-colors">
               {p.project_name}
             </h3>
             <p className="text-xs text-gray-400 mt-0.5 truncate">
@@ -630,6 +650,9 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
             {overdueCount === 0 && inProgressCount > 0 && (
               <p className="text-[11px] text-gray-400">{inProgressCount} in progress</p>
             )}
+            {overdueCount === 0 && inProgressCount === 0 && todoCount > 0 && (
+              <p className="text-[11px] text-gray-400">{todoCount} ready to start</p>
+            )}
           </div>
         )}
 
@@ -638,9 +661,13 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
         )}
 
         {/* Footer row */}
-        <div className="flex items-center justify-between pt-1 border-t border-gray-100/80">
-          {/* Deadline */}
-          <div>
+        <div className="space-y-2 pt-1 border-t border-gray-100/80">
+          <div className="flex items-center justify-between gap-3">
+            <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold ${healthCls}`}>{healthLabel}</span>
+            <span className="text-[10px] text-gray-400">{projectTasks.length} tasks</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
             {daysLeft !== null ? (
               isOverdue ? (
                 <span className="text-xs text-rose-500 font-semibold flex items-center gap-1">
@@ -661,18 +688,18 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
             ) : (
               <span className="text-xs text-gray-300">No deadline</span>
             )}
-          </div>
+            </div>
 
-          {/* Payout or internal badge */}
-          {internalProject ? (
-            <span className="text-[10px] text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-medium">Internal</span>
-          ) : showPayout ? (
-            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${isFullyPaid ? 'bg-emerald-50 text-emerald-600' : 'text-gray-500 bg-gray-50'}`}>
-              {isFullyPaid ? '✓ Paid' : fmt(myCut)}
-            </span>
-          ) : (
-            <i className="ri-arrow-right-s-line text-gray-300 text-base group-hover:translate-x-0.5 transition-transform"></i>
-          )}
+            {internalProject ? (
+              <span className="text-[10px] text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-medium">Internal</span>
+            ) : showPayout ? (
+              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${isFullyPaid ? 'bg-emerald-50 text-emerald-600' : 'text-gray-500 bg-gray-50'}`}>
+                {isFullyPaid ? '✓ Paid' : `Your cut ${fmt(myCut)}`}
+              </span>
+            ) : (
+              <i className="ri-arrow-right-s-line text-gray-300 text-base group-hover:translate-x-0.5 transition-transform"></i>
+            )}
+          </div>
         </div>
       </div>
     </button>
@@ -803,6 +830,18 @@ export default function ContractorProjectsPage() {
     if (data) {
       setTasks(prev => [...prev, data as ProjectTask]);
       await logActivity('task_created', taskForm.title.trim(), (data as ProjectTask).id);
+      if (taskForm.assigned_to && hubUser && taskForm.assigned_to !== hubUser.id) {
+        supabase.functions.invoke('notify-task-assigned', {
+          body: {
+            task_id: (data as ProjectTask).id,
+            task_title: taskForm.title.trim(),
+            project_id: workspaceRow.hub_projects.id,
+            project_name: workspaceRow?.hub_projects?.project_name ?? '',
+            assigned_to_id: taskForm.assigned_to,
+            assigned_by_name: hubUser.full_name ?? 'Team',
+          },
+        }).catch(() => {});
+      }
     }
     }
     setTaskSaving(false);
@@ -1061,6 +1100,18 @@ export default function ContractorProjectsPage() {
 
   const getProjectName = (projectId: number) =>
     rows.find(r => r.hub_projects?.id === projectId)?.hub_projects?.project_name ?? '';
+
+  const openTaskFromDashboard = (task: ProjectTask) => {
+    const row = rows.find(r => r.hub_projects?.id === task.project_id);
+    if (!row) return;
+    setWorkspaceRow(row);
+    setTaskFilter('all');
+    setTaskSearch('');
+    setWsSearch('');
+    setWsSearchOpen(false);
+    setWsFocusSection('ws-tasks');
+    openViewTask(task);
+  };
 
   const searchLower = search.toLowerCase();
   const filteredRows = search
@@ -1391,8 +1442,8 @@ export default function ContractorProjectsPage() {
             return (
               <div className="px-5 md:px-6 pt-4 pb-2 flex-shrink-0">
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
-                  <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:gap-8">
-                    <div className="min-w-0 xl:max-w-[320px] xl:flex-shrink-0">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
+                    <div className="min-w-0 lg:max-w-[320px] lg:flex-shrink-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1.5">
                         <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
                           {statusLabels[wsProject.status] ?? wsProject.status}
@@ -1436,7 +1487,7 @@ export default function ContractorProjectsPage() {
                       )}
                     </div>
 
-                    <div className="xl:flex-1 xl:min-w-0">
+                    <div className="lg:flex-1 lg:min-w-0">
                       {embedUrl && wsProject.drive_url ? (
                         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-[#f1f3f7] shadow-sm">
                           <div className="flex items-center justify-end border-b border-gray-200/80 px-3 py-2">
@@ -1918,8 +1969,11 @@ export default function ContractorProjectsPage() {
                     const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
                     const palColor = CARD_PALETTE[i % CARD_PALETTE.length];
                     return (
-                      <div key={t.id}
-                        className={`flex items-start gap-3 p-3 rounded-2xl transition-colors ${t.status === 'done' ? 'opacity-50' : 'hover:bg-gray-50/80'}`}>
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => openTaskFromDashboard(t)}
+                        className={`w-full text-left flex items-start gap-3 p-3 rounded-2xl transition-colors cursor-pointer ${t.status === 'done' ? 'opacity-50' : 'hover:bg-gray-50/80'}`}>
                         {/* Color dot */}
                         <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: palColor.from }} />
                         <div className="flex-1 min-w-0">
@@ -1935,7 +1989,7 @@ export default function ContractorProjectsPage() {
                             {t.due_date === today ? 'Today' : isOverdue ? 'Overdue' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
                         )}
-                      </div>
+                      </button>
                     );
                   })}
                   {featuredTasks.length > 10 && (

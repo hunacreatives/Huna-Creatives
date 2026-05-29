@@ -282,6 +282,18 @@ export default function AdminProjectsPage() {
       ? (activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === newTaskAssignee)?.hub_users?.full_name ?? '')
       : '';
     await logActivity(activeId, `${hubUser?.full_name ?? 'Admin'} created task "${newTaskTitle.trim()}"${assigneeName ? ` — assigned to ${assigneeName}` : ''}`);
+    if (newTaskAssignee && data) {
+      supabase.functions.invoke('notify-task-assigned', {
+        body: {
+          task_id: data.id,
+          task_title: newTaskTitle.trim(),
+          project_id: activeId,
+          project_name: activeProject?.project_name ?? '',
+          assigned_to_id: newTaskAssignee,
+          assigned_by_name: hubUser?.full_name ?? 'Admin',
+        },
+      }).catch(() => {});
+    }
     setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue(''); setNewTaskPriority('medium'); setShowTaskForm(false);
     fetchTasks(activeId);
   };
@@ -1118,21 +1130,18 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
               </div>
 
-              {/* Info card */}
+              {/* Info card — matches contractor workspace layout */}
               <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
-                <div className="flex items-start justify-between gap-6">
-                  {/* Left */}
-                  <div className="min-w-0 flex-1">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
+
+                  {/* Left: project identity */}
+                  <div className="min-w-0 lg:max-w-[320px] lg:flex-shrink-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
                       <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[p.status] ?? statusColors.ongoing}`}>
                         {statusLabels[p.status] ?? p.status}
                       </span>
-                      {p.service && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getServiceCfg(p.service).badge}`}>{p.service}</span>
-                      )}
-                      {internalProject && (
-                        <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Internal</span>
-                      )}
+                      {internalProject && <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Internal</span>}
+                      {p.service && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getServiceCfg(p.service).badge}`}>{p.service}</span>}
                     </div>
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{p.project_name}</h2>
                     <p className="text-sm text-gray-400 mt-0.5">{internalProject ? 'Internal Project' : p.client_name}</p>
@@ -1170,10 +1179,47 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     )}
                   </div>
 
-                  {/* Right: progress ring */}
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <ProgressRing pct={wsPct} size={88} />
-                    <span className="text-[10px] text-gray-400">{wsDoneCt}/{tasks.length} tasks</span>
+                  {/* Right: Drive — fills remaining width */}
+                  <div className="lg:flex-1 lg:min-w-0">
+                    {(() => {
+                      const driveUrl = (p as any).drive_url as string | null;
+                      const folderIdMatch = driveUrl?.match(/folders\/([a-zA-Z0-9_-]+)/);
+                      const folderId = folderIdMatch?.[1];
+                      const embedUrl = folderId ? `https://drive.google.com/embeddedfolderview?id=${folderId}#grid` : null;
+                      return embedUrl && driveUrl ? (
+                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-[#f1f3f7] shadow-sm">
+                          <div className="flex items-center justify-end border-b border-gray-200/80 px-3 py-2">
+                            <a href={driveUrl} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 rounded-full bg-white/90 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                              <svg viewBox="0 0 87.3 78" className="h-3.5 w-3.5 flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
+                                <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                                <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                                <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+                                <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                                <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                                <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                              </svg>
+                              Open Drive <i className="ri-external-link-line text-[11px]"></i>
+                            </a>
+                          </div>
+                          <div className="h-[150px] overflow-hidden">
+                            <iframe src={embedUrl} className="bg-[#f1f3f7]"
+                              style={{ width: '200%', height: 300, border: 'none', transform: 'scale(0.5)', transformOrigin: 'top left' }}
+                              title="Project Files" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4">
+                          <div className="w-10 h-10 rounded-2xl bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+                            <i className="ri-folder-line text-gray-300 text-lg"></i>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-500">No Drive folder linked</p>
+                            <p className="text-[10px] text-gray-400">Add a Google Drive URL when editing this project</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1904,26 +1950,40 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {!internalProject && <button onClick={() => void printInvoice(activeProject)}
-                      className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-white/55">
-                      <i className="ri-printer-line"></i> Print
-                    </button>}
-                    {!internalProject && <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
-                      className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-xl hover:bg-[#0f172a] cursor-pointer flex items-center gap-1">
-                      <i className="ri-mail-send-line"></i> Send Invoice
-                    </button>}
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
-                      className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-white/55">
-                      <i className="ri-edit-line"></i> Edit
-                    </button>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {/* Secondary actions */}
+                    <div className="flex items-center gap-0.5 bg-white/60 border border-gray-200 rounded-xl px-1 py-1">
+                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
+                        className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors">
+                        <i className="ri-edit-line text-sm"></i> Edit
+                      </button>
+                      {!internalProject && <>
+                        <div className="w-px h-4 bg-gray-200" />
+                        <button onClick={() => void printInvoice(activeProject)}
+                          className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors">
+                          <i className="ri-printer-line text-sm"></i> Print
+                        </button>
+                      </>}
+                    </div>
+
+                    {/* Delete — quiet danger */}
                     <button onClick={() => void deleteProject(activeProject)}
-                      className="text-xs text-rose-500 hover:text-rose-600 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-rose-50">
-                      <i className="ri-delete-bin-line"></i> Delete
+                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-rose-100"
+                      title="Delete project">
+                      <i className="ri-delete-bin-line text-sm"></i>
                     </button>
+
+                    {/* Separator */}
+                    <div className="w-px h-5 bg-gray-200" />
+
+                    {/* Primary actions */}
+                    {!internalProject && <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
+                      className="text-xs px-3 py-2 bg-[#111827] hover:bg-gray-800 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors font-medium">
+                      <i className="ri-mail-send-line text-sm"></i> Send Invoice
+                    </button>}
                     <button onClick={() => setWorkspaceOpen(true)}
-                      className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors">
-                      <i className="ri-layout-grid-line"></i> Open Workspace
+                      className="text-xs px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors font-medium">
+                      <i className="ri-layout-grid-line text-sm"></i> Workspace
                     </button>
                   </div>
                 </div>

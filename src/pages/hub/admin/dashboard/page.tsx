@@ -149,6 +149,9 @@ export default function AdminDashboardPage() {
   const [totalContractValue, setTotalContractValue] = useState(0);
   const [totalCollected, setTotalCollected] = useState(0);
   const [activeProjectCount, setActiveProjectCount] = useState(0);
+  const [onTrackCount, setOnTrackCount] = useState(0);
+  const [atRiskCount, setAtRiskCount] = useState(0);
+  const [internalProjectCount, setInternalProjectCount] = useState(0);
   const [monthlyRetainerTotal, setMonthlyRetainerTotal] = useState(0);
   const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
   const [outstandingInvoices, setOutstandingInvoices] = useState<OutstandingInvoice[]>([]);
@@ -198,6 +201,9 @@ export default function AdminDashboardPage() {
       setTotalContractValue(DEMO_DASHBOARD.totalContractValue);
       setTotalCollected(DEMO_DASHBOARD.totalCollected);
       setActiveProjectCount(DEMO_DASHBOARD.activeProjectCount);
+      setOnTrackCount(DEMO_DASHBOARD.activeProjectCount);
+      setAtRiskCount(0);
+      setInternalProjectCount(0);
       setMonthlyRetainerTotal(DEMO_DASHBOARD.monthlyRetainerTotal);
       setBirthdays([]);
       setOutstandingInvoices(DEMO_INVOICES);
@@ -212,7 +218,7 @@ export default function AdminDashboardPage() {
         supabase.from('hub_time_off').select('*, hub_users(full_name, avatar_url)').eq('status', 'pending').order('created_at', { ascending: false }),
         supabase.from('hub_users').select('id, full_name, avatar_url, payment_type, hourly_rate, monthly_rate, currency, birthday, start_date, work_days').eq('status', 'active').in('role', ['contractor', 'admin']),
         supabase.from('hub_daily_hours').select('user_id, hours_capped, hours_raw, overtime_hours, date').gte('date', cutoffStart).lte('date', cutoffEnd),
-        supabase.from('hub_projects').select('contract_price, status, hub_project_costs(amount), hub_project_payments(amount)'),
+        supabase.from('hub_projects').select('contract_price, status, deadline, project_type, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
         supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').eq('settled', false).order('sent_at', { ascending: false }),
@@ -343,18 +349,33 @@ export default function AdminDashboardPage() {
       let contractValueTotal = 0;
       let collectedTotal = 0;
       let activeCount = 0;
+      let onTrack = 0;
+      let atRisk = 0;
+      let internalCount = 0;
+      const todayStr = today.toISOString().slice(0, 10);
       for (const p of (projectsResult.data as any[]) || []) {
         const costs = ((p.hub_project_costs as any[]) || []).reduce((s: number, c: any) => s + c.amount, 0);
         const collected = ((p.hub_project_payments as any[]) || []).reduce((s: number, x: any) => s + x.amount, 0);
         netProfitTotal += p.contract_price - costs;
         contractValueTotal += p.contract_price;
         collectedTotal += collected;
-        if (p.status === 'ongoing') activeCount++;
+        if (p.status === 'ongoing') {
+          activeCount++;
+          if (p.deadline && p.deadline < todayStr) {
+            atRisk++;
+          } else {
+            onTrack++;
+          }
+        }
+        if (p.project_type === 'internal') internalCount++;
       }
       setTotalNetProfit(netProfitTotal);
       setTotalContractValue(contractValueTotal);
       setTotalCollected(collectedTotal);
       setActiveProjectCount(activeCount);
+      setOnTrackCount(onTrack);
+      setAtRiskCount(atRisk);
+      setInternalProjectCount(internalCount);
 
       // Monthly retainer total (owner-only display, but we fetch regardless)
       const clientUsdRate = parseFloat(usdRateStr);
@@ -568,25 +589,18 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Birthday alerts */}
+        {/* Birthday alerts — compact pill */}
         {show('birthdays') && birthdays.length > 0 && (
-          <div className={`rounded-xl border p-4 ${birthdays[0].isToday ? 'bg-pink-50 border-pink-200' : 'bg-amber-50 border-amber-100'}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">{birthdays[0].isToday ? '🎂' : '🎁'}</span>
-              <p className={`text-sm font-semibold ${birthdays[0].isToday ? 'text-pink-700' : 'text-amber-700'}`}>
-                {birthdays[0].isToday ? "It's someone's birthday today!" : 'Upcoming birthdays'}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm border border-white/80 rounded-2xl px-4 py-3 shadow-sm">
+            <span className="text-base flex-shrink-0">{birthdays[0].isToday ? '🎂' : '🎁'}</span>
+            <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap">
               {birthdays.map((b) => (
-                <div key={b.full_name} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-white shadow-sm">
-                  <Avatar name={b.full_name} url={b.avatar_url} size={7} />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{b.full_name.split(' ')[0]}</p>
-                    <p className={`text-xs font-medium ${b.isToday ? 'text-pink-600' : 'text-amber-600'}`}>
-                      {b.isToday ? '🎉 Today!' : b.daysUntil === 1 ? 'Tomorrow' : `In ${b.daysUntil} days`}
-                    </p>
-                  </div>
+                <div key={b.full_name} className="flex items-center gap-2">
+                  <Avatar name={b.full_name} url={b.avatar_url} size={6} />
+                  <span className="text-sm font-medium text-gray-700">{b.full_name.split(' ')[0]}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.isToday ? 'bg-pink-100 text-pink-600' : 'bg-amber-50 text-amber-600'}`}>
+                    {b.isToday ? 'Today 🎉' : b.daysUntil === 1 ? 'Tomorrow' : `In ${b.daysUntil}d`}
+                  </span>
                 </div>
               ))}
             </div>
@@ -796,11 +810,11 @@ export default function AdminDashboardPage() {
                         <p className="text-teal-700 text-xs font-medium tracking-wide uppercase">Projects Net Profit</p>
                       </div>
                       <p className="text-2xl font-bold text-teal-900">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                      <p className="text-teal-600/70 text-xs mt-1">{activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
+                      <p className="text-teal-600/70 text-xs mt-0.5">after costs · {activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
                       <div className="mt-3">
                         <div className="flex justify-between text-[10px] text-teal-600/50 mb-1">
-                          <span>Client collections</span>
-                          <span>₱{totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 0 })} / ₱{totalContractValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })} ({collectionPct.toFixed(0)}%)</span>
+                          <span>Collected · {collectionPct.toFixed(0)}% of contract</span>
+                          <span>₱{totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 0 })} / ₱{totalContractValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
                         </div>
                         <div className="h-1.5 bg-teal-500/15 rounded-full overflow-hidden">
                           <div className="h-full bg-teal-500/50 rounded-full transition-all" style={{ width: `${collectionPct}%` }} />
@@ -915,6 +929,39 @@ export default function AdminDashboardPage() {
             )}
           </div>
         )}
+
+        {/* Portfolio Health strip */}
+        {show('kpi') && isOwnerOrAdmin && (() => {
+          const collectionRate = totalContractValue > 0
+            ? Math.min(Math.round((totalCollected / totalContractValue) * 100), 100)
+            : 0;
+          return (
+            <div className="flex items-center gap-4 bg-white/60 backdrop-blur-sm border border-white/80 rounded-2xl px-5 py-3.5 shadow-sm">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest flex-shrink-0">Portfolio</span>
+              <div className="flex-1 flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"></span>
+                  <span className="text-sm font-semibold text-gray-800">{onTrackCount}</span>
+                  <span className="text-xs text-gray-400">on track</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"></span>
+                  <span className="text-sm font-semibold text-gray-800">{atRiskCount}</span>
+                  <span className="text-xs text-gray-400">at risk</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-300 flex-shrink-0"></span>
+                  <span className="text-sm font-semibold text-gray-800">{internalProjectCount}</span>
+                  <span className="text-xs text-gray-400">internal</span>
+                </div>
+                <div className="flex items-center gap-2 ml-auto">
+                  <span className="text-xs text-gray-400">Collection rate</span>
+                  <span className="text-sm font-bold text-gray-800">{collectionRate}%</span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Announcements + Quick Actions */}
         {(show('announcements') || show('quickActions')) && (
