@@ -857,83 +857,59 @@ export default function ContractorProjectsPage() {
       {workspaceRow && wsProject && (
         <div className="flex flex-col -mx-4 -my-4 md:-mx-6 md:-my-6 min-h-full">
 
-          {/* ── Hero banner ── */}
+          {/* ── Info strip ── */}
           {(() => {
             const statusColors: Record<string, string> = { ongoing: 'bg-emerald-100 text-emerald-700', completed: 'bg-blue-100 text-blue-700', paused: 'bg-amber-100 text-amber-700', cancelled: 'bg-gray-100 text-gray-500' };
             const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' };
             const daysLeft = wsProject.deadline ? Math.ceil((new Date(wsProject.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
             const isDeadlineOver = daysLeft !== null && daysLeft < 0 && wsProject.status !== 'completed';
             return (
-              <div className="px-5 md:px-6 pt-4 pb-2 flex-shrink-0">
+              <div className="px-5 md:px-6 pt-4 pb-0 flex-shrink-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Status */}
+                  <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
+                    {statusLabels[wsProject.status] ?? wsProject.status}
+                  </span>
 
-                {/* Hero card — glassmorphism */}
-                <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
-                          {statusLabels[wsProject.status] ?? wsProject.status}
-                        </span>
-                        {wsProject.service && <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{wsProject.service}</span>}
+                  {/* Deadline */}
+                  {daysLeft !== null && (
+                    isDeadlineOver ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full font-medium">
+                        <i className="ri-alarm-warning-line text-[10px]"></i>{Math.abs(daysLeft)}d overdue
+                      </span>
+                    ) : daysLeft === 0 ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                        <i className="ri-time-line text-[10px]"></i>Due today
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium ${daysLeft <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>
+                        <i className="ri-calendar-line text-[10px]"></i>
+                        {daysLeft}d left · {new Date(wsProject.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )
+                  )}
+
+                  {/* Team avatars */}
+                  {wsTeam.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex -space-x-1.5">
+                        {wsTeam.slice(0, 5).map(m => (
+                          m.avatar_url
+                            ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-5 h-5 rounded-full border-2 border-white object-cover object-top" />
+                            : <div key={m.id} title={m.full_name} className="w-5 h-5 rounded-full border-2 border-white bg-indigo-400 flex items-center justify-center text-[8px] font-bold text-white">{m.full_name[0]}</div>
+                        ))}
                       </div>
-                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{wsProject.project_name}</h2>
-                      <p className="text-sm text-gray-400 mt-0.5">{wsProject.client_name}</p>
-
-                      {/* Team avatars */}
-                      {wsTeam.length > 0 && (
-                        <div className="flex items-center gap-2 mt-3">
-                          <div className="flex -space-x-2">
-                            {wsTeam.slice(0, 5).map(m => (
-                              m.avatar_url
-                                ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white object-cover object-top shadow-sm" />
-                                : <div key={m.id} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white bg-indigo-400 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">{m.full_name[0]}</div>
-                            ))}
-                          </div>
-                          <span className="text-xs text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
-                        </div>
-                      )}
-
-                      {/* Deadline chip */}
-                      {daysLeft !== null && (
-                        <div className="mt-3">
-                          {isDeadlineOver ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full font-medium">
-                              <i className="ri-alarm-warning-line text-xs"></i>
-                              {Math.abs(daysLeft)}d overdue
-                            </span>
-                          ) : daysLeft === 0 ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
-                              <i className="ri-time-line text-xs"></i>Due today
-                            </span>
-                          ) : (
-                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${daysLeft <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-500 bg-gray-50 border-gray-200'}`}>
-                              <i className="ri-calendar-line text-xs"></i>
-                              {daysLeft}d left · {new Date(wsProject.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <span className="text-xs text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
                     </div>
+                  )}
 
-                    {/* Progress ring */}
-                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                      <div className="relative" style={{ width: 68, height: 68 }}>
-                        <svg width={68} height={68} viewBox="0 0 68 68">
-                          <circle cx={34} cy={34} r={26} fill="none" stroke="#e5e7eb" strokeWidth={7} />
-                          <circle cx={34} cy={34} r={26} fill="none"
-                            stroke={wsPct === 100 ? '#34d399' : '#6366f1'}
-                            strokeWidth={7} strokeLinecap="round"
-                            strokeDasharray={`${(wsPct / 100) * 2 * Math.PI * 26} ${2 * Math.PI * 26}`}
-                            transform="rotate(-90 34 34)"
-                            style={{ transition: 'stroke-dasharray 0.8s ease' }}
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-base font-bold text-gray-900 leading-none">{wsPct}%</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-gray-400">{wsDone}/{wsTasks.length} done</span>
+                  {/* Progress */}
+                  <div className="flex items-center gap-2 ml-auto">
+                    <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${wsPct === 100 ? 'bg-emerald-400' : 'bg-indigo-400'}`} style={{ width: `${wsPct}%`, transition: 'width 0.8s ease' }} />
                     </div>
+                    <span className="text-xs font-semibold text-gray-600">{wsPct}%</span>
+                    <span className="text-xs text-gray-400">{wsDone}/{wsTasks.length}</span>
                   </div>
                 </div>
               </div>
