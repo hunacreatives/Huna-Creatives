@@ -30,6 +30,7 @@ function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const search = useCallback(async (q: string) => {
     if (q.trim().length < 2) { setResults([]); return; }
@@ -67,10 +68,8 @@ function GlobalSearch() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setOpen(true);
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }
+      if (e.key === 'Escape') { setOpen(false); setQuery(''); }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -78,9 +77,17 @@ function GlobalSearch() {
 
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 10);
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
     return () => clearTimeout(t);
   }, [open]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) { setOpen(false); setQuery(''); }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const go = (result: SearchResult) => {
     navigate(result.path);
@@ -103,165 +110,88 @@ function GlobalSearch() {
   const activeFilter = query.length >= 2 ? 'Results' : 'All';
 
   return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-3 w-9 sm:w-auto sm:min-w-[200px] sm:max-w-[320px] rounded-2xl border border-[#e5e7eb] bg-white px-2.5 sm:px-4 py-2.5 text-left shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-colors hover:bg-white"
+    <div className="relative" ref={containerRef}>
+      <div
+        className={`flex items-center gap-2 bg-white/80 border rounded-xl px-3 py-2 cursor-text transition-all ${open ? 'border-indigo-300 ring-2 ring-indigo-100 w-44 sm:w-52' : 'border-[#e5e7eb] w-9 sm:w-44 md:w-52 hover:border-gray-300'}`}
+        onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }}
       >
-        <i className="ri-search-line text-[#9ca3af] text-base flex-shrink-0"></i>
-        <span className="hidden sm:block flex-1 text-sm text-[#6b7280] truncate">Search projects, people…</span>
-        <kbd className="hidden sm:inline text-[10px] text-[#6b7280] bg-[#f9fafb] border border-[#e5e7eb] rounded-lg px-1.5 py-0.5 flex-shrink-0">⌘ K</kbd>
-      </button>
+        <i className="ri-search-line text-[#9ca3af] text-sm flex-shrink-0"></i>
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onKeyDown={e => {
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, results.length - 1)); }
+            if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
+            if (e.key === 'Enter' && results[activeIdx]) go(results[activeIdx]);
+            if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+          }}
+          placeholder="Search…"
+          className={`flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-800 min-w-0 ${open ? 'block' : 'hidden sm:block'}`}
+        />
+        {query
+          ? <button onClick={e => { e.stopPropagation(); setQuery(''); setResults([]); }} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0"><i className="ri-close-line text-sm"></i></button>
+          : <kbd className="hidden sm:block text-[10px] text-gray-400 bg-gray-100 border border-gray-200 rounded px-1 py-0.5 flex-shrink-0">⌘K</kbd>
+        }
+      </div>
 
       {open && (
-        {/* Mobile: bottom sheet. Desktop: centered modal */}
-        <div className="fixed inset-0 z-[70] bg-[rgba(34,25,16,0.22)] backdrop-blur-[2px] flex items-end sm:items-start sm:p-8" onClick={() => setOpen(false)}>
-          <div className="w-full sm:mx-auto sm:mt-[6vh] sm:max-w-2xl rounded-t-[24px] sm:rounded-[32px] border border-[#e5e7eb] bg-white shadow-[0_40px_120px_rgba(15,23,42,0.16)] overflow-hidden max-h-[75vh] sm:max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="border-b border-[#e5e7eb] px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 flex-shrink-0">
-              {/* Drag handle on mobile */}
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3 sm:hidden"></div>
-              <div className="flex items-center gap-3 rounded-[16px] border border-[#e5e7eb] bg-white px-3 sm:px-4 py-2.5 sm:py-3">
-                <i className="ri-search-line text-[#9ca3af] text-base sm:text-xl flex-shrink-0"></i>
-                <input
-                  ref={inputRef}
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, Math.max(results.length - 1, 0))); }
-                    if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
-                    if (e.key === 'Enter' && results[activeIdx]) go(results[activeIdx]);
-                    if (e.key === 'Escape') setOpen(false);
-                  }}
-                  placeholder="Search…"
-                  className="w-full bg-transparent text-[15px] sm:text-[17px] text-[#111827] placeholder:text-[#9ca3af] focus:outline-none"
-                />
-                {query ? (
-                  <button onClick={() => { setQuery(''); setResults([]); }} className="text-[#9ca3af] hover:text-[#4b5563] cursor-pointer">
-                    <i className="ri-close-line text-lg"></i>
-                  </button>
-                ) : (
-                  <kbd className="text-[11px] text-[#6b7280] bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-2 py-1">⌘ K</kbd>
-                )}
-              </div>
-              <div className="mt-3 hidden sm:flex flex-wrap gap-2">
-                {['All', 'Training', 'Interview', 'Design task', 'Review', 'Onboarding', activeFilter].filter((value, idx, arr) => arr.indexOf(value) === idx).map(label => (
-                  <button
-                    key={label}
-                    type="button"
-                    className={`rounded-2xl border px-3.5 py-1.5 text-sm transition-colors ${label === activeFilter ? 'border-[#e9e2fb] bg-[#ede8ff] text-[#6e59cf]' : 'border-[#e5e7eb] bg-white text-[#4b5563]'}`}
-                  >
-                    {label}
+        <div className="absolute right-0 top-full mt-2 w-[min(320px,90vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-y-auto z-50">
+          {query.length >= 2 ? (
+            loading ? (
+              <div className="flex items-center justify-center py-8"><i className="ri-loader-4-line animate-spin text-xl text-gray-300"></i></div>
+            ) : results.length === 0 ? (
+              <div className="px-4 py-6 text-center"><p className="text-sm text-gray-400">No results for "{query}"</p></div>
+            ) : (
+              <>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1">Results</p>
+                {results.map((r, i) => (
+                  <button key={r.type + r.id} onClick={() => go(r)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer ${i === activeIdx ? 'bg-indigo-50' : ''}`}>
+                    <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <i className={`${r.icon} text-sm ${typeColors[r.type]}`}></i>
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-sm font-medium text-gray-800 truncate">{r.title}</p>
+                      <p className="text-xs text-gray-400 truncate">{r.subtitle}</p>
+                    </div>
+                    <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full flex-shrink-0">{r.type}</span>
                   </button>
                 ))}
+              </>
+            )
+          ) : (
+            <>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1">Go to</p>
+              {[
+                { name: 'Dashboard', icon: 'ri-home-5-line', path: '/hub/admin/dashboard' },
+                { name: 'Projects', icon: 'ri-folder-line', path: '/hub/admin/projects' },
+                { name: 'Payroll', icon: 'ri-bank-card-line', path: '/hub/admin/payroll' },
+                { name: 'Team', icon: 'ri-team-line', path: '/hub/admin/contractors' },
+                { name: 'Attendance', icon: 'ri-time-line', path: '/hub/admin/attendance' },
+                { name: 'Time Off', icon: 'ri-calendar-check-line', path: '/hub/admin/timeoff' },
+                { name: 'Invoices', icon: 'ri-file-text-line', path: '/hub/admin/invoice-log' },
+              ].map(p => (
+                <button key={p.name} onClick={() => { navigate(p.path); setOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+                  <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <i className={`${p.icon} text-sm text-gray-500`}></i>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 flex-1 text-left">{p.name}</span>
+                  <i className="ri-arrow-right-s-line text-gray-400"></i>
+                </button>
+              ))}
+              <div className="px-4 py-2 border-t border-gray-50">
+                <p className="text-[10px] text-gray-300">Start typing to search contractors, projects, invoices</p>
               </div>
-            </div>
-
-            <div className="overflow-y-auto flex-1 grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
-              <div className="border-b lg:border-b-0 lg:border-r border-[#e5e7eb]">
-                <div className="px-4 sm:px-6 py-3 sm:py-4">
-                  <p className="text-sm font-semibold text-[#374151]">{query.length >= 2 ? `Results (${results.length})` : 'Go to'}</p>
-                </div>
-
-                {query.length >= 2 ? (
-                  <div className="px-3 sm:px-4 pb-4">
-                    {loading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <i className="ri-loader-4-line animate-spin text-2xl text-[#cbd5e1]"></i>
-                      </div>
-                    ) : results.length === 0 ? (
-                      <div className="px-4 py-8 text-center">
-                        <p className="text-sm text-[#6b7280]">No results for "{query}"</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        {results.map((r, i) => (
-                          <button
-                            key={`${r.type}-${r.id}`}
-                            onClick={() => go(r)}
-                            className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${i === activeIdx ? 'bg-[#ede8ff]' : 'hover:bg-[#f9fafb]'}`}
-                          >
-                            <div className="w-8 h-8 rounded-xl bg-[#f3f4f6] flex items-center justify-center flex-shrink-0">
-                              <i className={`${r.icon} text-sm ${typeColors[r.type]}`}></i>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-[#201c18] truncate">{r.title}</p>
-                              <p className="text-xs text-[#6b7280] truncate">{r.subtitle}</p>
-                            </div>
-                            <span className="text-[10px] text-[#9ca3af] bg-[#f3f4f6] px-1.5 py-0.5 rounded-full flex-shrink-0">{r.type}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="px-3 sm:px-4 pb-4">
-                    <div className="space-y-1">
-                      {[
-                        { name: 'Projects', meta: 'Project browser', icon: 'ri-folder-line', tone: 'bg-[#f3f4f6]', text: 'text-[#201c18]', path: '/hub/admin/projects' },
-                        { name: 'Team', meta: 'Contractors', icon: 'ri-team-line', tone: 'bg-[#eef5ff]', text: 'text-[#2d5fa7]', path: '/hub/admin/contractors' },
-                        { name: 'Payroll', meta: 'Payments', icon: 'ri-bank-card-line', tone: 'bg-[#eff8ef]', text: 'text-[#2f7a4c]', path: '/hub/admin/payroll' },
-                        { name: 'Attendance', meta: 'Daily sync', icon: 'ri-time-line', tone: 'bg-[#fff3ea]', text: 'text-[#d1673d]', path: '/hub/admin/attendance' },
-                        { name: 'Time Off', meta: 'Leave requests', icon: 'ri-calendar-check-line', tone: 'bg-[#f3f4f6]', text: 'text-[#374151]', path: '/hub/admin/timeoff' },
-                        { name: 'Invoice Log', meta: 'Billing & invoices', icon: 'ri-file-text-line', tone: 'bg-[#fef9ee]', text: 'text-[#92400e]', path: '/hub/admin/invoice-log' },
-                      ].map(card => (
-                        <button key={card.name} onClick={() => { navigate(card.path); setOpen(false); }}
-                          className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-[#f9fafb] transition-colors cursor-pointer">
-                          <div className={`w-8 h-8 rounded-xl ${card.tone} ${card.text} flex items-center justify-center flex-shrink-0`}>
-                            <i className={`${card.icon} text-sm`}></i>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-[#201c18]">{card.name}</p>
-                            <p className="text-xs text-[#6b7280]">{card.meta}</p>
-                          </div>
-                          <i className="ri-arrow-right-s-line text-[#9ca3af]"></i>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="px-4 sm:px-6 py-4 sm:py-5">
-                <p className="text-sm font-semibold text-[#374151] mb-2">Quick actions</p>
-                <div className="space-y-1">
-                  {quickActions.map(action => (
-                    <button
-                      key={action.label}
-                      onClick={() => { navigate(action.path); setOpen(false); }}
-                      className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[#374151] hover:bg-[#f9fafb] transition-colors"
-                    >
-                      <div className="w-8 h-8 rounded-xl border border-[#e5e7eb] bg-white flex items-center justify-center text-[#9ca3af] flex-shrink-0">
-                        <i className={`${action.icon} text-sm`}></i>
-                      </div>
-                      <span className="flex-1 text-sm">{action.label}</span>
-                      <i className="ri-arrow-right-s-line text-[#9ca3af]"></i>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-8 rounded-[24px] border border-dashed border-[#e5e7eb] bg-[#fcfcfd] px-4 py-4">
-                  <div className="flex items-center justify-between text-sm text-[#6b7280]">
-                    <span>Use</span>
-                    <span className="inline-flex items-center gap-1">
-                      <kbd className="rounded-lg border border-[#e5e7eb] bg-white px-2 py-0.5 text-[11px]">↑</kbd>
-                      <kbd className="rounded-lg border border-[#e5e7eb] bg-white px-2 py-0.5 text-[11px]">↓</kbd>
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-sm text-[#6b7280]">
-                    <span>to navigate</span>
-                    <span className="inline-flex items-center gap-1">
-                      Type
-                      <kbd className="rounded-lg border border-[#e5e7eb] bg-white px-2 py-0.5 text-[11px]">/</kbd>
-                      for commands
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
-    </>
+    </div>
   );
+}
 }
 
 export default function AdminLayout({ children, title, actions }: Props) {
