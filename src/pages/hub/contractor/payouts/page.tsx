@@ -379,7 +379,6 @@ export default function ContractorPayoutsPage() {
 
   const handleSubmit = async () => {
     if (!hubUser || submitting) return;
-    if (new Date() <= new Date(selectedPeriod.end + 'T23:59:59')) return;
     setSubmitting(true);
     const { data, error } = await supabase.from('hub_payouts').upsert({
       contractor_id: hubUser.id,
