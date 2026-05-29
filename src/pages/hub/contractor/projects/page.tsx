@@ -1803,7 +1803,7 @@ export default function ContractorProjectsPage() {
             {active.length > 0 && (
               <div className="space-y-3">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Projects</p>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {active.map((r, i) => (
                     <ProjectCard key={r.id} row={r} colorIdx={i}
                       projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
@@ -1817,7 +1817,7 @@ export default function ContractorProjectsPage() {
             {other.length > 0 && (
               <div className="space-y-3">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Other</p>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {other.map((r, i) => (
                     <ProjectCard key={r.id} row={r} colorIdx={active.length + i}
                       projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
