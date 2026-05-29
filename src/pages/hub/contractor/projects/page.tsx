@@ -90,6 +90,10 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
   projectEnd: string | null;
   today: string;
 }) {
+  const [tooltip, setTooltip] = useState<{ task: ProjectTask; x: number; y: number } | null>(null);
+  const scrollRef = useState<HTMLDivElement | null>(null);
+  const containerRef = { current: null as HTMLDivElement | null };
+
   const dated = tasks.filter(t => t.due_date);
   if (dated.length === 0 && !projectStart && !projectEnd) return null;
 
@@ -100,6 +104,7 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
   };
   const diff = (a: string, b: string) =>
     Math.round((parseD(b).getTime() - parseD(a).getTime()) / 86400000);
+  const fmtDate = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   const allDates: string[] = [today,
     ...dated.flatMap(t => [t.start_date, t.due_date].filter(Boolean) as string[]),
@@ -108,99 +113,161 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
 
   const rawStart = allDates[0];
   const rawEnd = allDates[allDates.length - 1];
-
-  let rangeStart = addDays(rawStart, -2);
-  let rangeEnd = addDays(rawEnd, 2);
-  if (diff(rangeStart, rangeEnd) < 21) rangeEnd = addDays(rangeStart, 21);
+  let rangeStart = addDays(rawStart, -3);
+  let rangeEnd = addDays(rawEnd, 3);
+  if (diff(rangeStart, rangeEnd) < 28) rangeEnd = addDays(rangeStart, 28);
 
   const totalDays = diff(rangeStart, rangeEnd);
-  const COL = 32;
+  const COL = 36;
+  const LABEL_W = 160;
 
-  const segments: { label: string; dayIndex: number }[] = [];
+  // Day grid: every day, label on 1st of month and Mondays
+  const days: { date: string; isMonth: boolean; monthLabel: string; dayNum: number; isWeekend: boolean }[] = [];
   let lastMonth = -1;
   for (let i = 0; i <= totalDays; i++) {
     const d = parseD(rangeStart); d.setDate(d.getDate() + i);
-    if (d.getMonth() !== lastMonth) {
-      lastMonth = d.getMonth();
-      segments.push({
-        label: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-        dayIndex: i,
-      });
-    }
+    const isNewMonth = d.getMonth() !== lastMonth;
+    if (isNewMonth) lastMonth = d.getMonth();
+    days.push({
+      date: d.toISOString().slice(0, 10),
+      isMonth: isNewMonth,
+      monthLabel: d.toLocaleDateString('en-US', { month: 'short' }),
+      dayNum: d.getDate(),
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
+    });
   }
 
   const todayOff = diff(rangeStart, today);
 
+  const barColors = {
+    done:        { bg: '#d1fae5', border: '#34d399', text: '#065f46' },
+    in_progress: { bg: '#e0f2fe', border: '#38bdf8', text: '#075985' },
+    todo:        { bg: '#ede9fe', border: '#a78bfa', text: '#4c1d95' },
+    overdue:     { bg: '#ffe4e6', border: '#fb7185', text: '#9f1239' },
+  };
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
-        <i className="ri-timeline-view text-gray-400 text-sm"></i>
-        <h3 className="font-semibold text-gray-800 text-sm">Timeline</h3>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <i className="ri-bar-chart-grouped-line text-indigo-400 text-base"></i>
+          <h3 className="font-semibold text-gray-800 text-sm">Timeline</h3>
+          {dated.length > 0 && <span className="text-[11px] text-gray-400">{dated.length} task{dated.length !== 1 ? 's' : ''}</span>}
+        </div>
+        <div className="flex items-center gap-3 text-[10px] text-gray-400">
+          {[
+            { color: '#a78bfa', label: 'To do' },
+            { color: '#38bdf8', label: 'In progress' },
+            { color: '#34d399', label: 'Done' },
+            { color: '#fb7185', label: 'Overdue' },
+          ].map(l => (
+            <span key={l.label} className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: l.color }} />
+              {l.label}
+            </span>
+          ))}
+        </div>
       </div>
-      <div className="overflow-x-auto">
-        <div style={{ width: 140 + totalDays * COL }}>
-          {/* Month header */}
-          <div className="flex border-b border-gray-100 bg-gray-50/50">
-            <div className="w-[140px] flex-shrink-0 border-r border-gray-100" />
-            <div className="relative flex-1" style={{ height: 28 }}>
-              {segments.map(seg => (
-                <div key={seg.label + seg.dayIndex}
-                  style={{ position: 'absolute', left: seg.dayIndex * COL, top: 0, height: '100%' }}
-                  className="px-2 flex items-center border-l border-gray-200 first:border-l-0">
-                  <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">{seg.label}</span>
+
+      <div className="overflow-x-auto" ref={(el) => { containerRef.current = el; }}>
+        <div style={{ width: LABEL_W + (totalDays + 1) * COL, minWidth: '100%' }}>
+
+          {/* Day header row */}
+          <div className="flex sticky top-0 z-10 bg-white border-b border-gray-100">
+            <div className="flex-shrink-0 border-r border-gray-100" style={{ width: LABEL_W }} />
+            <div className="flex">
+              {days.map((day, i) => (
+                <div key={day.date}
+                  style={{ width: COL, flexShrink: 0 }}
+                  className={`relative flex flex-col items-center justify-center py-1.5 border-r border-gray-50 ${day.isWeekend ? 'bg-gray-50/60' : ''} ${day.date === today ? 'bg-[#FF6B35]/8' : ''}`}>
+                  {day.isMonth && (
+                    <span className="absolute left-1 top-1 text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none">{day.monthLabel}</span>
+                  )}
+                  <span className={`text-[10px] font-medium mt-2 ${day.date === today ? 'text-[#FF6B35] font-bold' : day.isWeekend ? 'text-gray-300' : 'text-gray-400'}`}>
+                    {day.dayNum}
+                  </span>
                 </div>
               ))}
-              {todayOff >= 0 && todayOff <= totalDays && (
-                <div style={{ position: 'absolute', left: todayOff * COL + COL / 2 - 0.5, top: 0, bottom: 0, width: 1 }}
-                  className="bg-[#FF6B35]/40" />
-              )}
             </div>
           </div>
 
           {/* Task rows */}
-          {tasks.map(task => {
+          {dated.length === 0 ? (
+            <div className="flex" style={{ height: 64 }}>
+              <div className="flex-shrink-0 border-r border-gray-100" style={{ width: LABEL_W }} />
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-xs text-gray-300">Add due dates to tasks to see them here</p>
+              </div>
+            </div>
+          ) : tasks.map((task, rowIdx) => {
             if (!task.due_date) return null;
+            const isOverdue = task.due_date < today && task.status !== 'done';
+            const colorKey = task.status === 'done' ? 'done' : isOverdue ? 'overdue' : task.status === 'in_progress' ? 'in_progress' : 'todo';
+            const colors = barColors[colorKey];
+
             const startStr = task.start_date ?? task.due_date;
             const endStr = task.due_date;
             const startOff = Math.max(0, diff(rangeStart, startStr));
             const endOff = Math.min(totalDays, diff(rangeStart, endStr));
-            const barW = Math.max(COL * 0.8, (endOff - startOff + 1) * COL - 4);
-            const barL = startOff * COL + 2;
-            const isOverdue = task.due_date < today && task.status !== 'done';
-            const barBg = task.status === 'done' ? '#34d399'
-              : isOverdue ? '#fb7185'
-              : task.status === 'in_progress' ? '#38bdf8'
-              : '#a5b4fc';
+            const hasRange = !!task.start_date && startOff < endOff;
+            const barW = hasRange ? Math.max(COL - 4, (endOff - startOff + 1) * COL - 4) : COL - 8;
+            const barL = startOff * COL + (hasRange ? 2 : 4);
 
             return (
-              <div key={task.id} className="flex items-center border-b border-gray-50 last:border-0 hover:bg-gray-50/40">
-                <div className="w-[140px] flex-shrink-0 px-3 py-2 border-r border-gray-100">
+              <div key={task.id}
+                className={`flex items-center border-b border-gray-50 last:border-0 ${rowIdx % 2 === 1 ? 'bg-gray-50/30' : ''}`}
+                style={{ height: 44 }}>
+                {/* Label */}
+                <div className="flex-shrink-0 px-3 border-r border-gray-100 flex flex-col justify-center" style={{ width: LABEL_W, height: '100%' }}>
                   <p className="text-xs font-medium text-gray-700 truncate leading-tight">{task.title}</p>
-                  <p className={`text-[10px] ${isOverdue ? 'text-rose-400' : 'text-gray-400'}`}>
-                    {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  <p className={`text-[10px] mt-0.5 ${isOverdue ? 'text-rose-400' : 'text-gray-400'}`}>
+                    {task.start_date ? `${fmtDate(task.start_date)} → ${fmtDate(task.due_date)}` : fmtDate(task.due_date)}
                   </p>
                 </div>
-                <div className="flex-1 relative" style={{ height: 40 }}>
+
+                {/* Grid + bar */}
+                <div className="relative flex" style={{ height: '100%' }}>
+                  {/* Day columns (weekend shading) */}
+                  {days.map(day => (
+                    <div key={day.date}
+                      style={{ width: COL, flexShrink: 0, height: '100%' }}
+                      className={`border-r border-gray-50/80 ${day.isWeekend ? 'bg-gray-50/50' : ''} ${day.date === today ? 'bg-[#FF6B35]/5' : ''}`}
+                    />
+                  ))}
+
+                  {/* Today line */}
                   {todayOff >= 0 && todayOff <= totalDays && (
-                    <div style={{ position: 'absolute', left: todayOff * COL + COL / 2 - 0.5, top: 0, bottom: 0, width: 1 }}
-                      className="bg-[#FF6B35]/20" />
+                    <div style={{ position: 'absolute', left: todayOff * COL + COL / 2 - 0.5, top: 0, bottom: 0, width: 1.5, background: '#FF6B35', opacity: 0.3, pointerEvents: 'none' }} />
                   )}
-                  <div style={{
-                    position: 'absolute',
-                    left: barL,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: barW,
-                    height: 20,
-                    background: barBg,
-                    borderRadius: 999,
-                    opacity: task.status === 'done' ? 0.65 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    overflow: 'hidden',
-                  }}>
-                    {barW > 60 && (
-                      <span className="text-[10px] text-white font-medium px-2.5 truncate leading-none">{task.title}</span>
+
+                  {/* Bar */}
+                  <div
+                    onMouseEnter={(e) => setTooltip({ task, x: e.clientX, y: e.clientY })}
+                    onMouseLeave={() => setTooltip(null)}
+                    style={{
+                      position: 'absolute',
+                      left: barL,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: barW,
+                      height: hasRange ? 24 : 24,
+                      background: colors.bg,
+                      border: `1.5px solid ${colors.border}`,
+                      borderRadius: 999,
+                      display: 'flex',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      cursor: 'default',
+                      opacity: task.status === 'done' ? 0.7 : 1,
+                    }}>
+                    {barW > 56 && (
+                      <span style={{ color: colors.text, fontSize: 10, fontWeight: 600, paddingLeft: 8, paddingRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1 }}>
+                        {task.title}
+                      </span>
+                    )}
+                    {!hasRange && (
+                      <div style={{ position: 'absolute', right: -1, top: '50%', transform: 'translateY(-50%)', width: 8, height: 8, background: colors.border, borderRadius: '50%' }} />
                     )}
                   </div>
                 </div>
@@ -208,16 +275,42 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
             );
           })}
 
-          {dated.length === 0 && (
-            <div className="flex">
-              <div className="w-[140px] flex-shrink-0 border-r border-gray-100" />
-              <div className="flex-1 py-6 flex items-center justify-center">
-                <p className="text-xs text-gray-300">Add due dates to tasks to see them on the timeline</p>
+          {/* Today label at bottom */}
+          {todayOff >= 0 && todayOff <= totalDays && (
+            <div className="flex border-t border-gray-50 bg-gray-50/40" style={{ height: 22 }}>
+              <div className="flex-shrink-0 border-r border-gray-100" style={{ width: LABEL_W }} />
+              <div className="relative flex" style={{ flex: 1 }}>
+                <div style={{ position: 'absolute', left: todayOff * COL + COL / 2 - 18, top: 3 }}>
+                  <span className="text-[10px] font-bold text-[#FF6B35] bg-[#FF6B35]/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">Today</span>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Hover tooltip */}
+      {tooltip && (
+        <div style={{ position: 'fixed', left: tooltip.x + 12, top: tooltip.y - 10, zIndex: 100, pointerEvents: 'none' }}>
+          <div className="bg-gray-900 text-white rounded-xl px-3 py-2 shadow-xl text-xs max-w-[200px]">
+            <p className="font-semibold leading-snug">{tooltip.task.title}</p>
+            {tooltip.task.description && <p className="text-white/60 mt-0.5 line-clamp-2">{tooltip.task.description}</p>}
+            <div className="flex items-center gap-2 mt-1.5 text-white/50">
+              {tooltip.task.start_date && <span>{fmtDate(tooltip.task.start_date)} →</span>}
+              {tooltip.task.due_date && <span>{fmtDate(tooltip.task.due_date)}</span>}
+            </div>
+            <div className="mt-1">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                tooltip.task.status === 'done' ? 'bg-emerald-500/20 text-emerald-300' :
+                tooltip.task.due_date && tooltip.task.due_date < today && tooltip.task.status !== 'done' ? 'bg-rose-500/20 text-rose-300' :
+                tooltip.task.status === 'in_progress' ? 'bg-sky-500/20 text-sky-300' : 'bg-indigo-500/20 text-indigo-300'
+              }`}>
+                {tooltip.task.status === 'in_progress' ? 'In progress' : tooltip.task.status === 'todo' ? 'To do' : 'Done'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -713,94 +806,94 @@ export default function ContractorProjectsPage() {
 
           {/* ── Hero banner ── */}
           {(() => {
-            const statusColors: Record<string, string> = { ongoing: 'bg-emerald-400/20 text-emerald-300 border-emerald-400/30', completed: 'bg-blue-400/20 text-blue-300 border-blue-400/30', paused: 'bg-amber-400/20 text-amber-300 border-amber-400/30', cancelled: 'bg-gray-400/20 text-gray-300 border-gray-400/30' };
+            const statusColors: Record<string, string> = { ongoing: 'bg-emerald-100 text-emerald-700', completed: 'bg-blue-100 text-blue-700', paused: 'bg-amber-100 text-amber-700', cancelled: 'bg-gray-100 text-gray-500' };
             const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' };
             const daysLeft = wsProject.deadline ? Math.ceil((new Date(wsProject.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
             const isDeadlineOver = daysLeft !== null && daysLeft < 0 && wsProject.status !== 'completed';
             return (
-              <div className="bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1e1b4b] px-6 pt-5 pb-6 flex-shrink-0">
+              <div className="px-5 md:px-6 pt-5 pb-2 flex-shrink-0">
                 {/* Back nav */}
                 <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); }}
-                  className="flex items-center gap-1.5 text-white/40 hover:text-white/80 cursor-pointer transition-colors text-xs mb-5">
+                  className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 cursor-pointer transition-colors text-xs mb-4">
                   <i className="ri-arrow-left-s-line text-sm"></i>
                   <span>My Projects</span>
-                  <i className="ri-arrow-right-s-line text-white/20 text-xs"></i>
-                  <span className="text-white/25">Workspace</span>
                 </button>
 
-                {/* Main hero row */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
-                        {statusLabels[wsProject.status] ?? wsProject.status}
-                      </span>
-                      {wsProject.service && <span className="text-[10px] text-white/30">{wsProject.service}</span>}
-                    </div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight truncate">{wsProject.project_name}</h2>
-                    <p className="text-sm text-white/40 mt-0.5">{wsProject.client_name}</p>
+                {/* Hero card — glassmorphism */}
+                <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
+                          {statusLabels[wsProject.status] ?? wsProject.status}
+                        </span>
+                        {wsProject.service && <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{wsProject.service}</span>}
+                      </div>
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{wsProject.project_name}</h2>
+                      <p className="text-sm text-gray-400 mt-0.5">{wsProject.client_name}</p>
 
-                    {/* Team avatars */}
-                    {wsTeam.length > 0 && (
-                      <div className="flex items-center gap-2 mt-3">
-                        <div className="flex -space-x-2">
-                          {wsTeam.slice(0, 5).map(m => (
-                            m.avatar_url
-                              ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-7 h-7 rounded-full border-2 border-[#111827] object-cover object-top" />
-                              : <div key={m.id} title={m.full_name} className="w-7 h-7 rounded-full border-2 border-[#111827] bg-indigo-500 flex items-center justify-center text-[11px] font-bold text-white">{m.full_name[0]}</div>
-                          ))}
+                      {/* Team avatars */}
+                      {wsTeam.length > 0 && (
+                        <div className="flex items-center gap-2 mt-3">
+                          <div className="flex -space-x-2">
+                            {wsTeam.slice(0, 5).map(m => (
+                              m.avatar_url
+                                ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white object-cover object-top shadow-sm" />
+                                : <div key={m.id} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white bg-indigo-400 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">{m.full_name[0]}</div>
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
                         </div>
-                        <span className="text-xs text-white/30">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Deadline chip */}
-                    {daysLeft !== null && (
-                      <div className="mt-3">
-                        {isDeadlineOver ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-rose-300 bg-rose-500/15 border border-rose-500/25 px-2.5 py-1 rounded-full">
-                            <i className="ri-alarm-warning-line text-xs"></i>
-                            {Math.abs(daysLeft)} day{Math.abs(daysLeft) !== 1 ? 's' : ''} overdue
-                          </span>
-                        ) : daysLeft === 0 ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/15 border border-amber-500/25 px-2.5 py-1 rounded-full">
-                            <i className="ri-time-line text-xs"></i>Due today
-                          </span>
-                        ) : (
-                          <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${daysLeft <= 7 ? 'text-amber-300 bg-amber-500/15 border-amber-500/25' : 'text-white/40 bg-white/5 border-white/10'}`}>
-                            <i className="ri-calendar-line text-xs"></i>
-                            {daysLeft}d left · {new Date(wsProject.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Progress ring */}
-                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                    <div className="relative" style={{ width: 72, height: 72 }}>
-                      <svg width={72} height={72} viewBox="0 0 72 72">
-                        <circle cx={36} cy={36} r={28} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={7} />
-                        <circle cx={36} cy={36} r={28} fill="none"
-                          stroke={wsPct === 100 ? '#34d399' : '#6366f1'}
-                          strokeWidth={7} strokeLinecap="round"
-                          strokeDasharray={`${(wsPct / 100) * 2 * Math.PI * 28} ${2 * Math.PI * 28}`}
-                          transform="rotate(-90 36 36)"
-                          style={{ transition: 'stroke-dasharray 0.8s ease' }}
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-lg font-bold text-white leading-none">{wsPct}%</span>
-                      </div>
+                      {/* Deadline chip */}
+                      {daysLeft !== null && (
+                        <div className="mt-3">
+                          {isDeadlineOver ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full font-medium">
+                              <i className="ri-alarm-warning-line text-xs"></i>
+                              {Math.abs(daysLeft)}d overdue
+                            </span>
+                          ) : daysLeft === 0 ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                              <i className="ri-time-line text-xs"></i>Due today
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${daysLeft <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-500 bg-gray-50 border-gray-200'}`}>
+                              <i className="ri-calendar-line text-xs"></i>
+                              {daysLeft}d left · {new Date(wsProject.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-[10px] text-white/30">{wsDone}/{wsTasks.length} done</span>
+
+                    {/* Progress ring */}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                      <div className="relative" style={{ width: 68, height: 68 }}>
+                        <svg width={68} height={68} viewBox="0 0 68 68">
+                          <circle cx={34} cy={34} r={26} fill="none" stroke="#e5e7eb" strokeWidth={7} />
+                          <circle cx={34} cy={34} r={26} fill="none"
+                            stroke={wsPct === 100 ? '#34d399' : '#6366f1'}
+                            strokeWidth={7} strokeLinecap="round"
+                            strokeDasharray={`${(wsPct / 100) * 2 * Math.PI * 26} ${2 * Math.PI * 26}`}
+                            transform="rotate(-90 34 34)"
+                            style={{ transition: 'stroke-dasharray 0.8s ease' }}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-base font-bold text-gray-900 leading-none">{wsPct}%</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-gray-400">{wsDone}/{wsTasks.length} done</span>
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })()}
 
-          <div className="flex-1 p-5 md:p-6 space-y-5 overflow-y-auto" style={{ background: 'linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%)' }}>
+          <div className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
