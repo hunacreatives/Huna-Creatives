@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
@@ -651,6 +651,9 @@ export default function ContractorProjectsPage() {
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [taskSearch, setTaskSearch] = useState('');
+  const [wsSearch, setWsSearch] = useState('');
+  const [wsSearchOpen, setWsSearchOpen] = useState(false);
+  const wsSearchRef = useRef<HTMLDivElement>(null);
 
   const cycleTask = async (task: ProjectTask) => {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
@@ -710,6 +713,16 @@ export default function ContractorProjectsPage() {
     setTasks(prev => prev.filter(t => t.id !== taskId));
     setDeletingTaskId(null);
   };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wsSearchRef.current && !wsSearchRef.current.contains(e.target as Node)) {
+        setWsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   useEffect(() => {
     if (!hubUser) return;
@@ -798,7 +811,13 @@ export default function ContractorProjectsPage() {
   const wsFiltered = wsTasks.filter(t => {
     if (taskFilter !== 'all' && taskFilter !== 'overdue' && t.status !== taskFilter) return false;
     if (taskFilter === 'overdue' && !wsIsOverdue(t)) return false;
-    if (taskSearch) return t.title.toLowerCase().includes(taskSearch.toLowerCase()) || (t.description ?? '').toLowerCase().includes(taskSearch.toLowerCase());
+    if (taskSearch) {
+      const q = taskSearch.toLowerCase();
+      const assignee = wsTeam.find(m => m.id === t.assigned_to);
+      return t.title.toLowerCase().includes(q)
+        || (t.description ?? '').toLowerCase().includes(q)
+        || (assignee?.full_name ?? '').toLowerCase().includes(q);
+    }
     return true;
   });
   const wsDone = wsTasks.filter(t => t.status === 'done').length;
@@ -810,12 +829,181 @@ export default function ContractorProjectsPage() {
     done: { icon: 'ri-checkbox-circle-fill', cls: 'text-emerald-500' },
   };
 
+  const WS_SECTIONS = wsProject ? [
+    { label: 'Timeline', description: `${wsProject.project_name} · Gantt chart`, icon: 'ri-bar-chart-grouped-line', id: 'ws-timeline', iconCls: 'bg-indigo-50 text-indigo-500', keywords: ['timeline', 'gantt', 'schedule', 'chart', 'dates', 'calendar', 'deadline'] },
+    { label: 'Tasks', description: `${wsProject.project_name} · Task list`, icon: 'ri-task-line', id: 'ws-tasks', iconCls: 'bg-sky-50 text-sky-500', keywords: ['tasks', 'list', 'todo', 'work', 'items', 'progress', 'backlog'] },
+    { label: 'Overview', description: `${wsProject.project_name} · Stats & progress`, icon: 'ri-bar-chart-2-line', id: 'ws-stats', iconCls: 'bg-emerald-50 text-emerald-500', keywords: ['stats', 'overview', 'total', 'count', 'numbers', 'summary', 'progress'] },
+    { label: 'Payout', description: `${wsProject.project_name} · Your earnings`, icon: 'ri-money-dollar-circle-line', id: 'ws-sidebar', iconCls: 'bg-orange-50 text-[#FF6B35]', keywords: ['payout', 'payment', 'earnings', 'salary', 'money', 'fee', 'income', 'receive'] },
+    { label: 'Team', description: `${wsProject.project_name} · Members`, icon: 'ri-team-line', id: 'ws-sidebar', iconCls: 'bg-purple-50 text-purple-500', keywords: ['team', 'members', 'people', 'colleagues', 'who', 'assigned'] },
+    { label: 'Notes & Dates', description: `${wsProject.project_name} · Start & deadline`, icon: 'ri-sticky-note-line', id: 'ws-sidebar', iconCls: 'bg-amber-50 text-amber-500', keywords: ['notes', 'brief', 'description', 'info', 'details', 'start', 'due', 'date', 'deadline'] },
+  ] : [];
+
+  const WS_FILTERS = [
+    { label: 'Overdue Tasks', filter: 'overdue' as const, icon: 'ri-alarm-warning-line', cls: 'bg-rose-50 text-rose-500', count: wsTasks.filter(t => !!wsIsOverdue(t)).length, keywords: ['overdue', 'late', 'past due', 'missed'] },
+    { label: 'Active Tasks', filter: 'in_progress' as const, icon: 'ri-loader-2-line', cls: 'bg-sky-50 text-sky-500', count: wsTasks.filter(t => t.status === 'in_progress').length, keywords: ['active', 'in progress', 'working', 'ongoing'] },
+    { label: 'To Do', filter: 'todo' as const, icon: 'ri-checkbox-blank-circle-line', cls: 'bg-gray-100 text-gray-500', count: wsTasks.filter(t => t.status === 'todo').length, keywords: ['todo', 'not started', 'pending', 'backlog', 'queued'] },
+    { label: 'Completed Tasks', filter: 'done' as const, icon: 'ri-checkbox-circle-fill', cls: 'bg-emerald-50 text-emerald-500', count: wsTasks.filter(t => t.status === 'done').length, keywords: ['done', 'completed', 'finished', 'complete', 'closed'] },
+  ];
+
+  const wsQ = wsSearch.trim().toLowerCase();
+  const wsSectionResults = wsQ ? WS_SECTIONS.filter(s =>
+    s.label.toLowerCase().includes(wsQ) || s.keywords.some(k => k.includes(wsQ))
+  ) : [];
+  const wsFilterResults = wsQ ? WS_FILTERS.filter(f =>
+    f.label.toLowerCase().includes(wsQ) || f.keywords.some(k => k.includes(wsQ))
+  ) : [];
+  const wsTaskResults = wsQ ? wsTasks.filter(t =>
+    t.title.toLowerCase().includes(wsQ) || (t.description ?? '').toLowerCase().includes(wsQ)
+  ).slice(0, 5) : [];
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    const scroll = document.getElementById('ws-scroll');
+    if (el && scroll) scroll.scrollTo({ top: el.offsetTop - scroll.offsetTop - 16, behavior: 'smooth' });
+  };
+
+  const wsSearchActions = workspaceRow && wsProject ? (
+    <div className="relative" ref={wsSearchRef}>
+      <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 w-52 transition-all ${wsSearchOpen ? 'border-indigo-300 ring-2 ring-indigo-100' : 'border-gray-200'}`}>
+        <i className="ri-search-line text-gray-400 text-sm flex-shrink-0"></i>
+        <input
+          type="text"
+          value={wsSearch}
+          onChange={e => { setWsSearch(e.target.value); setWsSearchOpen(true); }}
+          onFocus={() => setWsSearchOpen(true)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') { setWsSearch(''); setWsSearchOpen(false); }
+            if (e.key === 'Enter') {
+              if (wsSectionResults[0]) { scrollToSection(wsSectionResults[0].id); setWsSearch(''); setWsSearchOpen(false); }
+              else if (wsFilterResults[0]) { setTaskFilter(wsFilterResults[0].filter); setWsSearch(''); setWsSearchOpen(false); }
+            }
+          }}
+          placeholder={`Search ${wsProject.project_name}…`}
+          className="flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0"
+        />
+        {wsSearch
+          ? <button onClick={() => { setWsSearch(''); setWsSearchOpen(false); }} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0"><i className="ri-close-line text-sm"></i></button>
+          : null
+        }
+      </div>
+
+      {wsSearchOpen && (
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+          {/* Empty: show all sections */}
+          {!wsQ && (
+            <>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1">In {wsProject.project_name}</p>
+              {WS_SECTIONS.map(s => (
+                <button key={s.id + s.label}
+                  onClick={() => { scrollToSection(s.id); setWsSearchOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${s.iconCls}`}>
+                    <i className={`${s.icon} text-sm`}></i>
+                  </div>
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="text-sm font-medium text-gray-800">{s.label}</p>
+                    <p className="text-[11px] text-gray-400 truncate">{s.description}</p>
+                  </div>
+                  <i className="ri-arrow-right-s-line text-gray-300 flex-shrink-0"></i>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* With query */}
+          {wsQ && (
+            <>
+              {/* Sections */}
+              {wsSectionResults.length > 0 && (
+                <>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1">Sections</p>
+                  {wsSectionResults.map(s => (
+                    <button key={s.id + s.label}
+                      onClick={() => { scrollToSection(s.id); setWsSearch(''); setWsSearchOpen(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${s.iconCls}`}>
+                        <i className={`${s.icon} text-sm`}></i>
+                      </div>
+                      <div className="min-w-0 flex-1 text-left">
+                        <p className="text-sm font-medium text-gray-800">{s.label}</p>
+                        <p className="text-[11px] text-gray-400 truncate">{s.description}</p>
+                      </div>
+                      <i className="ri-corner-down-left-line text-gray-300 text-xs flex-shrink-0"></i>
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {/* Filters */}
+              {wsFilterResults.length > 0 && (
+                <>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1 border-t border-gray-50">Filter Tasks</p>
+                  {wsFilterResults.map(f => (
+                    <button key={f.filter}
+                      onClick={() => { setTaskFilter(f.filter); setWsSearch(''); setWsSearchOpen(false); scrollToSection('ws-tasks'); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${f.cls}`}>
+                        <i className={`${f.icon} text-sm`}></i>
+                      </div>
+                      <div className="min-w-0 flex-1 text-left">
+                        <p className="text-sm font-medium text-gray-800">{f.label}</p>
+                        <p className="text-[11px] text-gray-400">{f.count} task{f.count !== 1 ? 's' : ''}</p>
+                      </div>
+                      <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Filter</span>
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {/* Tasks */}
+              {wsTaskResults.length > 0 && (
+                <>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1 border-t border-gray-50">Tasks</p>
+                  {wsTaskResults.map(t => {
+                    const si = wsStatusIcon[t.status];
+                    const isOverdue = !!wsIsOverdue(t);
+                    return (
+                      <button key={t.id}
+                        onClick={() => { setTaskSearch(t.title); setTaskFilter('all'); scrollToSection('ws-tasks'); setWsSearch(''); setWsSearchOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
+                        <i className={`${si.icon} text-lg flex-shrink-0 ${t.status === 'done' ? 'text-emerald-500' : t.status === 'in_progress' ? 'text-sky-400' : 'text-gray-300'}`}></i>
+                        <div className="min-w-0 flex-1 text-left">
+                          <p className={`text-sm font-medium truncate ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
+                          {t.due_date && <p className={`text-[11px] ${isOverdue ? 'text-rose-400' : 'text-gray-400'}`}>{isOverdue ? 'Overdue · ' : ''}{new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>}
+                        </div>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${{ high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-gray-300' }[t.priority]}`}></span>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* Empty */}
+              {wsSectionResults.length === 0 && wsFilterResults.length === 0 && wsTaskResults.length === 0 && (
+                <div className="px-4 py-6 text-center">
+                  <i className="ri-search-line text-2xl text-gray-200 block mb-2"></i>
+                  <p className="text-sm text-gray-400">Nothing found for <span className="font-medium text-gray-600">"{wsSearch}"</span></p>
+                </div>
+              )}
+
+              <div className="px-4 py-2 border-t border-gray-50">
+                <p className="text-[10px] text-gray-300">↵ jump to section · Esc to close</p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  ) : undefined;
+
   return (
     <ContractorLayout
       title={workspaceRow ? undefined : 'My Projects'}
+      hideGlobalSearch={!!workspaceRow}
+      actions={wsSearchActions}
       titleContent={workspaceRow && wsProject ? (
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); setTaskSearch(''); }}
+          <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); setTaskSearch(''); setWsSearch(''); setWsSearchOpen(false); }}
             className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
             <i className="ri-arrow-left-s-line text-base"></i>
           </button>
@@ -825,100 +1013,136 @@ export default function ContractorProjectsPage() {
           </div>
         </div>
       ) : undefined}
-      actions={
-        workspaceRow && wsProject ? (
-          <div className="relative">
-            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
-            <input type="text" value={taskSearch} onChange={e => setTaskSearch(e.target.value)}
-              placeholder="Search tasks…"
-              className="pl-8 pr-8 py-2 text-sm bg-white/70 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 w-44 sm:w-52 transition-all placeholder-gray-400" />
-            {taskSearch && (
-              <button onClick={() => setTaskSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
-                <i className="ri-close-line text-sm"></i>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="relative">
-            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search projects…"
-              className="pl-8 pr-8 py-2 text-sm bg-white/70 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 w-44 sm:w-52 transition-all placeholder-gray-400" />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
-                <i className="ri-close-line text-sm"></i>
-              </button>
-            )}
-          </div>
-        )
-      }
     >
       {/* ── Workspace ── */}
       {workspaceRow && wsProject && (
         <div className="flex flex-col -mx-4 -my-4 md:-mx-6 md:-my-6 min-h-full">
 
-          {/* ── Info strip ── */}
+          {/* ── Hero banner ── */}
           {(() => {
             const statusColors: Record<string, string> = { ongoing: 'bg-emerald-100 text-emerald-700', completed: 'bg-blue-100 text-blue-700', paused: 'bg-amber-100 text-amber-700', cancelled: 'bg-gray-100 text-gray-500' };
             const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' };
             const daysLeft = wsProject.deadline ? Math.ceil((new Date(wsProject.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
             const isDeadlineOver = daysLeft !== null && daysLeft < 0 && wsProject.status !== 'completed';
             return (
-              <div className="px-5 md:px-6 pt-4 pb-0 flex-shrink-0">
-                <div className="flex items-center gap-3 flex-wrap">
-                  {/* Status */}
-                  <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
-                    {statusLabels[wsProject.status] ?? wsProject.status}
-                  </span>
-
-                  {/* Deadline */}
-                  {daysLeft !== null && (
-                    isDeadlineOver ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full font-medium">
-                        <i className="ri-alarm-warning-line text-[10px]"></i>{Math.abs(daysLeft)}d overdue
-                      </span>
-                    ) : daysLeft === 0 ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
-                        <i className="ri-time-line text-[10px]"></i>Due today
-                      </span>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border font-medium ${daysLeft <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-500 bg-gray-100 border-gray-200'}`}>
-                        <i className="ri-calendar-line text-[10px]"></i>
-                        {daysLeft}d left · {new Date(wsProject.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    )
-                  )}
-
-                  {/* Team avatars */}
-                  {wsTeam.length > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex -space-x-1.5">
-                        {wsTeam.slice(0, 5).map(m => (
-                          m.avatar_url
-                            ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-5 h-5 rounded-full border-2 border-white object-cover object-top" />
-                            : <div key={m.id} title={m.full_name} className="w-5 h-5 rounded-full border-2 border-white bg-indigo-400 flex items-center justify-center text-[8px] font-bold text-white">{m.full_name[0]}</div>
-                        ))}
+              <div className="px-5 md:px-6 pt-4 pb-2 flex-shrink-0">
+                <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
+                          {statusLabels[wsProject.status] ?? wsProject.status}
+                        </span>
+                        {wsProject.service && <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{wsProject.service}</span>}
                       </div>
-                      <span className="text-xs text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{wsProject.project_name}</h2>
+                      <p className="text-sm text-gray-400 mt-0.5">{wsProject.client_name}</p>
 
-                  {/* Progress */}
-                  <div className="flex items-center gap-2 ml-auto">
-                    <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${wsPct === 100 ? 'bg-emerald-400' : 'bg-indigo-400'}`} style={{ width: `${wsPct}%`, transition: 'width 0.8s ease' }} />
+                      {wsTeam.length > 0 && (
+                        <div className="flex items-center gap-2 mt-3">
+                          <div className="flex -space-x-2">
+                            {wsTeam.slice(0, 5).map(m => (
+                              m.avatar_url
+                                ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white object-cover object-top shadow-sm" />
+                                : <div key={m.id} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white bg-indigo-400 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">{m.full_name[0]}</div>
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
+                        </div>
+                      )}
+
+                      {daysLeft !== null && (
+                        <div className="mt-3">
+                          {isDeadlineOver ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full font-medium">
+                              <i className="ri-alarm-warning-line text-xs"></i>{Math.abs(daysLeft)}d overdue
+                            </span>
+                          ) : daysLeft === 0 ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                              <i className="ri-time-line text-xs"></i>Due today
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${daysLeft <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-500 bg-gray-50 border-gray-200'}`}>
+                              <i className="ri-calendar-line text-xs"></i>
+                              {daysLeft}d left · {new Date(wsProject.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-xs font-semibold text-gray-600">{wsPct}%</span>
-                    <span className="text-xs text-gray-400">{wsDone}/{wsTasks.length}</span>
+
+                    {/* Right: ring + breakdown */}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-3 min-w-[120px]">
+                      {/* Ring */}
+                      <div className="relative" style={{ width: 100, height: 100 }}>
+                        <svg width={100} height={100} viewBox="0 0 100 100">
+                          <circle cx={50} cy={50} r={38} fill="none" stroke="#f3f4f6" strokeWidth={9} />
+                          {/* Overdue arc (rose) */}
+                          {wsTasks.length > 0 && wsTasks.filter(t => !!wsIsOverdue(t)).length > 0 && (
+                            <circle cx={50} cy={50} r={38} fill="none" stroke="#fda4af" strokeWidth={9} strokeLinecap="butt"
+                              strokeDasharray={`${(wsTasks.filter(t => !!wsIsOverdue(t)).length / wsTasks.length) * 2 * Math.PI * 38} ${2 * Math.PI * 38}`}
+                              transform="rotate(-90 50 50)" style={{ transition: 'stroke-dasharray 0.8s ease' }}
+                            />
+                          )}
+                          {/* Done arc (indigo/emerald) */}
+                          <circle cx={50} cy={50} r={38} fill="none"
+                            stroke={wsPct === 100 ? '#34d399' : '#6366f1'} strokeWidth={9} strokeLinecap="round"
+                            strokeDasharray={`${(wsPct / 100) * 2 * Math.PI * 38} ${2 * Math.PI * 38}`}
+                            transform="rotate(-90 50 50)" style={{ transition: 'stroke-dasharray 0.8s ease' }}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-xl font-bold text-gray-900 leading-none">{wsPct}%</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">done</span>
+                        </div>
+                      </div>
+
+                      {/* Segmented bar */}
+                      {wsTasks.length > 0 && (
+                        <div className="w-full space-y-1.5">
+                          <div className="flex h-1.5 rounded-full overflow-hidden gap-px w-full">
+                            {[
+                              { count: wsDone, color: 'bg-indigo-400' },
+                              { count: wsTasks.filter(t => t.status === 'in_progress').length, color: 'bg-sky-300' },
+                              { count: wsTasks.filter(t => t.status === 'todo' && !wsIsOverdue(t)).length, color: 'bg-gray-200' },
+                              { count: wsTasks.filter(t => !!wsIsOverdue(t)).length, color: 'bg-rose-300' },
+                            ].filter(s => s.count > 0).map((s, i) => (
+                              <div key={i} className={`h-full ${s.color} rounded-full`}
+                                style={{ flex: s.count }} />
+                            ))}
+                          </div>
+                          <div className="flex flex-col gap-1 w-full">
+                            {[
+                              { label: 'Done', count: wsDone, dot: 'bg-indigo-400' },
+                              { label: 'Active', count: wsTasks.filter(t => t.status === 'in_progress').length, dot: 'bg-sky-300' },
+                              { label: 'To do', count: wsTasks.filter(t => t.status === 'todo').length, dot: 'bg-gray-300' },
+                              { label: 'Overdue', count: wsTasks.filter(t => !!wsIsOverdue(t)).length, dot: 'bg-rose-400' },
+                            ].filter(s => s.count > 0).map(s => (
+                              <div key={s.label} className="flex items-center justify-between text-[10px]">
+                                <div className="flex items-center gap-1">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                                  <span className="text-gray-400">{s.label}</span>
+                                </div>
+                                <span className="font-semibold text-gray-600">{s.count}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {wsTasks.length === 0 && (
+                        <span className="text-[10px] text-gray-300">No tasks yet</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })()}
 
-          <div className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
+          <div id="ws-scroll" className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
             {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div id="ws-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Total', value: wsTasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
                 { label: 'Done', value: wsDone, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
@@ -935,16 +1159,18 @@ export default function ContractorProjectsPage() {
               ))}
             </div>
 
-            <GanttTimeline
-              tasks={wsTasks}
-              projectStart={wsProject.start_date}
-              projectEnd={wsProject.deadline}
-              today={wsToday}
-            />
+            <div id="ws-timeline">
+              <GanttTimeline
+                tasks={wsTasks}
+                projectStart={wsProject.start_date}
+                projectEnd={wsProject.deadline}
+                today={wsToday}
+              />
+            </div>
 
             <div className="flex gap-6">
               {/* Task list */}
-              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div id="ws-tasks" className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-50 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3">
@@ -959,7 +1185,7 @@ export default function ContractorProjectsPage() {
                       )}
                     </div>
                     <button onClick={openAddTask}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
                       <i className="ri-add-line"></i> Add Task
                     </button>
                   </div>
@@ -1041,21 +1267,36 @@ export default function ContractorProjectsPage() {
               </div>
 
               {/* Right: project info */}
-              <div className="hidden lg:flex flex-col gap-4 w-64 flex-shrink-0">
-                {/* Project card */}
+              <div id="ws-sidebar" className="hidden lg:flex flex-col gap-4 w-64 flex-shrink-0">
+                {/* Dates + notes card */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Project</p>
-                    <p className="font-semibold text-gray-900 text-sm">{wsProject.project_name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{wsProject.client_name}</p>
-                  </div>
                   {(wsProject.start_date || wsProject.deadline) && (
-                    <div className="space-y-1 text-xs text-gray-500">
-                      {wsProject.start_date && <p><span className="text-gray-400">Start </span>{new Date(wsProject.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>}
-                      {wsProject.deadline && <p className={wsProject.deadline < wsToday && wsProject.status !== 'completed' ? 'text-rose-500 font-medium' : ''}><span className="text-gray-400">Due </span>{new Date(wsProject.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>}
+                    <div className="space-y-2.5">
+                      {wsProject.start_date && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400 flex items-center gap-1.5"><i className="ri-play-circle-line text-gray-300"></i>Start</span>
+                          <span className="font-medium text-gray-700">{new Date(wsProject.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        </div>
+                      )}
+                      {wsProject.deadline && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400 flex items-center gap-1.5"><i className="ri-flag-line text-gray-300"></i>Due</span>
+                          <span className={`font-medium ${wsProject.deadline < wsToday && wsProject.status !== 'completed' ? 'text-rose-500' : 'text-gray-700'}`}>
+                            {new Date(wsProject.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
-                  {wsProject.notes && <p className="text-xs text-gray-400 leading-relaxed border-t border-gray-50 pt-3">{wsProject.notes}</p>}
+                  {wsProject.notes && (
+                    <div className={`${(wsProject.start_date || wsProject.deadline) ? 'border-t border-gray-50 pt-3' : ''}`}>
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium mb-1.5">Notes</p>
+                      <p className="text-xs text-gray-500 leading-relaxed">{wsProject.notes}</p>
+                    </div>
+                  )}
+                  {!wsProject.start_date && !wsProject.deadline && !wsProject.notes && (
+                    <p className="text-xs text-gray-300 text-center py-2">No dates set</p>
+                  )}
                 </div>
 
                 {/* Payout */}
@@ -1217,7 +1458,7 @@ export default function ContractorProjectsPage() {
                 {active.map(r => (
                   <ProjectCard key={r.id} row={r}
                     projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
-                    onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); }}
+                    onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
                   />
                 ))}
               </div>
@@ -1231,7 +1472,7 @@ export default function ContractorProjectsPage() {
                 {other.map(r => (
                   <ProjectCard key={r.id} row={r}
                     projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
-                    onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); }}
+                    onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
                   />
                 ))}
               </div>
@@ -1256,93 +1497,135 @@ export default function ContractorProjectsPage() {
       )}
 
       {/* Task add/edit modal */}
+      {/* ── Task drawer ── */}
       {showTaskModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <h2 className="font-semibold text-[#111827]">{editingTask ? 'Edit Task' : 'Add Task'}</h2>
-              <button onClick={() => setShowTaskModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
-                <i className="ri-close-line text-lg"></i>
-              </button>
-            </div>
-            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Task Title *</label>
-                <input
-                  type="text"
-                  value={taskForm.title}
-                  onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="What needs to be done?"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Description <span className="text-gray-400 font-normal">(optional)</span></label>
-                <textarea
-                  value={taskForm.description}
-                  onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))}
-                  rows={3}
-                  placeholder="Add more details..."
-                  maxLength={1000}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Priority</label>
-                  <select
-                    value={taskForm.priority}
-                    onChange={e => setTaskForm(f => ({ ...f, priority: e.target.value as ProjectTask['priority'] }))}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Start Date <span className="text-gray-400 font-normal">(optional)</span></label>
-                  <input
-                    type="date"
-                    value={taskForm.start_date}
-                    onChange={e => setTaskForm(f => ({ ...f, start_date: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Due Date <span className="text-gray-400 font-normal">(optional)</span></label>
-                  <input
-                    type="date"
-                    value={taskForm.due_date}
-                    onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
-                  />
-                </div>
-              </div>
-              {wsTeam.length > 0 && (
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Assign To <span className="text-gray-400 font-normal">(optional)</span></label>
-                  <select
-                    value={taskForm.assigned_to}
-                    onChange={e => setTaskForm(f => ({ ...f, assigned_to: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    <option value="">Unassigned</option>
-                    {wsTeam.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-                  </select>
-                </div>
+        <>
+          {/* Dim backdrop — doesn't block the page fully */}
+          <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]" onClick={() => setShowTaskModal(false)} />
+
+          {/* Drawer */}
+          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-white shadow-2xl flex flex-col"
+            style={{ borderLeft: '1px solid #f3f4f6' }}>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              {/* Status cycle */}
+              {editingTask && (
+                <button
+                  onClick={() => {
+                    const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
+                    const s = (editingTask.status in next ? next[editingTask.status] : 'todo') as ProjectTask['status'];
+                    setEditingTask(prev => prev ? { ...prev, status: s } : prev);
+                    supabase.from('hub_project_tasks').update({ status: s }).eq('id', editingTask.id);
+                    setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, status: s } : t));
+                  }}
+                  className={`w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 cursor-pointer transition-colors ${
+                    editingTask.status === 'done' ? 'text-emerald-500 hover:text-emerald-600' :
+                    editingTask.status === 'in_progress' ? 'text-sky-400 hover:text-sky-500' : 'text-gray-300 hover:text-gray-500'
+                  }`}>
+                  <i className={`text-lg ${editingTask.status === 'done' ? 'ri-checkbox-circle-fill' : editingTask.status === 'in_progress' ? 'ri-loader-2-line' : 'ri-checkbox-blank-circle-line'}`}></i>
+                </button>
               )}
-            </div>
-            <div className="flex gap-2 p-5 pt-0">
-              <button onClick={() => setShowTaskModal(false)}
-                className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer">
-                Cancel
+              <span className="text-xs text-gray-400 flex-1">{editingTask ? 'Edit task' : 'New task'}</span>
+              <button onClick={() => setShowTaskModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors">
+                <i className="ri-close-line text-base"></i>
               </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+              {/* Title — big, minimal */}
+              <input
+                type="text"
+                value={taskForm.title}
+                onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="Task title"
+                autoFocus
+                className="w-full text-xl font-semibold text-gray-900 placeholder-gray-300 bg-transparent outline-none border-none resize-none leading-snug"
+              />
+
+              {/* Description */}
+              <textarea
+                value={taskForm.description}
+                onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))}
+                rows={3}
+                placeholder="Add a description…"
+                maxLength={1000}
+                className="w-full text-sm text-gray-600 placeholder-gray-300 bg-transparent outline-none border-none resize-none leading-relaxed"
+              />
+
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                {/* Priority */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400 w-20 flex-shrink-0">Priority</span>
+                  <div className="flex gap-1.5">
+                    {(['low', 'medium', 'high'] as const).map(p => {
+                      const cfg = { low: { label: 'Low', cls: 'bg-gray-100 text-gray-500', active: 'bg-gray-800 text-white' }, medium: { label: 'Medium', cls: 'bg-amber-50 text-amber-600', active: 'bg-amber-500 text-white' }, high: { label: 'High', cls: 'bg-rose-50 text-rose-600', active: 'bg-rose-500 text-white' } }[p];
+                      return (
+                        <button key={p} onClick={() => setTaskForm(f => ({ ...f, priority: p }))}
+                          className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-all ${taskForm.priority === p ? cfg.active : cfg.cls}`}>
+                          {cfg.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Dates */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400 w-20 flex-shrink-0">Start</span>
+                  <input type="date" value={taskForm.start_date} onChange={e => setTaskForm(f => ({ ...f, start_date: e.target.value }))}
+                    className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-200 cursor-pointer" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400 w-20 flex-shrink-0">Due date</span>
+                  <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
+                    className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-200 cursor-pointer" />
+                </div>
+
+                {/* Assignee */}
+                {wsTeam.length > 0 && (
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs text-gray-400 w-20 flex-shrink-0 pt-1">Assignee</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setTaskForm(f => ({ ...f, assigned_to: '' }))}
+                        className={`px-2.5 py-1 text-xs rounded-full border cursor-pointer transition-all ${!taskForm.assigned_to ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                        None
+                      </button>
+                      {wsTeam.map(m => (
+                        <button key={m.id} onClick={() => setTaskForm(f => ({ ...f, assigned_to: m.id }))}
+                          title={m.full_name}
+                          className={`flex items-center gap-1.5 px-2 py-1 rounded-full border cursor-pointer transition-all ${taskForm.assigned_to === m.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                          {m.avatar_url
+                            ? <img src={m.avatar_url} alt={m.full_name} className="w-4 h-4 rounded-full object-cover" />
+                            : <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center text-[8px] font-bold text-indigo-700">{m.full_name[0]}</div>
+                          }
+                          <span className={`text-xs font-medium ${taskForm.assigned_to === m.id ? 'text-indigo-700' : 'text-gray-600'}`}>{m.full_name.split(' ')[0]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0">
+              {editingTask && (
+                <button
+                  onClick={() => { if (window.confirm('Delete this task?')) { deleteTask(editingTask.id); setShowTaskModal(false); } }}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors">
+                  <i className="ri-delete-bin-line text-sm"></i>
+                </button>
+              )}
               <button onClick={saveTask} disabled={taskSaving || !taskForm.title.trim()}
-                className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors">
-                {taskSaving ? 'Saving...' : editingTask ? 'Save Changes' : 'Add Task'}
+                className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-xl hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors font-medium">
+                {taskSaving ? 'Saving…' : editingTask ? 'Save' : 'Add Task'}
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
     </ContractorLayout>
   );

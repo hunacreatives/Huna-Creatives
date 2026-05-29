@@ -287,6 +287,7 @@ export default function ContractorDashboard() {
   const [teamStatus, setTeamStatus] = useState<SlackTeamRecord[]>([]);
   const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeProjects, setActiveProjects] = useState<{ id: number; project_name: string; client_name: string; service: string | null; status: string; deadline: string | null; tasksDone: number; tasksTotal: number }[]>([]);
 
   const today = new Date();
   const isFirstHalf = today.getDate() <= 15;
@@ -340,6 +341,24 @@ export default function ContractorDashboard() {
 
     const periodStartStr = cutoffStartStr;
     const periodEndStr   = cutoffEndStr;
+
+    // Fetch active projects
+    supabase
+      .from('hub_project_contractors')
+      .select('hub_projects(id, project_name, client_name, service, status, deadline)')
+      .eq('contractor_id', user.id)
+      .then(async ({ data }) => {
+        const projects = ((data ?? []) as any[])
+          .map((r: any) => Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects)
+          .filter((p: any) => p && p.status === 'ongoing');
+        if (projects.length === 0) { setActiveProjects([]); return; }
+        const projectIds = projects.map((p: any) => p.id);
+        const { data: tasks } = await supabase.from('hub_project_tasks').select('project_id, status').in('project_id', projectIds);
+        setActiveProjects(projects.map((p: any) => {
+          const pts = (tasks ?? []).filter((t: any) => t.project_id === p.id);
+          return { id: p.id, project_name: p.project_name, client_name: p.client_name, service: p.service, status: p.status, deadline: p.deadline, tasksDone: pts.filter((t: any) => t.status === 'done').length, tasksTotal: pts.length };
+        }));
+      });
 
     const [attResult, annResult, reqResult, toResult, slackResult, rateRes, payoutRes] = await Promise.all([
       supabase
@@ -642,6 +661,48 @@ export default function ContractorDashboard() {
                 <p className="text-xs text-white/60 mt-1">{isFixed ? 'Fixed cutoff rate' : 'Based on hours logged'}</p>
               </div>
             </div>
+
+            {/* Active Projects */}
+            {activeProjects.length > 0 && (
+              <div className="space-y-2.5">
+                <h3 className="text-sm font-semibold text-[#111827]">Active Projects</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {activeProjects.map(p => {
+                    const pct = p.tasksTotal > 0 ? Math.round((p.tasksDone / p.tasksTotal) * 100) : 0;
+                    const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date().getTime()) / 86400000) : null;
+                    return (
+                      <button key={p.id} onClick={() => navigate('/hub/contractor/projects')}
+                        className="text-left bg-white/70 backdrop-blur-sm border border-white/80 rounded-2xl p-4 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm truncate">{p.project_name}</p>
+                            <p className="text-xs text-gray-400 truncate">{p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold uppercase tracking-wide flex-shrink-0">Active</span>
+                        </div>
+                        {p.tasksTotal > 0 && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px] text-gray-400">
+                              <span>{p.tasksDone}/{p.tasksTotal} tasks</span>
+                              <span>{pct}%</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${pct === 100 ? 'bg-emerald-400' : 'bg-indigo-400'}`} style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        )}
+                        {daysLeft !== null && (
+                          <p className={`text-[11px] font-medium ${daysLeft < 0 ? 'text-rose-500' : daysLeft <= 7 ? 'text-amber-600' : 'text-gray-400'}`}>
+                            {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
+                            {p.deadline ? ` · ${new Date(p.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Announcements */}
             {announcements.length > 0 && (
