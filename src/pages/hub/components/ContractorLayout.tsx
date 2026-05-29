@@ -236,7 +236,7 @@ export default function ContractorLayout({ children, title, titleContent, action
 
                 {/* Dropdown */}
                 {searchOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-[min(320px,90vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden overflow-y-auto z-50">
+                  <div className="fixed right-4 top-[82px] w-[min(320px,90vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-y-auto z-[200]">
 
                     {/* No query: quick actions */}
                     {!q && (
