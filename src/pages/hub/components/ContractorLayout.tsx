@@ -10,10 +10,11 @@ import DevToolbar from './DevToolbar';
 interface Props {
   children: ReactNode;
   title?: string;
+  titleContent?: ReactNode;
   actions?: ReactNode;
 }
 
-export default function ContractorLayout({ children, title, actions }: Props) {
+export default function ContractorLayout({ children, title, titleContent, actions }: Props) {
   const { loading, session } = useAuth();
   const { hubUser } = useHubAuth();
   const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
@@ -103,7 +104,7 @@ export default function ContractorLayout({ children, title, actions }: Props) {
               <i className="ri-menu-line text-lg"></i>
             </button>
             <div className="flex-1 min-w-0">
-              {title && <h1 className="text-gray-900 font-semibold text-[28px] leading-tight truncate">{title}</h1>}
+              {titleContent ?? (title && <h1 className="text-gray-900 font-semibold text-[28px] leading-tight truncate">{title}</h1>)}
             </div>
             <div className="flex items-center gap-3">
               {actions}

@@ -650,6 +650,7 @@ export default function ContractorProjectsPage() {
   const [taskSaving, setTaskSaving] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
+  const [taskSearch, setTaskSearch] = useState('');
 
   const cycleTask = async (task: ProjectTask) => {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
@@ -795,9 +796,10 @@ export default function ContractorProjectsPage() {
   const wsToday = new Date().toISOString().slice(0, 10);
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
   const wsFiltered = wsTasks.filter(t => {
-    if (taskFilter === 'all') return true;
-    if (taskFilter === 'overdue') return !!wsIsOverdue(t);
-    return t.status === taskFilter;
+    if (taskFilter !== 'all' && taskFilter !== 'overdue' && t.status !== taskFilter) return false;
+    if (taskFilter === 'overdue' && !wsIsOverdue(t)) return false;
+    if (taskSearch) return t.title.toLowerCase().includes(taskSearch.toLowerCase()) || (t.description ?? '').toLowerCase().includes(taskSearch.toLowerCase());
+    return true;
   });
   const wsDone = wsTasks.filter(t => t.status === 'done').length;
   const wsPct = wsTasks.length > 0 ? Math.round((wsDone / wsTasks.length) * 100) : 0;
@@ -809,7 +811,48 @@ export default function ContractorProjectsPage() {
   };
 
   return (
-    <ContractorLayout title={workspaceRow ? '' : 'My Projects'}>
+    <ContractorLayout
+      title={workspaceRow ? undefined : 'My Projects'}
+      titleContent={workspaceRow && wsProject ? (
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); setTaskSearch(''); }}
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
+            <i className="ri-arrow-left-s-line text-base"></i>
+          </button>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-gray-900 truncate leading-tight">{wsProject.project_name}</p>
+            <p className="text-xs text-gray-400 truncate">{wsProject.client_name}{wsProject.service ? ` · ${wsProject.service}` : ''}</p>
+          </div>
+        </div>
+      ) : undefined}
+      actions={
+        workspaceRow && wsProject ? (
+          <div className="relative">
+            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+            <input type="text" value={taskSearch} onChange={e => setTaskSearch(e.target.value)}
+              placeholder="Search tasks…"
+              className="pl-8 pr-8 py-2 text-sm bg-white/70 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 w-44 sm:w-52 transition-all placeholder-gray-400" />
+            {taskSearch && (
+              <button onClick={() => setTaskSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
+                <i className="ri-close-line text-sm"></i>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="relative">
+            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search projects…"
+              className="pl-8 pr-8 py-2 text-sm bg-white/70 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 w-44 sm:w-52 transition-all placeholder-gray-400" />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
+                <i className="ri-close-line text-sm"></i>
+              </button>
+            )}
+          </div>
+        )
+      }
+    >
       {/* ── Workspace ── */}
       {workspaceRow && wsProject && (
         <div className="flex flex-col -mx-4 -my-4 md:-mx-6 md:-my-6 min-h-full">
@@ -821,13 +864,7 @@ export default function ContractorProjectsPage() {
             const daysLeft = wsProject.deadline ? Math.ceil((new Date(wsProject.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
             const isDeadlineOver = daysLeft !== null && daysLeft < 0 && wsProject.status !== 'completed';
             return (
-              <div className="px-5 md:px-6 pt-5 pb-2 flex-shrink-0">
-                {/* Back nav */}
-                <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); }}
-                  className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 cursor-pointer transition-colors text-xs mb-4">
-                  <i className="ri-arrow-left-s-line text-sm"></i>
-                  <span>My Projects</span>
-                </button>
+              <div className="px-5 md:px-6 pt-4 pb-2 flex-shrink-0">
 
                 {/* Hero card — glassmorphism */}
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
@@ -1120,29 +1157,13 @@ export default function ContractorProjectsPage() {
       ) : (
         <div className="space-y-6">
 
-          {/* Header */}
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">My Projects</h2>
-              <p className="text-sm text-gray-400 mt-0.5">
-                {greeting}, {firstName} · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </p>
-            </div>
-            <div className="relative flex-shrink-0">
-              <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search projects…"
-                className="pl-8 pr-4 py-2 text-sm bg-white/70 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 w-48 sm:w-56 transition-all placeholder-gray-400"
-              />
-              {search && (
-                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
-                  <i className="ri-close-line text-sm"></i>
-                </button>
-              )}
-            </div>
+          {/* Greeting */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{greeting}, {firstName} 👋</h2>
+            <p className="text-sm text-gray-400 mt-0.5">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {tasks.length > 0 && <> · {subline}</>}
+            </p>
           </div>
 
           {/* Dashboard: ring + task feed */}
