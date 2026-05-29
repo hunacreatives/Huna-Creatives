@@ -533,94 +533,150 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
   );
 }
 
+// ── Per-project color palette ──────────────────────────────────────────────
+const CARD_PALETTE = [
+  { from: '#6366f1', to: '#8b5cf6', light: '#ede9fe', text: '#4c1d95' }, // indigo-violet
+  { from: '#0ea5e9', to: '#6366f1', light: '#e0f2fe', text: '#075985' }, // sky-indigo
+  { from: '#10b981', to: '#0ea5e9', light: '#d1fae5', text: '#064e3b' }, // emerald-sky
+  { from: '#f59e0b', to: '#ef4444', light: '#fef3c7', text: '#78350f' }, // amber-rose
+  { from: '#ec4899', to: '#8b5cf6', light: '#fce7f3', text: '#831843' }, // pink-violet
+  { from: '#14b8a6', to: '#6366f1', light: '#ccfbf1', text: '#134e4a' }, // teal-indigo
+];
+
 // ── Project card (summary) ─────────────────────────────────────────────────
-function ProjectCard({ row, projectTasks, onClick }: {
+function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
   row: ProjectRow;
   projectTasks: ProjectTask[];
   onClick: () => void;
+  colorIdx?: number;
 }) {
   const p = row.hub_projects;
   if (!p) return null;
   const today = new Date().toISOString().slice(0, 10);
   const tasksDone = projectTasks.filter(t => t.status === 'done').length;
   const tasksPct = projectTasks.length > 0 ? Math.round((tasksDone / projectTasks.length) * 100) : 0;
-  const overdue = projectTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done').length;
-  const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
-  const netProfit = p.contract_price - totalCosts;
+  const overdueCount = projectTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done').length;
+  const inProgressCount = projectTasks.filter(t => t.status === 'in_progress').length;
   const internalProject = p.project_type === 'internal';
   const isFixed = row.payout_type === 'fixed';
+  const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
+  const netProfit = p.contract_price - totalCosts;
   const myCut = isFixed ? (row.fixed_amount ?? 0) : netProfit * (row.percentage / 100);
   const payouts = row.hub_project_contractor_payouts ?? [];
   const totalPaidOut = payouts.reduce((s, x) => s + x.amount, 0);
   const isFullyPaid = totalPaidOut >= myCut && myCut > 0;
+  const showPayout = !internalProject && myCut > 0;
 
-  const statusColors: Record<string, string> = {
-    ongoing: 'bg-blue-100 text-blue-700',
-    completed: 'bg-emerald-100 text-emerald-700',
-    paused: 'bg-amber-100 text-amber-700',
-    cancelled: 'bg-gray-100 text-gray-500',
-  };
-  const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Done', paused: 'Paused', cancelled: 'Archived' };
+  const palette = CARD_PALETTE[colorIdx % CARD_PALETTE.length];
+  const isOverdue = p.deadline && p.deadline < today && p.status !== 'completed';
+  const daysLeft = p.deadline
+    ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000)
+    : null;
+
+  const statusLabel = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' }[p.status] ?? p.status;
 
   return (
     <button onClick={onClick}
-      className="w-full text-left bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-5 space-y-4 hover:shadow-md hover:border-blue-100 transition-all cursor-pointer">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 text-base leading-snug line-clamp-1">{p.project_name}</p>
-          <p className="text-xs text-gray-400 mt-0.5 truncate">
-            {internalProject ? 'Internal Project' : p.client_name}{p.service ? ` · ${p.service}` : ''}
-          </p>
-          {p.deadline && (
-            <p className={`text-xs mt-0.5 ${p.deadline < today && p.status !== 'completed' ? 'text-rose-500 font-medium' : 'text-gray-400'}`}>
-              Due {new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+      className="w-full text-left rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+      style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
+
+      {/* Gradient accent bar */}
+      <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${palette.from}, ${palette.to})` }} />
+
+      <div className="p-5 space-y-4">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            {/* Service chip */}
+            {p.service && (
+              <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1.5" style={{ color: palette.from }}>
+                {p.service}
+              </span>
+            )}
+            <h3 className="font-bold text-gray-900 text-lg leading-tight line-clamp-1 group-hover:text-gray-700 transition-colors">
+              {p.project_name}
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5 truncate">
+              {internalProject ? (
+                <span className="inline-flex items-center gap-1"><i className="ri-building-line text-[10px]"></i>Internal Project</span>
+              ) : p.client_name}
             </p>
+          </div>
+
+          {/* Status */}
+          <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${
+            p.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+            p.status === 'paused' ? 'bg-amber-100 text-amber-700' :
+            p.status === 'cancelled' ? 'bg-gray-100 text-gray-500' :
+            'text-white'
+          }`} style={p.status === 'ongoing' ? { background: `linear-gradient(135deg, ${palette.from}, ${palette.to})` } : {}}>
+            {statusLabel}
+          </span>
+        </div>
+
+        {/* Task progress */}
+        {projectTasks.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500 font-medium">{tasksDone} of {projectTasks.length} tasks</span>
+              <span className="font-bold" style={{ color: tasksPct === 100 ? '#10b981' : palette.from }}>{tasksPct}%</span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${tasksPct}%`, background: tasksPct === 100 ? '#10b981' : `linear-gradient(90deg, ${palette.from}, ${palette.to})` }} />
+            </div>
+            {overdueCount > 0 && (
+              <p className="text-[11px] text-rose-500 font-medium flex items-center gap-1">
+                <i className="ri-alarm-warning-line text-[10px]"></i>{overdueCount} overdue
+              </p>
+            )}
+            {overdueCount === 0 && inProgressCount > 0 && (
+              <p className="text-[11px] text-gray-400">{inProgressCount} in progress</p>
+            )}
+          </div>
+        )}
+
+        {projectTasks.length === 0 && (
+          <p className="text-[11px] text-gray-300 italic">No tasks yet</p>
+        )}
+
+        {/* Footer row */}
+        <div className="flex items-center justify-between pt-1 border-t border-gray-100/80">
+          {/* Deadline */}
+          <div>
+            {daysLeft !== null ? (
+              isOverdue ? (
+                <span className="text-xs text-rose-500 font-semibold flex items-center gap-1">
+                  <i className="ri-time-line text-[10px]"></i>
+                  {Math.abs(daysLeft)}d overdue
+                </span>
+              ) : daysLeft === 0 ? (
+                <span className="text-xs text-amber-600 font-semibold">Due today</span>
+              ) : daysLeft <= 7 ? (
+                <span className="text-xs text-amber-500 font-medium flex items-center gap-1">
+                  <i className="ri-calendar-line text-[10px]"></i>{daysLeft}d left
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">
+                  {new Date(p.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              )
+            ) : (
+              <span className="text-xs text-gray-300">No deadline</span>
+            )}
+          </div>
+
+          {/* Payout or internal badge */}
+          {internalProject ? (
+            <span className="text-[10px] text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-medium">Internal</span>
+          ) : showPayout ? (
+            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${isFullyPaid ? 'bg-emerald-50 text-emerald-600' : 'text-gray-500 bg-gray-50'}`}>
+              {isFullyPaid ? '✓ Paid' : fmt(myCut)}
+            </span>
+          ) : (
+            <i className="ri-arrow-right-s-line text-gray-300 text-base group-hover:translate-x-0.5 transition-transform"></i>
           )}
         </div>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide flex-shrink-0 ${statusColors[p.status] ?? statusColors.ongoing}`}>
-          {statusLabels[p.status] ?? p.status}
-        </span>
-      </div>
-
-      {/* Task progress */}
-      {projectTasks.length > 0 && (
-        <div className="flex items-center gap-3 bg-gray-50/80 rounded-2xl px-3 py-2.5">
-          <ProgressRing pct={tasksPct} size={44} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800">{tasksDone} / {projectTasks.length} tasks done</p>
-            {overdue > 0
-              ? <p className="text-[11px] text-rose-500 font-medium">{overdue} overdue</p>
-              : <p className="text-[11px] text-gray-400">{projectTasks.filter(t => t.status === 'in_progress').length} in progress</p>
-            }
-          </div>
-          <i className="ri-arrow-right-s-line text-gray-300 text-lg flex-shrink-0"></i>
-        </div>
-      )}
-
-      {/* Payout / internal status */}
-      <div className="flex items-center justify-between">
-        {internalProject ? (
-          <>
-            <div>
-              <p className="text-[11px] text-gray-400">Project Type</p>
-              <p className="text-sm font-bold text-gray-900">Internal</p>
-            </div>
-            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
-              Ops only
-            </span>
-          </>
-        ) : (
-          <>
-            <div>
-              <p className="text-[11px] text-gray-400">{isFixed ? 'Fixed fee' : `Your cut (${row.percentage}%)`}</p>
-              <p className="text-sm font-bold text-gray-900">{fmt(myCut)}</p>
-            </div>
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${isFullyPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
-              {isFullyPaid ? 'Paid ✓' : `${fmt(totalPaidOut)} received`}
-            </span>
-          </>
-        )}
       </div>
     </button>
   );
@@ -1717,12 +1773,27 @@ export default function ContractorProjectsPage() {
         <div className="space-y-6">
 
           {/* Greeting */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{greeting}, {firstName} 👋</h2>
-            <p className="text-sm text-gray-400 mt-0.5">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              {tasks.length > 0 && <> · {subline}</>}
-            </p>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </p>
+              <h2 className="text-3xl font-bold tracking-tight" style={{
+                background: 'linear-gradient(135deg, #111827 0%, #6366f1 100%)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'
+              }}>
+                {greeting}, {firstName}.
+              </h2>
+              {tasks.length > 0 && (
+                <p className="text-sm text-gray-400 mt-1">{subline}</p>
+              )}
+            </div>
+            {rows.length > 0 && (
+              <div className="flex-shrink-0 text-right hidden sm:block">
+                <p className="text-2xl font-bold text-gray-900">{rows.filter(r => r.hub_projects?.status === 'ongoing').length}</p>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wide">active</p>
+              </div>
+            )}
           </div>
 
           {/* Dashboard: ring + task feed */}
@@ -1795,10 +1866,14 @@ export default function ContractorProjectsPage() {
           {/* Project cards */}
           {active.length > 0 && (
             <div className="space-y-3">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Active Projects</p>
+              <div className="flex items-center gap-3">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Active Projects</p>
+                <div className="flex-1 h-px bg-gray-200/60"></div>
+                <span className="text-[11px] text-gray-400">{active.length}</span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {active.map(r => (
-                  <ProjectCard key={r.id} row={r}
+                {active.map((r, i) => (
+                  <ProjectCard key={r.id} row={r} colorIdx={i}
                     projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
                     onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
                   />
@@ -1809,10 +1884,13 @@ export default function ContractorProjectsPage() {
 
           {other.length > 0 && (
             <div className="space-y-3">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Other</p>
+              <div className="flex items-center gap-3">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Other</p>
+                <div className="flex-1 h-px bg-gray-200/60"></div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {other.map(r => (
-                  <ProjectCard key={r.id} row={r}
+                {other.map((r, i) => (
+                  <ProjectCard key={r.id} row={r} colorIdx={active.length + i}
                     projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
                     onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
                   />
