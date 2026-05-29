@@ -52,6 +52,7 @@ interface ProjectTask {
 const emptyTaskForm = () => ({
   title: '',
   description: '',
+  status: 'todo' as ProjectTask['status'],
   priority: 'medium' as ProjectTask['priority'],
   start_date: '',
   due_date: '',
@@ -83,232 +84,168 @@ function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
   );
 }
 
-// ── Gantt timeline ────────────────────────────────────────────────────────
+// ── Calendar view (replaces Gantt) ────────────────────────────────────────
 function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
   tasks: ProjectTask[];
   projectStart: string | null;
   projectEnd: string | null;
   today: string;
 }) {
-  const [tooltip, setTooltip] = useState<{ task: ProjectTask; x: number; y: number } | null>(null);
-  const scrollRef = useState<HTMLDivElement | null>(null);
-  const containerRef = { current: null as HTMLDivElement | null };
+  const anchor = new Date(today + 'T00:00:00');
+  const [viewMonth, setViewMonth] = useState<Date>(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const dated = tasks.filter(t => t.due_date);
-  if (dated.length === 0 && !projectStart && !projectEnd) return null;
+  // Suppress unused-variable warnings for projectStart / projectEnd — kept for API compatibility
+  void projectStart; void projectEnd;
 
-  const parseD = (s: string) => new Date(s + 'T00:00:00');
-  const addDays = (s: string, n: number) => {
-    const d = parseD(s); d.setDate(d.getDate() + n);
-    return d.toISOString().slice(0, 10);
-  };
-  const diff = (a: string, b: string) =>
-    Math.round((parseD(b).getTime() - parseD(a).getTime()) / 86400000);
-  const fmtDate = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
 
-  const allDates: string[] = [today,
-    ...dated.flatMap(t => [t.start_date, t.due_date].filter(Boolean) as string[]),
-    ...[projectStart, projectEnd].filter(Boolean) as string[],
-  ].sort();
+  const prevMonth = () => setViewMonth(new Date(year, month - 1, 1));
+  const nextMonth = () => setViewMonth(new Date(year, month + 1, 1));
+  const goToday   = () => { setViewMonth(new Date(anchor.getFullYear(), anchor.getMonth(), 1)); setSelectedDate(today); };
 
-  const rawStart = allDates[0];
-  const rawEnd = allDates[allDates.length - 1];
-  let rangeStart = addDays(rawStart, -3);
-  let rangeEnd = addDays(rawEnd, 3);
-  if (diff(rangeStart, rangeEnd) < 28) rangeEnd = addDays(rangeStart, 28);
+  const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const totalDays = diff(rangeStart, rangeEnd);
-  const COL = 36;
-  const LABEL_W = 160;
+  // Build calendar grid: pad to start on Monday
+  const firstDay = new Date(year, month, 1);
+  // getDay(): 0=Sun…6=Sat → convert to Mon-based (0=Mon…6=Sun)
+  const startPad = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const totalCells = Math.ceil((startPad + daysInMonth) / 7) * 7;
 
-  // Day grid: every day, label on 1st of month and Mondays
-  const days: { date: string; isMonth: boolean; monthLabel: string; dayNum: number; isWeekend: boolean }[] = [];
-  let lastMonth = -1;
-  for (let i = 0; i <= totalDays; i++) {
-    const d = parseD(rangeStart); d.setDate(d.getDate() + i);
-    const isNewMonth = d.getMonth() !== lastMonth;
-    if (isNewMonth) lastMonth = d.getMonth();
-    days.push({
-      date: d.toISOString().slice(0, 10),
-      isMonth: isNewMonth,
-      monthLabel: d.toLocaleDateString('en-US', { month: 'short' }),
-      dayNum: d.getDate(),
-      isWeekend: d.getDay() === 0 || d.getDay() === 6,
-    });
+  // Build a map: dateStr -> tasks due on that date
+  const tasksByDate: Record<string, ProjectTask[]> = {};
+  for (const t of tasks) {
+    if (t.due_date) {
+      (tasksByDate[t.due_date] ??= []).push(t);
+    }
   }
 
-  const todayOff = diff(rangeStart, today);
-
-  const barColors = {
-    done:        { bg: '#d1fae5', border: '#34d399', text: '#065f46' },
-    in_progress: { bg: '#e0f2fe', border: '#38bdf8', text: '#075985' },
-    todo:        { bg: '#ede9fe', border: '#a78bfa', text: '#4c1d95' },
-    overdue:     { bg: '#ffe4e6', border: '#fb7185', text: '#9f1239' },
+  const chipCls = (t: ProjectTask): string => {
+    const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
+    if (isOverdue) return 'bg-rose-100 text-rose-600';
+    if (t.status === 'done') return 'bg-emerald-100 text-emerald-700';
+    if (t.status === 'in_progress') return 'bg-sky-100 text-sky-700';
+    return 'bg-indigo-100 text-indigo-700';
   };
+
+  const dotCls = (t: ProjectTask): string => {
+    const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
+    if (isOverdue) return 'bg-rose-400';
+    if (t.status === 'done') return 'bg-emerald-400';
+    if (t.status === 'in_progress') return 'bg-sky-400';
+    return 'bg-indigo-400';
+  };
+
+  const selectedTasks = selectedDate ? (tasksByDate[selectedDate] ?? []) : [];
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <i className="ri-bar-chart-grouped-line text-indigo-400 text-base"></i>
-          <h3 className="font-semibold text-gray-800 text-sm">Timeline</h3>
-          {dated.length > 0 && <span className="text-[11px] text-gray-400">{dated.length} task{dated.length !== 1 ? 's' : ''}</span>}
+          <i className="ri-calendar-line text-indigo-400 text-base"></i>
+          <h3 className="font-semibold text-gray-800 text-sm">{monthLabel}</h3>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-gray-400">
-          {[
-            { color: '#a78bfa', label: 'To do' },
-            { color: '#38bdf8', label: 'In progress' },
-            { color: '#34d399', label: 'Done' },
-            { color: '#fb7185', label: 'Overdue' },
-          ].map(l => (
-            <span key={l.label} className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: l.color }} />
-              {l.label}
-            </span>
-          ))}
+        <div className="flex items-center gap-1.5">
+          <button onClick={prevMonth} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer">
+            <i className="ri-arrow-left-s-line text-base"></i>
+          </button>
+          <button onClick={goToday} className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer">
+            Today
+          </button>
+          <button onClick={nextMonth} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer">
+            <i className="ri-arrow-right-s-line text-base"></i>
+          </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto" ref={(el) => { containerRef.current = el; }}>
-        <div style={{ width: LABEL_W + (totalDays + 1) * COL, minWidth: '100%' }}>
+      {/* Day-of-week headers */}
+      <div className="grid grid-cols-7 border-b border-gray-100">
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+          <div key={d} className={`py-2 text-center text-[10px] font-semibold uppercase tracking-wide ${d === 'Sat' || d === 'Sun' ? 'text-gray-300' : 'text-gray-400'}`}>{d}</div>
+        ))}
+      </div>
 
-          {/* Day header row */}
-          <div className="flex sticky top-0 z-10 bg-white border-b border-gray-100">
-            <div className="flex-shrink-0 border-r border-gray-100" style={{ width: LABEL_W }} />
-            <div className="flex">
-              {days.map((day, i) => (
-                <div key={day.date}
-                  style={{ width: COL, flexShrink: 0 }}
-                  className={`relative flex flex-col items-center justify-center py-1.5 border-r border-gray-50 ${day.isWeekend ? 'bg-gray-50/60' : ''} ${day.date === today ? 'bg-[#FF6B35]/8' : ''}`}>
-                  {day.isMonth && (
-                    <span className="absolute left-1 top-1 text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none">{day.monthLabel}</span>
-                  )}
-                  <span className={`text-[10px] font-medium mt-2 ${day.date === today ? 'text-[#FF6B35] font-bold' : day.isWeekend ? 'text-gray-300' : 'text-gray-400'}`}>
-                    {day.dayNum}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7">
+        {Array.from({ length: totalCells }).map((_, idx) => {
+          const dayNum = idx - startPad + 1;
+          const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
+          const cellDate = inMonth
+            ? new Date(year, month, dayNum).toISOString().slice(0, 10)
+            : null;
+          const isToday = cellDate === today;
+          const isSelected = cellDate === selectedDate;
+          const colIdx = idx % 7; // 5=Sat, 6=Sun
+          const isWeekend = colIdx === 5 || colIdx === 6;
+          const dayTasks = cellDate ? (tasksByDate[cellDate] ?? []) : [];
+          const visible = dayTasks.slice(0, 2);
+          const extra = dayTasks.length - visible.length;
 
-          {/* Task rows */}
-          {dated.length === 0 ? (
-            <div className="flex" style={{ height: 64 }}>
-              <div className="flex-shrink-0 border-r border-gray-100" style={{ width: LABEL_W }} />
-              <div className="flex-1 flex items-center justify-center">
-                <p className="text-xs text-gray-300">Add due dates to tasks to see them here</p>
+          return (
+            <div
+              key={idx}
+              onClick={() => inMonth && cellDate && setSelectedDate(isSelected ? null : cellDate)}
+              className={[
+                'min-h-[72px] p-1.5 border-b border-r border-gray-50 flex flex-col gap-0.5',
+                !inMonth ? 'bg-gray-50/30' : '',
+                isWeekend && inMonth ? 'bg-gray-50/50' : '',
+                isSelected ? 'ring-2 ring-inset ring-orange-300' : '',
+                inMonth ? 'cursor-pointer hover:bg-orange-50/30 transition-colors' : '',
+              ].filter(Boolean).join(' ')}
+            >
+              {/* Date number */}
+              <div className="flex justify-end">
+                <span className={[
+                  'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
+                  isToday ? 'bg-orange-500 text-white font-bold' : '',
+                  !inMonth ? 'text-gray-300' : isToday ? '' : 'text-gray-600',
+                ].filter(Boolean).join(' ')}>
+                  {inMonth ? dayNum : ''}
+                </span>
               </div>
-            </div>
-          ) : tasks.map((task, rowIdx) => {
-            if (!task.due_date) return null;
-            const isOverdue = task.due_date < today && task.status !== 'done';
-            const colorKey = task.status === 'done' ? 'done' : isOverdue ? 'overdue' : task.status === 'in_progress' ? 'in_progress' : 'todo';
-            const colors = barColors[colorKey];
-
-            const startStr = task.start_date ?? task.due_date;
-            const endStr = task.due_date;
-            const startOff = Math.max(0, diff(rangeStart, startStr));
-            const endOff = Math.min(totalDays, diff(rangeStart, endStr));
-            const hasRange = !!task.start_date && startOff < endOff;
-            const barW = hasRange ? Math.max(COL - 4, (endOff - startOff + 1) * COL - 4) : COL - 8;
-            const barL = startOff * COL + (hasRange ? 2 : 4);
-
-            return (
-              <div key={task.id}
-                className={`flex items-center border-b border-gray-50 last:border-0 ${rowIdx % 2 === 1 ? 'bg-gray-50/30' : ''}`}
-                style={{ height: 44 }}>
-                {/* Label */}
-                <div className="flex-shrink-0 px-3 border-r border-gray-100 flex flex-col justify-center" style={{ width: LABEL_W, height: '100%' }}>
-                  <p className="text-xs font-medium text-gray-700 truncate leading-tight">{task.title}</p>
-                  <p className={`text-[10px] mt-0.5 ${isOverdue ? 'text-rose-400' : 'text-gray-400'}`}>
-                    {task.start_date ? `${fmtDate(task.start_date)} → ${fmtDate(task.due_date)}` : fmtDate(task.due_date)}
-                  </p>
-                </div>
-
-                {/* Grid + bar */}
-                <div className="relative flex" style={{ height: '100%' }}>
-                  {/* Day columns (weekend shading) */}
-                  {days.map(day => (
-                    <div key={day.date}
-                      style={{ width: COL, flexShrink: 0, height: '100%' }}
-                      className={`border-r border-gray-50/80 ${day.isWeekend ? 'bg-gray-50/50' : ''} ${day.date === today ? 'bg-[#FF6B35]/5' : ''}`}
-                    />
-                  ))}
-
-                  {/* Today line */}
-                  {todayOff >= 0 && todayOff <= totalDays && (
-                    <div style={{ position: 'absolute', left: todayOff * COL + COL / 2 - 0.5, top: 0, bottom: 0, width: 1.5, background: '#FF6B35', opacity: 0.3, pointerEvents: 'none' }} />
-                  )}
-
-                  {/* Bar */}
-                  <div
-                    onMouseEnter={(e) => setTooltip({ task, x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => setTooltip(null)}
-                    style={{
-                      position: 'absolute',
-                      left: barL,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: barW,
-                      height: hasRange ? 24 : 24,
-                      background: colors.bg,
-                      border: `1.5px solid ${colors.border}`,
-                      borderRadius: 999,
-                      display: 'flex',
-                      alignItems: 'center',
-                      overflow: 'hidden',
-                      cursor: 'default',
-                      opacity: task.status === 'done' ? 0.7 : 1,
-                    }}>
-                    {barW > 56 && (
-                      <span style={{ color: colors.text, fontSize: 10, fontWeight: 600, paddingLeft: 8, paddingRight: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1 }}>
-                        {task.title}
-                      </span>
-                    )}
-                    {!hasRange && (
-                      <div style={{ position: 'absolute', right: -1, top: '50%', transform: 'translateY(-50%)', width: 8, height: 8, background: colors.border, borderRadius: '50%' }} />
-                    )}
+              {/* Task chips */}
+              <div className="flex flex-col gap-0.5 flex-1">
+                {visible.map(t => (
+                  <div key={t.id} className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium truncate ${chipCls(t)}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls(t)}`}></span>
+                    <span className="truncate">{t.title}</span>
                   </div>
-                </div>
+                ))}
+                {extra > 0 && (
+                  <div className="text-[10px] text-gray-400 px-1.5">+{extra} more</div>
+                )}
               </div>
-            );
-          })}
+            </div>
+          );
+        })}
+      </div>
 
-          {/* Today label at bottom */}
-          {todayOff >= 0 && todayOff <= totalDays && (
-            <div className="flex border-t border-gray-50 bg-gray-50/40" style={{ height: 22 }}>
-              <div className="flex-shrink-0 border-r border-gray-100" style={{ width: LABEL_W }} />
-              <div className="relative flex" style={{ flex: 1 }}>
-                <div style={{ position: 'absolute', left: todayOff * COL + COL / 2 - 18, top: 3 }}>
-                  <span className="text-[10px] font-bold text-[#FF6B35] bg-[#FF6B35]/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">Today</span>
-                </div>
-              </div>
+      {/* Selected day task list */}
+      {selectedDate && (
+        <div className="border-t border-gray-100 px-5 py-4">
+          <p className="text-xs font-semibold text-gray-500 mb-2">
+            {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </p>
+          {selectedTasks.length === 0 ? (
+            <p className="text-xs text-gray-300">No tasks due on this day</p>
+          ) : (
+            <div className="space-y-1.5">
+              {selectedTasks.map(t => {
+                const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
+                const statusIcon = t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' : t.status === 'in_progress' ? 'ri-loader-2-line text-sky-400' : 'ri-checkbox-blank-circle-line text-gray-300';
+                return (
+                  <div key={t.id} className="flex items-center gap-2.5">
+                    <i className={`${statusIcon} text-base flex-shrink-0`}></i>
+                    <span className={`text-sm flex-1 truncate ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-700'}`}>{t.title}</span>
+                    {isOverdue && <span className="text-[11px] text-rose-500 font-medium flex-shrink-0">Overdue</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Hover tooltip */}
-      {tooltip && (
-        <div style={{ position: 'fixed', left: tooltip.x + 12, top: tooltip.y - 10, zIndex: 100, pointerEvents: 'none' }}>
-          <div className="bg-gray-900 text-white rounded-xl px-3 py-2 shadow-xl text-xs max-w-[200px]">
-            <p className="font-semibold leading-snug">{tooltip.task.title}</p>
-            {tooltip.task.description && <p className="text-white/60 mt-0.5 line-clamp-2">{tooltip.task.description}</p>}
-            <div className="flex items-center gap-2 mt-1.5 text-white/50">
-              {tooltip.task.start_date && <span>{fmtDate(tooltip.task.start_date)} →</span>}
-              {tooltip.task.due_date && <span>{fmtDate(tooltip.task.due_date)}</span>}
-            </div>
-            <div className="mt-1">
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                tooltip.task.status === 'done' ? 'bg-emerald-500/20 text-emerald-300' :
-                tooltip.task.due_date && tooltip.task.due_date < today && tooltip.task.status !== 'done' ? 'bg-rose-500/20 text-rose-300' :
-                tooltip.task.status === 'in_progress' ? 'bg-sky-500/20 text-sky-300' : 'bg-indigo-500/20 text-indigo-300'
-              }`}>
-                {tooltip.task.status === 'in_progress' ? 'In progress' : tooltip.task.status === 'todo' ? 'To do' : 'Done'}
-              </span>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -654,6 +591,7 @@ export default function ContractorProjectsPage() {
   const [wsSearch, setWsSearch] = useState('');
   const [wsSearchOpen, setWsSearchOpen] = useState(false);
   const wsSearchRef = useRef<HTMLDivElement>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const cycleTask = async (task: ProjectTask) => {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
@@ -673,6 +611,7 @@ export default function ContractorProjectsPage() {
     setTaskForm({
       title: task.title,
       description: task.description ?? '',
+      status: task.status,
       priority: task.priority,
       start_date: task.start_date ?? '',
       due_date: task.due_date ?? '',
@@ -687,6 +626,7 @@ export default function ContractorProjectsPage() {
     const payload = {
       title: taskForm.title.trim(),
       description: taskForm.description.trim() || null,
+      status: taskForm.status,
       priority: taskForm.priority,
       start_date: taskForm.start_date || null,
       due_date: taskForm.due_date || null,
@@ -698,7 +638,7 @@ export default function ContractorProjectsPage() {
     } else {
       const { data } = await supabase
         .from('hub_project_tasks')
-        .insert({ ...payload, project_id: workspaceRow.hub_projects.id, status: 'todo' })
+        .insert({ ...payload, project_id: workspaceRow.hub_projects.id })
         .select()
         .single();
       if (data) setTasks(prev => [...prev, data as ProjectTask]);
@@ -1221,7 +1161,8 @@ export default function ContractorProjectsPage() {
                   <div className="py-10 text-center">
                     <p className="text-sm text-gray-400">No tasks in this filter</p>
                   </div>
-                ) : (
+                ) : taskFilter !== 'all' ? (
+                  /* ── Flat list for specific filters ── */
                   <div className="divide-y divide-gray-50/80">
                     {wsFiltered.map(task => {
                       const overdue = !!wsIsOverdue(task);
@@ -1262,6 +1203,86 @@ export default function ContractorProjectsPage() {
                         </div>
                       );
                     })}
+                  </div>
+                ) : (
+                  /* ── Grouped sections (taskFilter === 'all') ── */
+                  <div>
+                    {(() => {
+                      const renderTaskRow = (task: ProjectTask) => {
+                        const overdue = !!wsIsOverdue(task);
+                        const si = wsStatusIcon[task.status];
+                        const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-300', low: 'border-l-gray-200' }[task.priority];
+                        const assignee = wsTeam.find(m => m.id === task.assigned_to);
+                        return (
+                          <div key={task.id} className={`flex items-start gap-3 pl-4 pr-5 py-3.5 hover:bg-gray-50/80 transition-colors group border-l-2 ${priorityBorder}`}>
+                            <button onClick={() => cycleTask(task)} className={`flex-shrink-0 cursor-pointer transition-colors mt-0.5 ${si.cls}`}>
+                              <i className={`${si.icon} text-lg`}></i>
+                            </button>
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEditTask(task)}>
+                              <p className={`text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
+                              {task.description && <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5">{task.description}</p>}
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {assignee && (
+                                assignee.avatar_url
+                                  ? <img src={assignee.avatar_url} alt={assignee.full_name} title={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top opacity-70" />
+                                  : <div title={assignee.full_name} className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                              )}
+                              {task.due_date && (
+                                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${overdue ? 'text-rose-600 bg-rose-50' : 'text-gray-400 bg-gray-50'}`}>
+                                  {overdue ? '↑ Overdue' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                              )}
+                              <button onClick={() => openEditTask(task)}
+                                className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 cursor-pointer transition-all">
+                                <i className="ri-pencil-line text-sm"></i>
+                              </button>
+                              <button
+                                onClick={() => { if (window.confirm('Delete this task?')) deleteTask(task.id); }}
+                                disabled={deletingTaskId === task.id}
+                                className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
+                                <i className="ri-delete-bin-line text-sm"></i>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      };
+
+                      const overdueTasks  = wsFiltered.filter(t => !!wsIsOverdue(t));
+                      const inProgTasks   = wsFiltered.filter(t => t.status === 'in_progress' && !wsIsOverdue(t));
+                      const todoTasks     = wsFiltered.filter(t => t.status === 'todo' && !wsIsOverdue(t));
+                      const doneTasks     = wsFiltered.filter(t => t.status === 'done');
+
+                      type GroupKey = 'overdue' | 'in_progress' | 'todo' | 'done';
+                      const groups: { key: GroupKey; label: string; icon: string; headerCls: string; iconCls: string; labelCls: string; badgeCls: string; chevronCls: string; tasks: ProjectTask[] }[] = [
+                        { key: 'overdue',     label: 'Overdue',     icon: 'ri-alarm-warning-line', headerCls: 'bg-rose-50/60',  iconCls: 'text-rose-500',    labelCls: 'text-rose-700',    badgeCls: 'bg-rose-100 text-rose-600',    chevronCls: 'text-rose-300',    tasks: overdueTasks },
+                        { key: 'in_progress', label: 'In Progress', icon: 'ri-loader-2-line',       headerCls: 'bg-sky-50/50',   iconCls: 'text-sky-500',     labelCls: 'text-sky-700',     badgeCls: 'bg-sky-100 text-sky-600',      chevronCls: 'text-sky-400',     tasks: inProgTasks  },
+                        { key: 'todo',        label: 'To Do',       icon: 'ri-checkbox-blank-circle-line', headerCls: 'bg-gray-50/60', iconCls: 'text-gray-400', labelCls: 'text-gray-600', badgeCls: 'bg-gray-100 text-gray-500',  chevronCls: 'text-gray-300',    tasks: todoTasks    },
+                        { key: 'done',        label: 'Done',        icon: 'ri-checkbox-circle-fill', headerCls: 'bg-emerald-50/40', iconCls: 'text-emerald-500', labelCls: 'text-emerald-700', badgeCls: 'bg-emerald-100 text-emerald-600', chevronCls: 'text-emerald-300', tasks: doneTasks },
+                      ].filter(g => g.tasks.length > 0);
+
+                      return groups.map(g => {
+                        const collapsed = !!collapsedGroups[g.key];
+                        return (
+                          <div key={g.key} className="border-b border-gray-50 last:border-0">
+                            <div
+                              className={`flex items-center gap-2 px-5 py-2.5 ${g.headerCls} cursor-pointer select-none`}
+                              onClick={() => setCollapsedGroups(prev => ({ ...prev, [g.key]: !prev[g.key] }))}
+                            >
+                              <i className={`${g.icon} ${g.iconCls} text-sm`}></i>
+                              <span className={`text-xs font-semibold ${g.labelCls}`}>{g.label}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${g.badgeCls}`}>{g.tasks.length}</span>
+                              <i className={`${collapsed ? 'ri-arrow-right-s-line' : 'ri-arrow-down-s-line'} ${g.chevronCls} ml-auto text-sm`}></i>
+                            </div>
+                            {!collapsed && (
+                              <div className="divide-y divide-gray-50/80">
+                                {g.tasks.map(t => renderTaskRow(t))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </div>
@@ -1498,135 +1519,184 @@ export default function ContractorProjectsPage() {
 
       {/* Task add/edit modal */}
       {/* ── Task drawer ── */}
-      {showTaskModal && (
-        <>
-          {/* Dim backdrop — doesn't block the page fully */}
-          <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]" onClick={() => setShowTaskModal(false)} />
+      {showTaskModal && (() => {
+        const dueD = taskForm.due_date ? new Date(taskForm.due_date + 'T00:00:00') : null;
+        const startD = taskForm.start_date ? new Date(taskForm.start_date + 'T00:00:00') : null;
+        const todayD = new Date(wsToday + 'T00:00:00');
+        const daysLeft = dueD ? Math.ceil((dueD.getTime() - todayD.getTime()) / 86400000) : null;
+        const duration = (startD && dueD) ? Math.ceil((dueD.getTime() - startD.getTime()) / 86400000) : null;
+        const statusCfg = {
+          todo:        { label: 'To Do',       icon: 'ri-checkbox-blank-circle-line', bg: 'bg-gray-100',   text: 'text-gray-600' },
+          in_progress: { label: 'In Progress', icon: 'ri-loader-2-line',              bg: 'bg-sky-100',    text: 'text-sky-700'  },
+          done:        { label: 'Done',         icon: 'ri-checkbox-circle-fill',       bg: 'bg-emerald-100',text: 'text-emerald-700' },
+        };
+        const assignee = wsTeam.find(m => m.id === taskForm.assigned_to);
+        return (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]" onClick={() => setShowTaskModal(false)} />
+            <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[360px] bg-white shadow-2xl flex flex-col" style={{ borderLeft: '1px solid #f3f4f6' }}>
 
-          {/* Drawer */}
-          <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-white shadow-2xl flex flex-col"
-            style={{ borderLeft: '1px solid #f3f4f6' }}>
-
-            {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 flex-shrink-0">
-              {/* Status cycle */}
-              {editingTask && (
-                <button
-                  onClick={() => {
-                    const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
-                    const s = (editingTask.status in next ? next[editingTask.status] : 'todo') as ProjectTask['status'];
-                    setEditingTask(prev => prev ? { ...prev, status: s } : prev);
-                    supabase.from('hub_project_tasks').update({ status: s }).eq('id', editingTask.id);
-                    setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, status: s } : t));
-                  }}
-                  className={`w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0 cursor-pointer transition-colors ${
-                    editingTask.status === 'done' ? 'text-emerald-500 hover:text-emerald-600' :
-                    editingTask.status === 'in_progress' ? 'text-sky-400 hover:text-sky-500' : 'text-gray-300 hover:text-gray-500'
-                  }`}>
-                  <i className={`text-lg ${editingTask.status === 'done' ? 'ri-checkbox-circle-fill' : editingTask.status === 'in_progress' ? 'ri-loader-2-line' : 'ri-checkbox-blank-circle-line'}`}></i>
-                </button>
-              )}
-              <span className="text-xs text-gray-400 flex-1">{editingTask ? 'Edit task' : 'New task'}</span>
-              <button onClick={() => setShowTaskModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors">
-                <i className="ri-close-line text-base"></i>
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
-
-              {/* Title — big, minimal */}
-              <input
-                type="text"
-                value={taskForm.title}
-                onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Task title"
-                autoFocus
-                className="w-full text-xl font-semibold text-gray-900 placeholder-gray-300 bg-transparent outline-none border-none resize-none leading-snug"
-              />
-
-              {/* Description */}
-              <textarea
-                value={taskForm.description}
-                onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))}
-                rows={3}
-                placeholder="Add a description…"
-                maxLength={1000}
-                className="w-full text-sm text-gray-600 placeholder-gray-300 bg-transparent outline-none border-none resize-none leading-relaxed"
-              />
-
-              <div className="border-t border-gray-100 pt-4 space-y-3">
-                {/* Priority */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-400 w-20 flex-shrink-0">Priority</span>
-                  <div className="flex gap-1.5">
-                    {(['low', 'medium', 'high'] as const).map(p => {
-                      const cfg = { low: { label: 'Low', cls: 'bg-gray-100 text-gray-500', active: 'bg-gray-800 text-white' }, medium: { label: 'Medium', cls: 'bg-amber-50 text-amber-600', active: 'bg-amber-500 text-white' }, high: { label: 'High', cls: 'bg-rose-50 text-rose-600', active: 'bg-rose-500 text-white' } }[p];
-                      return (
-                        <button key={p} onClick={() => setTaskForm(f => ({ ...f, priority: p }))}
-                          className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-all ${taskForm.priority === p ? cfg.active : cfg.cls}`}>
-                          {cfg.label}
-                        </button>
-                      );
-                    })}
+              {/* Dark header */}
+              <div className="bg-[#111827] px-5 pt-5 pb-4 flex-shrink-0">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2 text-white/40 text-xs">
+                    <i className="ri-folder-line text-xs"></i>
+                    <span>{wsProject?.project_name}</span>
+                    <i className="ri-arrow-right-s-line text-xs"></i>
+                    <span>{editingTask ? 'Edit task' : 'New task'}</span>
                   </div>
+                  <button onClick={() => setShowTaskModal(false)} className="w-6 h-6 flex items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 cursor-pointer transition-colors">
+                    <i className="ri-close-line text-sm"></i>
+                  </button>
                 </div>
 
-                {/* Dates */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-400 w-20 flex-shrink-0">Start</span>
-                  <input type="date" value={taskForm.start_date} onChange={e => setTaskForm(f => ({ ...f, start_date: e.target.value }))}
-                    className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-200 cursor-pointer" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-400 w-20 flex-shrink-0">Due date</span>
-                  <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
-                    className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-200 cursor-pointer" />
-                </div>
+                {/* Title */}
+                <input
+                  type="text"
+                  value={taskForm.title}
+                  onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="Task title"
+                  autoFocus
+                  className="w-full text-lg font-semibold text-white placeholder-white/25 bg-transparent outline-none border-none leading-snug mb-3"
+                />
 
-                {/* Assignee */}
-                {wsTeam.length > 0 && (
-                  <div className="flex items-start gap-3">
-                    <span className="text-xs text-gray-400 w-20 flex-shrink-0 pt-1">Assignee</span>
-                    <div className="flex flex-wrap gap-2">
-                      <button onClick={() => setTaskForm(f => ({ ...f, assigned_to: '' }))}
-                        className={`px-2.5 py-1 text-xs rounded-full border cursor-pointer transition-all ${!taskForm.assigned_to ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
-                        None
+                {/* Status + Priority row */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Status pills */}
+                  {(['todo', 'in_progress', 'done'] as const).map(s => {
+                    const c = statusCfg[s];
+                    const active = taskForm.status === s;
+                    return (
+                      <button key={s} onClick={() => setTaskForm(f => ({ ...f, status: s }))}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-all ${active ? `${c.bg} ${c.text}` : 'bg-white/10 text-white/40 hover:bg-white/20'}`}>
+                        <i className={`${c.icon} text-[10px]`}></i>
+                        {c.label}
                       </button>
-                      {wsTeam.map(m => (
-                        <button key={m.id} onClick={() => setTaskForm(f => ({ ...f, assigned_to: m.id }))}
-                          title={m.full_name}
-                          className={`flex items-center gap-1.5 px-2 py-1 rounded-full border cursor-pointer transition-all ${taskForm.assigned_to === m.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                          {m.avatar_url
-                            ? <img src={m.avatar_url} alt={m.full_name} className="w-4 h-4 rounded-full object-cover" />
-                            : <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center text-[8px] font-bold text-indigo-700">{m.full_name[0]}</div>
-                          }
-                          <span className={`text-xs font-medium ${taskForm.assigned_to === m.id ? 'text-indigo-700' : 'text-gray-600'}`}>{m.full_name.split(' ')[0]}</span>
-                        </button>
-                      ))}
+                    );
+                  })}
+
+                  <div className="w-px h-3 bg-white/20 mx-0.5"></div>
+
+                  {/* Priority pills */}
+                  {(['low', 'medium', 'high'] as const).map(p => {
+                    const cfg = { low: { label: 'Low', active: 'bg-gray-200 text-gray-700' }, medium: { label: 'Med', active: 'bg-amber-400 text-white' }, high: { label: 'High', active: 'bg-rose-500 text-white' } }[p];
+                    return (
+                      <button key={p} onClick={() => setTaskForm(f => ({ ...f, priority: p }))}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-all ${taskForm.priority === p ? cfg.active : 'bg-white/10 text-white/40 hover:bg-white/20'}`}>
+                        {cfg.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto">
+                {/* Description */}
+                <div className="px-5 py-4 border-b border-gray-50">
+                  <textarea
+                    value={taskForm.description}
+                    onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))}
+                    rows={3}
+                    placeholder="Add context, notes, or details about this task…"
+                    maxLength={1000}
+                    className="w-full text-sm text-gray-600 placeholder-gray-300 bg-transparent outline-none border-none resize-none leading-relaxed"
+                  />
+                </div>
+
+                {/* Properties */}
+                <div className="px-5 py-4 space-y-0 divide-y divide-gray-50">
+
+                  {/* Dates row */}
+                  <div className="py-3 flex items-center gap-3">
+                    <i className="ri-calendar-line text-gray-400 text-sm w-4 flex-shrink-0"></i>
+                    <div className="flex items-center gap-2 flex-1 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-400">Start</span>
+                        <input type="date" value={taskForm.start_date} onChange={e => setTaskForm(f => ({ ...f, start_date: e.target.value }))}
+                          className="text-xs text-gray-700 bg-gray-100 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-200 cursor-pointer border-0" />
+                      </div>
+                      <i className="ri-arrow-right-line text-gray-300 text-xs"></i>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-400">Due</span>
+                        <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
+                          className="text-xs text-gray-700 bg-gray-100 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-200 cursor-pointer border-0" />
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Duration + countdown */}
+                  {(duration !== null || daysLeft !== null) && (
+                    <div className="py-3 flex items-center gap-3">
+                      <i className="ri-time-line text-gray-400 text-sm w-4 flex-shrink-0"></i>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {duration !== null && (
+                          <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">{duration}d duration</span>
+                        )}
+                        {daysLeft !== null && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${daysLeft < 0 ? 'bg-rose-50 text-rose-600' : daysLeft === 0 ? 'bg-amber-50 text-amber-700' : daysLeft <= 7 ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Assignee */}
+                  {wsTeam.length > 0 && (
+                    <div className="py-3 flex items-start gap-3">
+                      <i className="ri-user-line text-gray-400 text-sm w-4 flex-shrink-0 mt-0.5"></i>
+                      <div className="flex flex-wrap gap-1.5 flex-1">
+                        <button onClick={() => setTaskForm(f => ({ ...f, assigned_to: '' }))}
+                          className={`px-2.5 py-1 text-xs rounded-full border cursor-pointer transition-all ${!taskForm.assigned_to ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-400'}`}>
+                          Unassigned
+                        </button>
+                        {wsTeam.map(m => (
+                          <button key={m.id} onClick={() => setTaskForm(f => ({ ...f, assigned_to: m.id }))}
+                            className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full border cursor-pointer transition-all ${taskForm.assigned_to === m.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                            {m.avatar_url
+                              ? <img src={m.avatar_url} alt={m.full_name} className="w-4 h-4 rounded-full object-cover object-top" />
+                              : <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center text-[8px] font-bold text-indigo-600">{m.full_name[0]}</div>
+                            }
+                            <span className={`text-xs font-medium ${taskForm.assigned_to === m.id ? 'text-indigo-700' : 'text-gray-600'}`}>{m.full_name.split(' ')[0]}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Summary bar — only shows when there's enough info */}
+                {(taskForm.title && (assignee || daysLeft !== null)) && (
+                  <div className="mx-5 mb-4 bg-gray-50 rounded-2xl p-3.5 space-y-1.5">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Summary</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {assignee ? <><span className="font-medium text-gray-800">{assignee.full_name.split(' ')[0]}</span> is working on </> : 'Task '}
+                      <span className="font-medium text-gray-800">"{taskForm.title}"</span>
+                      {taskForm.priority !== 'medium' && <> — <span className={taskForm.priority === 'high' ? 'text-rose-600 font-medium' : 'text-gray-500'}>{taskForm.priority} priority</span></>}
+                      {daysLeft !== null && <> · {daysLeft < 0 ? <span className="text-rose-500 font-medium">{Math.abs(daysLeft)}d overdue</span> : daysLeft === 0 ? <span className="text-amber-600 font-medium">due today</span> : <span>due in {daysLeft}d</span>}</>}
+                    </p>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Footer */}
-            <div className="flex items-center gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0">
-              {editingTask && (
-                <button
-                  onClick={() => { if (window.confirm('Delete this task?')) { deleteTask(editingTask.id); setShowTaskModal(false); } }}
-                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors">
-                  <i className="ri-delete-bin-line text-sm"></i>
+              {/* Footer */}
+              <div className="flex items-center gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0">
+                {editingTask && (
+                  <button onClick={() => { if (window.confirm('Delete this task?')) { deleteTask(editingTask.id); setShowTaskModal(false); } }}
+                    className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl cursor-pointer transition-colors">
+                    <i className="ri-delete-bin-line text-sm"></i>
+                  </button>
+                )}
+                <button onClick={saveTask} disabled={taskSaving || !taskForm.title.trim()}
+                  className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-xl hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors font-medium">
+                  {taskSaving ? 'Saving…' : editingTask ? 'Save changes' : 'Add Task'}
                 </button>
-              )}
-              <button onClick={saveTask} disabled={taskSaving || !taskForm.title.trim()}
-                className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-xl hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors font-medium">
-                {taskSaving ? 'Saving…' : editingTask ? 'Save' : 'Add Task'}
-              </button>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        );
+      })()}
     </ContractorLayout>
   );
 }
