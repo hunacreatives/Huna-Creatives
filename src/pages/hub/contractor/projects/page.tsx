@@ -702,6 +702,7 @@ export default function ContractorProjectsPage() {
   const [taskSearch, setTaskSearch] = useState('');
   const [wsSearch, setWsSearch] = useState('');
   const [wsSearchOpen, setWsSearchOpen] = useState(false);
+  const [wsFocusSection, setWsFocusSection] = useState<string | null>(null); // null = show all
   const wsSearchRef = useRef<HTMLDivElement>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [taskComments, setTaskComments] = useState<{ id: number; user_id: string; body: string; created_at: string; hub_users: { full_name: string; avatar_url: string | null } | null }[]>([]);
@@ -1147,8 +1148,8 @@ export default function ContractorProjectsPage() {
           onKeyDown={e => {
             if (e.key === 'Escape') { setWsSearch(''); setWsSearchOpen(false); }
             if (e.key === 'Enter') {
-              if (wsSectionResults[0]) { scrollToSection(wsSectionResults[0].id); setWsSearch(''); setWsSearchOpen(false); }
-              else if (wsFilterResults[0]) { setTaskFilter(wsFilterResults[0].filter); setWsSearch(''); setWsSearchOpen(false); }
+              if (wsSectionResults[0]) { setWsFocusSection(wsSectionResults[0].id); setWsSearch(''); setWsSearchOpen(false); }
+              else if (wsFilterResults[0]) { setTaskFilter(wsFilterResults[0].filter); setWsFocusSection('ws-tasks'); setWsSearch(''); setWsSearchOpen(false); }
             }
           }}
           placeholder="Search…"
@@ -1165,10 +1166,10 @@ export default function ContractorProjectsPage() {
           {/* Empty: show all sections */}
           {!wsQ && (
             <>
-              <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1">In {wsProject.project_name}</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1.5">Focus on a section</p>
               {WS_SECTIONS.map(s => (
                 <button key={s.id + s.label}
-                  onClick={() => { scrollToSection(s.id); setWsSearchOpen(false); }}
+                  onClick={() => { setWsFocusSection(s.id); setWsSearchOpen(false); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${s.iconCls}`}>
                     <i className={`${s.icon} text-sm`}></i>
@@ -1177,7 +1178,7 @@ export default function ContractorProjectsPage() {
                     <p className="text-sm font-medium text-gray-800">{s.label}</p>
                     <p className="text-[11px] text-gray-400 truncate">{s.description}</p>
                   </div>
-                  <i className="ri-arrow-right-s-line text-gray-300 flex-shrink-0"></i>
+                  <i className="ri-fullscreen-line text-gray-300 text-xs flex-shrink-0"></i>
                 </button>
               ))}
             </>
@@ -1192,7 +1193,7 @@ export default function ContractorProjectsPage() {
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1">Sections</p>
                   {wsSectionResults.map(s => (
                     <button key={s.id + s.label}
-                      onClick={() => { scrollToSection(s.id); setWsSearch(''); setWsSearchOpen(false); }}
+                      onClick={() => { setWsFocusSection(s.id); setWsSearch(''); setWsSearchOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${s.iconCls}`}>
                         <i className={`${s.icon} text-sm`}></i>
@@ -1213,7 +1214,7 @@ export default function ContractorProjectsPage() {
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold px-4 pt-3 pb-1 border-t border-gray-50">Filter Tasks</p>
                   {wsFilterResults.map(f => (
                     <button key={f.filter}
-                      onClick={() => { setTaskFilter(f.filter); setWsSearch(''); setWsSearchOpen(false); scrollToSection('ws-tasks'); }}
+                      onClick={() => { setTaskFilter(f.filter); setWsFocusSection('ws-tasks'); setWsSearch(''); setWsSearchOpen(false); }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${f.cls}`}>
                         <i className={`${f.icon} text-sm`}></i>
@@ -1237,7 +1238,7 @@ export default function ContractorProjectsPage() {
                     const isOverdue = !!wsIsOverdue(t);
                     return (
                       <button key={t.id}
-                        onClick={() => { setTaskSearch(t.title); setTaskFilter('all'); scrollToSection('ws-tasks'); setWsSearch(''); setWsSearchOpen(false); }}
+                        onClick={() => { setTaskSearch(t.title); setTaskFilter('all'); setWsFocusSection('ws-tasks'); setWsSearch(''); setWsSearchOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer">
                         <i className={`${si.icon} text-lg flex-shrink-0 ${t.status === 'done' ? 'text-emerald-500' : t.status === 'in_progress' ? 'text-sky-400' : 'text-gray-300'}`}></i>
                         <div className="min-w-0 flex-1 text-left">
@@ -1361,7 +1362,7 @@ export default function ContractorProjectsPage() {
       actions={wsSearchActions}
       titleContent={workspaceRow && wsProject ? (
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); setTaskSearch(''); setWsSearch(''); setWsSearchOpen(false); }}
+          <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); setTaskSearch(''); setWsSearch(''); setWsSearchOpen(false); setWsFocusSection(null); }}
             className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
             <i className="ri-arrow-left-s-line text-base"></i>
           </button>
@@ -1486,8 +1487,20 @@ export default function ContractorProjectsPage() {
           })()}
 
           <div id="ws-scroll" className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
+
+            {/* Focus mode dismiss bar */}
+            {wsFocusSection && (
+              <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-2.5">
+                <i className="ri-fullscreen-line text-indigo-500 text-sm"></i>
+                <span className="text-xs text-indigo-700 font-medium flex-1">Focused view — showing one section</span>
+                <button onClick={() => setWsFocusSection(null)} className="text-[11px] text-indigo-500 hover:text-indigo-700 font-medium cursor-pointer flex items-center gap-1">
+                  <i className="ri-close-line text-xs"></i> Show all
+                </button>
+              </div>
+            )}
+
             {/* Stats */}
-            <div id="ws-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div id="ws-stats" className={`grid grid-cols-2 sm:grid-cols-4 gap-3 ${wsFocusSection && wsFocusSection !== 'ws-stats' ? 'hidden' : ''}`}>
               {[
                 { label: 'Total', value: wsTasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
                 { label: 'Done', value: wsDone, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
@@ -1504,7 +1517,7 @@ export default function ContractorProjectsPage() {
               ))}
             </div>
 
-            <div id="ws-timeline">
+            <div id="ws-timeline" className={wsFocusSection && wsFocusSection !== 'ws-timeline' ? 'hidden' : ''}>
               <GanttTimeline
                 tasks={wsTasks}
                 projectStart={wsProject.start_date}
@@ -1515,7 +1528,7 @@ export default function ContractorProjectsPage() {
 
             <div className="flex gap-6">
               {/* Task list */}
-              <div id="ws-tasks" className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div id="ws-tasks" className={`flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${wsFocusSection && wsFocusSection !== 'ws-tasks' ? 'hidden' : ''}`}>
                 <div className="px-5 py-4 border-b border-gray-50 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3">
@@ -1618,7 +1631,7 @@ export default function ContractorProjectsPage() {
               </div>
 
               {/* Right: project info */}
-              <div id="ws-sidebar" className="hidden lg:flex flex-col gap-4 w-64 flex-shrink-0">
+              <div id="ws-sidebar" className={`flex-col gap-4 w-64 flex-shrink-0 ${wsFocusSection && wsFocusSection !== 'ws-sidebar' ? 'hidden' : 'hidden lg:flex'}`}>
                 {/* Dates + notes card */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                   {(wsProject.start_date || wsProject.deadline) && (
@@ -1825,7 +1838,7 @@ export default function ContractorProjectsPage() {
                   {active.map((r, i) => (
                     <ProjectCard key={r.id} row={r} colorIdx={i}
                       projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
-                      onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
+                      onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
                     />
                   ))}
                 </div>
@@ -1839,7 +1852,7 @@ export default function ContractorProjectsPage() {
                   {other.map((r, i) => (
                     <ProjectCard key={r.id} row={r} colorIdx={active.length + i}
                       projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
-                      onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
+                      onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
                     />
                   ))}
                 </div>
