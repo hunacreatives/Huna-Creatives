@@ -137,7 +137,7 @@ function GlobalSearch() {
       </div>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-[min(320px,90vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-y-auto z-50">
+        <div className="fixed right-4 top-[82px] w-[min(320px,90vw)] max-h-[60vh] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-y-auto z-[200]">
           {query.length >= 2 ? (
             loading ? (
               <div className="flex items-center justify-center py-8"><i className="ri-loader-4-line animate-spin text-xl text-gray-300"></i></div>
@@ -273,7 +273,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
               <h1 className="text-gray-900 font-semibold text-lg sm:text-[28px] leading-tight truncate">{title}</h1>
             )}
           </div>
-          <div className="flex items-center gap-2 min-w-0 flex-shrink overflow-hidden">
+          <div className="flex items-center gap-2 flex-shrink-0 overflow-visible">
             {actions}
             <GlobalSearch />
             <NotificationBell />
