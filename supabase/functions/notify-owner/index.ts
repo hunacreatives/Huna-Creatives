@@ -26,7 +26,7 @@ async function sendNotification(batch_id: string, type: 'fund_request' | 'fund_a
   if (error || !batch) { console.error('batch not found:', error); return; }
 
   const total = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(batch.total_amount);
-  const payrollUrl = 'https://ops.hunacreatives.com/hub/admin/payroll';
+  const payrollUrl = 'https://www.hunacreatives.com/hub/login';
 
   let to: string;
   let subject: string;

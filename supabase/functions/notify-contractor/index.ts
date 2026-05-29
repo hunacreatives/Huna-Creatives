@@ -5,7 +5,7 @@ const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FROM_EMAIL = 'payroll@hunacreatives.com';
-const HUB_URL = 'https://ops.hunacreatives.com/hub/contractor/dashboard';
+const HUB_URL = 'https://www.hunacreatives.com/hub/login';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',

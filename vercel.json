@@ -1,4 +1,12 @@
 {
+  "redirects": [
+    {
+      "source": "/hub/:path*",
+      "destination": "https://www.hunacreatives.com/hub/login",
+      "permanent": false,
+      "has": [{ "type": "host", "value": "ops.hunacreatives.com" }]
+    }
+  ],
   "routes": [
     { "src": "/sitemap.xml", "dest": "/sitemap.xml" },
     { "src": "/robots.txt", "dest": "/robots.txt" },
