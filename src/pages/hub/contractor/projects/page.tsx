@@ -93,7 +93,7 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
 }) {
   const anchor = new Date(today + 'T00:00:00');
   const [viewMonth, setViewMonth] = useState<Date>(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(today);
 
   // Suppress unused-variable warnings for projectStart / projectEnd — kept for API compatibility
   void projectStart; void projectEnd;
@@ -114,28 +114,45 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const totalCells = Math.ceil((startPad + daysInMonth) / 7) * 7;
 
-  // Build a map: dateStr -> tasks due on that date
+  // Build a map: dateStr -> tasks that span that date (start_date → due_date range)
+  // Tasks with only a due_date appear as a single dot on the due date
   const tasksByDate: Record<string, ProjectTask[]> = {};
+  const pad2 = (n: number) => String(n).padStart(2, '0');
   for (const t of tasks) {
-    if (t.due_date) {
-      (tasksByDate[t.due_date] ??= []).push(t);
+    if (!t.due_date) continue;
+    const start = t.start_date ?? t.due_date;
+    const end = t.due_date;
+    const cur = new Date(start + 'T00:00:00');
+    const endD = new Date(end + 'T00:00:00');
+    while (cur <= endD) {
+      const key = `${cur.getFullYear()}-${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`;
+      (tasksByDate[key] ??= []).push(t);
+      cur.setDate(cur.getDate() + 1);
     }
   }
 
+  const PALETTE = [
+    { chip: 'bg-violet-100 text-violet-700', dot: 'bg-violet-400' },
+    { chip: 'bg-sky-100 text-sky-700',       dot: 'bg-sky-400' },
+    { chip: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400' },
+    { chip: 'bg-amber-100 text-amber-700',   dot: 'bg-amber-400' },
+    { chip: 'bg-pink-100 text-pink-700',     dot: 'bg-pink-400' },
+    { chip: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
+    { chip: 'bg-teal-100 text-teal-700',     dot: 'bg-teal-400' },
+    { chip: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-400' },
+    { chip: 'bg-lime-100 text-lime-700',     dot: 'bg-lime-400' },
+    { chip: 'bg-rose-100 text-rose-700',     dot: 'bg-rose-400' },
+  ];
+  const colorMap = Object.fromEntries(tasks.map((t, i) => [t.id, PALETTE[i % PALETTE.length]]));
+
   const chipCls = (t: ProjectTask): string => {
-    const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
-    if (isOverdue) return 'bg-rose-100 text-rose-600';
-    if (t.status === 'done') return 'bg-emerald-100 text-emerald-700';
-    if (t.status === 'in_progress') return 'bg-sky-100 text-sky-700';
-    return 'bg-indigo-100 text-indigo-700';
+    if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-100 text-rose-600';
+    return colorMap[t.id]?.chip ?? 'bg-indigo-100 text-indigo-700';
   };
 
   const dotCls = (t: ProjectTask): string => {
-    const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
-    if (isOverdue) return 'bg-rose-400';
-    if (t.status === 'done') return 'bg-emerald-400';
-    if (t.status === 'in_progress') return 'bg-sky-400';
-    return 'bg-indigo-400';
+    if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-400';
+    return colorMap[t.id]?.dot ?? 'bg-indigo-400';
   };
 
   const selectedTasks = selectedDate ? (tasksByDate[selectedDate] ?? []) : [];
@@ -173,11 +190,10 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
         {Array.from({ length: totalCells }).map((_, idx) => {
           const dayNum = idx - startPad + 1;
           const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
-          const cellDate = inMonth
-            ? new Date(year, month, dayNum).toISOString().slice(0, 10)
-            : null;
+          const pad2 = (n: number) => String(n).padStart(2, '0');
+          const cellDate = inMonth ? `${year}-${pad2(month + 1)}-${pad2(dayNum)}` : null;
           const isToday = cellDate === today;
-          const isSelected = cellDate === selectedDate;
+          const isSelected = cellDate !== null && cellDate === selectedDate;
           const colIdx = idx % 7; // 5=Sat, 6=Sun
           const isWeekend = colIdx === 5 || colIdx === 6;
           const dayTasks = cellDate ? (tasksByDate[cellDate] ?? []) : [];
@@ -208,12 +224,21 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
               </div>
               {/* Task chips */}
               <div className="flex flex-col gap-0.5 flex-1">
-                {visible.map(t => (
-                  <div key={t.id} className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium truncate ${chipCls(t)}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls(t)}`}></span>
-                    <span className="truncate">{t.title}</span>
-                  </div>
-                ))}
+                {visible.map(t => {
+                  const isStart = cellDate === (t.start_date ?? t.due_date);
+                  const isEnd = cellDate === t.due_date;
+                  const hasRange = t.start_date && t.start_date !== t.due_date;
+                  return (
+                    <div key={t.id} className={`flex items-center gap-1 py-0.5 text-[10px] font-medium truncate ${chipCls(t)} ${
+                      hasRange
+                        ? `px-1.5 ${isStart ? 'rounded-l-md rounded-r-none' : isEnd ? 'rounded-r-md rounded-l-none' : 'rounded-none'}`
+                        : 'px-1.5 rounded'
+                    }`}>
+                      {(!hasRange || isStart) && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls(t)}`}></span>}
+                      {isStart && <span className="truncate">{t.title}</span>}
+                    </div>
+                  );
+                })}
                 {extra > 0 && (
                   <div className="text-[10px] text-gray-400 px-1.5">+{extra} more</div>
                 )}
@@ -592,6 +617,12 @@ export default function ContractorProjectsPage() {
   const [wsSearchOpen, setWsSearchOpen] = useState(false);
   const wsSearchRef = useRef<HTMLDivElement>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [taskComments, setTaskComments] = useState<{ id: number; user_id: string; body: string; created_at: string; hub_users: { full_name: string; avatar_url: string | null } | null }[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [postingComment, setPostingComment] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('edit');
+  const [, setTick] = useState(0); // forces re-render for live timestamps
+  const [taskCommentCounts, setTaskCommentCounts] = useState<Record<number, number>>({});
 
   const cycleTask = async (task: ProjectTask) => {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
@@ -603,6 +634,22 @@ export default function ContractorProjectsPage() {
   const openAddTask = () => {
     setEditingTask(null);
     setTaskForm(emptyTaskForm());
+    setDrawerMode('edit');
+    setShowTaskModal(true);
+  };
+
+  const openViewTask = (task: ProjectTask) => {
+    setEditingTask(task);
+    setTaskForm({
+      title: task.title,
+      description: task.description ?? '',
+      status: task.status,
+      priority: task.priority,
+      start_date: task.start_date ?? '',
+      due_date: task.due_date ?? '',
+      assigned_to: task.assigned_to ?? '',
+    });
+    setDrawerMode('view');
     setShowTaskModal(true);
   };
 
@@ -617,6 +664,7 @@ export default function ContractorProjectsPage() {
       due_date: task.due_date ?? '',
       assigned_to: task.assigned_to ?? '',
     });
+    setDrawerMode('edit');
     setShowTaskModal(true);
   };
 
@@ -652,6 +700,61 @@ export default function ContractorProjectsPage() {
     await supabase.from('hub_project_tasks').delete().eq('id', taskId);
     setTasks(prev => prev.filter(t => t.id !== taskId));
     setDeletingTaskId(null);
+  };
+
+  // Live timestamp ticker — updates every 30s
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Fetch comment counts for all workspace tasks
+  useEffect(() => {
+    const projectId = workspaceRow?.hub_projects?.id;
+    if (!projectId) { setTaskCommentCounts({}); return; }
+    const ids = tasks.filter(t => t.project_id === projectId).map(t => t.id);
+    if (!ids.length) { setTaskCommentCounts({}); return; }
+    supabase
+      .from('hub_project_task_comments')
+      .select('task_id')
+      .in('task_id', ids)
+      .then(({ data }) => {
+        const counts: Record<number, number> = {};
+        for (const row of data ?? []) counts[row.task_id] = (counts[row.task_id] ?? 0) + 1;
+        setTaskCommentCounts(counts);
+      });
+  }, [tasks.length, workspaceRow?.hub_projects?.id]);
+
+  // Load comments when editing task changes
+  useEffect(() => {
+    if (!editingTask) { setTaskComments([]); setNewComment(''); return; }
+    supabase
+      .from('hub_project_task_comments')
+      .select('id, user_id, body, created_at, hub_users(full_name, avatar_url)')
+      .eq('task_id', editingTask.id)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => setTaskComments((data as any) ?? []));
+  }, [editingTask?.id]);
+
+  const postComment = async () => {
+    if (!newComment.trim() || !editingTask || !hubUser || postingComment) return;
+    setPostingComment(true);
+    const { data, error } = await supabase
+      .from('hub_project_task_comments')
+      .insert({ task_id: editingTask.id, user_id: hubUser.id, body: newComment.trim() })
+      .select('id, user_id, body, created_at, hub_users(full_name, avatar_url)')
+      .single();
+    if (!error && data) {
+      setTaskComments(prev => [...prev, data as any]);
+      setTaskCommentCounts(prev => ({ ...prev, [editingTask.id]: (prev[editingTask.id] ?? 0) + 1 }));
+      setNewComment('');
+    }
+    setPostingComment(false);
+  };
+
+  const deleteComment = async (commentId: number) => {
+    await supabase.from('hub_project_task_comments').delete().eq('id', commentId);
+    setTaskComments(prev => prev.filter(c => c.id !== commentId));
   };
 
   useEffect(() => {
@@ -936,6 +1039,91 @@ export default function ContractorProjectsPage() {
     </div>
   ) : undefined;
 
+  // ── Per-task color palette (used in calendar + task cards) ──────────────
+  const TASK_PALETTE = [
+    { chip: 'bg-violet-100 text-violet-700', dot: 'bg-violet-400', border: 'border-l-violet-400', cardBg: 'bg-violet-50/30' },
+    { chip: 'bg-sky-100 text-sky-700',       dot: 'bg-sky-400',    border: 'border-l-sky-400',    cardBg: 'bg-sky-50/30' },
+    { chip: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400', border: 'border-l-emerald-400', cardBg: 'bg-emerald-50/30' },
+    { chip: 'bg-amber-100 text-amber-700',   dot: 'bg-amber-400',  border: 'border-l-amber-400',  cardBg: 'bg-amber-50/30' },
+    { chip: 'bg-pink-100 text-pink-700',     dot: 'bg-pink-400',   border: 'border-l-pink-400',   cardBg: 'bg-pink-50/30' },
+    { chip: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400', border: 'border-l-orange-400', cardBg: 'bg-orange-50/30' },
+    { chip: 'bg-teal-100 text-teal-700',     dot: 'bg-teal-400',   border: 'border-l-teal-400',   cardBg: 'bg-teal-50/30' },
+    { chip: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-400', border: 'border-l-indigo-400', cardBg: 'bg-indigo-50/30' },
+    { chip: 'bg-rose-100 text-rose-700',     dot: 'bg-rose-400',   border: 'border-l-rose-400',   cardBg: 'bg-rose-50/30' },
+    { chip: 'bg-lime-100 text-lime-700',     dot: 'bg-lime-400',   border: 'border-l-lime-400',   cardBg: 'bg-lime-50/30' },
+  ];
+  const taskColorMap = Object.fromEntries(wsTasks.map((t, i) => [t.id, TASK_PALETTE[i % TASK_PALETTE.length]]));
+
+  const TaskCard = (task: ProjectTask) => {
+    const overdue = !!wsIsOverdue(task);
+    const si = wsStatusIcon[task.status];
+    const color = taskColorMap[task.id] ?? TASK_PALETTE[0];
+    const assignee = wsTeam.find(m => m.id === task.assigned_to);
+    const commentCount = taskCommentCounts[task.id] ?? 0;
+    const daysLeft = task.due_date
+      ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
+      : null;
+    const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
+    return (
+      <div key={task.id} onClick={() => openViewTask(task)}
+        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group border-l-4 ${color.border}`}>
+        {/* Top row */}
+        <div className="flex items-start gap-2.5">
+          <button onClick={e => { e.stopPropagation(); cycleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${si.cls}`}>
+            <i className={`${si.icon} text-lg`}></i>
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{task.description}</p>}
+          </div>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
+        </div>
+        {/* Bottom row */}
+        <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
+          {task.due_date && (
+            <div className="flex items-center gap-1">
+              <i className="ri-calendar-line text-[10px] text-gray-400"></i>
+              {task.start_date && task.start_date !== task.due_date ? (
+                <span className="text-[10px] text-gray-500">
+                  {new Date(task.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} → {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              ) : (
+                <span className={`text-[10px] font-medium ${overdue ? 'text-rose-600' : daysLeft === 0 ? 'text-amber-600' : 'text-gray-500'}`}>
+                  {overdue ? `Overdue ${Math.abs(daysLeft!)}d` : daysLeft === 0 ? 'Due today' : daysLeft === 1 ? 'Tomorrow' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              )}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+            {commentCount > 0 && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-semibold">
+                <i className="ri-chat-3-fill text-[11px]"></i>{commentCount}
+              </span>
+            )}
+            {assignee && (
+              <div className="flex items-center gap-1">
+                {assignee.avatar_url
+                  ? <img src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
+                  : <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                }
+                <span className="text-[10px] text-gray-500 font-medium">{assignee.full_name.split(' ')[0]}</span>
+              </div>
+            )}
+            <button onClick={e => { e.stopPropagation(); openEditTask(task); }}
+              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 cursor-pointer transition-all">
+              <i className="ri-pencil-line text-sm"></i>
+            </button>
+            <button onClick={e => { e.stopPropagation(); if (window.confirm('Delete?')) deleteTask(task.id); }}
+              disabled={deletingTaskId === task.id}
+              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
+              <i className="ri-delete-bin-line text-sm"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <ContractorLayout
       title={workspaceRow ? undefined : 'My Projects'}
@@ -1162,91 +1350,14 @@ export default function ContractorProjectsPage() {
                     <p className="text-sm text-gray-400">No tasks in this filter</p>
                   </div>
                 ) : taskFilter !== 'all' ? (
-                  /* ── Flat list for specific filters ── */
-                  <div className="divide-y divide-gray-50/80">
-                    {wsFiltered.map(task => {
-                      const overdue = !!wsIsOverdue(task);
-                      const si = wsStatusIcon[task.status];
-                      const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-300', low: 'border-l-gray-200' }[task.priority];
-                      const assignee = wsTeam.find(m => m.id === task.assigned_to);
-                      return (
-                        <div key={task.id} className={`flex items-start gap-3 pl-4 pr-5 py-3.5 hover:bg-gray-50/80 transition-colors group border-l-2 ${priorityBorder}`}>
-                          <button onClick={() => cycleTask(task)} className={`flex-shrink-0 cursor-pointer transition-colors mt-0.5 ${si.cls}`}>
-                            <i className={`${si.icon} text-lg`}></i>
-                          </button>
-                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEditTask(task)}>
-                            <p className={`text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
-                            {task.description && <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5">{task.description}</p>}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {assignee && (
-                              assignee.avatar_url
-                                ? <img src={assignee.avatar_url} alt={assignee.full_name} title={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top opacity-70" />
-                                : <div title={assignee.full_name} className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
-                            )}
-                            {task.due_date && (
-                              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${overdue ? 'text-rose-600 bg-rose-50' : 'text-gray-400 bg-gray-50'}`}>
-                                {overdue ? '↑ Overdue' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </span>
-                            )}
-                            <button onClick={() => openEditTask(task)}
-                              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 cursor-pointer transition-all">
-                              <i className="ri-pencil-line text-sm"></i>
-                            </button>
-                            <button
-                              onClick={() => { if (window.confirm('Delete this task?')) deleteTask(task.id); }}
-                              disabled={deletingTaskId === task.id}
-                              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
-                              <i className="ri-delete-bin-line text-sm"></i>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="p-3 space-y-2">
+                    {wsFiltered.map(task => <div key={task.id}>{TaskCard(task)}</div>)}
                   </div>
                 ) : (
                   /* ── Grouped sections (taskFilter === 'all') ── */
                   <div>
                     {(() => {
-                      const renderTaskRow = (task: ProjectTask) => {
-                        const overdue = !!wsIsOverdue(task);
-                        const si = wsStatusIcon[task.status];
-                        const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-300', low: 'border-l-gray-200' }[task.priority];
-                        const assignee = wsTeam.find(m => m.id === task.assigned_to);
-                        return (
-                          <div key={task.id} className={`flex items-start gap-3 pl-4 pr-5 py-3.5 hover:bg-gray-50/80 transition-colors group border-l-2 ${priorityBorder}`}>
-                            <button onClick={() => cycleTask(task)} className={`flex-shrink-0 cursor-pointer transition-colors mt-0.5 ${si.cls}`}>
-                              <i className={`${si.icon} text-lg`}></i>
-                            </button>
-                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEditTask(task)}>
-                              <p className={`text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
-                              {task.description && <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5">{task.description}</p>}
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              {assignee && (
-                                assignee.avatar_url
-                                  ? <img src={assignee.avatar_url} alt={assignee.full_name} title={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top opacity-70" />
-                                  : <div title={assignee.full_name} className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
-                              )}
-                              {task.due_date && (
-                                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${overdue ? 'text-rose-600 bg-rose-50' : 'text-gray-400 bg-gray-50'}`}>
-                                  {overdue ? '↑ Overdue' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </span>
-                              )}
-                              <button onClick={() => openEditTask(task)}
-                                className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 cursor-pointer transition-all">
-                                <i className="ri-pencil-line text-sm"></i>
-                              </button>
-                              <button
-                                onClick={() => { if (window.confirm('Delete this task?')) deleteTask(task.id); }}
-                                disabled={deletingTaskId === task.id}
-                                className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
-                                <i className="ri-delete-bin-line text-sm"></i>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      };
+                      const renderTaskRow = (task: ProjectTask) => <div key={task.id}>{TaskCard(task)}</div>;
 
                       const overdueTasks  = wsFiltered.filter(t => !!wsIsOverdue(t));
                       const inProgTasks   = wsFiltered.filter(t => t.status === 'in_progress' && !wsIsOverdue(t));
@@ -1275,7 +1386,7 @@ export default function ContractorProjectsPage() {
                               <i className={`${collapsed ? 'ri-arrow-right-s-line' : 'ri-arrow-down-s-line'} ${g.chevronCls} ml-auto text-sm`}></i>
                             </div>
                             {!collapsed && (
-                              <div className="divide-y divide-gray-50/80">
+                              <div className="p-3 space-y-2">
                                 {g.tasks.map(t => renderTaskRow(t))}
                               </div>
                             )}
@@ -1534,59 +1645,85 @@ export default function ContractorProjectsPage() {
         return (
           <>
             <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]" onClick={() => setShowTaskModal(false)} />
-            <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[360px] bg-white shadow-2xl flex flex-col" style={{ borderLeft: '1px solid #f3f4f6' }}>
+            <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[460px] bg-white shadow-2xl flex flex-col" style={{ borderLeft: '1px solid #f3f4f6' }}>
 
-              {/* Dark header */}
+              {/* Dark header — shared between view and edit */}
               <div className="bg-[#111827] px-5 pt-5 pb-4 flex-shrink-0">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2 text-white/40 text-xs">
                     <i className="ri-folder-line text-xs"></i>
                     <span>{wsProject?.project_name}</span>
                     <i className="ri-arrow-right-s-line text-xs"></i>
-                    <span>{editingTask ? 'Edit task' : 'New task'}</span>
+                    <span>{editingTask ? (drawerMode === 'view' ? 'Task detail' : 'Edit task') : 'New task'}</span>
                   </div>
-                  <button onClick={() => setShowTaskModal(false)} className="w-6 h-6 flex items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 cursor-pointer transition-colors">
-                    <i className="ri-close-line text-sm"></i>
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {drawerMode === 'view' && editingTask && (
+                      <button onClick={() => setDrawerMode('edit')} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 cursor-pointer transition-colors text-xs font-medium">
+                        <i className="ri-pencil-line text-[11px]"></i> Edit
+                      </button>
+                    )}
+                    {drawerMode === 'edit' && editingTask && (
+                      <button onClick={() => setDrawerMode('view')} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/10 cursor-pointer transition-colors text-xs">
+                        <i className="ri-eye-line text-[11px]"></i> View
+                      </button>
+                    )}
+                    <button onClick={() => setShowTaskModal(false)} className="w-6 h-6 flex items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 cursor-pointer transition-colors ml-1">
+                      <i className="ri-close-line text-sm"></i>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Title */}
-                <input
-                  type="text"
-                  value={taskForm.title}
-                  onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="Task title"
-                  autoFocus
-                  className="w-full text-lg font-semibold text-white placeholder-white/25 bg-transparent outline-none border-none leading-snug mb-3"
-                />
+                {/* Title — editable in edit, read-only in view */}
+                {drawerMode === 'edit' ? (
+                  <input
+                    type="text"
+                    value={taskForm.title}
+                    onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="Task title"
+                    autoFocus
+                    className="w-full text-lg font-semibold text-white placeholder-white/25 bg-transparent outline-none border-none leading-snug mb-3"
+                  />
+                ) : (
+                  <h2 className="text-lg font-semibold text-white leading-snug mb-3">{editingTask?.title}</h2>
+                )}
 
                 {/* Status + Priority row */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  {/* Status pills */}
-                  {(['todo', 'in_progress', 'done'] as const).map(s => {
-                    const c = statusCfg[s];
-                    const active = taskForm.status === s;
-                    return (
-                      <button key={s} onClick={() => setTaskForm(f => ({ ...f, status: s }))}
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-all ${active ? `${c.bg} ${c.text}` : 'bg-white/10 text-white/40 hover:bg-white/20'}`}>
-                        <i className={`${c.icon} text-[10px]`}></i>
-                        {c.label}
-                      </button>
-                    );
-                  })}
-
-                  <div className="w-px h-3 bg-white/20 mx-0.5"></div>
-
-                  {/* Priority pills */}
-                  {(['low', 'medium', 'high'] as const).map(p => {
-                    const cfg = { low: { label: 'Low', active: 'bg-gray-200 text-gray-700' }, medium: { label: 'Med', active: 'bg-amber-400 text-white' }, high: { label: 'High', active: 'bg-rose-500 text-white' } }[p];
-                    return (
-                      <button key={p} onClick={() => setTaskForm(f => ({ ...f, priority: p }))}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-all ${taskForm.priority === p ? cfg.active : 'bg-white/10 text-white/40 hover:bg-white/20'}`}>
-                        {cfg.label}
-                      </button>
-                    );
-                  })}
+                  {drawerMode === 'edit' ? (
+                    <>
+                      {(['todo', 'in_progress', 'done'] as const).map(s => {
+                        const c = statusCfg[s];
+                        const active = taskForm.status === s;
+                        return (
+                          <button key={s} onClick={() => setTaskForm(f => ({ ...f, status: s }))}
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-all ${active ? `${c.bg} ${c.text}` : 'bg-white/10 text-white/40 hover:bg-white/20'}`}>
+                            <i className={`${c.icon} text-[10px]`}></i>{c.label}
+                          </button>
+                        );
+                      })}
+                      <div className="w-px h-3 bg-white/20 mx-0.5"></div>
+                      {(['low', 'medium', 'high'] as const).map(p => {
+                        const cfg = { low: { label: 'Low', active: 'bg-gray-200 text-gray-700' }, medium: { label: 'Med', active: 'bg-amber-400 text-white' }, high: { label: 'High', active: 'bg-rose-500 text-white' } }[p];
+                        return (
+                          <button key={p} onClick={() => setTaskForm(f => ({ ...f, priority: p }))}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-all ${taskForm.priority === p ? cfg.active : 'bg-white/10 text-white/40 hover:bg-white/20'}`}>
+                            {cfg.label}
+                          </button>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      {(() => { const c = statusCfg[editingTask?.status ?? 'todo']; return (
+                        <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${c.bg} ${c.text}`}>
+                          <i className={`${c.icon} text-[10px]`}></i>{c.label}
+                        </span>
+                      ); })()}
+                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${{ low: 'bg-gray-200 text-gray-700', medium: 'bg-amber-400 text-white', high: 'bg-rose-500 text-white' }[editingTask?.priority ?? 'medium']}`}>
+                        {{ low: 'Low', medium: 'Medium', high: 'High' }[editingTask?.priority ?? 'medium']}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1610,19 +1747,24 @@ export default function ContractorProjectsPage() {
                   {/* Dates row */}
                   <div className="py-3 flex items-center gap-3">
                     <i className="ri-calendar-line text-gray-400 text-sm w-4 flex-shrink-0"></i>
-                    <div className="flex items-center gap-2 flex-1 flex-wrap">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-400">Start</span>
+                    {drawerMode === 'edit' ? (
+                      <div className="flex items-center gap-1.5 flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 focus-within:ring-1 focus-within:ring-indigo-200 focus-within:border-indigo-300 transition-all">
                         <input type="date" value={taskForm.start_date} onChange={e => setTaskForm(f => ({ ...f, start_date: e.target.value }))}
-                          className="text-xs text-gray-700 bg-gray-100 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-200 cursor-pointer border-0" />
-                      </div>
-                      <i className="ri-arrow-right-line text-gray-300 text-xs"></i>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-400">Due</span>
+                          placeholder="Start"
+                          className="text-xs text-gray-700 bg-transparent outline-none cursor-pointer border-0 flex-1" />
+                        <span className="text-gray-300 text-xs font-medium flex-shrink-0">→</span>
                         <input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))}
-                          className="text-xs text-gray-700 bg-gray-100 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-200 cursor-pointer border-0" />
+                          placeholder="Due"
+                          className="text-xs text-gray-700 bg-transparent outline-none cursor-pointer border-0 flex-1" />
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-center gap-3 flex-wrap text-sm">
+                        {editingTask?.start_date && <span className="text-gray-700">{new Date(editingTask.start_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                        {editingTask?.start_date && editingTask?.due_date && <i className="ri-arrow-right-line text-gray-300 text-xs"></i>}
+                        {editingTask?.due_date && <span className={daysLeft !== null && daysLeft < 0 ? 'text-rose-500 font-medium' : 'text-gray-700'}>{new Date(editingTask.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+                        {!editingTask?.start_date && !editingTask?.due_date && <span className="text-gray-400 text-xs">No dates set</span>}
+                      </div>
+                    )}
                   </div>
 
                   {/* Duration + countdown */}
@@ -1646,22 +1788,34 @@ export default function ContractorProjectsPage() {
                   {wsTeam.length > 0 && (
                     <div className="py-3 flex items-start gap-3">
                       <i className="ri-user-line text-gray-400 text-sm w-4 flex-shrink-0 mt-0.5"></i>
-                      <div className="flex flex-wrap gap-1.5 flex-1">
-                        <button onClick={() => setTaskForm(f => ({ ...f, assigned_to: '' }))}
-                          className={`px-2.5 py-1 text-xs rounded-full border cursor-pointer transition-all ${!taskForm.assigned_to ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-400'}`}>
-                          Unassigned
-                        </button>
-                        {wsTeam.map(m => (
-                          <button key={m.id} onClick={() => setTaskForm(f => ({ ...f, assigned_to: m.id }))}
-                            className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full border cursor-pointer transition-all ${taskForm.assigned_to === m.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                            {m.avatar_url
-                              ? <img src={m.avatar_url} alt={m.full_name} className="w-4 h-4 rounded-full object-cover object-top" />
-                              : <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center text-[8px] font-bold text-indigo-600">{m.full_name[0]}</div>
-                            }
-                            <span className={`text-xs font-medium ${taskForm.assigned_to === m.id ? 'text-indigo-700' : 'text-gray-600'}`}>{m.full_name.split(' ')[0]}</span>
+                      {drawerMode === 'edit' ? (
+                        <div className="flex flex-wrap gap-1.5 flex-1">
+                          <button onClick={() => setTaskForm(f => ({ ...f, assigned_to: '' }))}
+                            className={`px-2.5 py-1 text-xs rounded-full border cursor-pointer transition-all ${!taskForm.assigned_to ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-400'}`}>
+                            Unassigned
                           </button>
-                        ))}
-                      </div>
+                          {wsTeam.map(m => (
+                            <button key={m.id} onClick={() => setTaskForm(f => ({ ...f, assigned_to: m.id }))}
+                              className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full border cursor-pointer transition-all ${taskForm.assigned_to === m.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                              {m.avatar_url
+                                ? <img src={m.avatar_url} alt={m.full_name} className="w-4 h-4 rounded-full object-cover object-top" />
+                                : <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center text-[8px] font-bold text-indigo-600">{m.full_name[0]}</div>
+                              }
+                              <span className={`text-xs font-medium ${taskForm.assigned_to === m.id ? 'text-indigo-700' : 'text-gray-600'}`}>{m.full_name.split(' ')[0]}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        assignee ? (
+                          <div className="flex items-center gap-2">
+                            {assignee.avatar_url
+                              ? <img src={assignee.avatar_url} alt={assignee.full_name} className="w-6 h-6 rounded-full object-cover object-top" />
+                              : <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600">{assignee.full_name[0]}</div>
+                            }
+                            <span className="text-sm font-medium text-gray-800">{assignee.full_name}</span>
+                          </div>
+                        ) : <span className="text-xs text-gray-400">Unassigned</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1679,6 +1833,80 @@ export default function ContractorProjectsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Comments — only when editing an existing task */}
+              {editingTask && (
+                <div className="border-t border-gray-100">
+                  <div className="px-5 pt-4 pb-2 flex items-center gap-2">
+                    <i className="ri-chat-3-line text-gray-400 text-sm"></i>
+                    <span className="text-xs font-semibold text-gray-600">Comments</span>
+                    {taskComments.length > 0 && <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{taskComments.length}</span>}
+                  </div>
+
+                  {/* Comment list */}
+                  <div className="px-5 space-y-3 max-h-52 overflow-y-auto pb-2">
+                    {taskComments.length === 0 && (
+                      <p className="text-xs text-gray-400 py-2">No comments yet. Be the first.</p>
+                    )}
+                    {taskComments.map(c => {
+                      const u = c.hub_users;
+                      const isOwn = c.user_id === hubUser?.id;
+                      const timeAgo = (() => {
+                        const diff = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 1000);
+                        if (diff < 30) return 'just now';
+                        if (diff < 60) return `${diff}s ago`;
+                        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+                        return new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+                          ' at ' + new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                      })();
+                      return (
+                        <div key={c.id} className="flex gap-2.5 group">
+                          {u?.avatar_url
+                            ? <img src={u.avatar_url} alt={u.full_name} className="w-6 h-6 rounded-full object-cover object-top flex-shrink-0 mt-0.5" />
+                            : <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600 flex-shrink-0 mt-0.5">{u?.full_name?.[0] ?? '?'}</div>
+                          }
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2 mb-0.5">
+                              <span className="text-xs font-semibold text-gray-800">{u?.full_name?.split(' ')[0] ?? 'Unknown'}</span>
+                              <span className="text-[10px] text-gray-400">{timeAgo}</span>
+                              {isOwn && (
+                                <button onClick={() => deleteComment(c.id)} className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-300 hover:text-rose-400 cursor-pointer transition-all ml-auto flex-shrink-0">
+                                  <i className="ri-delete-bin-line"></i>
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-600 leading-relaxed break-words">{c.body}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Comment input */}
+                  <div className="px-5 pt-2 pb-4 flex gap-2 items-end">
+                    {hubUser?.avatar_url
+                      ? <img src={hubUser.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover object-top flex-shrink-0 mb-0.5" />
+                      : <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600 flex-shrink-0 mb-0.5">{hubUser?.full_name?.[0] ?? '?'}</div>
+                    }
+                    <div className="flex-1 flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 focus-within:ring-1 focus-within:ring-indigo-200 focus-within:border-indigo-300 transition-all">
+                      <textarea
+                        value={newComment}
+                        onChange={e => setNewComment(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); postComment(); } }}
+                        placeholder="Add a comment…"
+                        rows={1}
+                        className="flex-1 text-xs text-gray-700 placeholder-gray-400 bg-transparent outline-none resize-none leading-relaxed"
+                        style={{ minHeight: 20, maxHeight: 80 }}
+                      />
+                      <button onClick={postComment} disabled={!newComment.trim() || postingComment}
+                        className="w-6 h-6 flex items-center justify-center bg-[#111827] text-white rounded-lg disabled:opacity-30 cursor-pointer flex-shrink-0 transition-opacity hover:bg-gray-700">
+                        <i className="ri-send-plane-fill text-[11px]"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Footer */}
               <div className="flex items-center gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0">
