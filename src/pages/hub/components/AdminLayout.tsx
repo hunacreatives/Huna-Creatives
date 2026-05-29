@@ -192,7 +192,6 @@ function GlobalSearch() {
     </div>
   );
 }
-}
 
 export default function AdminLayout({ children, title, actions }: Props) {
   const { hubUser, loading, session } = useAuth();
