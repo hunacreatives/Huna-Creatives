@@ -710,40 +710,111 @@ export default function ContractorProjectsPage() {
       {/* ── Workspace ── */}
       {workspaceRow && wsProject && (
         <div className="flex flex-col -mx-4 -my-4 md:-mx-6 md:-my-6 min-h-full">
-          {/* Breadcrumb */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white/70 backdrop-blur-sm flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); }}
-                className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 cursor-pointer transition-colors text-sm">
-                <i className="ri-arrow-left-s-line text-base"></i>
-                <span>My Projects</span>
-              </button>
-              <i className="ri-arrow-right-s-line text-gray-300 text-sm"></i>
-              <span className="text-sm text-gray-500 font-medium truncate max-w-[180px]">{wsProject.project_name}</span>
-              <i className="ri-arrow-right-s-line text-gray-300 text-sm"></i>
-              <div className="flex items-center gap-1.5">
-                <i className="ri-layout-grid-line text-indigo-500 text-sm"></i>
-                <span className="text-sm font-semibold text-gray-900">Workspace</span>
-              </div>
-            </div>
-            <span className="text-xs text-gray-400 hidden sm:block">{wsProject.client_name}{wsProject.service ? ` · ${wsProject.service}` : ''}</span>
-          </div>
 
-          <div className="flex-1 p-6 md:p-7 space-y-6 overflow-y-auto">
+          {/* ── Hero banner ── */}
+          {(() => {
+            const statusColors: Record<string, string> = { ongoing: 'bg-emerald-400/20 text-emerald-300 border-emerald-400/30', completed: 'bg-blue-400/20 text-blue-300 border-blue-400/30', paused: 'bg-amber-400/20 text-amber-300 border-amber-400/30', cancelled: 'bg-gray-400/20 text-gray-300 border-gray-400/30' };
+            const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' };
+            const daysLeft = wsProject.deadline ? Math.ceil((new Date(wsProject.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
+            const isDeadlineOver = daysLeft !== null && daysLeft < 0 && wsProject.status !== 'completed';
+            return (
+              <div className="bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1e1b4b] px-6 pt-5 pb-6 flex-shrink-0">
+                {/* Back nav */}
+                <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); }}
+                  className="flex items-center gap-1.5 text-white/40 hover:text-white/80 cursor-pointer transition-colors text-xs mb-5">
+                  <i className="ri-arrow-left-s-line text-sm"></i>
+                  <span>My Projects</span>
+                  <i className="ri-arrow-right-s-line text-white/20 text-xs"></i>
+                  <span className="text-white/25">Workspace</span>
+                </button>
+
+                {/* Main hero row */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
+                        {statusLabels[wsProject.status] ?? wsProject.status}
+                      </span>
+                      {wsProject.service && <span className="text-[10px] text-white/30">{wsProject.service}</span>}
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight truncate">{wsProject.project_name}</h2>
+                    <p className="text-sm text-white/40 mt-0.5">{wsProject.client_name}</p>
+
+                    {/* Team avatars */}
+                    {wsTeam.length > 0 && (
+                      <div className="flex items-center gap-2 mt-3">
+                        <div className="flex -space-x-2">
+                          {wsTeam.slice(0, 5).map(m => (
+                            m.avatar_url
+                              ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-7 h-7 rounded-full border-2 border-[#111827] object-cover object-top" />
+                              : <div key={m.id} title={m.full_name} className="w-7 h-7 rounded-full border-2 border-[#111827] bg-indigo-500 flex items-center justify-center text-[11px] font-bold text-white">{m.full_name[0]}</div>
+                          ))}
+                        </div>
+                        <span className="text-xs text-white/30">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+
+                    {/* Deadline chip */}
+                    {daysLeft !== null && (
+                      <div className="mt-3">
+                        {isDeadlineOver ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-rose-300 bg-rose-500/15 border border-rose-500/25 px-2.5 py-1 rounded-full">
+                            <i className="ri-alarm-warning-line text-xs"></i>
+                            {Math.abs(daysLeft)} day{Math.abs(daysLeft) !== 1 ? 's' : ''} overdue
+                          </span>
+                        ) : daysLeft === 0 ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/15 border border-amber-500/25 px-2.5 py-1 rounded-full">
+                            <i className="ri-time-line text-xs"></i>Due today
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border ${daysLeft <= 7 ? 'text-amber-300 bg-amber-500/15 border-amber-500/25' : 'text-white/40 bg-white/5 border-white/10'}`}>
+                            <i className="ri-calendar-line text-xs"></i>
+                            {daysLeft}d left · {new Date(wsProject.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progress ring */}
+                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                    <div className="relative" style={{ width: 72, height: 72 }}>
+                      <svg width={72} height={72} viewBox="0 0 72 72">
+                        <circle cx={36} cy={36} r={28} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={7} />
+                        <circle cx={36} cy={36} r={28} fill="none"
+                          stroke={wsPct === 100 ? '#34d399' : '#6366f1'}
+                          strokeWidth={7} strokeLinecap="round"
+                          strokeDasharray={`${(wsPct / 100) * 2 * Math.PI * 28} ${2 * Math.PI * 28}`}
+                          transform="rotate(-90 36 36)"
+                          style={{ transition: 'stroke-dasharray 0.8s ease' }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-lg font-bold text-white leading-none">{wsPct}%</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-white/30">{wsDone}/{wsTasks.length} done</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="flex-1 p-5 md:p-6 space-y-5 overflow-y-auto" style={{ background: 'linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%)' }}>
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Total Tasks', value: wsTasks.length, icon: 'ri-task-line', cls: 'text-gray-700' },
-                { label: 'Done', value: wsDone, icon: 'ri-checkbox-circle-line', cls: 'text-emerald-600' },
-                { label: 'In Progress', value: wsTasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', cls: 'text-sky-600' },
-                { label: 'Overdue', value: wsTasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', cls: 'text-rose-600' },
+                { label: 'Total', value: wsTasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
+                { label: 'Done', value: wsDone, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
+                { label: 'In Progress', value: wsTasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', iconBg: 'bg-sky-100', iconClr: 'text-sky-600', valClr: 'text-sky-700' },
+                { label: 'Overdue', value: wsTasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', iconBg: 'bg-rose-100', iconClr: 'text-rose-500', valClr: 'text-rose-600' },
               ].map(s => (
-                <div key={s.label} className="bg-gray-50 rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <i className={`${s.icon} ${s.cls} text-sm`}></i>
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">{s.label}</span>
+                <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
+                  <div className={`w-8 h-8 rounded-xl ${s.iconBg} flex items-center justify-center mb-3`}>
+                    <i className={`${s.icon} ${s.iconClr} text-sm`}></i>
                   </div>
-                  <p className={`text-2xl font-bold ${s.cls}`}>{s.value}</p>
+                  <p className={`text-2xl font-bold ${s.valClr} leading-none`}>{s.value}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -757,7 +828,7 @@ export default function ContractorProjectsPage() {
 
             <div className="flex gap-6">
               {/* Task list */}
-              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-50 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3">
@@ -809,37 +880,40 @@ export default function ContractorProjectsPage() {
                     <p className="text-sm text-gray-400">No tasks in this filter</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-50">
+                  <div className="divide-y divide-gray-50/80">
                     {wsFiltered.map(task => {
                       const overdue = !!wsIsOverdue(task);
                       const si = wsStatusIcon[task.status];
-                      const priorityCls = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-gray-300' }[task.priority];
+                      const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-300', low: 'border-l-gray-200' }[task.priority];
                       const assignee = wsTeam.find(m => m.id === task.assigned_to);
                       return (
-                        <div key={task.id} className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50/60 transition-colors group">
+                        <div key={task.id} className={`flex items-start gap-3 pl-4 pr-5 py-3.5 hover:bg-gray-50/80 transition-colors group border-l-2 ${priorityBorder}`}>
                           <button onClick={() => cycleTask(task)} className={`flex-shrink-0 cursor-pointer transition-colors mt-0.5 ${si.cls}`}>
                             <i className={`${si.icon} text-lg`}></i>
                           </button>
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2 ${priorityCls}`}></span>
                           <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEditTask(task)}>
-                            <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
+                            <p className={`text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
                             {task.description && <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5">{task.description}</p>}
-                            {assignee && <p className="text-[11px] text-gray-400 mt-0.5">{assignee.full_name}</p>}
                           </div>
-                          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {assignee && (
+                              assignee.avatar_url
+                                ? <img src={assignee.avatar_url} alt={assignee.full_name} title={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top opacity-70" />
+                                : <div title={assignee.full_name} className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                            )}
                             {task.due_date && (
-                              <span className={`text-xs font-medium ${overdue ? 'text-rose-500' : 'text-gray-400'}`}>
-                                {overdue ? 'Overdue' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${overdue ? 'text-rose-600 bg-rose-50' : 'text-gray-400 bg-gray-50'}`}>
+                                {overdue ? '↑ Overdue' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                               </span>
                             )}
                             <button onClick={() => openEditTask(task)}
-                              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 cursor-pointer transition-all">
+                              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 cursor-pointer transition-all">
                               <i className="ri-pencil-line text-sm"></i>
                             </button>
                             <button
                               onClick={() => { if (window.confirm('Delete this task?')) deleteTask(task.id); }}
                               disabled={deletingTaskId === task.id}
-                              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
+                              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
                               <i className="ri-delete-bin-line text-sm"></i>
                             </button>
                           </div>
@@ -853,7 +927,7 @@ export default function ContractorProjectsPage() {
               {/* Right: project info */}
               <div className="hidden lg:flex flex-col gap-4 w-64 flex-shrink-0">
                 {/* Project card */}
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Project</p>
                     <p className="font-semibold text-gray-900 text-sm">{wsProject.project_name}</p>
@@ -879,7 +953,7 @@ export default function ContractorProjectsPage() {
                   const isFullyPaid = totalPaidOut >= myCut && myCut > 0;
                   const payoutPct = myCut > 0 ? Math.min((totalPaidOut / myCut) * 100, 100) : 0;
                   return (
-                    <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
                       <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Your Payout</p>
                       <p className="text-xl font-bold text-gray-900">{fmt(myCut)}</p>
                       <p className="text-xs text-gray-400">{isFixed ? 'Fixed fee' : `${workspaceRow!.percentage}% of net profit`}</p>
@@ -906,7 +980,7 @@ export default function ContractorProjectsPage() {
 
                 {/* Team */}
                 {wsTeam.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                     <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Team</p>
                     <div className="space-y-2.5">
                       {wsTeam.map(m => (
