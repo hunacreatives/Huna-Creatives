@@ -36,6 +36,7 @@ type InvoiceSendMode = 'now' | 'schedule';
 
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
+  project_type: 'client' | 'internal';
   contract_price: number; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
   hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
@@ -91,7 +92,7 @@ export default function AdminProjectsPage() {
 
   // Project form
   const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Other'];
-  const emptyForm = { client_name: '', project_name: '', service: 'Website Design', contract_price: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
+  const emptyForm = { project_type: 'client' as 'client' | 'internal', client_name: '', project_name: '', service: 'Website Design', contract_price: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -307,10 +308,26 @@ export default function AdminProjectsPage() {
     return { totalPaid, totalCosts, netProfit, balance, paidPct };
   };
 
+  const isInternalProject = (project: Project | null | undefined) => project?.project_type === 'internal';
+
   const saveProject = async () => {
-    if (!form.client_name.trim() || !form.project_name.trim() || !form.contract_price) { setFormError('Client, project name and contract price are required.'); return; }
+    const isInternal = form.project_type === 'internal';
+    if (!form.project_name.trim()) { setFormError('Project name is required.'); return; }
+    if (!isInternal && (!form.client_name.trim() || !form.contract_price)) { setFormError('Client, project name and contract price are required.'); return; }
     setFormSaving(true); setFormError('');
-    const payload = { client_name: form.client_name.trim(), project_name: form.project_name.trim(), service: form.service || null, contract_price: parseFloat(form.contract_price), status: form.status, start_date: form.start_date || null, deadline: form.deadline || null, notes: form.notes || null, contact_email: form.contact_email.trim() || null, drive_url: (form as any).drive_url?.trim() || null };
+    const payload = {
+      project_type: form.project_type,
+      client_name: isInternal ? (form.client_name.trim() || 'Internal') : form.client_name.trim(),
+      project_name: form.project_name.trim(),
+      service: form.service || null,
+      contract_price: isInternal ? 0 : parseFloat(form.contract_price),
+      status: form.status,
+      start_date: form.start_date || null,
+      deadline: form.deadline || null,
+      notes: form.notes || null,
+      contact_email: isInternal ? null : (form.contact_email.trim() || null),
+      drive_url: (form as any).drive_url?.trim() || null,
+    };
     if (editingProject) {
       const { error } = await supabase.from('hub_projects').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editingProject.id);
       if (error) { setFormError(error.message); setFormSaving(false); return; }
@@ -318,10 +335,34 @@ export default function AdminProjectsPage() {
     } else {
       const { data, error } = await supabase.from('hub_projects').insert(payload).select('id').single();
       if (error) { setFormError(error.message); setFormSaving(false); return; }
-      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'project', description: `Created project "${form.project_name}" for ${form.client_name}` });
+      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'project', description: `Created ${isInternal ? 'internal' : 'client'} project "${form.project_name}"` });
       if (data) setActiveId(data.id);
     }
     setFormSaving(false); setShowForm(false); setEditingProject(null); setForm(emptyForm);
+    fetchAll();
+  };
+
+  const deleteProject = async (project: Project) => {
+    if (isDemo) return;
+    const confirmed = window.confirm(`Delete "${project.project_name}"? This removes the project, team assignments, tasks, activity, costs, and payments that cascade with it.`);
+    if (!confirmed) return;
+    const { error } = await supabase.from('hub_projects').delete().eq('id', project.id);
+    if (error) {
+      window.alert(`Could not delete project: ${error.message}`);
+      return;
+    }
+    logAudit({
+      actor_id: hubUser?.id,
+      actor_name: hubUser?.full_name,
+      action: 'delete',
+      entity_type: 'project',
+      entity_id: String(project.id),
+      description: `Deleted project "${project.project_name}"`,
+    });
+    if (activeId === project.id) {
+      setActiveId(null);
+      setWorkspaceOpen(false);
+    }
     fetchAll();
   };
 
@@ -853,7 +894,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
   const summaryTotals = (() => {
     let contractValue = 0, costs = 0, collected = 0;
-    for (const p of projects) {
+    for (const p of projects.filter(p => p.project_type !== 'internal')) {
       contractValue += p.contract_price;
       costs += p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
       collected += p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
@@ -1307,21 +1348,34 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       </div>
 
                       {/* Project + client name */}
-                      <div>
-                        <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
-                        <p className="text-xs text-gray-400 mt-0.5 truncate">{p.client_name}</p>
+                    <div>
+                      <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
+                        <p className="text-xs text-gray-400 mt-0.5 truncate">
+                          {p.project_type === 'internal' ? 'Internal Project' : p.client_name}
+                        </p>
                       </div>
 
                       {/* Financial: value + collection progress */}
                       <div className="mt-auto space-y-1.5">
-                        <div className="flex items-baseline justify-between">
-                          <p className="text-base font-bold text-[#111827] leading-none">{fmt(p.contract_price)}</p>
-                          <span className="text-[11px] text-gray-400">{d.paidPct.toFixed(0)}% paid</span>
-                        </div>
-                        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${d.paidPct >= 100 ? 'bg-emerald-400' : d.paidPct > 0 ? 'bg-emerald-300' : 'bg-gray-200'}`}
-                            style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
-                        </div>
+                        {p.project_type === 'internal' ? (
+                          <div className="rounded-lg bg-gray-50 px-2.5 py-2">
+                            <p className="text-[11px] font-medium text-gray-600">
+                              {p.hub_project_contractors.length} team member{p.hub_project_contractors.length !== 1 ? 's' : ''}
+                            </p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">Operational workspace only</p>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-baseline justify-between">
+                              <p className="text-base font-bold text-[#111827] leading-none">{fmt(p.contract_price)}</p>
+                              <span className="text-[11px] text-gray-400">{d.paidPct.toFixed(0)}% paid</span>
+                            </div>
+                            <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${d.paidPct >= 100 ? 'bg-emerald-400' : d.paidPct > 0 ? 'bg-emerald-300' : 'bg-gray-200'}`}
+                                style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       {/* Bottom: deadline + overdue */}
@@ -1346,6 +1400,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           const d = derived(activeProject);
           const cfg = statusCfg[activeProject.status] ?? statusCfg.ongoing;
           const unassigned = contractors.filter(c => !activeProject.hub_project_contractors.some(pc => pc.hub_users?.id === c.id));
+          const internalProject = isInternalProject(activeProject);
 
           return (
             <>
@@ -1355,7 +1410,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 sticky top-0 bg-white">
                   <div>
                     <p className="font-semibold text-[#111827] text-sm">{activeProject.project_name}</p>
-                    <p className="text-xs text-gray-400">{activeProject.client_name}</p>
+                    <p className="text-xs text-gray-400">{internalProject ? 'Internal Project' : activeProject.client_name}</p>
                   </div>
                   <button onClick={() => setActiveId(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 cursor-pointer">
                     <i className="ri-close-line"></i>
@@ -1364,12 +1419,17 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <div className="p-5 space-y-4">
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-2">
-                    {[
+                    {(internalProject ? [
+                      { label: 'Team', value: String(activeProject.hub_project_contractors.length), cls: 'text-gray-800' },
+                      { label: 'Tasks', value: String(tasks.length), cls: 'text-indigo-600' },
+                      { label: 'Done', value: String(tasks.filter(t => t.status === 'done').length), cls: 'text-emerald-600' },
+                      { label: 'Status', value: cfg.label, cls: 'text-gray-500' },
+                    ] : [
                       { label: 'Contract', value: fmt(activeProject.contract_price), cls: 'text-gray-800' },
                       { label: 'Paid', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
                       { label: 'Balance', value: fmt(d.balance), cls: d.balance > 0 ? 'text-rose-600' : 'text-gray-400' },
                       { label: 'Costs', value: fmt(d.totalCosts), cls: 'text-orange-600' },
-                    ].map(s => (
+                    ]).map(s => (
                       <div key={s.label} className="bg-gray-50 rounded-xl p-3">
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
                         <p className={`text-sm font-bold mt-0.5 ${s.cls}`}>{s.value}</p>
@@ -1378,13 +1438,16 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   </div>
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
+                    {!internalProject && <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
-                    </button>
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: String(activeProject.contract_price), deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
+                    </button>}
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: String(activeProject.contract_price), deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
                       className="px-4 flex items-center gap-1.5 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-xl cursor-pointer">
                       <i className="ri-edit-line"></i>
+                    </button>
+                    <button onClick={() => void deleteProject(activeProject)} className="px-4 flex items-center gap-1.5 py-2.5 border border-rose-200 text-rose-500 text-sm rounded-xl cursor-pointer">
+                      <i className="ri-delete-bin-line"></i>
                     </button>
                   </div>
                   {/* Team */}
@@ -1408,7 +1471,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     </div>
                   )}
                   {/* Payments */}
-                  {activeProject.hub_project_payments.length > 0 && (
+                  {!internalProject && activeProject.hub_project_payments.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-gray-500 mb-2">Payments</p>
                       <div className="space-y-1.5">
@@ -1433,11 +1496,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="font-bold text-[#111827] text-lg">{activeProject.project_name}</h2>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
+                      {internalProject && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">Internal</span>
+                      )}
                       {activeProject.service && (
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getServiceCfg(activeProject.service).badge}`}>{activeProject.service}</span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">{activeProject.client_name}</p>
+                    <p className="text-sm text-gray-500 mt-0.5">{internalProject ? 'Internal Project' : activeProject.client_name}</p>
                     {(activeProject.start_date || activeProject.deadline) && (
                       <p className="text-xs text-gray-400 mt-1">
                         {activeProject.start_date && `Started ${new Date(activeProject.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
@@ -1447,17 +1513,21 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => void printInvoice(activeProject)}
+                    {!internalProject && <button onClick={() => void printInvoice(activeProject)}
                       className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-white/55">
                       <i className="ri-printer-line"></i> Print
-                    </button>
-                    <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
+                    </button>}
+                    {!internalProject && <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
                       className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-xl hover:bg-[#0f172a] cursor-pointer flex items-center gap-1">
                       <i className="ri-mail-send-line"></i> Send Invoice
-                    </button>
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
+                    </button>}
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
                       className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-white/55">
                       <i className="ri-edit-line"></i> Edit
+                    </button>
+                    <button onClick={() => void deleteProject(activeProject)}
+                      className="text-xs text-rose-500 hover:text-rose-600 cursor-pointer flex items-center gap-1 rounded-full px-2.5 py-1.5 hover:bg-rose-50">
+                      <i className="ri-delete-bin-line"></i> Delete
                     </button>
                     <button onClick={() => setWorkspaceOpen(true)}
                       className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors">
@@ -1468,12 +1538,17 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
                 {/* Financials */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                  {[
+                  {(internalProject ? [
+                    { label: 'Project Type', value: 'Internal', sub: 'non-billable', color: 'text-gray-900' },
+                    { label: 'Team Members', value: String(activeProject.hub_project_contractors.length), sub: null, color: 'text-gray-900' },
+                    { label: 'Tasks', value: String(tasks.length), sub: `${tasks.filter(t => t.status === 'done').length} completed`, color: 'text-indigo-600' },
+                    { label: 'Status', value: cfg.label, sub: null, color: 'text-gray-500' },
+                  ] : [
                     { label: 'Contract Price', value: fmt(activeProject.contract_price), sub: null, color: 'text-gray-900' },
                     { label: 'Operational Costs', value: fmt(d.totalCosts), sub: null, color: 'text-rose-600' },
                     { label: 'Net Profit', value: fmt(d.netProfit), sub: 'after costs', color: 'text-emerald-600' },
                     { label: 'Balance Due', value: fmt(d.balance), sub: `${fmtPct(d.paidPct)} collected`, color: d.balance > 0 ? 'text-amber-600' : 'text-emerald-600' },
-                  ].map(card => (
+                  ]).map(card => (
                     <div key={card.label} className="bg-gray-50 border border-gray-100 rounded-xl p-3">
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">{card.label}</p>
                       <p className={`text-base font-bold mt-0.5 ${card.color}`}>{card.value}</p>
@@ -1483,7 +1558,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
 
                 {/* Collection progress */}
-                <div className="mt-3">
+                {!internalProject && <div className="mt-3">
                   <div className="flex justify-between text-xs text-gray-400 mb-1">
                     <span>Client payments</span>
                     <span>{fmt(d.totalPaid)} of {fmt(activeProject.contract_price)}</span>
@@ -1491,12 +1566,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white/55">
                     <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
                   </div>
-                </div>
+                </div>}
                 {activeProject.notes && <p className="text-xs text-gray-400 italic mt-3">{activeProject.notes}</p>}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {!internalProject && <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Client Payments */}
                 <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                   <button onClick={() => toggleSection('payments')} className="w-full flex items-center justify-between cursor-pointer group">
@@ -1735,12 +1810,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     </>
                   )}
                 </div>
-              </div>
+              </div>}
 
               {/* Team */}
               <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                 <button onClick={() => toggleSection('team')} className="w-full flex items-center justify-between cursor-pointer group">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team & Payouts</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{internalProject ? 'Team' : 'Team & Payouts'}</p>
                   <i className={`ri-arrow-${teamPayoutsOpen ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
                 </button>
                 {!teamPayoutsOpen && activeProject.hub_project_contractors.length > 0 && (
@@ -1758,7 +1833,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 )}
                 {teamPayoutsOpen && (
                   <>
-                  <p className="text-[11px] text-gray-400">Assign people first, then configure payout type and amount for each person.</p>
+                  <p className="text-[11px] text-gray-400">
+                    {internalProject ? 'Assign people and roles so they can collaborate in the workspace.' : 'Assign people first, then configure payout type and amount for each person.'}
+                  </p>
                   {activeProject.hub_project_contractors.length === 0 ? (
                   <p className="text-xs text-gray-400">No contractors assigned to this project yet.</p>
                   ) : (
@@ -1796,21 +1873,23 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     {pc.project_role}
                                   </span>
                                 )}
-                                {!hasConfiguredPayout ? (
+                                {internalProject ? (
+                                  <span className="text-xs text-gray-400">Internal assignment</span>
+                                ) : !hasConfiguredPayout ? (
                                   <span className="text-xs text-amber-600">No payout set</span>
                                 ) : isFixed ? (
                                   <span className="text-xs text-gray-400">Fixed fee → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
                                 ) : (
                                   <span className="text-xs text-gray-400">{pc.percentage}% → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
                                 )}
-                                {hasConfiguredPayout && (isFullyPaid
+                                {!internalProject && hasConfiguredPayout && (isFullyPaid
                                   ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Paid in full</span>
                                   : totalPaidOut > 0
                                     ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{fmt(totalPaidOut)} paid</span>
                                     : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Unpaid</span>
                                 )}
                               </div>
-                              {hasConfiguredPayout && (
+                              {!internalProject && hasConfiguredPayout && (
                                 <div className="mt-1.5 h-1 bg-gray-200 rounded-full overflow-hidden w-full">
                                   <div className={`h-full rounded-full transition-all ${isFullyPaid ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${paidPct}%` }} />
                                 </div>
@@ -1819,7 +1898,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                             <button onClick={() => removeContractor(pc.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0"><i className="ri-delete-bin-line text-xs"></i></button>
                           </div>
 
-                          <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
+                          {!internalProject && <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
                             <div className="flex items-center justify-between gap-2 flex-wrap">
                               <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Payout Setup</p>
                               <span className="text-[11px] text-gray-400">Net profit basis: <strong className="text-emerald-600">{fmt(d.netProfit)}</strong></span>
@@ -1854,10 +1933,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                               </button>
                             </div>
                             {ctxConfigError[pc.id] && <p className="text-xs text-red-500">{ctxConfigError[pc.id]}</p>}
-                          </div>
+                          </div>}
 
                           {/* Payout history */}
-                          {hasConfiguredPayout && pc.hub_project_contractor_payouts.length > 0 && (
+                          {!internalProject && hasConfiguredPayout && pc.hub_project_contractor_payouts.length > 0 && (
                             <div className="px-3 py-2 space-y-1.5 border-t border-gray-100">
                               {pc.hub_project_contractor_payouts.map(pp => (
                                 <div key={pp.id} className="flex items-center justify-between gap-2 text-xs">
@@ -1879,7 +1958,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           )}
 
                           {/* Log payout form */}
-                          {hasConfiguredPayout && !isFullyPaid && (
+                          {!internalProject && hasConfiguredPayout && !isFullyPaid && (
                             <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
                               <div className="flex gap-2">
                                 <div className="flex-1 flex gap-1">
@@ -1952,7 +2031,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         </button>
                       </div>
                       {ctxAddError && <p className="text-xs text-red-500">{ctxAddError}</p>}
-                      <p className="text-[11px] text-gray-400">Payout can be configured after assignment.</p>
+                      <p className="text-[11px] text-gray-400">{internalProject ? 'Tasks and workspace access start immediately after assignment.' : 'Payout can be configured after assignment.'}</p>
                     </div>
                   )}
                   </>
@@ -1983,10 +2062,29 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               <button onClick={() => { setShowForm(false); setEditingProject(null); }} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>
             </div>
             <div className="p-5 space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Project Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'client', label: 'Client Project', sub: 'Billing, invoices, payouts' },
+                    { value: 'internal', label: 'Internal Project', sub: 'Tasks, team, files only' },
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, project_type: option.value as 'client' | 'internal', client_name: option.value === 'internal' && !form.client_name ? 'Internal' : form.client_name, contract_price: option.value === 'internal' ? '' : form.contract_price, contact_email: option.value === 'internal' ? '' : form.contact_email })}
+                      className={`rounded-xl border px-3 py-3 text-left transition-colors cursor-pointer ${form.project_type === option.value ? 'border-[#111827] bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <p className="text-sm font-medium text-gray-800">{option.label}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{option.sub}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Client Name *</label>
-                  <input value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} placeholder="e.g. FS Architects"
+                  <label className="text-xs font-medium text-gray-700">{form.project_type === 'internal' ? 'Owner / Label' : 'Client Name'}{form.project_type === 'client' ? ' *' : ''}</label>
+                  <input value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} placeholder={form.project_type === 'internal' ? 'e.g. Internal, Marketing, Ops' : 'e.g. FS Architects'}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
                 <div className="space-y-1">
@@ -2009,11 +2107,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] mt-1.5" />
                   )}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Contract Price (PHP) *</label>
-                  <input type="number" value={form.contract_price} onChange={e => setForm({ ...form, contract_price: e.target.value })} placeholder="0.00"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                </div>
+                {form.project_type === 'client' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Contract Price (PHP) *</label>
+                    <input type="number" value={form.contract_price} onChange={e => setForm({ ...form, contract_price: e.target.value })} placeholder="0.00"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -2047,11 +2147,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <input type="url" value={(form as any).drive_url ?? ''} onChange={e => setForm({ ...form, drive_url: e.target.value } as any)} placeholder="https://drive.google.com/drive/u/0/folders/..."
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Client Contact Email <span className="text-gray-400 font-normal">(for invoices)</span></label>
-                <input type="email" value={form.contact_email} onChange={e => setForm({ ...form, contact_email: e.target.value })} placeholder="client@email.com"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-              </div>
+              {form.project_type === 'client' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Client Contact Email <span className="text-gray-400 font-normal">(for invoices)</span></label>
+                  <input type="email" value={form.contact_email} onChange={e => setForm({ ...form, contact_email: e.target.value })} placeholder="client@email.com"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+              )}
               {formError && <p className="text-xs text-red-500">{formError}</p>}
             </div>
             <div className="flex gap-2 p-5 pt-0">

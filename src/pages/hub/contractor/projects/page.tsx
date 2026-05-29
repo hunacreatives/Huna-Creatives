@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
+import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
+import { DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS, DEMO_CONTRACTOR_TEAM } from '@/lib/demoData';
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -20,6 +22,7 @@ interface ProjectRow {
   hub_project_contractor_payouts: ContractorPayout[];
   hub_projects: {
     id: number;
+    project_type: 'client' | 'internal';
     client_name: string;
     project_name: string;
     service: string | null;
@@ -533,6 +536,7 @@ function ProjectCard({ row, projectTasks, onClick }: {
   const overdue = projectTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done').length;
   const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
   const netProfit = p.contract_price - totalCosts;
+  const internalProject = p.project_type === 'internal';
   const isFixed = row.payout_type === 'fixed';
   const myCut = isFixed ? (row.fixed_amount ?? 0) : netProfit * (row.percentage / 100);
   const payouts = row.hub_project_contractor_payouts ?? [];
@@ -554,7 +558,9 @@ function ProjectCard({ row, projectTasks, onClick }: {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="font-bold text-gray-900 text-base leading-snug line-clamp-1">{p.project_name}</p>
-          <p className="text-xs text-gray-400 mt-0.5 truncate">{p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
+          <p className="text-xs text-gray-400 mt-0.5 truncate">
+            {internalProject ? 'Internal Project' : p.client_name}{p.service ? ` · ${p.service}` : ''}
+          </p>
           {p.deadline && (
             <p className={`text-xs mt-0.5 ${p.deadline < today && p.status !== 'completed' ? 'text-rose-500 font-medium' : 'text-gray-400'}`}>
               Due {new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -581,15 +587,29 @@ function ProjectCard({ row, projectTasks, onClick }: {
         </div>
       )}
 
-      {/* Payout */}
+      {/* Payout / internal status */}
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-[11px] text-gray-400">{isFixed ? 'Fixed fee' : `Your cut (${row.percentage}%)`}</p>
-          <p className="text-sm font-bold text-gray-900">{fmt(myCut)}</p>
-        </div>
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${isFullyPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
-          {isFullyPaid ? 'Paid ✓' : `${fmt(totalPaidOut)} received`}
-        </span>
+        {internalProject ? (
+          <>
+            <div>
+              <p className="text-[11px] text-gray-400">Project Type</p>
+              <p className="text-sm font-bold text-gray-900">Internal</p>
+            </div>
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">
+              Ops only
+            </span>
+          </>
+        ) : (
+          <>
+            <div>
+              <p className="text-[11px] text-gray-400">{isFixed ? 'Fixed fee' : `Your cut (${row.percentage}%)`}</p>
+              <p className="text-sm font-bold text-gray-900">{fmt(myCut)}</p>
+            </div>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${isFullyPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
+              {isFullyPaid ? 'Paid ✓' : `${fmt(totalPaidOut)} received`}
+            </span>
+          </>
+        )}
       </div>
     </button>
   );
@@ -600,6 +620,7 @@ export default function ContractorProjectsPage() {
   const { hubUser: realHubUser } = useAuth();
   const { hubUser: demoHubUser } = useHubAuth();
   const hubUser = realHubUser ?? demoHubUser;
+  const { isDemo } = useDemo();
   const [rows, setRows] = useState<ProjectRow[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [teamMap, setTeamMap] = useState<Record<number, TeamMember[]>>({});
@@ -612,6 +633,7 @@ export default function ContractorProjectsPage() {
   const [taskForm, setTaskForm] = useState(emptyTaskForm());
   const [taskSaving, setTaskSaving] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
+  const [showActivityModal, setShowActivityModal] = useState(false);
   const [search, setSearch] = useState('');
   const [taskSearch, setTaskSearch] = useState('');
   const [wsSearch, setWsSearch] = useState('');
@@ -627,18 +649,31 @@ export default function ContractorProjectsPage() {
   const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('edit');
   const [, setTick] = useState(0); // forces re-render for live timestamps
   const [taskCommentCounts, setTaskCommentCounts] = useState<Record<number, number>>({});
-  const [activityLog, setActivityLog] = useState<{
+  type ActivityItem = {
     id: number; action: string; entity_title: string; entity_id: number | null;
     meta: Record<string, unknown> | null; created_at: string;
     hub_users: { full_name: string; avatar_url: string | null } | null;
-  }[]>([]);
+  };
+  const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
+
+  const normalizeActivityItem = (row: any): ActivityItem => ({
+    id: row.id,
+    action: row.action,
+    entity_title: row.entity_title,
+    entity_id: row.entity_id,
+    meta: row.meta,
+    created_at: row.created_at,
+    hub_users: Array.isArray(row.hub_users) ? (row.hub_users[0] ?? null) : (row.hub_users ?? null),
+  });
 
   const cycleTask = async (task: ProjectTask) => {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
     const newStatus = next[task.status];
+    // In demo mode just update local state
+    if (isDemo) { setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t)); return; }
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
     await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', task.id);
-    logActivity('task_status_changed', task.title, task.id, { from: task.status, to: newStatus });
+    await logActivity('task_status_changed', task.title, task.id, { from: task.status, to: newStatus });
   };
 
   const openAddTask = () => {
@@ -693,17 +728,17 @@ export default function ContractorProjectsPage() {
     if (editingTask) {
       await supabase.from('hub_project_tasks').update(payload).eq('id', editingTask.id);
       setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...payload } : t));
-      logActivity('task_updated', taskForm.title.trim(), editingTask.id);
+      await logActivity('task_updated', taskForm.title.trim(), editingTask.id);
     } else {
       const { data } = await supabase
         .from('hub_project_tasks')
         .insert({ ...payload, project_id: workspaceRow.hub_projects.id })
         .select()
-        .single();
-      if (data) {
-        setTasks(prev => [...prev, data as ProjectTask]);
-        logActivity('task_created', taskForm.title.trim(), (data as ProjectTask).id);
-      }
+      .single();
+    if (data) {
+      setTasks(prev => [...prev, data as ProjectTask]);
+      await logActivity('task_created', taskForm.title.trim(), (data as ProjectTask).id);
+    }
     }
     setTaskSaving(false);
     setShowTaskModal(false);
@@ -713,8 +748,13 @@ export default function ContractorProjectsPage() {
   const deleteTask = async (taskId: number) => {
     setDeletingTaskId(taskId);
     const t = tasks.find(t => t.id === taskId);
-    if (t) logActivity('task_deleted', t.title, t.id);
-    await supabase.from('hub_project_tasks').delete().eq('id', taskId);
+    const { error } = await supabase.from('hub_project_tasks').delete().eq('id', taskId);
+    if (error) {
+      console.error('Failed to delete project task', error);
+      setDeletingTaskId(null);
+      return;
+    }
+    if (t) await logActivity('task_deleted', t.title, t.id);
     setTasks(prev => prev.filter(t => t.id !== taskId));
     setDeletingTaskId(null);
   };
@@ -752,7 +792,7 @@ export default function ContractorProjectsPage() {
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
       .limit(20)
-      .then(({ data }) => setActivityLog((data as any) ?? []));
+      .then(({ data }) => setActivityLog(((data ?? []) as any[]).map(normalizeActivityItem)));
   }, [workspaceRow?.hub_projects?.id]);
 
   // Load comments when editing task changes
@@ -778,7 +818,7 @@ export default function ContractorProjectsPage() {
       setTaskComments(prev => [...prev, data as any]);
       setTaskCommentCounts(prev => ({ ...prev, [editingTask.id]: (prev[editingTask.id] ?? 0) + 1 }));
       setNewComment('');
-      logActivity('comment_added', editingTask.title, editingTask.id, { comment: newComment.trim().slice(0, 100) });
+      await logActivity('comment_added', editingTask.title, editingTask.id, { comment: newComment.trim().slice(0, 100) });
       // Fire mention notifications if comment has @mentions
       if (newComment.includes('@') && workspaceRow?.hub_projects?.id) {
         supabase.functions.invoke('notify-task-mention', {
@@ -805,8 +845,23 @@ export default function ContractorProjectsPage() {
   };
 
   const deleteComment = async (commentId: number) => {
-    await supabase.from('hub_project_task_comments').delete().eq('id', commentId);
+    const taskId = editingTask?.id;
+    const taskTitle = editingTask?.title;
+    const { error } = await supabase.from('hub_project_task_comments').delete().eq('id', commentId);
+    if (error) {
+      console.error('Failed to delete task comment', error);
+      return;
+    }
     setTaskComments(prev => prev.filter(c => c.id !== commentId));
+    if (taskId) {
+      setTaskCommentCounts(prev => ({
+        ...prev,
+        [taskId]: Math.max((prev[taskId] ?? 0) - 1, 0),
+      }));
+    }
+    if (taskId && taskTitle) {
+      await logActivity('comment_deleted', taskTitle, taskId);
+    }
   };
 
   const logActivity = async (
@@ -816,7 +871,7 @@ export default function ContractorProjectsPage() {
     meta?: Record<string, unknown>
   ) => {
     if (!hubUser || !workspaceRow?.hub_projects?.id) return;
-    await supabase.from('hub_project_activity').insert({
+    const payload = {
       project_id: workspaceRow.hub_projects.id,
       user_id: hubUser.id,
       action,
@@ -824,7 +879,21 @@ export default function ContractorProjectsPage() {
       entity_id: entityId ?? null,
       entity_title: entityTitle,
       meta: meta ?? null,
-    });
+    };
+    const { data, error } = await supabase
+      .from('hub_project_activity')
+      .insert(payload)
+      .select('id, action, entity_title, entity_id, meta, created_at, hub_users(full_name, avatar_url)')
+      .single();
+
+    if (error) {
+      console.error('Failed to log project activity', error);
+      return;
+    }
+
+    if (data) {
+      setActivityLog(prev => [normalizeActivityItem(data), ...prev].slice(0, 20));
+    }
   };
 
   useEffect(() => {
@@ -839,9 +908,19 @@ export default function ContractorProjectsPage() {
 
   useEffect(() => {
     if (!hubUser) return;
+
+    // Demo mode — use static demo data
+    if (isDemo) {
+      setRows(DEMO_CONTRACTOR_PROJECTS as any);
+      setTasks(DEMO_CONTRACTOR_TASKS as any);
+      setTeamMap(DEMO_CONTRACTOR_TEAM as any);
+      setLoading(false);
+      return;
+    }
+
     supabase
       .from('hub_project_contractors')
-      .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, hub_project_payments(amount), hub_project_costs(amount))')
+      .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url), hub_projects(id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, hub_project_payments(amount), hub_project_costs(amount))')
       .eq('contractor_id', hubUser.id)
       .then(async ({ data }) => {
         const normalized = ((data ?? []) as ProjectRowRaw[]).map((row) => ({
@@ -918,9 +997,12 @@ export default function ContractorProjectsPage() {
 
   const wsRow = workspaceRow;
   const wsProject = wsRow?.hub_projects;
+  const wsIsInternal = wsProject?.project_type === 'internal';
   const wsTasks = wsRow ? tasks.filter(t => t.project_id === wsProject?.id) : [];
   const wsToday = new Date().toISOString().slice(0, 10);
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
+  // wsTeam must be declared before wsFiltered — wsFiltered references wsTeam
+  const wsTeam = wsRow ? (teamMap[wsProject?.id ?? 0] ?? []) : [];
   const wsFiltered = wsTasks.filter(t => {
     if (taskFilter !== 'all' && taskFilter !== 'overdue' && t.status !== taskFilter) return false;
     if (taskFilter === 'overdue' && !wsIsOverdue(t)) return false;
@@ -935,7 +1017,6 @@ export default function ContractorProjectsPage() {
   });
   const wsDone = wsTasks.filter(t => t.status === 'done').length;
   const wsPct = wsTasks.length > 0 ? Math.round((wsDone / wsTasks.length) * 100) : 0;
-  const wsTeam = wsRow ? (teamMap[wsProject?.id ?? 0] ?? []) : [];
   const wsStatusIcon: Record<string, { icon: string; cls: string }> = {
     todo: { icon: 'ri-checkbox-blank-circle-line', cls: 'text-gray-300 hover:text-gray-500' },
     in_progress: { icon: 'ri-loader-2-line', cls: 'text-sky-400 hover:text-sky-600' },
@@ -946,10 +1027,11 @@ export default function ContractorProjectsPage() {
     { label: 'Timeline', description: `${wsProject.project_name} · Gantt chart`, icon: 'ri-bar-chart-grouped-line', id: 'ws-timeline', iconCls: 'bg-indigo-50 text-indigo-500', keywords: ['timeline', 'gantt', 'schedule', 'chart', 'dates', 'calendar', 'deadline'] },
     { label: 'Tasks', description: `${wsProject.project_name} · Task list`, icon: 'ri-task-line', id: 'ws-tasks', iconCls: 'bg-sky-50 text-sky-500', keywords: ['tasks', 'list', 'todo', 'work', 'items', 'progress', 'backlog'] },
     { label: 'Overview', description: `${wsProject.project_name} · Stats & progress`, icon: 'ri-bar-chart-2-line', id: 'ws-stats', iconCls: 'bg-emerald-50 text-emerald-500', keywords: ['stats', 'overview', 'total', 'count', 'numbers', 'summary', 'progress'] },
-    { label: 'Payout', description: `${wsProject.project_name} · Your earnings`, icon: 'ri-money-dollar-circle-line', id: 'ws-sidebar', iconCls: 'bg-orange-50 text-[#FF6B35]', keywords: ['payout', 'payment', 'earnings', 'salary', 'money', 'fee', 'income', 'receive'] },
     { label: 'Team', description: `${wsProject.project_name} · Members`, icon: 'ri-team-line', id: 'ws-sidebar', iconCls: 'bg-purple-50 text-purple-500', keywords: ['team', 'members', 'people', 'colleagues', 'who', 'assigned'] },
     { label: 'Notes & Dates', description: `${wsProject.project_name} · Start & deadline`, icon: 'ri-sticky-note-line', id: 'ws-sidebar', iconCls: 'bg-amber-50 text-amber-500', keywords: ['notes', 'brief', 'description', 'info', 'details', 'start', 'due', 'date', 'deadline'] },
-  ] : [];
+  ].concat(wsProject.project_type === 'internal' ? [] : [
+    { label: 'Payout', description: `${wsProject.project_name} · Your earnings`, icon: 'ri-money-dollar-circle-line', id: 'ws-sidebar', iconCls: 'bg-orange-50 text-[#FF6B35]', keywords: ['payout', 'payment', 'earnings', 'salary', 'money', 'fee', 'income', 'receive'] },
+  ]) : [];
 
   const WS_FILTERS = [
     { label: 'Overdue Tasks', filter: 'overdue' as const, icon: 'ri-alarm-warning-line', cls: 'bg-rose-50 text-rose-500', count: wsTasks.filter(t => !!wsIsOverdue(t)).length, keywords: ['overdue', 'late', 'past due', 'missed'] },
@@ -1207,7 +1289,7 @@ export default function ContractorProjectsPage() {
           </button>
           <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900 truncate leading-tight">{wsProject.project_name}</p>
-            <p className="text-xs text-gray-400 truncate">{wsProject.client_name}{wsProject.service ? ` · ${wsProject.service}` : ''}</p>
+            <p className="text-xs text-gray-400 truncate">{wsIsInternal ? 'Internal Project' : wsProject.client_name}{wsProject.service ? ` · ${wsProject.service}` : ''}</p>
           </div>
         </div>
       ) : undefined}
@@ -1222,19 +1304,25 @@ export default function ContractorProjectsPage() {
             const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' };
             const daysLeft = wsProject.deadline ? Math.ceil((new Date(wsProject.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
             const isDeadlineOver = daysLeft !== null && daysLeft < 0 && wsProject.status !== 'completed';
+            const folderIdMatch = wsProject.drive_url?.match(/folders\/([a-zA-Z0-9_-]+)/);
+            const folderId = folderIdMatch?.[1];
+            const embedUrl = folderId
+              ? `https://drive.google.com/embeddedfolderview?id=${folderId}#grid`
+              : null;
             return (
               <div className="px-5 md:px-6 pt-4 pb-2 flex-shrink-0">
                 <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
+                  <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:gap-8">
+                    <div className="min-w-0 xl:max-w-[320px] xl:flex-shrink-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1.5">
                         <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
                           {statusLabels[wsProject.status] ?? wsProject.status}
                         </span>
+                        {wsIsInternal && <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Internal</span>}
                         {wsProject.service && <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{wsProject.service}</span>}
                       </div>
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{wsProject.project_name}</h2>
-                      <p className="text-sm text-gray-400 mt-0.5">{wsProject.client_name}</p>
+                      <p className="text-sm text-gray-400 mt-0.5">{wsIsInternal ? 'Internal Project' : wsProject.client_name}</p>
 
                       {wsTeam.length > 0 && (
                         <div className="flex items-center gap-2 mt-3">
@@ -1269,35 +1357,47 @@ export default function ContractorProjectsPage() {
                       )}
                     </div>
 
-                    {/* Right: ring + breakdown */}
-                    {/* Google Drive button */}
-                    <div className="flex-shrink-0 flex flex-col items-center gap-2">
-                      {wsProject.drive_url ? (
-                        <a href={wsProject.drive_url} target="_blank" rel="noopener noreferrer"
-                          className="flex flex-col items-center gap-2 px-4 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer w-28 text-center">
-                          <svg viewBox="0 0 87.3 78" className="w-9 h-9" xmlns="http://www.w3.org/2000/svg">
-                            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
-                            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
-                            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                          </svg>
-                          <span className="text-xs font-semibold text-gray-700 group-hover:text-blue-600 transition-colors leading-tight">Project Files</span>
-                          <span className="text-[10px] text-gray-400">Google Drive</span>
-                        </a>
+                    <div className="xl:flex-1 xl:min-w-0">
+                      {embedUrl && wsProject.drive_url ? (
+                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-[#f1f3f7] shadow-sm">
+                          <div className="flex items-center justify-end border-b border-gray-200/80 px-3 py-2">
+                            <a
+                              href={wsProject.drive_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 rounded-full bg-white/90 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 transition-colors hover:text-blue-600"
+                              title="Open in Google Drive"
+                            >
+                              <svg viewBox="0 0 87.3 78" className="h-3.5 w-3.5 flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
+                                <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                                <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                                <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+                                <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                                <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                                <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                              </svg>
+                              <span>Open Drive</span>
+                              <i className="ri-external-link-line text-[11px]"></i>
+                            </a>
+                          </div>
+                          <div className="h-[150px] overflow-hidden">
+                            <iframe
+                              src={embedUrl}
+                              className="bg-[#f1f3f7]"
+                              style={{ width: '200%', height: 300, border: 'none', transform: 'scale(0.5)', transformOrigin: 'top left' }}
+                              title="Project Files"
+                            />
+                          </div>
+                        </div>
                       ) : (
-                        <div className="flex flex-col items-center gap-2 px-4 py-3.5 bg-gray-50 border border-dashed border-gray-300 rounded-2xl w-28 text-center opacity-60">
-                          <svg viewBox="0 0 87.3 78" className="w-9 h-9 grayscale" xmlns="http://www.w3.org/2000/svg">
-                            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
-                            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
-                            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                          </svg>
-                          <span className="text-xs font-medium text-gray-500 leading-tight">No Drive linked</span>
-                          <span className="text-[10px] text-gray-400">Ask your admin</span>
+                        <div className="flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4">
+                          <div className="w-10 h-10 rounded-2xl bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+                            <i className="ri-folder-line text-gray-300 text-lg"></i>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-500">No Drive folder linked</p>
+                            <p className="text-[10px] text-gray-400">Ask your admin to add project folders</p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1404,14 +1504,16 @@ export default function ContractorProjectsPage() {
                       const doneTasks     = wsFiltered.filter(t => t.status === 'done');
 
                       type GroupKey = 'overdue' | 'in_progress' | 'todo' | 'done';
-                      const groups: { key: GroupKey; label: string; icon: string; headerCls: string; iconCls: string; labelCls: string; badgeCls: string; chevronCls: string; tasks: ProjectTask[] }[] = [
+                      const groups = [
                         { key: 'overdue',     label: 'Overdue',     icon: 'ri-alarm-warning-line', headerCls: 'bg-rose-50/60',  iconCls: 'text-rose-500',    labelCls: 'text-rose-700',    badgeCls: 'bg-rose-100 text-rose-600',    chevronCls: 'text-rose-300',    tasks: overdueTasks },
                         { key: 'in_progress', label: 'In Progress', icon: 'ri-loader-2-line',       headerCls: 'bg-sky-50/50',   iconCls: 'text-sky-500',     labelCls: 'text-sky-700',     badgeCls: 'bg-sky-100 text-sky-600',      chevronCls: 'text-sky-400',     tasks: inProgTasks  },
                         { key: 'todo',        label: 'To Do',       icon: 'ri-checkbox-blank-circle-line', headerCls: 'bg-gray-50/60', iconCls: 'text-gray-400', labelCls: 'text-gray-600', badgeCls: 'bg-gray-100 text-gray-500',  chevronCls: 'text-gray-300',    tasks: todoTasks    },
                         { key: 'done',        label: 'Done',        icon: 'ri-checkbox-circle-fill', headerCls: 'bg-emerald-50/40', iconCls: 'text-emerald-500', labelCls: 'text-emerald-700', badgeCls: 'bg-emerald-100 text-emerald-600', chevronCls: 'text-emerald-300', tasks: doneTasks },
-                      ].filter(g => g.tasks.length > 0);
+                      ] satisfies { key: GroupKey; label: string; icon: string; headerCls: string; iconCls: string; labelCls: string; badgeCls: string; chevronCls: string; tasks: ProjectTask[] }[];
 
-                      return groups.map(g => {
+                      const visibleGroups = groups.filter(g => g.tasks.length > 0);
+
+                      return visibleGroups.map(g => {
                         const collapsed = !!collapsedGroups[g.key];
                         return (
                           <div key={g.key} className="border-b border-gray-50 last:border-0">
@@ -1470,45 +1572,66 @@ export default function ContractorProjectsPage() {
                   )}
                 </div>
 
-                {/* Google Drive folder embed */}
-                {wsProject.drive_url && (() => {
-                  const folderIdMatch = wsProject.drive_url.match(/folders\/([a-zA-Z0-9_-]+)/);
-                  const folderId = folderIdMatch?.[1];
-                  const embedUrl = folderId
-                    ? `https://drive.google.com/embeddedfolderview?id=${folderId}#list`
-                    : null;
-                  if (!embedUrl) return null;
-                  return (
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
-                        <div className="flex items-center gap-2">
-                          <svg viewBox="0 0 87.3 78" className="w-4 h-4" xmlns="http://www.w3.org/2000/svg">
-                            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-                            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
-                            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
-                            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-                            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-                            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-                          </svg>
-                          <span className="text-xs font-semibold text-gray-700">Project Files</span>
-                        </div>
-                        <a href={wsProject.drive_url} target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] text-blue-500 hover:text-blue-700 flex items-center gap-0.5">
-                          Open <i className="ri-external-link-line text-[10px]"></i>
-                        </a>
-                      </div>
-                      <iframe
-                        src={embedUrl}
-                        className="w-full"
-                        style={{ height: 280, border: 'none' }}
-                        title="Project Files"
-                      />
+                {/* Activity feed */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Activity</p>
+                    {activityLog.length > 0 && (
+                      <button
+                        onClick={() => setShowActivityModal(true)}
+                        className="text-[11px] font-medium text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+                      >
+                        View all
+                      </button>
+                    )}
+                  </div>
+                  {activityLog.length === 0 ? (
+                    <p className="text-xs text-gray-300">No activity yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {activityLog.slice(0, 8).map(a => {
+                        const u = a.hub_users;
+                        const icons: Record<string, string> = {
+                          task_created: 'ri-add-circle-line text-emerald-500',
+                          task_updated: 'ri-edit-line text-indigo-500',
+                          task_status_changed: 'ri-refresh-line text-sky-500',
+                          task_deleted: 'ri-delete-bin-line text-rose-500',
+                          comment_added: 'ri-chat-3-line text-amber-500',
+                          comment_deleted: 'ri-chat-delete-line text-rose-500',
+                          task_assigned: 'ri-user-add-line text-purple-500',
+                        };
+                        const labels: Record<string, (a: typeof activityLog[0]) => string> = {
+                          task_created: (a) => `created "${a.entity_title}"`,
+                          task_updated: (a) => `updated "${a.entity_title}"`,
+                          task_status_changed: (a) => `moved "${a.entity_title}" to ${(a.meta as any)?.to?.replace('_', ' ') ?? ''}`,
+                          task_deleted: (a) => `deleted "${a.entity_title}"`,
+                          comment_added: (a) => `commented on "${a.entity_title}"`,
+                          comment_deleted: (a) => `deleted a comment on "${a.entity_title}"`,
+                          task_assigned: (a) => `assigned "${a.entity_title}"`,
+                        };
+                        const diff = Math.floor((Date.now() - new Date(a.created_at).getTime()) / 1000);
+                        const time = diff < 60 ? 'just now' : diff < 3600 ? `${Math.floor(diff/60)}m ago` : diff < 86400 ? `${Math.floor(diff/3600)}h ago` : new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return (
+                          <div key={a.id} className="flex items-start gap-2.5">
+                            <div className="w-6 h-6 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <i className={`${icons[a.action] ?? 'ri-information-line text-gray-400'} text-[11px]`}></i>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-gray-600 leading-snug">
+                                <span className="font-semibold text-gray-800">{u?.full_name?.split(' ')[0] ?? 'Someone'}</span>
+                                {' '}{labels[a.action]?.(a) ?? a.action}
+                              </p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{time}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
 
                 {/* Payout */}
-                {(() => {
+                {!wsIsInternal && (() => {
                   const totalCosts = wsProject.hub_project_costs.reduce((s, x) => s + x.amount, 0);
                   const netProfit = wsProject.contract_price - totalCosts;
                   const isFixed = workspaceRow!.payout_type === 'fixed';
@@ -1557,50 +1680,6 @@ export default function ContractorProjectsPage() {
                           <span className="text-sm text-gray-700 truncate">{m.full_name}</span>
                         </div>
                       ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Activity feed */}
-                {activityLog.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Activity</p>
-                    <div className="space-y-3">
-                      {activityLog.slice(0, 8).map(a => {
-                        const u = a.hub_users;
-                        const icons: Record<string, string> = {
-                          task_created: 'ri-add-circle-line text-emerald-500',
-                          task_updated: 'ri-edit-line text-indigo-500',
-                          task_status_changed: 'ri-refresh-line text-sky-500',
-                          task_deleted: 'ri-delete-bin-line text-rose-500',
-                          comment_added: 'ri-chat-3-line text-amber-500',
-                          task_assigned: 'ri-user-add-line text-purple-500',
-                        };
-                        const labels: Record<string, (a: typeof activityLog[0]) => string> = {
-                          task_created: (a) => `created "${a.entity_title}"`,
-                          task_updated: (a) => `updated "${a.entity_title}"`,
-                          task_status_changed: (a) => `moved "${a.entity_title}" to ${(a.meta as any)?.to?.replace('_', ' ') ?? ''}`,
-                          task_deleted: (a) => `deleted "${a.entity_title}"`,
-                          comment_added: (a) => `commented on "${a.entity_title}"`,
-                          task_assigned: (a) => `assigned "${a.entity_title}"`,
-                        };
-                        const diff = Math.floor((Date.now() - new Date(a.created_at).getTime()) / 1000);
-                        const time = diff < 60 ? 'just now' : diff < 3600 ? `${Math.floor(diff/60)}m ago` : diff < 86400 ? `${Math.floor(diff/3600)}h ago` : new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                        return (
-                          <div key={a.id} className="flex items-start gap-2.5">
-                            <div className="w-6 h-6 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <i className={`${icons[a.action] ?? 'ri-information-line text-gray-400'} text-[11px]`}></i>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-gray-600 leading-snug">
-                                <span className="font-semibold text-gray-800">{u?.full_name?.split(' ')[0] ?? 'Someone'}</span>
-                                {' '}{labels[a.action]?.(a) ?? a.action}
-                              </p>
-                              <p className="text-[10px] text-gray-400 mt-0.5">{time}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
                 )}
@@ -1750,6 +1829,79 @@ export default function ContractorProjectsPage() {
 
       {/* Task add/edit modal */}
       {/* ── Task drawer ── */}
+      {showActivityModal && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]"
+            onClick={() => setShowActivityModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl max-h-[80vh] overflow-hidden rounded-[28px] bg-white shadow-2xl border border-gray-100">
+              <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Project Activity</p>
+                  <p className="text-xs text-gray-400">{wsProject?.project_name ?? 'Workspace'}</p>
+                </div>
+                <button
+                  onClick={() => setShowActivityModal(false)}
+                  className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors cursor-pointer flex items-center justify-center"
+                >
+                  <i className="ri-close-line text-base"></i>
+                </button>
+              </div>
+
+              <div className="max-h-[calc(80vh-73px)] overflow-y-auto px-5 py-4">
+                {activityLog.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="text-sm text-gray-300">No activity yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activityLog.map(a => {
+                      const u = a.hub_users;
+                      const icons: Record<string, string> = {
+                        task_created: 'ri-add-circle-line text-emerald-500',
+                        task_updated: 'ri-edit-line text-indigo-500',
+                        task_status_changed: 'ri-refresh-line text-sky-500',
+                        task_deleted: 'ri-delete-bin-line text-rose-500',
+                        comment_added: 'ri-chat-3-line text-amber-500',
+                        comment_deleted: 'ri-chat-delete-line text-rose-500',
+                        task_assigned: 'ri-user-add-line text-purple-500',
+                      };
+                      const labels: Record<string, (a: typeof activityLog[0]) => string> = {
+                        task_created: (a) => `created "${a.entity_title}"`,
+                        task_updated: (a) => `updated "${a.entity_title}"`,
+                        task_status_changed: (a) => `moved "${a.entity_title}" to ${(a.meta as any)?.to?.replace('_', ' ') ?? ''}`,
+                        task_deleted: (a) => `deleted "${a.entity_title}"`,
+                        comment_added: (a) => `commented on "${a.entity_title}"`,
+                        comment_deleted: (a) => `deleted a comment on "${a.entity_title}"`,
+                        task_assigned: (a) => `assigned "${a.entity_title}"`,
+                      };
+                      const diff = Math.floor((Date.now() - new Date(a.created_at).getTime()) / 1000);
+                      const time = diff < 60 ? 'just now' : diff < 3600 ? `${Math.floor(diff / 60)}m ago` : diff < 86400 ? `${Math.floor(diff / 3600)}h ago` : new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      return (
+                        <div key={a.id} className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 px-3.5 py-3">
+                          <div className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center flex-shrink-0">
+                            <i className={`${icons[a.action] ?? 'ri-information-line text-gray-400'} text-sm`}></i>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-700 leading-snug">
+                              <span className="font-semibold text-gray-900">{u?.full_name?.split(' ')[0] ?? 'Someone'}</span>
+                              {' '}{labels[a.action]?.(a) ?? a.action}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">{time}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {showTaskModal && (() => {
         const dueD = taskForm.due_date ? new Date(taskForm.due_date + 'T00:00:00') : null;
         const startD = taskForm.start_date ? new Date(taskForm.start_date + 'T00:00:00') : null;

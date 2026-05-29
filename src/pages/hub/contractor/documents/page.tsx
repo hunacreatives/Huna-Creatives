@@ -55,6 +55,13 @@ export default function ContractorDocumentsPage() {
     }
   }, [hubUser]);
 
+  // Clear pending toast timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (toastRef.current) clearTimeout(toastRef.current);
+    };
+  }, []);
+
   const showToast = (msg: string) => {
     setToast(msg);
     if (toastRef.current) clearTimeout(toastRef.current);
@@ -172,7 +179,7 @@ export default function ContractorDocumentsPage() {
     if (error) { showToast('Failed to submit. Try again.'); return; }
     supabase.functions.invoke('notify-internal-request', {
       body: { type: 'doc_request', contractor_name: hubUser!.full_name, detail: docType, notes: notes || null },
-    });
+    }).catch(() => {});
     setShowForm(false);
     setNotes('');
     setDocType(DOC_TYPES[0]);

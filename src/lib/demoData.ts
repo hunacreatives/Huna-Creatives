@@ -132,3 +132,61 @@ export const DEMO_DASHBOARD = {
   activeProjectCount: 3,
   monthlyRetainerTotal: 420000,
 };
+
+// ── Contractor demo data ────────────────────────────────────────────────────
+
+export const DEMO_CONTRACTOR_PROJECTS = [
+  {
+    id: 101, percentage: 20, payout_type: 'percentage', fixed_amount: null,
+    payout_status: 'pending', paid_at: null,
+    hub_project_contractor_payouts: [],
+    hub_projects: {
+      id: 1, client_name: 'Verde Tech Solutions', project_name: 'Website Redesign',
+      service: 'Website Design', contract_price: 180000, status: 'ongoing',
+      start_date: '2026-03-01', deadline: '2026-07-31',
+      notes: 'Full redesign with CMS integration. Mobile-first approach.',
+      drive_url: null, project_type: 'client',
+      hub_project_payments: [{ amount: 90000 }],
+      hub_project_costs: [{ amount: 8500 }],
+    },
+  },
+  {
+    id: 102, percentage: 0, payout_type: 'fixed', fixed_amount: 15000,
+    payout_status: 'paid', paid_at: '2026-05-28',
+    hub_project_contractor_payouts: [{ id: 1, amount: 15000, paid_at: '2026-05-28', notes: 'Milestone 1', receipt_url: null }],
+    hub_projects: {
+      id: 2, client_name: 'Sunrise Capital Group', project_name: 'Brand Identity Package',
+      service: 'Branding & Identity', contract_price: 95000, status: 'ongoing',
+      start_date: '2026-04-15', deadline: '2026-06-30',
+      notes: 'Logo, brand guide, collateral. Two revision rounds included.',
+      drive_url: null, project_type: 'client',
+      hub_project_payments: [{ amount: 47500 }],
+      hub_project_costs: [{ amount: 3200 }],
+    },
+  },
+];
+
+export const DEMO_CONTRACTOR_TASKS = [
+  // Website Redesign tasks
+  { id: 201, project_id: 1, title: 'Homepage wireframes', description: 'Desktop + mobile layouts', status: 'done' as const, priority: 'high' as const, due_date: '2026-05-20', start_date: '2026-05-10', assigned_to: 'demo-c-001' },
+  { id: 202, project_id: 1, title: 'Design system & components', description: 'Color tokens, typography, button states', status: 'in_progress' as const, priority: 'high' as const, due_date: '2026-06-10', start_date: '2026-05-25', assigned_to: 'demo-c-001' },
+  { id: 203, project_id: 1, title: 'Inner page templates', description: 'About, Services, Contact pages', status: 'todo' as const, priority: 'medium' as const, due_date: '2026-06-25', start_date: '2026-06-15', assigned_to: null },
+  { id: 204, project_id: 1, title: 'Client review & revisions', description: 'Incorporate feedback from round 1', status: 'todo' as const, priority: 'medium' as const, due_date: '2026-07-10', start_date: '2026-07-01', assigned_to: 'demo-c-001' },
+  { id: 205, project_id: 1, title: 'Export & handoff to dev', description: 'Figma export + component specs', status: 'todo' as const, priority: 'low' as const, due_date: '2026-07-25', start_date: '2026-07-18', assigned_to: null },
+  // Brand Identity tasks
+  { id: 206, project_id: 2, title: 'Brand discovery workshop', description: 'Mood boards + competitor analysis', status: 'done' as const, priority: 'high' as const, due_date: '2026-05-05', start_date: '2026-04-28', assigned_to: 'demo-c-001' },
+  { id: 207, project_id: 2, title: 'Logo concepts (3 directions)', description: 'Present initial directions to client', status: 'done' as const, priority: 'high' as const, due_date: '2026-05-20', start_date: '2026-05-08', assigned_to: 'demo-c-001' },
+  { id: 208, project_id: 2, title: 'Refine chosen direction', description: 'Colour variations, dark/light versions', status: 'in_progress' as const, priority: 'high' as const, due_date: '2026-06-05', start_date: '2026-05-26', assigned_to: 'demo-c-001' },
+  { id: 209, project_id: 2, title: 'Brand guide document', description: 'Typography, colour palette, usage rules', status: 'todo' as const, priority: 'medium' as const, due_date: '2026-06-20', start_date: '2026-06-10', assigned_to: null },
+];
+
+export const DEMO_CONTRACTOR_TEAM: Record<number, { id: string; full_name: string; avatar_url: string | null }[]> = {
+  1: [
+    { id: 'demo-c-001', full_name: 'Maria Santos', avatar_url: null },
+    { id: 'demo-c-007', full_name: 'Isabella Garcia', avatar_url: null },
+  ],
+  2: [
+    { id: 'demo-c-001', full_name: 'Maria Santos', avatar_url: null },
+    { id: 'demo-c-003', full_name: 'Ana Reyes', avatar_url: null },
+  ],
+};

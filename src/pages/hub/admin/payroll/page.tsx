@@ -229,16 +229,16 @@ export default function AdminPayrollPage() {
       adjustments: finalAdjItems,
     }, { onConflict: 'contractor_id,cutoff_start' });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Failed to save payout row', error);
+      setEditSaving(false);
+      return;
+    }
 
     await fetchWorkflow();
     setEditSaving(false);
     setEditRowId(null);
   };
-
-  // Keep adjContractorId etc for backward compat but no longer used
-  const [adjContractorId] = useState<string | null>(null);
-  const [adjSaving] = useState(false);
 
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
