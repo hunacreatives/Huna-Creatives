@@ -211,8 +211,8 @@ Deno.serve(async (req) => {
         const row = {
           user_id: hubUser.id,
           date: shiftDate,
-          hours_raw: parseFloat(hoursRaw.toFixed(4)),
-          hours_capped: parseFloat(hoursCapped.toFixed(4)),
+          hours_raw: parseFloat(hoursRaw.toFixed(2)),
+          hours_capped: parseFloat(hoursCapped.toFixed(2)),
           first_on: new Date(firstOn.ts * 1000).toISOString(),
           last_off: validLastOff,
           updated_at: new Date().toISOString(),
