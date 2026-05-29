@@ -143,7 +143,7 @@ function GlobalSearch() {
                   <kbd className="text-[11px] text-[#6b7280] bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-2 py-1">⌘ K</kbd>
                 )}
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-3 hidden sm:flex flex-wrap gap-2">
                 {['All', 'Training', 'Interview', 'Design task', 'Review', 'Onboarding', activeFilter].filter((value, idx, arr) => arr.indexOf(value) === idx).map(label => (
                   <button
                     key={label}
@@ -158,95 +158,83 @@ function GlobalSearch() {
 
             <div className="overflow-y-auto flex-1 grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
               <div className="border-b lg:border-b-0 lg:border-r border-[#e5e7eb]">
-                <div className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[15px] font-semibold text-[#374151]">{query.length >= 2 ? `Search results (${results.length})` : 'Recent surfaces'}</p>
-                    <div className="flex items-center gap-2 text-[#9ca3af]">
-                      <button className="w-8 h-8 rounded-xl border border-[#e5e7eb] bg-white"><i className="ri-arrow-left-s-line"></i></button>
-                      <button className="w-8 h-8 rounded-xl border border-[#e5e7eb] bg-white"><i className="ri-arrow-right-s-line"></i></button>
-                    </div>
-                  </div>
+                <div className="px-4 sm:px-6 py-3 sm:py-4">
+                  <p className="text-sm font-semibold text-[#374151]">{query.length >= 2 ? `Results (${results.length})` : 'Go to'}</p>
                 </div>
 
                 {query.length >= 2 ? (
-                  <div className="px-4 pb-4">
+                  <div className="px-3 sm:px-4 pb-4">
                     {loading ? (
-                      <div className="flex items-center justify-center py-12">
+                      <div className="flex items-center justify-center py-8">
                         <i className="ri-loader-4-line animate-spin text-2xl text-[#cbd5e1]"></i>
                       </div>
                     ) : results.length === 0 ? (
-                      <div className="rounded-[24px] border border-dashed border-[#e5e7eb] bg-[#fcfcfd] px-5 py-12 text-center">
+                      <div className="px-4 py-8 text-center">
                         <p className="text-sm text-[#6b7280]">No results for "{query}"</p>
                       </div>
                     ) : (
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="space-y-1">
                         {results.map((r, i) => (
                           <button
                             key={`${r.type}-${r.id}`}
                             onClick={() => go(r)}
-                            className={`rounded-[24px] border px-4 py-4 text-left bg-white transition-all shadow-[0_10px_30px_rgba(15,23,42,0.04)] ${i === activeIdx ? 'border-[#ddd4ff] ring-2 ring-[#ede8ff]' : 'border-[#e5e7eb] hover:border-[#ddd4ff]'}`}
+                            className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${i === activeIdx ? 'bg-[#ede8ff]' : 'hover:bg-[#f9fafb]'}`}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="w-11 h-11 rounded-2xl bg-[#f3f4f6] flex items-center justify-center flex-shrink-0">
-                                <i className={`${r.icon} text-lg ${typeColors[r.type]}`}></i>
-                              </div>
-                              <span className="rounded-full bg-[#f3f4f6] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-[#6b7280]">{r.type}</span>
+                            <div className="w-8 h-8 rounded-xl bg-[#f3f4f6] flex items-center justify-center flex-shrink-0">
+                              <i className={`${r.icon} text-sm ${typeColors[r.type]}`}></i>
                             </div>
-                            <p className="mt-5 text-[17px] font-semibold leading-tight text-[#201c18]">{r.title}</p>
-                            <p className="mt-1 text-sm text-[#6b7280]">{r.subtitle}</p>
-                            <div className="mt-4 inline-flex items-center gap-1 rounded-full bg-[#f9fafb] px-2.5 py-1 text-xs text-[#6b7280]">
-                              Open
-                              <i className="ri-arrow-right-up-line"></i>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-[#201c18] truncate">{r.title}</p>
+                              <p className="text-xs text-[#6b7280] truncate">{r.subtitle}</p>
                             </div>
+                            <span className="text-[10px] text-[#9ca3af] bg-[#f3f4f6] px-1.5 py-0.5 rounded-full flex-shrink-0">{r.type}</span>
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="px-4 pb-4">
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="px-3 sm:px-4 pb-4">
+                    <div className="space-y-1">
                       {[
-                        { name: 'Projects', meta: 'Project browser', icon: 'ri-folder-line', tone: 'bg-[#f3f4f6]', text: 'text-[#201c18]' },
-                        { name: 'Team', meta: 'Contractors', icon: 'ri-team-line', tone: 'bg-[#eef5ff]', text: 'text-[#2d5fa7]' },
-                        { name: 'Payroll', meta: 'Payments', icon: 'ri-bank-card-line', tone: 'bg-[#eff8ef]', text: 'text-[#2f7a4c]' },
-                        { name: 'Attendance', meta: 'Daily sync', icon: 'ri-time-line', tone: 'bg-[#fff3ea]', text: 'text-[#d1673d]' },
+                        { name: 'Projects', meta: 'Project browser', icon: 'ri-folder-line', tone: 'bg-[#f3f4f6]', text: 'text-[#201c18]', path: '/hub/admin/projects' },
+                        { name: 'Team', meta: 'Contractors', icon: 'ri-team-line', tone: 'bg-[#eef5ff]', text: 'text-[#2d5fa7]', path: '/hub/admin/contractors' },
+                        { name: 'Payroll', meta: 'Payments', icon: 'ri-bank-card-line', tone: 'bg-[#eff8ef]', text: 'text-[#2f7a4c]', path: '/hub/admin/payroll' },
+                        { name: 'Attendance', meta: 'Daily sync', icon: 'ri-time-line', tone: 'bg-[#fff3ea]', text: 'text-[#d1673d]', path: '/hub/admin/attendance' },
+                        { name: 'Time Off', meta: 'Leave requests', icon: 'ri-calendar-check-line', tone: 'bg-[#f3f4f6]', text: 'text-[#374151]', path: '/hub/admin/timeoff' },
+                        { name: 'Invoice Log', meta: 'Billing & invoices', icon: 'ri-file-text-line', tone: 'bg-[#fef9ee]', text: 'text-[#92400e]', path: '/hub/admin/invoice-log' },
                       ].map(card => (
-                        <div key={card.name} className="rounded-[24px] border border-[#e5e7eb] bg-white px-4 py-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-                          <div className={`w-12 h-12 rounded-2xl ${card.tone} ${card.text} flex items-center justify-center`}>
-                            <i className={`${card.icon} text-xl`}></i>
+                        <button key={card.name} onClick={() => { navigate(card.path); setOpen(false); }}
+                          className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-[#f9fafb] transition-colors cursor-pointer">
+                          <div className={`w-8 h-8 rounded-xl ${card.tone} ${card.text} flex items-center justify-center flex-shrink-0`}>
+                            <i className={`${card.icon} text-sm`}></i>
                           </div>
-                          <p className="mt-6 text-[17px] font-semibold text-[#201c18]">{card.name}</p>
-                          <p className="mt-1 text-sm text-[#6b7280]">{card.meta}</p>
-                          <button
-                            onClick={() => navigate(card.name === 'Projects' ? '/hub/admin/projects' : card.name === 'Team' ? '/hub/admin/contractors' : card.name === 'Payroll' ? '/hub/admin/payroll' : '/hub/admin/attendance')}
-                            className="mt-4 w-full rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2 text-sm text-[#374151] hover:bg-white cursor-pointer"
-                          >
-                            Detail
-                          </button>
-                        </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-[#201c18]">{card.name}</p>
+                            <p className="text-xs text-[#6b7280]">{card.meta}</p>
+                          </div>
+                          <i className="ri-arrow-right-s-line text-[#9ca3af]"></i>
+                        </button>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="px-6 py-5">
-                <p className="text-[15px] font-semibold text-[#374151]">Quick actions ({quickActions.length})</p>
-                <div className="mt-4 space-y-1">
+              <div className="px-4 sm:px-6 py-4 sm:py-5">
+                <p className="text-sm font-semibold text-[#374151] mb-2">Quick actions</p>
+                <div className="space-y-1">
                   {quickActions.map(action => (
                     <button
                       key={action.label}
                       onClick={() => { navigate(action.path); setOpen(false); }}
-                      className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[#374151] hover:bg-[#f9fafb] transition-colors"
+                      className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[#374151] hover:bg-[#f9fafb] transition-colors"
                     >
-                      <div className="w-9 h-9 rounded-xl border border-[#e5e7eb] bg-white flex items-center justify-center text-[#9ca3af]">
-                        <i className={`${action.icon} text-base`}></i>
+                      <div className="w-8 h-8 rounded-xl border border-[#e5e7eb] bg-white flex items-center justify-center text-[#9ca3af] flex-shrink-0">
+                        <i className={`${action.icon} text-sm`}></i>
                       </div>
-                      <span className="flex-1 text-[15px]">{action.label}</span>
-                      <div className="w-8 h-8 rounded-xl border border-transparent bg-transparent text-[#9ca3af] flex items-center justify-center group-hover:border-[#e5e7eb] group-hover:bg-white">
-                        <i className="ri-arrow-right-s-line"></i>
-                      </div>
+                      <span className="flex-1 text-sm">{action.label}</span>
+                      <i className="ri-arrow-right-s-line text-[#9ca3af]"></i>
                     </button>
                   ))}
                 </div>

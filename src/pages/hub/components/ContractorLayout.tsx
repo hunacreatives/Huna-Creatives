@@ -210,7 +210,8 @@ export default function ContractorLayout({ children, title, titleContent, action
 
               {/* Global search — hidden in workspace mode */}
               {!hideGlobalSearch && <div className="relative" ref={searchRef}>
-                <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 w-9 sm:w-44 md:w-56 transition-all ${searchOpen ? 'border-indigo-300 ring-2 ring-indigo-100 !w-40 sm:!w-44 md:!w-56' : 'border-gray-200'}`}>
+                <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 transition-all cursor-text ${searchOpen ? 'border-indigo-300 ring-2 ring-indigo-100 w-44 sm:w-52' : 'border-gray-200 w-9 sm:w-44 md:w-52'}`}
+                  onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 50); }}>
                   <i className="ri-search-line text-gray-400 text-sm flex-shrink-0"></i>
                   <input
                     ref={searchInputRef}
@@ -220,16 +221,15 @@ export default function ContractorLayout({ children, title, titleContent, action
                     onFocus={() => setSearchOpen(true)}
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
-                        const first = pageResults[0] ?? (liveProjects[0] ? null : null);
                         if (pageResults[0]) { navigate(pageResults[0].path); setGlobalSearch(''); setSearchOpen(false); }
                       }
                       if (e.key === 'Escape') { setGlobalSearch(''); setSearchOpen(false); }
                     }}
                     placeholder="Search…"
-                    className="flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0 hidden sm:block"
+                    className={`flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0 ${searchOpen ? 'block' : 'hidden sm:block'}`}
                   />
                   {globalSearch
-                    ? <button onClick={() => { setGlobalSearch(''); setSearchOpen(false); }} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0"><i className="ri-close-line text-sm"></i></button>
+                    ? <button onClick={e => { e.stopPropagation(); setGlobalSearch(''); setSearchOpen(false); }} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0"><i className="ri-close-line text-sm"></i></button>
                     : <kbd className="hidden sm:block text-[10px] text-gray-300 bg-gray-100 border border-gray-200 rounded px-1 py-0.5 flex-shrink-0">⌘K</kbd>
                   }
                 </div>
