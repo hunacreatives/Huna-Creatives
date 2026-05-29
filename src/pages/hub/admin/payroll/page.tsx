@@ -289,7 +289,15 @@ export default function AdminPayrollPage() {
 
   const approvePayout = async (contractorId: string, computedPay: number) => {
     setWorkflowLoading(true);
-    const finalPay = rowOverrides[contractorId]?.pay ?? computedPay;
+    const row = rows.find(r => r.contractor.id === contractorId);
+    const override = rowOverrides[contractorId];
+    const basePay = override?.pay !== undefined ? override.pay : computedPay;
+    const otPay = override?.otHours !== undefined && override?.otRate !== undefined
+      ? override.otHours * override.otRate
+      : (row?.overtimePay ?? 0);
+    const adjs: any[] = payoutsMap[contractorId]?.adjustments || [];
+    const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+    const finalPay = basePay + otPay + adjTotal;
     const existing = payoutsMap[contractorId];
     const contractorName = rows.find(r => r.contractor.id === contractorId)?.contractor.full_name ?? contractorId;
     if (existing) {
@@ -325,7 +333,14 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(true);
     const now = new Date().toISOString();
     await Promise.all(toApprove.map(async r => {
-      const finalPay = rowOverrides[r.contractor.id]?.pay ?? r.pay;
+      const override = rowOverrides[r.contractor.id];
+      const basePay = override?.pay !== undefined ? override.pay : r.pay;
+      const otPay = override?.otHours !== undefined && override?.otRate !== undefined
+        ? override.otHours * override.otRate
+        : r.overtimePay;
+      const adjs: any[] = payoutsMap[r.contractor.id]?.adjustments || [];
+      const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+      const finalPay = basePay + otPay + adjTotal;
       const existing = payoutsMap[r.contractor.id];
       if (existing) {
         await supabase.from('hub_payouts').update({ status: 'hr_approved', approved_at: now, final_payout: finalPay }).eq('id', existing.id);
@@ -497,6 +512,19 @@ export default function AdminPayrollPage() {
     }
     fetchPayroll();
     fetchWorkflow();
+
+    if (!isDemo) {
+      const channel = supabase
+        .channel(`payouts-${selectedPeriod.start}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'hub_payouts',
+          filter: `cutoff_start=eq.${selectedPeriod.start}`,
+        }, () => { fetchWorkflow(); })
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
   }, [isDemo, selectedPeriod, usdRate]);
 
   const fetchPayroll = async () => {
@@ -615,7 +643,7 @@ export default function AdminPayrollPage() {
           }
           derivedHourlyRate = newHourlyForOT;
           overtimePay = otAtOld * oldHourlyForOT + otAtNew * newHourlyForOT;
-          pay = basePay + overtimePay;
+          pay = basePay;
           proratedNote = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
         } else {
           // Hourly: split hours by date
@@ -628,7 +656,7 @@ export default function AdminPayrollPage() {
           }
           derivedHourlyRate = newHourly;
           overtimePay = hrs.overtime * newHourly;
-          pay = hrsAtOld * oldHourly + hrsAtNew * newHourly + overtimePay;
+          pay = hrsAtOld * oldHourly + hrsAtNew * newHourly;
           proratedNote = `${hrsAtOld.toFixed(1)}h @ ₱${oldHourly}/hr · ${hrsAtNew.toFixed(1)}h @ ₱${newHourly}/hr`;
         }
       } else {
@@ -642,7 +670,7 @@ export default function AdminPayrollPage() {
 
         if (payType === 'hourly') {
           overtimePay = hrs.overtime * derivedHourlyRate;
-          pay = hrs.capped * derivedHourlyRate + overtimePay;
+          pay = hrs.capped * derivedHourlyRate;
         } else {
           overtimePay = hrs.overtime * derivedHourlyRate;
           const today = new Date().toISOString().slice(0, 10);
@@ -651,11 +679,11 @@ export default function AdminPayrollPage() {
           if (isCurrentPeriod && selectedPeriod.start >= '2026-06-01') {
             const totalWorkDays = countWorkingDays(selectedPeriod.start, selectedPeriod.end, c.work_days || []);
             const accrualRatio = totalWorkDays > 0 ? Math.min(hrs.days / totalWorkDays, 1) : 0;
-            pay = (monthly / 2) * accrualRatio + overtimePay;
+            pay = (monthly / 2) * accrualRatio;
             prorated = true;
             proratedNote = `${hrs.days}/${totalWorkDays} days · accruing`;
           } else {
-            pay = monthly / 2 + overtimePay;
+            pay = monthly / 2;
           }
         }
       }
@@ -693,9 +721,12 @@ export default function AdminPayrollPage() {
     const p = payoutsMap[r.contractor.id];
     const override = rowOverrides[r.contractor.id];
     const basePay = override?.pay !== undefined ? override.pay : r.pay;
+    const otPay = override?.otHours !== undefined && override?.otRate !== undefined
+      ? override.otHours * override.otRate
+      : r.overtimePay;
     const adjs: any[] = p?.adjustments || [];
     const adjTotal = adjs.reduce((as: number, a: any) => as + (a.amount || 0), 0);
-    return s + basePay + adjTotal;
+    return s + basePay + otPay + adjTotal;
   }, 0);
 
   useEffect(() => {
@@ -905,6 +936,13 @@ export default function AdminPayrollPage() {
                     </button>
                   ))}
                 </div>
+                <button
+                  onClick={() => fetchWorkflow()}
+                  title="Refresh submission statuses"
+                  className="bg-white/10 border border-white/10 text-white/60 hover:text-white hover:bg-white/20 text-xs rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer"
+                >
+                  <i className="ri-refresh-line"></i>
+                </button>
               </div>
 
               {/* KPIs inline */}
@@ -936,7 +974,8 @@ export default function AdminPayrollPage() {
                       const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
                       const override = rowOverrides[c.id];
                       const displayPay = override?.pay !== undefined ? override.pay : r.pay;
-                      const total = displayPay + adjTotal;
+                      const displayOT = override?.otHours !== undefined && override?.otRate !== undefined ? override.otHours * override.otRate : r.overtimePay;
+                      const total = displayPay + displayOT + adjTotal;
                       const rate = c.payment_type === 'fixed' ? `${c.monthly_rate}/mo` : `${c.hourly_rate}/hr`;
                       return [c.full_name, c.department || '', c.payment_type, rate, r.days, r.hours.toFixed(2), r.cappedHours.toFixed(2), r.overtimeHours.toFixed(2), r.overtimePay.toFixed(2), total.toFixed(2)];
                     });

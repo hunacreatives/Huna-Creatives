@@ -670,12 +670,7 @@ export default function ContractorPayoutsPage() {
                   <p className="text-xs text-center text-gray-400">Available on {selectedPeriod.end} (cutoff day)</p>
                 )}
                 {canSubmitPeriod && (
-                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
-                    <i className="ri-time-line text-amber-500 text-sm flex-shrink-0 mt-0.5"></i>
-                    <p className="text-xs text-amber-700 leading-relaxed">
-                      Please complete your shift before submitting to ensure your hours are fully reflected.
-                    </p>
-                  </div>
+                  <p className="text-xs text-center text-gray-400">Make sure all your hours are logged before submitting.</p>
                 )}
                 <button
                   onClick={handleDownload}
