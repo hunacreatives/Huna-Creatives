@@ -1767,133 +1767,154 @@ export default function ContractorProjectsPage() {
           <p className="text-xs text-gray-400">Your admin will assign you when a project starts.</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        /* ── Main dashboard layout ── */
+        <div className="flex gap-6 min-h-full">
 
-          {/* Greeting */}
-          <div className="flex items-end justify-between gap-4">
+          {/* ── LEFT: projects ── */}
+          <div className="flex-1 min-w-0 space-y-6">
+
+            {/* Greeting */}
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </p>
-              <h2 className="text-3xl font-bold tracking-tight" style={{
-                background: 'linear-gradient(135deg, #111827 0%, #6366f1 100%)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'
-              }}>
-                {greeting}, {firstName}.
+              <p className="text-xs text-gray-400 mb-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+              <h2 className="text-[28px] font-bold tracking-tight text-gray-900 leading-tight">
+                {greeting}, {firstName}.<br />
+                <span className="text-gray-400 font-normal text-xl">
+                  {todayDueTasks.length > 0
+                    ? `You've got ${todayDueTasks.length} task${todayDueTasks.length > 1 ? 's' : ''} due today.`
+                    : overdueTasks.length > 0
+                    ? `${overdueTasks.length} task${overdueTasks.length > 1 ? 's' : ''} ${overdueTasks.length > 1 ? 'need' : 'needs'} attention.`
+                    : tasks.length > 0
+                    ? `${tasks.length - doneTasks.length} task${tasks.length - doneTasks.length !== 1 ? 's' : ''} remaining.`
+                    : 'All clear — nothing pending.'}
+                </span>
               </h2>
-              {tasks.length > 0 && (
-                <p className="text-sm text-gray-400 mt-1">{subline}</p>
-              )}
             </div>
-            {rows.length > 0 && (
-              <div className="flex-shrink-0 text-right hidden sm:block">
-                <p className="text-2xl font-bold text-gray-900">{rows.filter(r => r.hub_projects?.status === 'ongoing').length}</p>
-                <p className="text-[11px] text-gray-400 uppercase tracking-wide">active</p>
+
+            {/* No search results */}
+            {search && active.length === 0 && other.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <i className="ri-search-line text-3xl text-gray-200"></i>
+                <p className="text-sm text-gray-400">No projects match <span className="font-medium text-gray-600">"{search}"</span></p>
+                <button onClick={() => setSearch('')} className="text-xs text-indigo-500 hover:underline cursor-pointer">Clear search</button>
+              </div>
+            )}
+
+            {/* Active project cards */}
+            {active.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Projects</p>
+                <div className="space-y-3">
+                  {active.map((r, i) => (
+                    <ProjectCard key={r.id} row={r} colorIdx={i}
+                      projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
+                      onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {other.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Other</p>
+                <div className="space-y-3">
+                  {other.map((r, i) => (
+                    <ProjectCard key={r.id} row={r} colorIdx={active.length + i}
+                      projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
+                      onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Dashboard: ring + task feed */}
-          {tasks.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4">
-              <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-6 flex flex-col items-center justify-center gap-5">
-                <ProgressRing pct={pct} size={128} />
-                <div className="grid grid-cols-3 gap-1 w-full text-center">
-                  {[
-                    { label: 'Done', value: doneTasks.length, color: 'text-emerald-600', dot: 'bg-emerald-400' },
-                    { label: 'Active', value: inProgressTasks.length, color: 'text-blue-500', dot: 'bg-blue-400' },
-                    { label: 'Todo', value: todoTasks.length, color: 'text-gray-400', dot: 'bg-gray-200' },
-                  ].map(s => (
-                    <div key={s.label}>
-                      <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                      <div className="flex items-center justify-center gap-1 mt-0.5">
-                        <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`}></span>
-                        <p className="text-[10px] text-gray-400">{s.label}</p>
+          {/* ── RIGHT: task panel ── */}
+          <div className="hidden lg:flex flex-col gap-4 w-[300px] flex-shrink-0">
+
+            {/* Overall progress ring */}
+            {tasks.length > 0 && (
+              <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-5">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Overall Progress</p>
+                <div className="flex items-center gap-4">
+                  <ProgressRing pct={pct} size={80} />
+                  <div className="space-y-2 flex-1">
+                    {[
+                      { label: 'Done', value: doneTasks.length, color: 'bg-emerald-400' },
+                      { label: 'Active', value: inProgressTasks.length, color: 'bg-blue-400' },
+                      { label: 'To Do', value: todoTasks.length, color: 'bg-gray-200' },
+                    ].map(s => (
+                      <div key={s.label} className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.color}`}></span>
+                        <span className="text-xs text-gray-500 flex-1">{s.label}</span>
+                        <span className="text-xs font-semibold text-gray-700">{s.value}</span>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
+            )}
 
-              <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-5">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="w-8 h-8 rounded-2xl bg-blue-500 flex items-center justify-center flex-shrink-0">
-                    <i className="ri-task-line text-white text-sm"></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800">
-                      {todayDueTasks.length > 0 ? 'Due today' : overdueTasks.length > 0 ? 'Overdue' : inProgressTasks.length > 0 ? 'In progress' : 'Up next'}
-                    </p>
-                    <p className="text-[11px] text-gray-400">{tasks.length} total tasks · {doneTasks.length} done</p>
-                  </div>
-                  {overdueTasks.length > 0 && (
-                    <span className="text-[11px] font-semibold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">
-                      {overdueTasks.length} overdue
-                    </span>
-                  )}
+            {/* Today's tasks */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-5 flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+                    {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                  </p>
+                  <p className="text-lg font-bold text-gray-900 leading-tight">
+                    {todayDueTasks.length > 0 ? 'Due Today' : overdueTasks.length > 0 ? 'Overdue' : 'Upcoming'}
+                  </p>
                 </div>
-                {featuredTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 gap-2">
-                    <i className="ri-checkbox-circle-fill text-emerald-400 text-3xl"></i>
-                    <p className="text-sm text-gray-400 font-medium">All tasks complete</p>
-                  </div>
-                ) : (
-                  <div className="space-y-0.5">
-                    {featuredTasks.slice(0, 8).map(t => (
-                      <TaskRow key={t.id} task={t} projectName={getProjectName(t.project_id)} />
-                    ))}
-                    {featuredTasks.length > 8 && (
-                      <p className="text-xs text-gray-400 pt-2 pl-3">+{featuredTasks.length - 8} more</p>
-                    )}
-                  </div>
+                {overdueTasks.length > 0 && (
+                  <span className="text-[11px] font-semibold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full">
+                    {overdueTasks.length} overdue
+                  </span>
                 )}
               </div>
-            </div>
-          )}
 
-          {/* No search results */}
-          {search && active.length === 0 && other.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <i className="ri-search-line text-3xl text-gray-200"></i>
-              <p className="text-sm text-gray-400">No projects match <span className="font-medium text-gray-600">"{search}"</span></p>
-              <button onClick={() => setSearch('')} className="text-xs text-indigo-500 hover:underline cursor-pointer">Clear search</button>
+              {featuredTasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                    <i className="ri-checkbox-circle-fill text-emerald-400 text-2xl"></i>
+                  </div>
+                  <p className="text-sm text-gray-400 font-medium text-center">You're all caught up!</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {featuredTasks.slice(0, 10).map((t, i) => {
+                    const projectName = getProjectName(t.project_id);
+                    const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
+                    const palColor = CARD_PALETTE[i % CARD_PALETTE.length];
+                    return (
+                      <div key={t.id}
+                        className={`flex items-start gap-3 p-3 rounded-2xl transition-colors ${t.status === 'done' ? 'opacity-50' : 'hover:bg-gray-50/80'}`}>
+                        {/* Color dot */}
+                        <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: palColor.from }} />
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium leading-snug ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                            {t.title}
+                          </p>
+                          {projectName && (
+                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{projectName}</p>
+                          )}
+                        </div>
+                        {t.due_date && (
+                          <span className={`text-[10px] font-semibold flex-shrink-0 mt-0.5 ${isOverdue ? 'text-rose-500' : t.due_date === today ? 'text-amber-600' : 'text-gray-400'}`}>
+                            {t.due_date === today ? 'Today' : isOverdue ? 'Overdue' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {featuredTasks.length > 10 && (
+                    <p className="text-xs text-gray-400 pt-1 pl-5">+{featuredTasks.length - 10} more</p>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
-          {/* Project cards */}
-          {active.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Active Projects</p>
-                <div className="flex-1 h-px bg-gray-200/60"></div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {active.map((r, i) => (
-                  <ProjectCard key={r.id} row={r} colorIdx={i}
-                    projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
-                    onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {other.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Other</p>
-                <div className="flex-1 h-px bg-gray-200/60"></div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {other.map((r, i) => (
-                  <ProjectCard key={r.id} row={r} colorIdx={active.length + i}
-                    projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
-                    onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       ))}
 
