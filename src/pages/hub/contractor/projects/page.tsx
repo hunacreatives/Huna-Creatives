@@ -28,6 +28,7 @@ interface ProjectRow {
     start_date: string | null;
     deadline: string | null;
     notes: string | null;
+    drive_url: string | null;
     hub_project_payments: { amount: number }[];
     hub_project_costs: { amount: number }[];
   };
@@ -620,15 +621,24 @@ export default function ContractorProjectsPage() {
   const [taskComments, setTaskComments] = useState<{ id: number; user_id: string; body: string; created_at: string; hub_users: { full_name: string; avatar_url: string | null } | null }[]>([]);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionStart, setMentionStart] = useState(0);
   const [drawerMode, setDrawerMode] = useState<'view' | 'edit'>('edit');
   const [, setTick] = useState(0); // forces re-render for live timestamps
   const [taskCommentCounts, setTaskCommentCounts] = useState<Record<number, number>>({});
+  const [activityLog, setActivityLog] = useState<{
+    id: number; action: string; entity_title: string; entity_id: number | null;
+    meta: Record<string, unknown> | null; created_at: string;
+    hub_users: { full_name: string; avatar_url: string | null } | null;
+  }[]>([]);
 
   const cycleTask = async (task: ProjectTask) => {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
     const newStatus = next[task.status];
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
     await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', task.id);
+    logActivity('task_status_changed', task.title, task.id, { from: task.status, to: newStatus });
   };
 
   const openAddTask = () => {
@@ -683,20 +693,27 @@ export default function ContractorProjectsPage() {
     if (editingTask) {
       await supabase.from('hub_project_tasks').update(payload).eq('id', editingTask.id);
       setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...payload } : t));
+      logActivity('task_updated', taskForm.title.trim(), editingTask.id);
     } else {
       const { data } = await supabase
         .from('hub_project_tasks')
         .insert({ ...payload, project_id: workspaceRow.hub_projects.id })
         .select()
         .single();
-      if (data) setTasks(prev => [...prev, data as ProjectTask]);
+      if (data) {
+        setTasks(prev => [...prev, data as ProjectTask]);
+        logActivity('task_created', taskForm.title.trim(), (data as ProjectTask).id);
+      }
     }
     setTaskSaving(false);
     setShowTaskModal(false);
+    setMentionOpen(false); setMentionQuery('');
   };
 
   const deleteTask = async (taskId: number) => {
     setDeletingTaskId(taskId);
+    const t = tasks.find(t => t.id === taskId);
+    if (t) logActivity('task_deleted', t.title, t.id);
     await supabase.from('hub_project_tasks').delete().eq('id', taskId);
     setTasks(prev => prev.filter(t => t.id !== taskId));
     setDeletingTaskId(null);
@@ -725,6 +742,19 @@ export default function ContractorProjectsPage() {
       });
   }, [tasks.length, workspaceRow?.hub_projects?.id]);
 
+  // Fetch activity log when workspace opens
+  useEffect(() => {
+    const projectId = workspaceRow?.hub_projects?.id;
+    if (!projectId) { setActivityLog([]); return; }
+    supabase
+      .from('hub_project_activity')
+      .select('id, action, entity_title, entity_id, meta, created_at, hub_users(full_name, avatar_url)')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => setActivityLog((data as any) ?? []));
+  }, [workspaceRow?.hub_projects?.id]);
+
   // Load comments when editing task changes
   useEffect(() => {
     if (!editingTask) { setTaskComments([]); setNewComment(''); return; }
@@ -748,13 +778,53 @@ export default function ContractorProjectsPage() {
       setTaskComments(prev => [...prev, data as any]);
       setTaskCommentCounts(prev => ({ ...prev, [editingTask.id]: (prev[editingTask.id] ?? 0) + 1 }));
       setNewComment('');
+      logActivity('comment_added', editingTask.title, editingTask.id, { comment: newComment.trim().slice(0, 100) });
+      // Fire mention notifications if comment has @mentions
+      if (newComment.includes('@') && workspaceRow?.hub_projects?.id) {
+        supabase.functions.invoke('notify-task-mention', {
+          body: {
+            comment_id: (data as any).id,
+            task_id: editingTask.id,
+            author_id: hubUser.id,
+            body: newComment.trim(),
+            project_id: workspaceRow.hub_projects.id,
+          },
+        }).catch(() => {});
+      }
     }
     setPostingComment(false);
+  };
+
+  const insertMention = (member: { id: string; full_name: string }) => {
+    const firstName = member.full_name.split(' ')[0];
+    const before = newComment.slice(0, mentionStart);
+    const after = newComment.slice(mentionStart + mentionQuery.length + 1); // +1 for @
+    setNewComment(`${before}@${firstName} ${after}`);
+    setMentionOpen(false);
+    setMentionQuery('');
   };
 
   const deleteComment = async (commentId: number) => {
     await supabase.from('hub_project_task_comments').delete().eq('id', commentId);
     setTaskComments(prev => prev.filter(c => c.id !== commentId));
+  };
+
+  const logActivity = async (
+    action: string,
+    entityTitle: string,
+    entityId?: number,
+    meta?: Record<string, unknown>
+  ) => {
+    if (!hubUser || !workspaceRow?.hub_projects?.id) return;
+    await supabase.from('hub_project_activity').insert({
+      project_id: workspaceRow.hub_projects.id,
+      user_id: hubUser.id,
+      action,
+      entity_type: 'task',
+      entity_id: entityId ?? null,
+      entity_title: entityTitle,
+      meta: meta ?? null,
+    });
   };
 
   useEffect(() => {
@@ -771,7 +841,7 @@ export default function ContractorProjectsPage() {
     if (!hubUser) return;
     supabase
       .from('hub_project_contractors')
-      .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, hub_project_payments(amount), hub_project_costs(amount))')
+      .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url), hub_projects(id, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, hub_project_payments(amount), hub_project_costs(amount))')
       .eq('contractor_id', hubUser.id)
       .then(async ({ data }) => {
         const normalized = ((data ?? []) as ProjectRowRaw[]).map((row) => ({
@@ -1200,66 +1270,35 @@ export default function ContractorProjectsPage() {
                     </div>
 
                     {/* Right: ring + breakdown */}
-                    <div className="flex-shrink-0 flex flex-col items-center gap-3 min-w-[120px]">
-                      {/* Ring */}
-                      <div className="relative" style={{ width: 100, height: 100 }}>
-                        <svg width={100} height={100} viewBox="0 0 100 100">
-                          <circle cx={50} cy={50} r={38} fill="none" stroke="#f3f4f6" strokeWidth={9} />
-                          {/* Overdue arc (rose) */}
-                          {wsTasks.length > 0 && wsTasks.filter(t => !!wsIsOverdue(t)).length > 0 && (
-                            <circle cx={50} cy={50} r={38} fill="none" stroke="#fda4af" strokeWidth={9} strokeLinecap="butt"
-                              strokeDasharray={`${(wsTasks.filter(t => !!wsIsOverdue(t)).length / wsTasks.length) * 2 * Math.PI * 38} ${2 * Math.PI * 38}`}
-                              transform="rotate(-90 50 50)" style={{ transition: 'stroke-dasharray 0.8s ease' }}
-                            />
-                          )}
-                          {/* Done arc (indigo/emerald) */}
-                          <circle cx={50} cy={50} r={38} fill="none"
-                            stroke={wsPct === 100 ? '#34d399' : '#6366f1'} strokeWidth={9} strokeLinecap="round"
-                            strokeDasharray={`${(wsPct / 100) * 2 * Math.PI * 38} ${2 * Math.PI * 38}`}
-                            transform="rotate(-90 50 50)" style={{ transition: 'stroke-dasharray 0.8s ease' }}
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-xl font-bold text-gray-900 leading-none">{wsPct}%</span>
-                          <span className="text-[10px] text-gray-400 mt-0.5">done</span>
+                    {/* Google Drive button */}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-2">
+                      {wsProject.drive_url ? (
+                        <a href={wsProject.drive_url} target="_blank" rel="noopener noreferrer"
+                          className="flex flex-col items-center gap-2 px-4 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group cursor-pointer w-28 text-center">
+                          <svg viewBox="0 0 87.3 78" className="w-9 h-9" xmlns="http://www.w3.org/2000/svg">
+                            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+                            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                          </svg>
+                          <span className="text-xs font-semibold text-gray-700 group-hover:text-blue-600 transition-colors leading-tight">Project Files</span>
+                          <span className="text-[10px] text-gray-400">Google Drive</span>
+                        </a>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2 px-4 py-3.5 bg-gray-50 border border-dashed border-gray-300 rounded-2xl w-28 text-center opacity-60">
+                          <svg viewBox="0 0 87.3 78" className="w-9 h-9 grayscale" xmlns="http://www.w3.org/2000/svg">
+                            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+                            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+                            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+                            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+                            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+                            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+                          </svg>
+                          <span className="text-xs font-medium text-gray-500 leading-tight">No Drive linked</span>
+                          <span className="text-[10px] text-gray-400">Ask your admin</span>
                         </div>
-                      </div>
-
-                      {/* Segmented bar */}
-                      {wsTasks.length > 0 && (
-                        <div className="w-full space-y-1.5">
-                          <div className="flex h-1.5 rounded-full overflow-hidden gap-px w-full">
-                            {[
-                              { count: wsDone, color: 'bg-indigo-400' },
-                              { count: wsTasks.filter(t => t.status === 'in_progress').length, color: 'bg-sky-300' },
-                              { count: wsTasks.filter(t => t.status === 'todo' && !wsIsOverdue(t)).length, color: 'bg-gray-200' },
-                              { count: wsTasks.filter(t => !!wsIsOverdue(t)).length, color: 'bg-rose-300' },
-                            ].filter(s => s.count > 0).map((s, i) => (
-                              <div key={i} className={`h-full ${s.color} rounded-full`}
-                                style={{ flex: s.count }} />
-                            ))}
-                          </div>
-                          <div className="flex flex-col gap-1 w-full">
-                            {[
-                              { label: 'Done', count: wsDone, dot: 'bg-indigo-400' },
-                              { label: 'Active', count: wsTasks.filter(t => t.status === 'in_progress').length, dot: 'bg-sky-300' },
-                              { label: 'To do', count: wsTasks.filter(t => t.status === 'todo').length, dot: 'bg-gray-300' },
-                              { label: 'Overdue', count: wsTasks.filter(t => !!wsIsOverdue(t)).length, dot: 'bg-rose-400' },
-                            ].filter(s => s.count > 0).map(s => (
-                              <div key={s.label} className="flex items-center justify-between text-[10px]">
-                                <div className="flex items-center gap-1">
-                                  <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                                  <span className="text-gray-400">{s.label}</span>
-                                </div>
-                                <span className="font-semibold text-gray-600">{s.count}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {wsTasks.length === 0 && (
-                        <span className="text-[10px] text-gray-300">No tasks yet</span>
                       )}
                     </div>
                   </div>
@@ -1484,6 +1523,50 @@ export default function ContractorProjectsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Activity feed */}
+                {activityLog.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Activity</p>
+                    <div className="space-y-3">
+                      {activityLog.slice(0, 8).map(a => {
+                        const u = a.hub_users;
+                        const icons: Record<string, string> = {
+                          task_created: 'ri-add-circle-line text-emerald-500',
+                          task_updated: 'ri-edit-line text-indigo-500',
+                          task_status_changed: 'ri-refresh-line text-sky-500',
+                          task_deleted: 'ri-delete-bin-line text-rose-500',
+                          comment_added: 'ri-chat-3-line text-amber-500',
+                          task_assigned: 'ri-user-add-line text-purple-500',
+                        };
+                        const labels: Record<string, (a: typeof activityLog[0]) => string> = {
+                          task_created: (a) => `created "${a.entity_title}"`,
+                          task_updated: (a) => `updated "${a.entity_title}"`,
+                          task_status_changed: (a) => `moved "${a.entity_title}" to ${(a.meta as any)?.to?.replace('_', ' ') ?? ''}`,
+                          task_deleted: (a) => `deleted "${a.entity_title}"`,
+                          comment_added: (a) => `commented on "${a.entity_title}"`,
+                          task_assigned: (a) => `assigned "${a.entity_title}"`,
+                        };
+                        const diff = Math.floor((Date.now() - new Date(a.created_at).getTime()) / 1000);
+                        const time = diff < 60 ? 'just now' : diff < 3600 ? `${Math.floor(diff/60)}m ago` : diff < 86400 ? `${Math.floor(diff/3600)}h ago` : new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return (
+                          <div key={a.id} className="flex items-start gap-2.5">
+                            <div className="w-6 h-6 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <i className={`${icons[a.action] ?? 'ri-information-line text-gray-400'} text-[11px]`}></i>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-gray-600 leading-snug">
+                                <span className="font-semibold text-gray-800">{u?.full_name?.split(' ')[0] ?? 'Someone'}</span>
+                                {' '}{labels[a.action]?.(a) ?? a.action}
+                              </p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{time}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1644,7 +1727,7 @@ export default function ContractorProjectsPage() {
         const assignee = wsTeam.find(m => m.id === taskForm.assigned_to);
         return (
           <>
-            <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]" onClick={() => setShowTaskModal(false)} />
+            <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]" onClick={() => { setShowTaskModal(false); setMentionOpen(false); setMentionQuery(''); }} />
             <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[460px] bg-white shadow-2xl flex flex-col" style={{ borderLeft: '1px solid #f3f4f6' }}>
 
               {/* Dark header — shared between view and edit */}
@@ -1667,7 +1750,7 @@ export default function ContractorProjectsPage() {
                         <i className="ri-eye-line text-[11px]"></i> View
                       </button>
                     )}
-                    <button onClick={() => setShowTaskModal(false)} className="w-6 h-6 flex items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 cursor-pointer transition-colors ml-1">
+                    <button onClick={() => { setShowTaskModal(false); setMentionOpen(false); setMentionQuery(''); }} className="w-6 h-6 flex items-center justify-center rounded-md text-white/40 hover:text-white hover:bg-white/10 cursor-pointer transition-colors ml-1">
                       <i className="ri-close-line text-sm"></i>
                     </button>
                   </div>
@@ -1876,7 +1959,11 @@ export default function ContractorProjectsPage() {
                                 </button>
                               )}
                             </div>
-                            <p className="text-xs text-gray-600 leading-relaxed break-words">{c.body}</p>
+                            <p className="text-xs text-gray-600 leading-relaxed break-words">{c.body.split(/(@\w+)/g).map((part, i) =>
+                              part.startsWith('@') ? (
+                                <span key={i} className="text-indigo-600 font-semibold">{part}</span>
+                              ) : part
+                            )}</p>
                           </div>
                         </div>
                       );
@@ -1889,10 +1976,47 @@ export default function ContractorProjectsPage() {
                       ? <img src={hubUser.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover object-top flex-shrink-0 mb-0.5" />
                       : <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600 flex-shrink-0 mb-0.5">{hubUser?.full_name?.[0] ?? '?'}</div>
                     }
-                    <div className="flex-1 flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 focus-within:ring-1 focus-within:ring-indigo-200 focus-within:border-indigo-300 transition-all">
+                    <div className="relative flex-1">
+                      {(() => {
+                        const mentionSuggestions = wsTeam.filter(m =>
+                          m.full_name.toLowerCase().includes(mentionQuery) ||
+                          m.full_name.split(' ')[0].toLowerCase().startsWith(mentionQuery)
+                        ).slice(0, 5);
+                        return mentionOpen && mentionSuggestions.length > 0 ? (
+                          <div className="absolute bottom-full left-0 right-0 mb-1 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden z-10">
+                            {mentionSuggestions.map(m => (
+                              <button key={m.id} onMouseDown={e => { e.preventDefault(); insertMention(m); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-indigo-50 transition-colors text-left cursor-pointer">
+                                {m.avatar_url
+                                  ? <img src={m.avatar_url} alt={m.full_name} className="w-6 h-6 rounded-full object-cover object-top flex-shrink-0" />
+                                  : <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 flex-shrink-0">{m.full_name[0]}</div>
+                                }
+                                <div>
+                                  <p className="text-sm font-medium text-gray-800">{m.full_name}</p>
+                                  <p className="text-[10px] text-gray-400">@{m.full_name.split(' ')[0].toLowerCase()}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
+                    <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 focus-within:ring-1 focus-within:ring-indigo-200 focus-within:border-indigo-300 transition-all">
                       <textarea
                         value={newComment}
-                        onChange={e => setNewComment(e.target.value)}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setNewComment(val);
+                          const pos = e.target.selectionStart ?? val.length;
+                          const before = val.slice(0, pos);
+                          const match = before.match(/@(\w*)$/);
+                          if (match) {
+                            setMentionQuery(match[1].toLowerCase());
+                            setMentionStart(pos - match[0].length);
+                            setMentionOpen(true);
+                          } else {
+                            setMentionOpen(false);
+                          }
+                        }}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); postComment(); } }}
                         placeholder="Add a comment…"
                         rows={1}
@@ -1904,6 +2028,7 @@ export default function ContractorProjectsPage() {
                         <i className="ri-send-plane-fill text-[11px]"></i>
                       </button>
                     </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1911,7 +2036,7 @@ export default function ContractorProjectsPage() {
               {/* Footer */}
               <div className="flex items-center gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0">
                 {editingTask && (
-                  <button onClick={() => { if (window.confirm('Delete this task?')) { deleteTask(editingTask.id); setShowTaskModal(false); } }}
+                  <button onClick={() => { if (window.confirm('Delete this task?')) { deleteTask(editingTask.id); setShowTaskModal(false); setMentionOpen(false); setMentionQuery(''); } }}
                     className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl cursor-pointer transition-colors">
                     <i className="ri-delete-bin-line text-sm"></i>
                   </button>
