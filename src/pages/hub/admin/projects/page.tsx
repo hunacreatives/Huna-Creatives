@@ -1209,7 +1209,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   {activity.map(a => (
                     <div key={a.id} className="flex gap-3 items-start">
                       <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                        <span className="text-indigo-500 font-bold text-[10px]">{a.actor_name[0].toUpperCase()}</span>
+                        <span className="text-indigo-500 font-bold text-[10px]">{(a.actor_name?.[0] ?? '?').toUpperCase()}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-700">{a.description}</p>
