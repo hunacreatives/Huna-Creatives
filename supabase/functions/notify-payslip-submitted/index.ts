@@ -47,7 +47,7 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
     ? `${months[periodStart.getMonth()]} ${periodStart.getDate()}–${calendarEndDay}, ${periodStart.getFullYear()}`
     : `${months[periodStart.getMonth()]} ${periodStart.getDate()} – ${months[periodEnd.getMonth()]} ${calendarEndDay}, ${periodStart.getFullYear()}`;
 
-  const payrollUrl = 'https://www.hunacreatives.com/hub/login';
+  const payrollUrl = 'https://www.hunacreatives.com/hub/admin/payroll';
 
   const html = `<!DOCTYPE html>
 <html>
