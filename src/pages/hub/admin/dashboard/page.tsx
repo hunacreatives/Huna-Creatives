@@ -63,6 +63,17 @@ function countWorkingDays(startDate: string, endDate: string, workDays: string[]
   return count;
 }
 
+function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined): number {
+  if (!startDate || !endDate || endDate < startDate) return 0;
+  return countWorkingDays(startDate, endDate, workDays || []) * 8;
+}
+
+function dateBefore(dateStr: string, days = 1) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 function getBirthdayAlerts(contractors: { full_name: string; avatar_url?: string; birthday?: string }[]): BirthdayPerson[] {
   const today = new Date();
   const todayMonth = today.getMonth() + 1;
@@ -295,15 +306,40 @@ export default function AdminDashboardPage() {
           const totalD   = Math.round((pEnd.getTime() - pStart.getTime()) / 86400000) + 1;
           const daysAtOld = Math.max(0, Math.round((chDate.getTime() - pStart.getTime()) / 86400000));
           const daysAtNew = totalD - daysAtOld;
-          if (payType === 'fixed') {
-            const basePay = (oldMonthly / 2 / totalD * daysAtOld) + (newMonthly / 2 / totalD * daysAtNew);
+          if (payType === 'fixed' || payType === 'fixed_flexible') {
+            const currentDate = new Date().toISOString().slice(0, 10);
+            const isCurrentPeriod = currentDate >= cutoffStart && currentDate <= cutoffEnd;
+            const effectiveEnd = isCurrentPeriod && cutoffStart >= '2026-06-01'
+              ? (currentDate < cutoffEnd ? currentDate : cutoffEnd)
+              : cutoffEnd;
+            const oldSegmentEnd = changeInPeriod.effective_date > cutoffStart
+              ? dateBefore(changeInPeriod.effective_date)
+              : '';
+            const expectedOldHours = oldSegmentEnd
+              ? countScheduledHours(cutoffStart, oldSegmentEnd, c.work_days)
+              : 0;
+            const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
+              ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, c.work_days)
+              : 0;
+            const totalExpectedHours = expectedOldHours + expectedNewHours;
+            const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
+            const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
+            const datesMap = hoursByDate[c.id] || {};
+            let hrsAtOld = 0, hrsAtNew = 0;
+            for (const [date, hv] of Object.entries(datesMap)) {
+              if (date < changeInPeriod.effective_date) hrsAtOld += hv as number;
+              else if (date <= effectiveEnd) hrsAtNew += hv as number;
+            }
+            const basePay =
+              (expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0) +
+              (expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0);
             const oldOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
             const newOT = changeInPeriod.hourly_rate || newMonthly / 176;
             const otDates = overtimeByDate[c.id] || {};
             let otAtOld = 0, otAtNew = 0;
             for (const [date, ot] of Object.entries(otDates)) {
               if (date < changeInPeriod.effective_date) otAtOld += ot as number;
-              else otAtNew += ot as number;
+              else if (date <= effectiveEnd) otAtNew += ot as number;
             }
             overtimePay = otAtOld * oldOT + otAtNew * newOT;
             pay = basePay;
@@ -320,16 +356,17 @@ export default function AdminDashboardPage() {
         } else {
           const monthly = rateAtStart?.monthly_rate ?? c.monthly_rate ?? 0;
           const hourly  = rateAtStart?.hourly_rate  ?? c.hourly_rate  ?? 0;
-          const derivedHourlyRate = payType === 'fixed' ? (hourly || monthly / 176) : hourly;
+          const derivedHourlyRate = payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / 176) : hourly;
           overtimePay = h.overtime * derivedHourlyRate;
           if (payType === 'hourly') {
             pay = h.capped * derivedHourlyRate;
           } else {
             const currentDate = new Date().toISOString().slice(0, 10);
             const isCurrentPeriod = currentDate >= cutoffStart && currentDate <= cutoffEnd;
-            if (isCurrentPeriod && cutoffStart >= '2026-06-01') {
-              const totalWorkDays = countWorkingDays(cutoffStart, cutoffEnd, c.work_days || []);
-              const accrualRatio = totalWorkDays > 0 ? Math.min(h.days / totalWorkDays, 1) : 0;
+            if (cutoffStart >= '2026-06-01') {
+              const effectiveEnd = isCurrentPeriod ? (currentDate < cutoffEnd ? currentDate : cutoffEnd) : cutoffEnd;
+              const expectedHours = countScheduledHours(cutoffStart, effectiveEnd, c.work_days);
+              const accrualRatio = expectedHours > 0 ? Math.min(h.capped / expectedHours, 1) : 0;
               pay = (monthly / 2) * accrualRatio;
             } else {
               pay = monthly / 2;

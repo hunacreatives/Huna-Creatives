@@ -1,10 +1,37 @@
 import { supabase } from '@/lib/supabase';
 
+const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function countWorkingDays(startDate: string, endDate: string, workDays: string[] = []) {
+  const scheduled = workDays.length > 0
+    ? new Set(workDays.map(d => DAY_MAP[d]))
+    : new Set([1, 2, 3, 4, 5]);
+  let count = 0;
+  const end = new Date(`${endDate}T00:00:00`);
+  const cur = new Date(`${startDate}T00:00:00`);
+  while (cur <= end) {
+    if (scheduled.has(cur.getDay())) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined) {
+  if (!startDate || !endDate || endDate < startDate) return 0;
+  return countWorkingDays(startDate, endDate, workDays || []) * 8;
+}
+
+function dateBefore(dateStr: string, days = 1) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 export async function fetchPayrollTotal(periodStart: string, periodEnd: string, usdRate = 56): Promise<number> {
   const [contractorsRes, hoursRes] = await Promise.all([
     supabase
       .from('hub_users')
-      .select('id, currency, payment_type, hourly_rate, monthly_rate, start_date')
+      .select('id, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days')
       .eq('status', 'active')
       .in('role', ['contractor', 'admin']),
     supabase
@@ -92,15 +119,40 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
       const daysAtOld = Math.max(0, Math.round((chDate.getTime() - pStart.getTime()) / 86400000));
       const daysAtNew = totalD - daysAtOld;
 
-      if (payType === 'fixed') {
-        const basePay = (oldMonthly / 2 / totalD * daysAtOld) + (newMonthly / 2 / totalD * daysAtNew);
+      if (payType === 'fixed' || payType === 'fixed_flexible') {
+        const today = new Date().toISOString().slice(0, 10);
+        const isCurrentPeriod = today >= periodStart && today <= periodEnd;
+        const effectiveEnd = isCurrentPeriod && periodStart >= '2026-06-01'
+          ? (today < periodEnd ? today : periodEnd)
+          : periodEnd;
+        const oldSegmentEnd = changeInPeriod.effective_date > periodStart
+          ? dateBefore(changeInPeriod.effective_date)
+          : '';
+        const expectedOldHours = oldSegmentEnd
+          ? countScheduledHours(periodStart, oldSegmentEnd, c.work_days)
+          : 0;
+        const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
+          ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, c.work_days)
+          : 0;
+        const totalExpectedHours = expectedOldHours + expectedNewHours;
+        const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
+        const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
+        const datesMap = hoursByDate[c.id] || {};
+        let hrsAtOld = 0, hrsAtNew = 0;
+        for (const [date, h] of Object.entries(datesMap)) {
+          if (date < changeInPeriod.effective_date) hrsAtOld += h as number;
+          else if (date <= effectiveEnd) hrsAtNew += h as number;
+        }
+        const basePay =
+          (expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0) +
+          (expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0);
         const oldOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
         const newOT = changeInPeriod.hourly_rate || newMonthly / 176;
         const otDates = overtimeByDate[c.id] || {};
         let otAtOld = 0, otAtNew = 0;
         for (const [date, ot] of Object.entries(otDates)) {
           if (date < changeInPeriod.effective_date) otAtOld += ot as number;
-          else otAtNew += ot as number;
+          else if (date <= effectiveEnd) otAtNew += ot as number;
         }
         pay = basePay + otAtOld * oldOT + otAtNew * newOT;
       } else {
@@ -115,9 +167,18 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
     } else {
       const monthly = rateAtStart?.monthly_rate ?? c.monthly_rate ?? 0;
       const hourly  = rateAtStart?.hourly_rate  ?? c.hourly_rate  ?? 0;
-      const otRate  = payType === 'fixed' ? (hourly || monthly / 176) : hourly;
-      if (payType === 'fixed') {
-        pay = monthly / 2 + hrs.overtime * otRate;
+      const otRate  = payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / 176) : hourly;
+      if (payType === 'fixed' || payType === 'fixed_flexible') {
+        if (periodStart >= '2026-06-01') {
+          const today = new Date().toISOString().slice(0, 10);
+          const isCurrentPeriod = today >= periodStart && today <= periodEnd;
+          const effectiveEnd = isCurrentPeriod ? (today < periodEnd ? today : periodEnd) : periodEnd;
+          const expectedHours = countScheduledHours(periodStart, effectiveEnd, c.work_days);
+          const accrualRatio = expectedHours > 0 ? Math.min(hrs.capped / expectedHours, 1) : 0;
+          pay = (monthly / 2) * accrualRatio + hrs.overtime * otRate;
+        } else {
+          pay = monthly / 2 + hrs.overtime * otRate;
+        }
       } else {
         pay = hrs.capped * hourly + hrs.overtime * hourly;
       }

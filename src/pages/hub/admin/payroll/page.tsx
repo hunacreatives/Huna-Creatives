@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import html2canvas from 'html2canvas';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
@@ -61,6 +62,17 @@ function countWorkingDays(startDate: string, endDate: string, workDays: string[]
   return count;
 }
 
+function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined): number {
+  if (!startDate || !endDate || endDate < startDate) return 0;
+  return countWorkingDays(startDate, endDate, workDays || []) * 8;
+}
+
+function dateBefore(dateStr: string, days = 1) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null }) {
   if (avatar_url) return <img src={avatar_url} alt={name} className="w-8 h-8 rounded-full object-cover object-top flex-shrink-0" />;
   return (
@@ -68,6 +80,72 @@ function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null 
       <span className="text-white text-xs font-bold">{name.charAt(0).toUpperCase()}</span>
     </div>
   );
+}
+
+function uint8ToBase64(bytes: Uint8Array) {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+function dataUrlToUint8Array(dataUrl: string) {
+  const base64 = dataUrl.split(',')[1] || '';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function concatUint8Arrays(parts: Uint8Array[]) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function buildPdfFromJpeg(jpegBytes: Uint8Array, imageWidth: number, imageHeight: number) {
+  const encoder = new TextEncoder();
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const margin = 36;
+  const maxWidth = pageWidth - margin * 2;
+  const maxHeight = pageHeight - margin * 2;
+  const scale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight);
+  const drawWidth = imageWidth * scale;
+  const drawHeight = imageHeight * scale;
+  const x = (pageWidth - drawWidth) / 2;
+  const y = pageHeight - margin - drawHeight;
+  const content = `q\n${drawWidth.toFixed(2)} 0 0 ${drawHeight.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm\n/Im0 Do\nQ`;
+
+  const objects: Uint8Array[] = [
+    encoder.encode('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'),
+    encoder.encode('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n'),
+    encoder.encode(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`),
+    concatUint8Arrays([
+      encoder.encode(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${Math.round(imageWidth)} /Height ${Math.round(imageHeight)} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`),
+      jpegBytes,
+      encoder.encode('\nendstream\nendobj\n'),
+    ]),
+    encoder.encode(`5 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`),
+  ];
+
+  const header = encoder.encode('%PDF-1.4\n%FFFF\n');
+  let offset = header.length;
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(offset);
+    offset += object.length;
+  }
+  const xrefOffset = offset;
+  const xref = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map((entry) => `${String(entry).padStart(10, '0')} 00000 n `).join('\n')}\ntrailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return concatUint8Arrays([header, ...objects, encoder.encode(xref)]);
 }
 
 export default function AdminPayrollPage() {
@@ -476,42 +554,109 @@ export default function AdminPayrollPage() {
   };
 
   const [savingToDrive, setSavingToDrive] = useState(false);
+  const [savedPdfPeriods, setSavedPdfPeriods] = useState<Set<string>>(new Set());
 
-  const buildPayrollHtml = (label: string) => {
-    const paidPayouts = rows.map(r => {
-      const p = payoutsMap[r.contractor.id];
-      const override = rowOverrides[r.contractor.id];
+  useEffect(() => {
+    if (!closedPeriods.has(selectedPeriod.start) || isDemo) return;
+    let cancelled = false;
+    getSetting(`payroll_pdf_saved_${selectedPeriod.start}`, 'false').then((value) => {
+      if (cancelled || value !== 'true') return;
+      setSavedPdfPeriods((prev) => {
+        if (prev.has(selectedPeriod.start)) return prev;
+        const next = new Set(prev);
+        next.add(selectedPeriod.start);
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [closedPeriods, isDemo, selectedPeriod.start]);
+
+  const buildPayrollReportMarkup = (label: string, generatedLabel: string) => {
+    const logoUrl = `${window.location.origin}/images/547b59870e776a20eb28e4f20931787c.png`;
+    const hourlyRows = rows.filter(r => r.contractor.payment_type === 'hourly').length;
+    const fixedRows = rows.length - hourlyRows;
+    const tableRows = rows.map(r => {
+      const c = r.contractor;
+      const isFixed = c.payment_type === 'fixed' || c.payment_type === 'fixed_flexible';
+      const isUSD = c.currency === 'USD';
+      const rate = isFixed
+        ? isUSD ? `$${(c.monthly_rate || 0).toLocaleString()}/mo` : `PHP ${(c.monthly_rate || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}/mo`
+        : isUSD ? `$${c.hourly_rate}/hr` : `PHP ${(c.hourly_rate || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}/hr`;
+      const override = rowOverrides[c.id];
       const basePay = override?.pay !== undefined ? override.pay : r.pay;
-      const otPay = override?.otHours !== undefined && override?.otRate !== undefined
-        ? override.otHours * override.otRate : r.overtimePay;
-      const adjs: any[] = p?.adjustments || [];
-      const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
-      return { name: r.contractor.full_name, hours: r.cappedHours, pay: basePay + otPay + adjTotal, status: p?.status ?? 'pending' };
-    }).filter(r => ['hr_approved','paid'].includes(r.status));
+      const displayOTHours = override?.otHours !== undefined ? override.otHours : r.overtimeHours;
+      const displayOTPay = override?.otHours !== undefined && override?.otRate !== undefined ? override.otHours * override.otRate : r.overtimePay;
+      const p = payoutsMap[c.id];
+      const adjs: { amount: number }[] = p?.adjustments || [];
+      const adjTotal = adjs.reduce((sum, item) => sum + item.amount, 0);
+      const total = basePay + displayOTPay + adjTotal;
+      return `
+        <tr>
+          <td>${c.full_name}</td>
+          <td>${c.department || '—'}</td>
+          <td>${isFixed ? 'Fixed' : 'Hourly'}</td>
+          <td>${rate}</td>
+          <td>${r.days}</td>
+          <td>${r.cappedHours.toFixed(2)}h</td>
+          <td>${displayOTHours > 0 ? `${displayOTHours.toFixed(2)}h` : '—'}</td>
+          <td style="text-align:right;font-weight:700">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        </tr>
+      `;
+    }).join('');
 
-    const rowsHtml = paidPayouts.map(r =>
-      `<tr><td>${r.name}</td><td style="text-align:center">${r.hours.toFixed(1)}h</td><td style="text-align:right;font-weight:600">₱${r.pay.toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>`
-    ).join('');
-    const total = paidPayouts.reduce((s,r)=>s+r.pay,0);
-
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<style>
-body{font-family:Arial,sans-serif;margin:48px;color:#111827;max-width:700px}
-h1{font-size:22px;font-weight:800;margin:0 0 4px}
-.sub{color:#6b7280;font-size:13px;margin:0 0 32px}
-table{width:100%;border-collapse:collapse}
-th{background:#f3f4f6;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280}
-td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#374151}
-.total td{font-weight:700;font-size:14px;border-top:2px solid #111827;border-bottom:none}
-</style></head><body>
-<h1>Payroll Summary</h1>
-<p class="sub">${label} &nbsp;·&nbsp; Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p>
-<table>
-<thead><tr><th>Contractor</th><th style="text-align:center">Hours</th><th style="text-align:right">Amount (PHP)</th></tr></thead>
-<tbody>${rowsHtml}
-<tr class="total"><td colspan="2">${paidPayouts.length} contractor${paidPayouts.length!==1?'s':''}</td><td style="text-align:right">₱${total.toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>
-</tbody></table>
-</body></html>`;
+    return `
+      <div style="width:1080px;background:#ffffff;color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 44px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #FF6B35;padding-bottom:20px;margin-bottom:28px;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <img src="${logoUrl}" alt="Huna Creatives" style="height:46px;object-fit:contain;" />
+            <div>
+              <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#9ca3af;font-weight:700;">Huna Creatives</div>
+              <div style="font-size:24px;font-weight:800;color:#111827;margin-top:2px;">Payroll Report</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:16px;font-weight:700;">${label}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:4px;">${generatedLabel}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px;">
+          ${[
+            { label: 'Total Payroll', value: fmt(totalPay, 'PHP') },
+            { label: 'Total Hours', value: `${totalHours.toFixed(2)}h` },
+            { label: 'Contractors', value: `${rows.length}` },
+            { label: 'Hourly / Fixed', value: `${hourlyRows} / ${fixedRows}` },
+          ].map((item) => `
+            <div style="border:1px solid #e5e7eb;border-radius:16px;background:#f9fafb;padding:14px 16px;">
+              <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;font-weight:700;">${item.label}</div>
+              <div style="font-size:20px;font-weight:800;color:${item.label === 'Total Payroll' ? '#FF6B35' : '#111827'};margin-top:6px;">${item.value}</div>
+            </div>
+          `).join('')}
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Contractor</th>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Department</th>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Type</th>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Rate</th>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Days</th>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Billed Hours</th>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Overtime</th>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Pay</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+            <tr>
+              <td colspan="7" style="padding:12px;border-top:2px solid #111827;font-weight:800;font-size:14px;">Total</td>
+              <td style="padding:12px;border-top:2px solid #111827;text-align:right;font-weight:800;font-size:14px;">${fmt(totalPay, 'PHP')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
   };
 
   const savePayrollToDrive = async () => {
@@ -520,16 +665,36 @@ td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#37415
     try {
       const label = selectedPeriod.label;
       const year = selectedPeriod.start.slice(0, 4);
-      const html = buildPayrollHtml(label);
-      const b64 = btoa(unescape(encodeURIComponent(html)));
+      const generatedLabel = `Closed ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+      const markup = buildPayrollReportMarkup(label, generatedLabel);
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '-10000px';
+      container.style.top = '0';
+      container.style.zIndex = '-1';
+      container.innerHTML = markup;
+      document.body.appendChild(container);
+      const target = container.firstElementChild as HTMLElement | null;
+      if (!target) throw new Error('Could not render payroll report for PDF export.');
+      const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
+      document.body.removeChild(container);
+      const jpegBytes = dataUrlToUint8Array(canvas.toDataURL('image/jpeg', 0.92));
+      const pdfBytes = buildPdfFromJpeg(jpegBytes, canvas.width, canvas.height);
+      const b64 = uint8ToBase64(pdfBytes);
       const safeName = label.replace(/[^a-zA-Z0-9\s]/g,'_').replace(/\s+/g,'_');
       const { data, error } = await supabase.functions.invoke('upload-to-drive', {
-        body: { type: 'payroll', year, filename: `Payroll_${safeName}_${new Date().toISOString().slice(0,10)}.html`, base64Content: b64, mimeType: 'text/html', meta: { year, convertToDoc: 'true' } },
+        body: { type: 'payroll', year, filename: `Payroll_${safeName}_${new Date().toISOString().slice(0,10)}.pdf`, base64Content: b64, mimeType: 'application/pdf', meta: { year } },
       });
       if (error || (data as any)?.error) {
         alert('Drive upload failed: ' + (error?.message || (data as any)?.error));
       } else {
-        alert('Saved to Google Drive ✓');
+        await setSetting(`payroll_pdf_saved_${selectedPeriod.start}`, 'true');
+        setSavedPdfPeriods((prev) => {
+          const next = new Set(prev);
+          next.add(selectedPeriod.start);
+          return next;
+        });
+        alert('Saved PDF to Google Drive ✓');
       }
     } catch (e) {
       alert('Upload failed: ' + String(e));
@@ -554,50 +719,20 @@ td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#37415
       alert('Failed to close period: ' + error.message);
     } else {
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'close', entity_type: 'payroll_batch', entity_id: batch.id, description: `Closed payroll period ${batch.period_label}` });
-
-      // Generate and upload PDF summary to Google Drive
-      try {
-        const year = batch.period_start?.slice(0, 4) ?? new Date().getFullYear().toString();
-        const paidPayouts = rows.map(r => {
-          const p = payoutsMap[r.contractor.id];
-          const override = rowOverrides[r.contractor.id];
-          const basePay = override?.pay !== undefined ? override.pay : r.pay;
-          const otPay = override?.otHours !== undefined && override?.otRate !== undefined
-            ? override.otHours * override.otRate : r.overtimePay;
-          const adjs: any[] = p?.adjustments || [];
-          const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
-          return {
-            name: r.contractor.full_name,
-            hours: r.cappedHours,
-            pay: basePay + otPay + adjTotal,
-            status: p?.status ?? 'pending',
-          };
-        }).filter(r => r.status === 'paid');
-
-        const rows_html = paidPayouts.map(r =>
-          `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${r.name}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center">${r.hours.toFixed(1)}h</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600">₱${r.pay.toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>`
-        ).join('');
-
-        const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:-apple-system,sans-serif;margin:40px;color:#111827}h1{font-size:20px;font-weight:800;margin-bottom:4px}p{color:#6b7280;font-size:13px;margin:0}table{width:100%;border-collapse:collapse;margin-top:24px}th{background:#f9fafb;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600}td{font-size:13px;color:#374151}.total td{font-weight:700;font-size:14px;border-top:2px solid #111827}</style></head><body><h1>Payroll Summary</h1><p>${batch.period_label} &nbsp;·&nbsp; Closed ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p><table><thead><tr><th>Contractor</th><th style="text-align:center">Hours</th><th style="text-align:right">Amount</th></tr></thead><tbody>${rows_html}<tr class="total"><td colspan="2" style="padding:10px 12px">Total — ${paidPayouts.length} contractors</td><td style="padding:10px 12px;text-align:right">₱${paidPayouts.reduce((s,r)=>s+r.pay,0).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr></tbody></table></body></html>`;
-
-        const b64 = btoa(unescape(encodeURIComponent(htmlContent)));
-        await supabase.functions.invoke('upload-to-drive', {
-          body: {
-            type: 'payroll',
-            year,
-            filename: `Payroll_${batch.period_label.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0,10)}.html`,
-            base64Content: b64,
-            mimeType: 'text/html',
-          },
-        });
-      } catch (uploadErr) {
-        console.warn('Drive upload failed (non-fatal):', uploadErr);
-      }
-
+      supabase.functions.invoke('notify-payroll-closed', {
+        body: {
+          batch_id: batch.id,
+          closed_by_name: hubUser?.full_name ?? null,
+        },
+      }).catch((invokeError) => {
+        console.error('Failed to queue payroll closed Slack notification:', invokeError);
+      });
       await fetchWorkflow();
     }
     setWorkflowLoading(false);
   };
+
+  const isPdfSavedToDrive = savedPdfPeriods.has(selectedPeriod.start);
 
   useEffect(() => {
     if (isDemo) {
@@ -764,12 +899,33 @@ td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#37415
         const periodEnd   = new Date(selectedPeriod.end);
         const changeDate  = new Date(changeInPeriod.effective_date);
 
-        if (payType === 'fixed') {
-          const totalDays = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
-          const daysAtOld = Math.max(0, Math.round((changeDate.getTime() - periodStart.getTime()) / 86400000));
-          const daysAtNew = totalDays - daysAtOld;
-
-          const basePay = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
+        if (payType === 'fixed' || payType === 'fixed_flexible') {
+          const today = new Date().toISOString().slice(0, 10);
+          const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+          const effectiveEnd = isCurrentPeriod && selectedPeriod.start >= '2026-06-01'
+            ? (today < selectedPeriod.end ? today : selectedPeriod.end)
+            : selectedPeriod.end;
+          const oldSegmentEnd = changeInPeriod.effective_date > selectedPeriod.start
+            ? dateBefore(changeInPeriod.effective_date)
+            : '';
+          const expectedOldHours = oldSegmentEnd
+            ? countScheduledHours(selectedPeriod.start, oldSegmentEnd, c.work_days)
+            : 0;
+          const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
+            ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, c.work_days)
+            : 0;
+          const totalExpectedHours = expectedOldHours + expectedNewHours;
+          const datesMap = hoursByDate[c.id] || {};
+          let hrsAtOld = 0;
+          let hrsAtNew = 0;
+          for (const [date, h] of Object.entries(datesMap)) {
+            if (date < changeInPeriod.effective_date) hrsAtOld += h;
+            else hrsAtNew += h;
+          }
+          const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
+          const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
+          const oldPay = expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0;
+          const newPay = expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0;
 
           // Split OT by date so pre-raise OT uses old OT rate, post-raise uses new
           const oldHourlyForOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
@@ -783,8 +939,8 @@ td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#37415
           }
           derivedHourlyRate = newHourlyForOT;
           overtimePay = otAtOld * oldHourlyForOT + otAtNew * newHourlyForOT;
-          pay = basePay;
-          proratedNote = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
+          pay = oldPay + newPay;
+          proratedNote = `${hrsAtOld.toFixed(1)}/${expectedOldHours || 0}h @ ₱${oldMonthly.toLocaleString()}/mo · ${hrsAtNew.toFixed(1)}/${expectedNewHours || 0}h @ ₱${newMonthly.toLocaleString()}/mo`;
         } else {
           // Hourly: split hours by date
           const datesMap = hoursByDate[c.id] || {};
@@ -815,13 +971,13 @@ td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#37415
           overtimePay = hrs.overtime * derivedHourlyRate;
           const today = new Date().toISOString().slice(0, 10);
           const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-          // Accrual logic only for June 1+ periods (prior periods show full amount)
-          if (isCurrentPeriod && selectedPeriod.start >= '2026-06-01') {
-            const totalWorkDays = countWorkingDays(selectedPeriod.start, selectedPeriod.end, c.work_days || []);
-            const accrualRatio = totalWorkDays > 0 ? Math.min(hrs.days / totalWorkDays, 1) : 0;
+          if (selectedPeriod.start >= '2026-06-01') {
+            const effectiveEnd = isCurrentPeriod ? (today < selectedPeriod.end ? today : selectedPeriod.end) : selectedPeriod.end;
+            const expectedHours = countScheduledHours(selectedPeriod.start, effectiveEnd, c.work_days);
+            const accrualRatio = expectedHours > 0 ? Math.min(hrs.capped / expectedHours, 1) : 0;
             pay = (monthly / 2) * accrualRatio;
             prorated = true;
-            proratedNote = `${hrs.days}/${totalWorkDays} days · accruing`;
+            proratedNote = `${hrs.capped.toFixed(1)}/${expectedHours}h scheduled${isCurrentPeriod ? ' · accruing' : ''}`;
           } else {
             pay = monthly / 2;
           }
@@ -1158,6 +1314,21 @@ td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#37415
                   <i className="ri-file-pdf-line text-sm"></i>
                   PDF
                 </button>
+                {closedPeriods.has(selectedPeriod.start) && (
+                  <button
+                    onClick={savePayrollToDrive}
+                    disabled={loading || rows.length === 0 || savingToDrive}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                      isPdfSavedToDrive
+                        ? 'bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/20 hover:text-white'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
+                    }`}
+                    title={isPdfSavedToDrive ? 'This closed payroll PDF has already been saved to Google Drive' : 'Save the closed payroll report as a PDF in Google Drive'}
+                  >
+                    <i className={`${savingToDrive ? 'ri-loader-4-line animate-spin' : isPdfSavedToDrive ? 'ri-check-line' : 'ri-google-fill'} text-sm`}></i>
+                    {savingToDrive ? 'Saving…' : isPdfSavedToDrive ? 'Already Saved to Drive' : 'Save PDF to Drive'}
+                  </button>
+                )}
               </div>
 
               {rows.some(r => r.contractor.currency === 'USD') && (
@@ -1591,17 +1762,6 @@ td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#37415
 
           return (
             <>
-            {isClosed && (
-              <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-                <i className="ri-lock-fill text-gray-400 text-base"></i>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-600">Archived Period</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {selectedPeriod.label} — closed {batch.closed_at ? `on ${new Date(batch.closed_at + '').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}. All data is read-only.
-                  </p>
-                </div>
-              </div>
-            )}
             <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>

@@ -20,12 +20,39 @@ interface RateEntry {
   monthly_rate: number | null;
 }
 
+const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function countWorkingDays(startDate: string, endDate: string, workDays: string[] = []) {
+  const scheduled = workDays.length > 0
+    ? new Set(workDays.map(d => DAY_MAP[d]))
+    : new Set([1, 2, 3, 4, 5]);
+  let count = 0;
+  const end = new Date(`${endDate}T00:00:00`);
+  const cur = new Date(`${startDate}T00:00:00`);
+  while (cur <= end) {
+    if (scheduled.has(cur.getDay())) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined) {
+  if (!startDate || !endDate || endDate < startDate) return 0;
+  return countWorkingDays(startDate, endDate, workDays || []) * 8;
+}
+
+function dateBefore(dateStr: string, days = 1) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 function generatePayslipHTML(opts: {
   name: string;
   department: string | null;
   period: { label: string; start: string; end: string };
   days: DayRow[];
-  paymentType: 'hourly' | 'fixed';
+  paymentType: 'hourly' | 'fixed' | 'fixed_flexible';
   hourlyRate: number;
   monthlyRate: number;
   currency: string;
@@ -301,6 +328,7 @@ export default function ContractorPayoutsPage() {
   const paymentType = (hubUser as any)?.payment_type || 'hourly';
   const currentHourlyRate = Number((hubUser as any)?.hourly_rate || 0);
   const currentMonthlyRate = Number((hubUser as any)?.monthly_rate || 0);
+  const workDays = ((hubUser as any)?.work_days as string[] | null | undefined) || [];
   const currency = (hubUser as any)?.currency || 'PHP';
   const isUSD = currency === 'USD';
 
@@ -335,21 +363,42 @@ export default function ContractorPayoutsPage() {
     const periodStart = new Date(selectedPeriod.start);
     const periodEnd   = new Date(selectedPeriod.end);
     const changeDate  = new Date(changeInPeriod.effective_date);
-    if (paymentType === 'fixed') {
-      const totalDays = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
-      const daysAtOld = Math.max(0, Math.round((changeDate.getTime() - periodStart.getTime()) / 86400000));
-      const daysAtNew = totalDays - daysAtOld;
-      basePay = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
+    if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
+      const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+      const effectiveEnd = isCurrentPeriod && selectedPeriod.start >= '2026-06-01'
+        ? (today < selectedPeriod.end ? today : selectedPeriod.end)
+        : selectedPeriod.end;
+      const oldSegmentEnd = changeInPeriod.effective_date > selectedPeriod.start
+        ? dateBefore(changeInPeriod.effective_date)
+        : '';
+      const expectedOldHours = oldSegmentEnd
+        ? countScheduledHours(selectedPeriod.start, oldSegmentEnd, workDays)
+        : 0;
+      const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
+        ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, workDays)
+        : 0;
+      const totalExpectedHours = expectedOldHours + expectedNewHours;
+      let hrsAtOld = 0, hrsAtNew = 0;
+      for (const d of days) {
+        if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped;
+        else if (d.date <= effectiveEnd) hrsAtNew += d.hours_capped;
+      }
+      const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
+      const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
+      basePay =
+        (expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0) +
+        (expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0);
       const oldOT = oldHourly || oldMonthly / 176;
       const newOT = newHourly || newMonthly / 176;
       let otAtOld = 0, otAtNew = 0;
       for (const d of days) {
         if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
-        else otAtNew += d.overtime_hours || 0;
+        else if (d.date <= effectiveEnd) otAtNew += d.overtime_hours || 0;
       }
       overtimePay = otAtOld * oldOT + otAtNew * newOT;
       otRate = newOT;
-      proratedLabel = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
+      proratedLabel = `${hrsAtOld.toFixed(1)}/${expectedOldHours || 0}h @ ₱${oldMonthly.toLocaleString()}/mo · ${hrsAtNew.toFixed(1)}/${expectedNewHours || 0}h @ ₱${newMonthly.toLocaleString()}/mo`;
     } else {
       let hrsAtOld = 0, hrsAtNew = 0;
       for (const d of days) {
@@ -366,8 +415,19 @@ export default function ContractorPayoutsPage() {
     const hourly  = eff?.hourly_rate  ?? currentHourlyRate;
     displayMonthlyRate = monthly;
     displayHourlyRate  = hourly;
-    if (paymentType === 'fixed') {
-      basePay = monthly / 2;
+    if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
+      const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+      if (selectedPeriod.start >= '2026-06-01') {
+        const effectiveEnd = isCurrentPeriod ? (today < selectedPeriod.end ? today : selectedPeriod.end) : selectedPeriod.end;
+        const expectedHours = countScheduledHours(selectedPeriod.start, effectiveEnd, workDays);
+        const accrualRatio = expectedHours > 0 ? Math.min(totalHoursBillable / expectedHours, 1) : 0;
+        basePay = (monthly / 2) * accrualRatio;
+        isProrated = true;
+        proratedLabel = `${totalHoursBillable.toFixed(1)}/${expectedHours}h scheduled${isCurrentPeriod ? ' · accruing' : ''}`;
+      } else {
+        basePay = monthly / 2;
+      }
       otRate = hourly || monthly / 176;
     } else {
       basePay = totalHoursBillable * hourly;
@@ -506,7 +566,7 @@ export default function ContractorPayoutsPage() {
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">Rate</p>
                   <p className="text-sm font-semibold text-gray-900">
-                    {isProrated ? 'Prorated' : paymentType === 'fixed' ? `₱${displayMonthlyRate.toLocaleString()}/mo` : `${isUSD ? '$' : '₱'}${displayHourlyRate}/hr`}
+                    {isProrated ? 'Prorated' : paymentType === 'hourly' ? `${isUSD ? '$' : '₱'}${displayHourlyRate}/hr` : `₱${displayMonthlyRate.toLocaleString()}/mo`}
                   </p>
                   <p className="text-xs text-gray-400">{isProrated ? proratedLabel : paymentType}</p>
                 </div>
@@ -564,7 +624,7 @@ export default function ContractorPayoutsPage() {
                     <span className="text-sm text-gray-500">
                       {isProrated
                         ? `Prorated base (${proratedLabel})`
-                        : paymentType === 'fixed'
+                        : paymentType !== 'hourly'
                           ? `Fixed rate (${fmt(displayMonthlyRate)}/mo ÷ 2)`
                           : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${displayHourlyRate})`}
                     </span>
