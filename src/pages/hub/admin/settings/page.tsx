@@ -4,8 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 
-const DEV_TOOLBAR_KEY = 'hub_dev_toolbar_hidden';
-export function isDevToolbarHidden() { return localStorage.getItem(DEV_TOOLBAR_KEY) === 'true'; }
 
 export default function SettingsPage() {
   const { isDemo } = useDemo();
@@ -22,7 +20,15 @@ export default function SettingsPage() {
   );
   const { hubUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'system'>('profile');
-  const [devToolbarHidden, setDevToolbarHidden] = useState(() => localStorage.getItem(DEV_TOOLBAR_KEY) === 'true');
+  const [devToolbarHidden, setDevToolbarHidden] = useState(false);
+
+  // Load from Supabase on mount
+  useState(() => {
+    if ((hubUser as any)?.is_developer && hubUser?.id) {
+      supabase.from('hub_users').select('dev_toolbar_hidden').eq('id', hubUser.id).single()
+        .then(({ data }) => { if ((data as any)?.dev_toolbar_hidden) setDevToolbarHidden(true); });
+    }
+  });
   const [profileForm, setProfileForm] = useState({ full_name: user?.full_name || '', email: user?.email || '', phone: user?.phone || '', slack_username: user?.slack_username || '' });
   const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
   const [profileSaving, setProfileSaving] = useState(false);
@@ -184,10 +190,10 @@ export default function SettingsPage() {
                     <p className="text-xs text-gray-400 mt-0.5">The floating bar at the bottom that switches between Owner / Admin / Contractor views</p>
                   </div>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const next = !devToolbarHidden;
-                      localStorage.setItem(DEV_TOOLBAR_KEY, String(next));
                       setDevToolbarHidden(next);
+                      await supabase.from('hub_users').update({ dev_toolbar_hidden: next } as any).eq('id', hubUser!.id);
                     }}
                     className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${devToolbarHidden ? 'bg-gray-600' : 'bg-indigo-500'}`}
                   >
@@ -195,7 +201,7 @@ export default function SettingsPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-gray-500">
-                  {devToolbarHidden ? 'Toolbar is hidden — refresh the page to apply.' : 'Toolbar is visible. Toggle off to hide it.'}
+                  {devToolbarHidden ? 'Toolbar hidden on all devices. Toggle on to show it again.' : 'Toolbar visible. Use the 👁 button on the toolbar itself to hide it from any device.'}
                 </p>
               </div>
             )}

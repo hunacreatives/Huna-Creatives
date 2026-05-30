@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const ROLES = [
   { value: 'owner', label: 'Owner', color: 'bg-violet-500' },
@@ -10,17 +12,35 @@ const ROLES = [
 export default function DevToolbar() {
   const { hubUser, devViewAs, setDevViewAs } = useAuth();
   const navigate = useNavigate();
+  const [hidden, setHidden] = useState<boolean | null>(null); // null = loading
+
+  // Load preference from Supabase on mount (syncs across devices)
+  useEffect(() => {
+    if (!hubUser?.is_developer) return;
+    supabase
+      .from('hub_users')
+      .select('dev_toolbar_hidden')
+      .eq('id', hubUser.id)
+      .single()
+      .then(({ data }) => {
+        setHidden(!!(data as any)?.dev_toolbar_hidden);
+      });
+  }, [hubUser?.id]);
 
   if (!hubUser?.is_developer) return null;
-  if (localStorage.getItem('hub_dev_toolbar_hidden') === 'true') return null;
+  if (hidden === null || hidden === true) return null; // loading or explicitly hidden
+
+  const hide = async () => {
+    setHidden(true);
+    await supabase
+      .from('hub_users')
+      .update({ dev_toolbar_hidden: true } as any)
+      .eq('id', hubUser!.id);
+  };
 
   const handleSelect = (role: 'owner' | 'admin' | 'contractor') => {
     setDevViewAs(role);
-    if (role === 'contractor') {
-      navigate('/hub/contractor/dashboard');
-    } else {
-      navigate('/hub/admin/dashboard');
-    }
+    navigate(role === 'contractor' ? '/hub/contractor/dashboard' : '/hub/admin/dashboard');
   };
 
   return (
@@ -42,12 +62,21 @@ export default function DevToolbar() {
       {devViewAs && (
         <button
           onClick={() => { setDevViewAs(null); navigate('/hub/admin/dashboard'); }}
-          className="text-gray-500 hover:text-white cursor-pointer ml-1 text-xs"
-          title="Reset"
+          className="text-gray-500 hover:text-white cursor-pointer text-xs"
+          title="Reset view"
         >
           <i className="ri-close-line"></i>
         </button>
       )}
+      {/* Divider + hide button */}
+      <div className="w-px h-4 bg-white/10 mx-0.5" />
+      <button
+        onClick={hide}
+        className="text-gray-500 hover:text-white cursor-pointer text-xs px-1"
+        title="Hide toolbar (re-enable in Settings)"
+      >
+        <i className="ri-eye-off-line text-[11px]"></i>
+      </button>
     </div>
   );
 }
