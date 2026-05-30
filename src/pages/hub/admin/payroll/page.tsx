@@ -93,6 +93,13 @@ export default function AdminPayrollPage() {
   const [rows, setRows] = useState<PayRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [usdRate, setUsdRate] = useState<number>(56);
+  const [closedPeriods, setClosedPeriods] = useState<Set<string>>(new Set());
+
+  // Load closed periods once on mount
+  useEffect(() => {
+    supabase.from('hub_payroll_batches').select('period_start').eq('status', 'closed')
+      .then(({ data }) => { if (data) setClosedPeriods(new Set(data.map((b: any) => b.period_start))); });
+  }, []);
 
   useEffect(() => {
     getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v)));
@@ -456,6 +463,28 @@ export default function AdminPayrollPage() {
     // Fire payslip email (non-blocking — ignore failures)
     supabase.functions.invoke('send-payslip', { body: { payout_id: existing.id } }).catch(() => {});
     await fetchWorkflow();
+    setWorkflowLoading(false);
+  };
+
+  const closePeriod = async () => {
+    if (!batch || isDemo) return;
+    const confirmed = window.confirm(
+      `Close payroll period "${batch.period_label}"?\n\nThis will:\n• Lock the batch permanently\n• Make all payslips read-only\n• Archive this period from the active view\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+    setWorkflowLoading(true);
+    const { error } = await supabase.from('hub_payroll_batches').update({
+      status: 'closed',
+      closed_at: new Date().toISOString(),
+      closed_by: hubUser?.id ?? null,
+    }).eq('id', batch.id);
+    if (error) {
+      console.error('Close period failed:', error);
+      alert('Failed to close period: ' + error.message);
+    } else {
+      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'close', entity_type: 'payroll_batch', entity_id: batch.id, description: `Closed payroll period ${batch.period_label}` });
+      await fetchWorkflow();
+    }
     setWorkflowLoading(false);
   };
 
@@ -922,19 +951,25 @@ export default function AdminPayrollPage() {
                   ))}
                 </select>
                 <div className="flex gap-1">
-                  {periodsInMonth.map((p) => (
-                    <button
-                      key={p.start}
-                      onClick={() => setSelectedPeriod(p)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                        selectedPeriod.start === p.start
-                          ? 'bg-[#FF6B35] text-white'
-                          : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+                  {periodsInMonth.map((p) => {
+                    const isClosed = closedPeriods.has(p.start);
+                    return (
+                      <button
+                        key={p.start}
+                        onClick={() => setSelectedPeriod(p)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                          selectedPeriod.start === p.start
+                            ? 'bg-[#FF6B35] text-white'
+                            : isClosed
+                            ? 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50'
+                            : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                        {isClosed && <i className="ri-lock-fill text-[9px] opacity-60"></i>}
+                      </button>
+                    );
+                  })}
                 </div>
                 <button
                   onClick={() => fetchWorkflow()}
@@ -1168,10 +1203,10 @@ export default function AdminPayrollPage() {
                             const batchApproved = batch?.status === 'owner_approved';
                             if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                             if (batchApproved && p?.status === 'hr_approved') return (
-                              <button onClick={() => markPaid(c.id)} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
+                              <button onClick={() => markPaid(c.id)} disabled={workflowLoading || isClosed} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
                             );
                             if (!p || p.status === 'pending' || p.status === 'submitted') return (
-                              <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Approve</button>
+                              <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || isClosed} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Approve</button>
                             );
                             return null;
                           })()}
@@ -1384,7 +1419,7 @@ export default function AdminPayrollPage() {
                                   if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                                   if (batchApproved && p?.status === 'hr_approved') {
                                     return (
-                                      <button onClick={() => markPaid(c.id)} disabled={workflowLoading}
+                                      <button onClick={() => markPaid(c.id)} disabled={workflowLoading || isClosed}
                                         className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap font-medium">
                                         Mark Paid
                                       </button>
@@ -1392,7 +1427,7 @@ export default function AdminPayrollPage() {
                                   }
                                   if (!p || p.status === 'pending' || p.status === 'submitted') {
                                     return (
-                                      <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch}
+                                      <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || isClosed}
                                         className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap font-medium">
                                         Approve
                                       </button>
@@ -1441,8 +1476,21 @@ export default function AdminPayrollPage() {
         {!loading && (() => {
           const approvedCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'hr_approved').length;
           const paidCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'paid').length;
+          const isClosed = batch?.status === 'closed';
 
           return (
+            <>
+            {isClosed && (
+              <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                <i className="ri-lock-fill text-gray-400 text-base"></i>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-600">Archived Period</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {selectedPeriod.label} — closed {batch.closed_at ? `on ${new Date(batch.closed_at + '').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}. All data is read-only.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -1504,15 +1552,34 @@ export default function AdminPayrollPage() {
                     </div>
                   )}
 
-                  {paidCount > 0 && paidCount === batch.contractor_count && (
-                    <div className="mt-3 pt-3 border-t border-emerald-200 flex items-center gap-2">
-                      <i className="ri-check-double-line text-emerald-500"></i>
-                      <p className="text-xs text-emerald-700 font-medium">All contractors paid for this period.</p>
+                  {paidCount > 0 && paidCount === batch.contractor_count && batch.status !== 'closed' && (
+                    <div className="mt-3 pt-3 border-t border-emerald-200 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <i className="ri-check-double-line text-emerald-500"></i>
+                        <p className="text-xs text-emerald-700 font-medium">All {paidCount} contractors paid for this period.</p>
+                      </div>
+                      <button
+                        onClick={closePeriod}
+                        disabled={workflowLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-40 transition-colors flex-shrink-0"
+                      >
+                        <i className="ri-lock-line text-[11px]"></i> Close Period
+                      </button>
+                    </div>
+                  )}
+
+                  {batch.status === 'closed' && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-2">
+                      <i className="ri-lock-fill text-gray-400 text-sm"></i>
+                      <p className="text-xs text-gray-500 font-medium">
+                        Period closed {batch.closed_at ? `on ${new Date(batch.closed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}. Payslips are read-only.
+                      </p>
                     </div>
                   )}
                 </div>
               )}
             </div>
+            </>
           );
         })()}
       </div>
