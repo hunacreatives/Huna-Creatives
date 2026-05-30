@@ -1522,71 +1522,69 @@ export default function AdminPayrollPage() {
                 <p className="text-xs text-gray-400">Approve at least one contractor to request a fund transfer.</p>
               )}
 
-              {batch && (
-                <div className={`rounded-xl p-4 border ${
-                  batch.status === 'owner_approved'
-                    ? 'bg-emerald-50 border-emerald-100'
-                    : 'bg-amber-50 border-amber-100'
-                }`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <i className={`text-2xl ${batch.status === 'owner_approved' ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-time-fill text-amber-500'}`}></i>
-                      <div>
-                        <p className={`text-sm font-semibold ${batch.status === 'owner_approved' ? 'text-emerald-800' : 'text-amber-800'}`}>
-                          {batch.status === 'owner_approved' ? 'Fund transfer approved — mark contractors paid as you send' : 'Awaiting owner approval'}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {batch.contractor_count} contractors · {fmt(batch.total_amount, 'PHP')}
-                          {batch.approved_at && ` · Approved ${new Date(batch.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                        </p>
+              {batch && (() => {
+                const isPending = batch.status === 'pending_owner';
+                const isApproved = batch.status === 'owner_approved';
+                const isBatchClosed = batch.status === 'closed';
+                return (
+                  <div className="space-y-3">
+                    {/* Status card */}
+                    <div className="flex items-center gap-4 rounded-2xl border px-5 py-4" style={{
+                      background: isBatchClosed ? '#f9fafb' : isApproved ? 'linear-gradient(135deg,#f0fdf4,#f9fafb)' : 'linear-gradient(135deg,#fffbeb,#fefce8)',
+                      borderColor: isBatchClosed ? '#e5e7eb' : isApproved ? '#bbf7d0' : '#fde68a',
+                    }}>
+                      {/* Icon */}
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${isBatchClosed ? 'bg-gray-100' : isApproved ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                        <i className={`text-lg ${isBatchClosed ? 'ri-lock-fill text-gray-400' : isApproved ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-time-fill text-amber-500'}`}></i>
                       </div>
+                      {/* Text */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${isBatchClosed ? 'text-gray-500' : isApproved ? 'text-emerald-800' : 'text-amber-800'}`}>
+                          {isBatchClosed ? 'Period archived' : isApproved ? 'Transfer approved — send payments' : 'Awaiting owner approval'}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-xs text-gray-500">{batch.contractor_count} contractor{batch.contractor_count !== 1 ? 's' : ''}</span>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-xs font-semibold text-gray-700">{fmt(batch.total_amount, 'PHP')}</span>
+                          {batch.approved_at && <><span className="text-gray-300">·</span><span className="text-xs text-gray-400">Approved {new Date(batch.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></>}
+                          {isBatchClosed && batch.closed_at && <><span className="text-gray-300">·</span><span className="text-xs text-gray-400">Closed {new Date(batch.closed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
+                        </div>
+                      </div>
+                      {/* CTA */}
+                      {isOwner && isPending && (
+                        <button onClick={approveBatch} disabled={workflowLoading}
+                          className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-[#111827] hover:bg-gray-800 text-white text-xs font-semibold rounded-xl cursor-pointer disabled:opacity-40 transition-colors whitespace-nowrap">
+                          <i className="ri-check-line text-sm"></i> Approve Transfer
+                        </button>
+                      )}
                     </div>
-                    {isOwner && batch.status === 'pending_owner' && (
-                      <button
-                        onClick={approveBatch}
-                        disabled={workflowLoading}
-                        className="flex-shrink-0 px-3 py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 cursor-pointer disabled:opacity-40 whitespace-nowrap"
-                      >
-                        Approve & Release
-                      </button>
+
+                    {/* Progress */}
+                    {isApproved && paidCount < batch.contractor_count && (
+                      <div className="flex items-center gap-3 px-1">
+                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${(paidCount / batch.contractor_count) * 100}%` }} />
+                        </div>
+                        <span className="text-xs text-gray-500 flex-shrink-0">{paidCount} / {batch.contractor_count} paid</span>
+                      </div>
+                    )}
+
+                    {/* All paid — close period */}
+                    {paidCount > 0 && paidCount === batch.contractor_count && !isBatchClosed && (
+                      <div className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <i className="ri-check-double-line text-emerald-500 text-sm"></i>
+                          <p className="text-xs font-medium text-emerald-700">All {paidCount} contractors paid</p>
+                        </div>
+                        <button onClick={closePeriod} disabled={workflowLoading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-40 transition-colors flex-shrink-0">
+                          <i className="ri-lock-line text-[11px]"></i> Close Period
+                        </button>
+                      </div>
                     )}
                   </div>
-
-                  {batch.status === 'owner_approved' && paidCount < batch.contractor_count && (
-                    <div className="mt-3 pt-3 border-t border-emerald-200">
-                      <p className="text-xs text-emerald-700">
-                        <strong>{paidCount}</strong> of <strong>{batch.contractor_count}</strong> contractors marked paid.
-                        Use the <strong>Mark Paid</strong> button on each row after sending their transfer.
-                      </p>
-                    </div>
-                  )}
-
-                  {paidCount > 0 && paidCount === batch.contractor_count && batch.status !== 'closed' && (
-                    <div className="mt-3 pt-3 border-t border-emerald-200 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <i className="ri-check-double-line text-emerald-500"></i>
-                        <p className="text-xs text-emerald-700 font-medium">All {paidCount} contractors paid for this period.</p>
-                      </div>
-                      <button
-                        onClick={closePeriod}
-                        disabled={workflowLoading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-40 transition-colors flex-shrink-0"
-                      >
-                        <i className="ri-lock-line text-[11px]"></i> Close Period
-                      </button>
-                    </div>
-                  )}
-
-                  {batch.status === 'closed' && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-2">
-                      <i className="ri-lock-fill text-gray-400 text-sm"></i>
-                      <p className="text-xs text-gray-500 font-medium">
-                        Period closed {batch.closed_at ? `on ${new Date(batch.closed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}. Payslips are read-only.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
             </div>
             </>
           );
