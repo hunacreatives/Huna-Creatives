@@ -271,6 +271,8 @@ export default function AdminPayrollPage() {
         .from('hub_payroll_batches')
         .select('*')
         .eq('period_start', selectedPeriod.start)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle(),
     ]);
     const map: Record<string, any> = {};
