@@ -475,6 +475,68 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(false);
   };
 
+  const [savingToDrive, setSavingToDrive] = useState(false);
+
+  const buildPayrollHtml = (label: string) => {
+    const paidPayouts = rows.map(r => {
+      const p = payoutsMap[r.contractor.id];
+      const override = rowOverrides[r.contractor.id];
+      const basePay = override?.pay !== undefined ? override.pay : r.pay;
+      const otPay = override?.otHours !== undefined && override?.otRate !== undefined
+        ? override.otHours * override.otRate : r.overtimePay;
+      const adjs: any[] = p?.adjustments || [];
+      const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+      return { name: r.contractor.full_name, hours: r.cappedHours, pay: basePay + otPay + adjTotal, status: p?.status ?? 'pending' };
+    }).filter(r => ['hr_approved','paid'].includes(r.status));
+
+    const rowsHtml = paidPayouts.map(r =>
+      `<tr><td>${r.name}</td><td style="text-align:center">${r.hours.toFixed(1)}h</td><td style="text-align:right;font-weight:600">₱${r.pay.toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>`
+    ).join('');
+    const total = paidPayouts.reduce((s,r)=>s+r.pay,0);
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+body{font-family:Arial,sans-serif;margin:48px;color:#111827;max-width:700px}
+h1{font-size:22px;font-weight:800;margin:0 0 4px}
+.sub{color:#6b7280;font-size:13px;margin:0 0 32px}
+table{width:100%;border-collapse:collapse}
+th{background:#f3f4f6;padding:10px 14px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280}
+td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#374151}
+.total td{font-weight:700;font-size:14px;border-top:2px solid #111827;border-bottom:none}
+</style></head><body>
+<h1>Payroll Summary</h1>
+<p class="sub">${label} &nbsp;·&nbsp; Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p>
+<table>
+<thead><tr><th>Contractor</th><th style="text-align:center">Hours</th><th style="text-align:right">Amount (PHP)</th></tr></thead>
+<tbody>${rowsHtml}
+<tr class="total"><td colspan="2">${paidPayouts.length} contractor${paidPayouts.length!==1?'s':''}</td><td style="text-align:right">₱${total.toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>
+</tbody></table>
+</body></html>`;
+  };
+
+  const savePayrollToDrive = async () => {
+    if (isDemo) return;
+    setSavingToDrive(true);
+    try {
+      const label = selectedPeriod.label;
+      const year = selectedPeriod.start.slice(0, 4);
+      const html = buildPayrollHtml(label);
+      const b64 = btoa(unescape(encodeURIComponent(html)));
+      const safeName = label.replace(/[^a-zA-Z0-9\s]/g,'_').replace(/\s+/g,'_');
+      const { data, error } = await supabase.functions.invoke('upload-to-drive', {
+        body: { type: 'payroll', year, filename: `Payroll_${safeName}_${new Date().toISOString().slice(0,10)}.html`, base64Content: b64, mimeType: 'text/html', meta: { year, convertToDoc: 'true' } },
+      });
+      if (error || (data as any)?.error) {
+        alert('Drive upload failed: ' + (error?.message || (data as any)?.error));
+      } else {
+        alert('Saved to Google Drive ✓');
+      }
+    } catch (e) {
+      alert('Upload failed: ' + String(e));
+    }
+    setSavingToDrive(false);
+  };
+
   const closePeriod = async () => {
     if (!batch || isDemo) return;
     const confirmed = window.confirm(
@@ -954,8 +1016,8 @@ export default function AdminPayrollPage() {
     <AdminLayout title="Payroll">
       <div className="space-y-5">
 
-        {/* Payroll cutoff banner */}
-        {(() => {
+        {/* Payroll cutoff banner — hidden for closed periods */}
+        {!closedPeriods.has(selectedPeriod.start) && (() => {
           const cutoff = getNextPayrollCutoff();
           const urgent = cutoff.daysAway <= 3;
           const soon = cutoff.daysAway <= 7;

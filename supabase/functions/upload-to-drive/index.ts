@@ -79,8 +79,14 @@ serve(async (req) => {
     const folderId = getFolderForType(type, meta);
     const accessToken = await getAccessToken();
 
+    // Convert HTML → Google Doc if convertToDoc flag is set
+    const convertToDoc = meta.convertToDoc === 'true' || mimeType === 'text/html';
+    const docMimeType = convertToDoc ? 'application/vnd.google-apps.document' : undefined;
+
     // Multipart upload to Drive
-    const metadata = JSON.stringify({ name: filename, parents: [folderId] });
+    const metadataObj: Record<string, unknown> = { name: filename, parents: [folderId] };
+    if (docMimeType) metadataObj.mimeType = docMimeType;
+    const metadata = JSON.stringify(metadataObj);
     const fileBytes = Uint8Array.from(atob(base64Content), c => c.charCodeAt(0));
 
     const boundary = 'foo_bar_baz';
@@ -99,8 +105,12 @@ serve(async (req) => {
     combined.set(fileBytes, part1.length + part2.length);
     combined.set(part3, part1.length + part2.length + fileBytes.length);
 
+    const uploadUrl = convertToDoc
+      ? 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&convert=true'
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+
     const uploadRes = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      uploadUrl,
       {
         method: 'POST',
         headers: {
