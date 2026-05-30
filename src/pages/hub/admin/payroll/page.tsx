@@ -388,7 +388,7 @@ export default function AdminPayrollPage() {
       const p = payoutsMap[r.contractor.id];
       return s + (p?.final_payout ?? r.pay);
     }, 0);
-    const { data: newBatch } = await supabase.from('hub_payroll_batches').insert({
+    const { data: newBatch, error: batchError } = await supabase.from('hub_payroll_batches').insert({
       period_start: selectedPeriod.start,
       period_end: selectedPeriod.end,
       period_label: selectedPeriod.label,
@@ -397,6 +397,13 @@ export default function AdminPayrollPage() {
       status: 'pending_owner',
       requested_by: hubUser?.id,
     }).select('id').single();
+
+    if (batchError) {
+      console.error('Fund transfer request failed:', batchError);
+      alert('Failed to request fund transfer: ' + batchError.message);
+      setWorkflowLoading(false);
+      return;
+    }
 
     if (newBatch) {
       const approvedIds = approved.map(r => payoutsMap[r.contractor.id]?.id).filter(Boolean);
