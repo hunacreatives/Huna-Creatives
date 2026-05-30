@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import ContractorSidebar from './ContractorSidebar';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 const QUICK_ACTIONS = [
   { label: 'Submit Payslip', icon: 'ri-send-plane-line', path: '/hub/contractor/payouts', iconCls: 'bg-orange-50 text-[#FF6B35]' },
@@ -40,6 +41,7 @@ export default function ContractorLayout({ children, title, titleContent, action
   const { hubUser } = useHubAuth();
   const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
   const navigate = useNavigate();
+  usePushNotifications();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('contractor_sidebar_collapsed') === 'true');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');

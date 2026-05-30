@@ -7,6 +7,18 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FROM_EMAIL = 'payroll@hunacreatives.com';
 const HUB_URL = 'https://www.hunacreatives.com/hub/login';
 
+async function sendPush(user_id: string, title: string, body: string, url?: string) {
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, title, body, url }),
+    });
+  } catch (err) {
+    console.error('sendPush failed:', err);
+  }
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -116,6 +128,7 @@ async function sendNotification(payout_id: string, type: 'hr_approved' | 'disput
         console.error('Slack DM failed (hr_approved):', slackErr);
       }
     }
+    await sendPush(payout.contractor_id, 'Payslip Approved', `Your payslip for ${periodLabel} (${fmt(payout.final_payout)}) has been approved. Payment incoming.`, HUB_URL);
   }
 
   if (type === 'dispute_resolved') {
@@ -174,6 +187,7 @@ async function sendNotification(payout_id: string, type: 'hr_approved' | 'disput
         console.error('Slack DM failed (dispute_resolved):', slackErr);
       }
     }
+    await sendPush(payout.contractor_id, 'Dispute Resolved', `Your payslip dispute for ${periodLabel} has been reviewed and resolved by HR.`, HUB_URL);
   }
 }
 

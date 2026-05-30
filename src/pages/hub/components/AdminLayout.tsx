@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import AdminSidebar from './AdminSidebar';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Props {
   children: ReactNode;
@@ -199,6 +200,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
   const [mobileOpen, setMobileOpen] = useState(false);
+  usePushNotifications();
 
   const toggleCollapsed = () => setCollapsed(prev => {
     const next = !prev;

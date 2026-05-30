@@ -68,6 +68,9 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'favicon-32x32.png'],
       manifest: {
         name: 'Sentro Hub',
@@ -86,23 +89,11 @@ export default defineConfig({
           { src: '/apple-touch-icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
-      workbox: {
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB
-        // Cache the app shell and assets
-        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'], // exclude large images from precache
-        // Cache Supabase API calls for offline resilience (network-first)
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/aaqpwobmfofztcbbsonw\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
-            },
-          },
-        ],
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
       },
-      devOptions: { enabled: false }, // don't interfere with dev server
+      devOptions: { enabled: false },
     }),
   ],
   base,

@@ -9,6 +9,18 @@ const ADMIN_EMAIL = 'duterteabigaile@gmail.com';
 const FROM_EMAIL = 'payroll@hunacreatives.com';
 const PAYROLL_URL = 'https://www.hunacreatives.com/hub/admin/payroll';
 
+async function sendPush(user_id: string, title: string, body: string, url?: string) {
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, title, body, url }),
+    });
+  } catch (err) {
+    console.error('sendPush failed:', err);
+  }
+}
+
 async function slackDm(userId: string, text: string) {
   const opened = await fetch('https://slack.com/api/conversations.open', {
     method: 'POST',
@@ -144,7 +156,7 @@ async function sendNotification(batch_id: string, type: 'fund_request' | 'fund_a
   // Slack DM to owner for fund_request
   if (type === 'fund_request' && SLACK_BOT_TOKEN) {
     try {
-      const { data: owner } = await supabase.from('hub_users').select('slack_id').eq('role', 'owner').single();
+      const { data: owner } = await supabase.from('hub_users').select('id, slack_id').eq('role', 'owner').single();
       if (owner?.slack_id) {
         const totalFmt = '₱' + (batch.total_amount as number).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const contractorCount = batch.contractor_count;
@@ -152,6 +164,18 @@ async function sendNotification(batch_id: string, type: 'fund_request' | 'fund_a
           owner.slack_id,
           `💰 *Fund transfer needed*\nHR has approved payroll for *${contractorCount} contractor${contractorCount !== 1 ? 's' : ''} · ${totalFmt}* (${batch.period_label}).\nReview and confirm the transfer when ready.\n<${PAYROLL_URL}|Open Payroll →>`,
         );
+      }
+      if (owner?.id) {
+        await sendPush(owner.id, 'Fund Transfer Needed', `HR has approved payroll for ${batch.period_label} (${total}). Review and confirm the transfer.`, PAYROLL_URL);
+      }
+    } catch (_) { /* non-fatal */ }
+  }
+
+  if (type === 'fund_approved') {
+    try {
+      const { data: admin } = await supabase.from('hub_users').select('id').eq('role', 'admin').eq('status', 'active').single();
+      if (admin?.id) {
+        await sendPush(admin.id, 'Funds Approved', `The fund transfer for ${batch.period_label} (${total}) has been approved. Proceed with contractor payments.`, PAYROLL_URL);
       }
     } catch (_) { /* non-fatal */ }
   }
