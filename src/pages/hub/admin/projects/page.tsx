@@ -34,6 +34,12 @@ function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+const fmtDate = (d: string | null | undefined, fallback = '—') => {
+  if (!d) return fallback;
+  const s = d.length === 10 ? d + 'T00:00:00' : d;
+  const dt = new Date(s);
+  return isNaN(dt.getTime()) ? fallback : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
 
 const serviceCfg: Record<string, { border: string; dot: string; badge: string }> = {
   'Website Design':           { border: 'border-l-sky-400',     dot: 'bg-sky-400',     badge: 'bg-sky-50 text-sky-700' },
@@ -850,7 +856,7 @@ export default function AdminProjectsPage() {
     const balanceDue = overrides?.amount_requested != null ? overrides.amount_requested : lineItemsTotal - totalPaid;
     const paymentRows = project.hub_project_payments.map(p => `
       <tr>
-        <td>${new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+        <td>${fmtDate(p.paid_at)}</td>
         <td>${p.notes ?? 'Payment received'}</td>
         <td class="amount paid">+ ${fmt2(p.amount)}</td>
       </tr>`).join('');
@@ -1480,14 +1486,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         {p.start_date && (
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400 flex items-center gap-1.5"><i className="ri-play-circle-line text-gray-300"></i>Start</span>
-                            <span className="font-medium text-gray-700">{new Date(p.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            <span className="font-medium text-gray-700">{fmtDate(p.start_date)}</span>
                           </div>
                         )}
                         {p.deadline && (
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400 flex items-center gap-1.5"><i className="ri-flag-line text-gray-300"></i>Due</span>
                             <span className={`font-medium ${p.deadline < wsToday && p.status !== 'completed' ? 'text-rose-500' : 'text-gray-700'}`}>
-                              {new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {fmtDate(p.deadline)}
                             </span>
                           </div>
                         )}
@@ -1794,7 +1800,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
                         <span className="flex items-center gap-1">
                           <i className="ri-calendar-line text-[10px]"></i>
-                          {p.deadline ? `Due ${new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'No deadline'}
+                          {p.deadline ? `Due ${fmtDate(p.deadline)}` : 'No deadline'}
                         </span>
                         <span className="text-gray-200">·</span>
                         <span className="flex items-center gap-1">
@@ -1944,9 +1950,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <p className="text-sm text-gray-500 mt-0.5">{internalProject ? 'Internal Project' : activeProject.client_name}</p>
                     {(activeProject.start_date || activeProject.deadline) && (
                       <p className="text-xs text-gray-400 mt-1">
-                        {activeProject.start_date && `Started ${new Date(activeProject.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                        {activeProject.start_date && `Started ${fmtDate(activeProject.start_date)}`}
                         {activeProject.start_date && activeProject.deadline && ' · '}
-                        {activeProject.deadline && `Due ${new Date(activeProject.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                        {activeProject.deadline && `Due ${fmtDate(activeProject.deadline)}`}
                       </p>
                     )}
                   </div>
@@ -2090,7 +2096,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                       <span className="text-[11px] text-gray-400">
                                         <i className="ri-calendar-line text-[10px] mr-0.5"></i>
-                                        {pp.paid_at ? new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                                        {fmtDate(pp.paid_at)}
                                       </span>
                                       {pp.notes && (
                                         <span className="text-[11px] text-gray-500">
@@ -2399,7 +2405,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                   <div className="flex items-center gap-2 text-gray-600 flex-wrap">
                                     <i className="ri-arrow-right-line text-gray-300 text-[10px]"></i>
                                     <span className="font-semibold text-emerald-600">{fmt(pp.amount)}</span>
-                                    <span className="text-gray-400">{new Date(pp.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                    <span className="text-gray-400">{fmtDate(pp.paid_at)}</span>
                                     {pp.notes && <span className="text-gray-400">· {pp.notes}</span>}
                                     {pp.receipt_url && (
                                       <button onClick={() => setLightboxUrl(pp.receipt_url)} className="cursor-pointer flex-shrink-0">
@@ -2850,7 +2856,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-[#111827]">Send Payment Receipt</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{fmt(sendReceiptModal.payment.amount)} · {new Date(sendReceiptModal.payment.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{fmt(sendReceiptModal.payment.amount)} · {fmtDate(sendReceiptModal.payment.paid_at)}</p>
               </div>
               <button onClick={() => setSendReceiptModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
             </div>
@@ -2871,7 +2877,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               {/* Payment summary */}
               <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-xs text-gray-500">
                 <div className="flex justify-between"><span>Payment</span><span className="font-semibold text-emerald-600">{fmt(sendReceiptModal.payment.amount)}</span></div>
-                <div className="flex justify-between"><span>Date</span><span className="font-medium text-gray-700">{new Date(sendReceiptModal.payment.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></div>
+                <div className="flex justify-between"><span>Date</span><span className="font-medium text-gray-700">{fmtDate(sendReceiptModal.payment.paid_at)}</span></div>
                 {sendReceiptModal.payment.notes && <div className="flex justify-between"><span>Note</span><span className="text-gray-600">{sendReceiptModal.payment.notes}</span></div>}
                 <div className="flex justify-between pt-1 border-t border-gray-200"><span>Remaining balance</span><span className={`font-bold ${sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0) <= 0 ? 'text-emerald-600' : 'text-[#FF6B35]'}`}>{sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0) <= 0 ? 'Paid in full' : fmt(sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0))}</span></div>
               </div>
