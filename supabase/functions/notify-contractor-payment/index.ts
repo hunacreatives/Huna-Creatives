@@ -1,5 +1,26 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const FROM_EMAIL = 'Huna Creatives <billing@hunacreatives.com>';
+const HUB_URL = 'https://www.hunacreatives.com/hub/contractor/payouts';
+
+async function slackDm(userId: string, text: string) {
+  const opened = await fetch('https://slack.com/api/conversations.open', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ users: userId }),
+  });
+  const openedJson = await opened.json();
+  const channel = openedJson.ok ? openedJson.channel?.id : userId;
+  await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel, text }),
+  });
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -16,8 +37,10 @@ Deno.serve(async (req) => {
   try {
     const {
       to,
+      contractor_id,
       contractor_name,
       project_name,
+      period_label,
       client_name,
       amount,
       paid_at,
@@ -156,6 +179,26 @@ Deno.serve(async (req) => {
     const resBody = await res.json();
     if (!res.ok) {
       return new Response(JSON.stringify({ error: resBody?.message ?? 'Failed to send' }), { status: 200, headers: cors });
+    }
+
+    // Slack DM to contractor
+    if (SLACK_BOT_TOKEN) {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        let slackId: string | null = null;
+        if (contractor_id) {
+          const { data: u } = await supabase.from('hub_users').select('slack_id').eq('id', contractor_id).single();
+          slackId = u?.slack_id ?? null;
+        } else if (to) {
+          const { data: u } = await supabase.from('hub_users').select('slack_id').eq('email', to.toLowerCase()).single();
+          slackId = u?.slack_id ?? null;
+        }
+        if (slackId) {
+          const amountFmt = '₱' + (amount as number).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const periodText = period_label ? ` · ${period_label}` : '';
+          await slackDm(slackId, `💸 *Payment received*\n${amountFmt} has been sent for *${project_name}*${periodText}.\nPlease check your account. Reach out if anything looks off.\n<${HUB_URL}|Open Hub →>`);
+        }
+      } catch (_) { /* non-fatal */ }
     }
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });

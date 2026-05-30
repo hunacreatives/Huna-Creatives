@@ -3,7 +3,25 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
+const ADMIN_SLACK_IDS = ['U091BL9PQ77', 'U0838LWSY4E'];
 const FROM_EMAIL = 'onboarding@hunacreatives.com';
+
+async function slackDm(userId: string, text: string) {
+  if (!SLACK_BOT_TOKEN) return;
+  const opened = await fetch('https://slack.com/api/conversations.open', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ users: userId }),
+  });
+  const openedJson = await opened.json();
+  const channel = openedJson.ok ? openedJson.channel?.id : userId;
+  await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel, text }),
+  });
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -178,6 +196,10 @@ Deno.serve(async (req) => {
         html,
       }),
     });
+
+    // Slack DM to admins
+    const slackMsg = `👋 *New team member added*\n*${full_name}* has been invited to Sentro Hub as a contractor.\nThey'll receive a login link by email.\n<https://www.hunacreatives.com/hub/admin/contractors|View profile →>`;
+    await Promise.all(ADMIN_SLACK_IDS.map(id => slackDm(id, slackMsg).catch(() => {})));
 
     return new Response(JSON.stringify({ ok: true, user_id: linkData.user.id }), { headers: cors });
   } catch (err) {

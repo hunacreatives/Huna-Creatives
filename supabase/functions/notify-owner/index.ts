@@ -3,9 +3,26 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const OWNER_EMAIL = 'francisfielroble@gmail.com';
 const ADMIN_EMAIL = 'duterteabigaile@gmail.com';
 const FROM_EMAIL = 'payroll@hunacreatives.com';
+const PAYROLL_URL = 'https://www.hunacreatives.com/hub/admin/payroll';
+
+async function slackDm(userId: string, text: string) {
+  const opened = await fetch('https://slack.com/api/conversations.open', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ users: userId }),
+  });
+  const openedJson = await opened.json();
+  const channel = openedJson.ok ? openedJson.channel?.id : userId;
+  await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel, text }),
+  });
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -122,6 +139,21 @@ async function sendNotification(batch_id: string, type: 'fund_request' | 'fund_a
     console.error('Resend error:', JSON.stringify(result));
   } else {
     console.log('Notification sent:', result.id);
+  }
+
+  // Slack DM to owner for fund_request
+  if (type === 'fund_request' && SLACK_BOT_TOKEN) {
+    try {
+      const { data: owner } = await supabase.from('hub_users').select('slack_id').eq('role', 'owner').single();
+      if (owner?.slack_id) {
+        const totalFmt = '₱' + (batch.total_amount as number).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const contractorCount = batch.contractor_count;
+        await slackDm(
+          owner.slack_id,
+          `💰 *Fund transfer needed*\nHR has approved payroll for *${contractorCount} contractor${contractorCount !== 1 ? 's' : ''} · ${totalFmt}* (${batch.period_label}).\nReview and confirm the transfer when ready.\n<${PAYROLL_URL}|Open Payroll →>`,
+        );
+      }
+    } catch (_) { /* non-fatal */ }
   }
 }
 

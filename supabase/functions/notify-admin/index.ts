@@ -2,11 +2,33 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
+const ADMIN_SLACK_IDS = ['U091BL9PQ77', 'U0838LWSY4E'];
 const FROM = 'Sentro OS <noreply@hunacreatives.com>';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+async function slackDm(userId: string, text: string) {
+  if (!SLACK_BOT_TOKEN) return;
+  const opened = await fetch('https://slack.com/api/conversations.open', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ users: userId }),
+  });
+  const openedJson = await opened.json();
+  const channel = openedJson.ok ? openedJson.channel?.id : userId;
+  await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel, text }),
+  });
+}
+
+async function slackDmAdmins(text: string) {
+  await Promise.all(ADMIN_SLACK_IDS.map(id => slackDm(id, text).catch(() => {})));
+}
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -72,6 +94,13 @@ serve(async (req) => {
           <a href="https://hunacreatives.com/hub/admin/timeoff" style="display:inline-block;background:#FF6B35;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">Review Request →</a>`
         )
       );
+      const daysText = days ? ` (${days} day${days !== 1 ? 's' : ''})` : '';
+      await slackDmAdmins(`📅 *Leave request*\n*${contractor_name}* is requesting ${leave_type} from ${start_date} to ${end_date}${daysText}.\n<https://www.hunacreatives.com/hub/admin/timeoff|Review request →>`);
+    }
+
+    if (type === 'overtime') {
+      const { contractor_name, hours, date } = data;
+      await slackDmAdmins(`⏱ *Overtime logged*\n*${contractor_name}* logged ${hours}h overtime on ${date}.\n<https://www.hunacreatives.com/hub/admin/attendance|Review →>`);
     }
 
     if (type === 'request_submitted') {
@@ -105,6 +134,10 @@ serve(async (req) => {
           <a href="https://hunacreatives.com/hub/admin/invoice-log" style="display:inline-block;background:#FF6B35;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">View Invoice Log →</a>`
         )
       );
+      for (const inv of invoices) {
+        const balanceFmt = '₱' + (inv.balance as number).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        await slackDmAdmins(`⚠️ *Invoice past due*\nInvoice #${inv.invoice_number} for *${inv.client_name}* (${balanceFmt}) is ${inv.days_overdue} days past due.\n<https://www.hunacreatives.com/hub/admin/invoice-log|View invoice →>`);
+      }
     }
 
     if (type === 'contract_expiring') {
@@ -122,6 +155,9 @@ serve(async (req) => {
           <a href="https://hunacreatives.com/hub/admin/contractors" style="display:inline-block;background:#FF6B35;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">View Contractors →</a>`
         )
       );
+      for (const c of contractors) {
+        await slackDmAdmins(`📋 *Contract expiring soon*\n*${c.full_name}*'s contract expires in ${c.days_until} days.\n<https://www.hunacreatives.com/hub/admin/contractors|Review →>`);
+      }
     }
 
     return new Response(JSON.stringify({ sent: true }), { headers: { ...CORS, 'Content-Type': 'application/json' } });

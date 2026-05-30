@@ -9,7 +9,9 @@ interface Notif {
   iconColor: string;
   title: string;
   body: string;
+  link?: string;
   time: Date;
+  unreadDot?: boolean;
 }
 
 function timeAgo(d: Date) {
@@ -420,6 +422,47 @@ export default function NotificationBell() {
       }
     }
 
+    // hub_notifications — unified inbox from all edge functions
+    const { data: hubNotifs } = await supabase
+      .from('hub_notifications')
+      .select('id, type, title, body, link, read, created_at')
+      .eq('user_id', hubUser.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const typeIcon: Record<string, { icon: string; iconBg: string; iconColor: string }> = {
+      task_assigned:         { icon: 'ri-task-line',              iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-500' },
+      task_mention:          { icon: 'ri-at-line',                iconBg: 'bg-violet-50',  iconColor: 'text-violet-500' },
+      task_due:              { icon: 'ri-alarm-line',             iconBg: 'bg-amber-50',   iconColor: 'text-amber-500' },
+      payroll_batch_approved:{ icon: 'ri-money-dollar-circle-line',iconBg: 'bg-emerald-50',iconColor: 'text-emerald-500' },
+      timeoff_approved:      { icon: 'ri-checkbox-circle-line',   iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
+      timeoff_rejected:      { icon: 'ri-close-circle-line',      iconBg: 'bg-rose-50',    iconColor: 'text-rose-500' },
+      payment_received:      { icon: 'ri-bank-card-line',         iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
+      project_assigned:      { icon: 'ri-folder-add-line',        iconBg: 'bg-sky-50',     iconColor: 'text-sky-500' },
+      default:               { icon: 'ri-notification-3-line',    iconBg: 'bg-gray-50',    iconColor: 'text-gray-400' },
+    };
+
+    for (const n of hubNotifs ?? []) {
+      const cfg = typeIcon[n.type] ?? typeIcon.default;
+      items.push({
+        id: `hub-${n.id}`,
+        icon: cfg.icon,
+        iconBg: cfg.iconBg,
+        iconColor: cfg.iconColor,
+        title: n.title,
+        body: n.body,
+        link: n.link ?? undefined,
+        time: new Date(n.created_at),
+        unreadDot: !n.read,
+      });
+    }
+
+    // Mark hub_notifications as read when bell is opened
+    const unreadHubIds = (hubNotifs ?? []).filter(n => !n.read).map(n => n.id);
+    if (unreadHubIds.length > 0) {
+      supabase.from('hub_notifications').update({ read: true }).in('id', unreadHubIds).then(() => {});
+    }
+
     // Sort by newest
     items.sort((a, b) => b.time.getTime() - a.time.getTime());
     setNotifs(items);
@@ -445,8 +488,8 @@ export default function NotificationBell() {
     if (!hubUser) return;
 
     const isAdmin = hubUser.role === 'admin' || hubUser.role === 'owner';
-    const adminTables = ['hub_announcement_comments', 'hub_time_off', 'hub_requests', 'hub_credential_requests', 'hub_payroll_batches', 'hub_payouts', 'hub_payslip_disputes', 'hub_overtime_requests'];
-    const contractorTables = ['hub_announcements', 'hub_payouts', 'hub_payroll_batches', 'hub_time_off', 'hub_requests', 'hub_overtime_requests'];
+    const adminTables = ['hub_announcement_comments', 'hub_time_off', 'hub_requests', 'hub_credential_requests', 'hub_payroll_batches', 'hub_payouts', 'hub_payslip_disputes', 'hub_overtime_requests', 'hub_notifications'];
+    const contractorTables = ['hub_announcements', 'hub_payouts', 'hub_payroll_batches', 'hub_time_off', 'hub_requests', 'hub_overtime_requests', 'hub_notifications'];
     const tables = isAdmin ? adminTables : contractorTables;
 
     // Debounce to avoid flooding on burst inserts
@@ -520,18 +563,24 @@ export default function NotificationBell() {
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {notifs.map((n) => (
-                  <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-                    <div className={`w-8 h-8 rounded-lg ${n.iconBg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
-                      <i className={`${n.icon} ${n.iconColor} text-sm`}></i>
+                {notifs.map((n) => {
+                  const inner = (
+                    <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors relative">
+                      {n.unreadDot && <span className="absolute top-3.5 right-4 w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />}
+                      <div className={`w-8 h-8 rounded-lg ${n.iconBg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                        <i className={`${n.icon} ${n.iconColor} text-sm`}></i>
+                      </div>
+                      <div className="flex-1 min-w-0 pr-3">
+                        <p className="text-xs font-medium text-[#111827] leading-snug">{n.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{n.body}</p>
+                        <p className="text-[10px] text-gray-300 mt-1">{timeAgo(n.time)}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-[#111827] leading-snug">{n.title}</p>
-                      <p className="text-xs text-gray-400 mt-0.5 truncate">{n.body}</p>
-                      <p className="text-[10px] text-gray-300 mt-1">{timeAgo(n.time)}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                  return n.link
+                    ? <a key={n.id} href={n.link} target="_blank" rel="noopener noreferrer" className="block">{inner}</a>
+                    : <div key={n.id}>{inner}</div>;
+                })}
               </div>
             )}
           </div>

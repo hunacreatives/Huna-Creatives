@@ -150,6 +150,17 @@ export default function AdminTimeOffPage() {
       hr_notes: hrNotes,
     }).eq('id', selected.id);
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: status === 'approved' ? 'approve' : 'reject', entity_type: 'time_off', entity_id: String(selected.id), description: `${status === 'approved' ? 'Approved' : 'Rejected'} ${selected.type} request from ${(selected as any).hub_users?.full_name} (${selected.start_date} – ${selected.end_date})` });
+    if (selected?.contractor_id) {
+      supabase.functions.invoke('notify-timeoff-decision', {
+        body: {
+          contractor_id: selected.contractor_id,
+          leave_type: selected.type,
+          start_date: selected.start_date,
+          end_date: selected.end_date,
+          decision: status,
+        },
+      }).catch(() => {});
+    }
     setUpdating(false);
     setSelected(null);
     fetchRequests();
@@ -177,6 +188,20 @@ export default function AdminTimeOffPage() {
     setBulkUpdating(true);
     await supabase.from('hub_time_off').update({ status, admin_notes: null }).in('id', Array.from(selectedIds));
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: status === 'approved' ? 'approve' : 'reject', entity_type: 'time_off', description: `Bulk ${status} ${selectedIds.size} leave request(s)` });
+    const selectedRequests = requests.filter(r => r.id != null && selectedIds.has(r.id));
+    for (const r of selectedRequests) {
+      if (r.contractor_id) {
+        supabase.functions.invoke('notify-timeoff-decision', {
+          body: {
+            contractor_id: r.contractor_id,
+            leave_type: r.type,
+            start_date: r.start_date,
+            end_date: r.end_date,
+            decision: status,
+          },
+        }).catch(() => {});
+      }
+    }
     setSelectedIds(new Set());
     setBulkUpdating(false);
     fetchRequests();
