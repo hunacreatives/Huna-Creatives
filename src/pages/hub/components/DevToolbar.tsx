@@ -9,29 +9,37 @@ const ROLES = [
   { value: 'contractor', label: 'Contractor', color: 'bg-emerald-500' },
 ] as const;
 
+const LS_KEY = 'hub_dev_toolbar_hidden';
+
 export default function DevToolbar() {
   const { hubUser, devViewAs, setDevViewAs } = useAuth();
   const navigate = useNavigate();
-  const [hidden, setHidden] = useState<boolean | null>(null); // null = loading
 
-  // Load preference from Supabase on mount (syncs across devices)
+  // Read from localStorage first (instant, no flicker) then sync with Supabase
+  const [hidden, setHidden] = useState(() => localStorage.getItem(LS_KEY) === 'true');
+
   useEffect(() => {
-    if (!hubUser?.is_developer) return;
+    if (!hubUser?.is_developer || !hubUser?.id) return;
+    // Sync from Supabase in background (cross-device source of truth)
     supabase
       .from('hub_users')
       .select('dev_toolbar_hidden')
       .eq('id', hubUser.id)
       .single()
       .then(({ data }) => {
-        setHidden(!!(data as any)?.dev_toolbar_hidden);
+        const serverHidden = !!(data as any)?.dev_toolbar_hidden;
+        // Update local state and localStorage to match server
+        setHidden(serverHidden);
+        localStorage.setItem(LS_KEY, String(serverHidden));
       });
   }, [hubUser?.id]);
 
   if (!hubUser?.is_developer) return null;
-  if (hidden === null || hidden === true) return null; // loading or explicitly hidden
+  if (hidden) return null;
 
   const hide = async () => {
     setHidden(true);
+    localStorage.setItem(LS_KEY, 'true'); // instant — no flicker on next page
     await supabase
       .from('hub_users')
       .update({ dev_toolbar_hidden: true } as any)
@@ -68,12 +76,11 @@ export default function DevToolbar() {
           <i className="ri-close-line"></i>
         </button>
       )}
-      {/* Divider + hide button */}
       <div className="w-px h-4 bg-white/10 mx-0.5" />
       <button
         onClick={hide}
         className="text-gray-500 hover:text-white cursor-pointer text-xs px-1"
-        title="Hide toolbar (re-enable in Settings)"
+        title="Hide toolbar — re-enable in Settings"
       >
         <i className="ri-eye-off-line text-[11px]"></i>
       </button>

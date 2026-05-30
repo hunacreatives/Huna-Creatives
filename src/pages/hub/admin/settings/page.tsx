@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -20,15 +20,19 @@ export default function SettingsPage() {
   );
   const { hubUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'system'>('profile');
-  const [devToolbarHidden, setDevToolbarHidden] = useState(false);
+  const [devToolbarHidden, setDevToolbarHidden] = useState(() => localStorage.getItem('hub_dev_toolbar_hidden') === 'true');
 
-  // Load from Supabase on mount
-  useState(() => {
+  // Sync from Supabase on mount
+  useEffect(() => {
     if ((hubUser as any)?.is_developer && hubUser?.id) {
       supabase.from('hub_users').select('dev_toolbar_hidden').eq('id', hubUser.id).single()
-        .then(({ data }) => { if ((data as any)?.dev_toolbar_hidden) setDevToolbarHidden(true); });
+        .then(({ data }) => {
+          const v = !!(data as any)?.dev_toolbar_hidden;
+          setDevToolbarHidden(v);
+          localStorage.setItem('hub_dev_toolbar_hidden', String(v));
+        });
     }
-  });
+  }, [hubUser?.id]);
   const [profileForm, setProfileForm] = useState({ full_name: user?.full_name || '', email: user?.email || '', phone: user?.phone || '', slack_username: user?.slack_username || '' });
   const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
   const [profileSaving, setProfileSaving] = useState(false);
@@ -193,6 +197,7 @@ export default function SettingsPage() {
                     onClick={async () => {
                       const next = !devToolbarHidden;
                       setDevToolbarHidden(next);
+                      localStorage.setItem('hub_dev_toolbar_hidden', String(next));
                       await supabase.from('hub_users').update({ dev_toolbar_hidden: next } as any).eq('id', hubUser!.id);
                     }}
                     className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${devToolbarHidden ? 'bg-gray-600' : 'bg-indigo-500'}`}
