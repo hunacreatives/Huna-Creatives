@@ -1203,10 +1203,10 @@ export default function AdminPayrollPage() {
                             const batchApproved = batch?.status === 'owner_approved';
                             if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                             if (batchApproved && p?.status === 'hr_approved') return (
-                              <button onClick={() => markPaid(c.id)} disabled={workflowLoading || isClosed} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
+                              <button onClick={() => markPaid(c.id)} disabled={workflowLoading || batch?.status === 'closed'} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
                             );
                             if (!p || p.status === 'pending' || p.status === 'submitted') return (
-                              <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || isClosed} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Approve</button>
+                              <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || batch?.status === 'closed'} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Approve</button>
                             );
                             return null;
                           })()}
@@ -1419,7 +1419,7 @@ export default function AdminPayrollPage() {
                                   if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                                   if (batchApproved && p?.status === 'hr_approved') {
                                     return (
-                                      <button onClick={() => markPaid(c.id)} disabled={workflowLoading || isClosed}
+                                      <button onClick={() => markPaid(c.id)} disabled={workflowLoading || batch?.status === 'closed'}
                                         className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap font-medium">
                                         Mark Paid
                                       </button>
@@ -1427,7 +1427,7 @@ export default function AdminPayrollPage() {
                                   }
                                   if (!p || p.status === 'pending' || p.status === 'submitted') {
                                     return (
-                                      <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || isClosed}
+                                      <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || batch?.status === 'closed'}
                                         className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap font-medium">
                                         Approve
                                       </button>
