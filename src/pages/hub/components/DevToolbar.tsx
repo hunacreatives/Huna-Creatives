@@ -12,6 +12,7 @@ export default function DevToolbar() {
   const navigate = useNavigate();
 
   if (!hubUser?.is_developer) return null;
+  if (localStorage.getItem('hub_dev_toolbar_hidden') === 'true') return null;
 
   const handleSelect = (role: 'owner' | 'admin' | 'contractor') => {
     setDevViewAs(role);

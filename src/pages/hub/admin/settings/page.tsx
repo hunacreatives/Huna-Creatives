@@ -4,6 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 
+const DEV_TOOLBAR_KEY = 'hub_dev_toolbar_hidden';
+export function isDevToolbarHidden() { return localStorage.getItem(DEV_TOOLBAR_KEY) === 'true'; }
+
 export default function SettingsPage() {
   const { isDemo } = useDemo();
   const { user } = useAuth();
@@ -17,7 +20,9 @@ export default function SettingsPage() {
       </div>
     </AdminLayout>
   );
+  const { hubUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'system'>('profile');
+  const [devToolbarHidden, setDevToolbarHidden] = useState(() => localStorage.getItem(DEV_TOOLBAR_KEY) === 'true');
   const [profileForm, setProfileForm] = useState({ full_name: user?.full_name || '', email: user?.email || '', phone: user?.phone || '', slack_username: user?.slack_username || '' });
   const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
   const [profileSaving, setProfileSaving] = useState(false);
@@ -146,23 +151,54 @@ export default function SettingsPage() {
         )}
 
         {activeTab === 'system' && (
-          <div className="bg-white border border-gray-100 rounded-xl p-6 space-y-5">
-            <h3 className="font-semibold text-[#111827]">System Info</h3>
-            <div className="space-y-3">
-              {[
-                { label: 'Platform', value: 'Huna Hub' },
-                { label: 'Version', value: '1.0.0' },
-                { label: 'Agency', value: 'Huna Creatives' },
-                { label: 'Timezone', value: 'Asia/Manila (PHT)' },
-                { label: 'Cutoff Period', value: '1st–15th / 16th–EOM' },
-                { label: 'Default Currency', value: 'PHP' },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <span className="text-sm text-gray-500">{item.label}</span>
-                  <span className="text-sm font-medium text-[#111827]">{item.value}</span>
-                </div>
-              ))}
+          <div className="space-y-4">
+            <div className="bg-white border border-gray-100 rounded-xl p-6 space-y-5">
+              <h3 className="font-semibold text-[#111827]">System Info</h3>
+              <div className="space-y-3">
+                {[
+                  { label: 'Platform', value: 'Huna Hub' },
+                  { label: 'Version', value: '1.0.0' },
+                  { label: 'Agency', value: 'Huna Creatives' },
+                  { label: 'Timezone', value: 'Asia/Manila (PHT)' },
+                  { label: 'Cutoff Period', value: '1st–15th / 16th–EOM' },
+                  { label: 'Default Currency', value: 'PHP' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <span className="text-sm text-gray-500">{item.label}</span>
+                    <span className="text-sm font-medium text-[#111827]">{item.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Developer tools — only visible to is_developer users */}
+            {(hubUser as any)?.is_developer && (
+              <div className="bg-[#111827] border border-white/10 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-gray-400 bg-white/10 px-2 py-0.5 rounded">DEV</span>
+                  <h3 className="font-semibold text-white text-sm">Developer Tools</h3>
+                </div>
+                <div className="flex items-center justify-between py-3 border-b border-white/10">
+                  <div>
+                    <p className="text-sm font-medium text-white">Role switcher toolbar</p>
+                    <p className="text-xs text-gray-400 mt-0.5">The floating bar at the bottom that switches between Owner / Admin / Contractor views</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = !devToolbarHidden;
+                      localStorage.setItem(DEV_TOOLBAR_KEY, String(next));
+                      setDevToolbarHidden(next);
+                    }}
+                    className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${devToolbarHidden ? 'bg-gray-600' : 'bg-indigo-500'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${devToolbarHidden ? '' : 'translate-x-5'}`} />
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  {devToolbarHidden ? 'Toolbar is hidden — refresh the page to apply.' : 'Toolbar is visible. Toggle off to hide it.'}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
