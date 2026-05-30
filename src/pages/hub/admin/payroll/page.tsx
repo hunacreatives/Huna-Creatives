@@ -492,6 +492,46 @@ export default function AdminPayrollPage() {
       alert('Failed to close period: ' + error.message);
     } else {
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'close', entity_type: 'payroll_batch', entity_id: batch.id, description: `Closed payroll period ${batch.period_label}` });
+
+      // Generate and upload PDF summary to Google Drive
+      try {
+        const year = batch.period_start?.slice(0, 4) ?? new Date().getFullYear().toString();
+        const paidPayouts = rows.map(r => {
+          const p = payoutsMap[r.contractor.id];
+          const override = rowOverrides[r.contractor.id];
+          const basePay = override?.pay !== undefined ? override.pay : r.pay;
+          const otPay = override?.otHours !== undefined && override?.otRate !== undefined
+            ? override.otHours * override.otRate : r.overtimePay;
+          const adjs: any[] = p?.adjustments || [];
+          const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+          return {
+            name: r.contractor.full_name,
+            hours: r.cappedHours,
+            pay: basePay + otPay + adjTotal,
+            status: p?.status ?? 'pending',
+          };
+        }).filter(r => r.status === 'paid');
+
+        const rows_html = paidPayouts.map(r =>
+          `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${r.name}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center">${r.hours.toFixed(1)}h</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:600">₱${r.pay.toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr>`
+        ).join('');
+
+        const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:-apple-system,sans-serif;margin:40px;color:#111827}h1{font-size:20px;font-weight:800;margin-bottom:4px}p{color:#6b7280;font-size:13px;margin:0}table{width:100%;border-collapse:collapse;margin-top:24px}th{background:#f9fafb;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;font-weight:600}td{font-size:13px;color:#374151}.total td{font-weight:700;font-size:14px;border-top:2px solid #111827}</style></head><body><h1>Payroll Summary</h1><p>${batch.period_label} &nbsp;·&nbsp; Closed ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</p><table><thead><tr><th>Contractor</th><th style="text-align:center">Hours</th><th style="text-align:right">Amount</th></tr></thead><tbody>${rows_html}<tr class="total"><td colspan="2" style="padding:10px 12px">Total — ${paidPayouts.length} contractors</td><td style="padding:10px 12px;text-align:right">₱${paidPayouts.reduce((s,r)=>s+r.pay,0).toLocaleString('en-PH',{minimumFractionDigits:2})}</td></tr></tbody></table></body></html>`;
+
+        const b64 = btoa(unescape(encodeURIComponent(htmlContent)));
+        await supabase.functions.invoke('upload-to-drive', {
+          body: {
+            type: 'payroll',
+            year,
+            filename: `Payroll_${batch.period_label.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0,10)}.html`,
+            base64Content: b64,
+            mimeType: 'text/html',
+          },
+        });
+      } catch (uploadErr) {
+        console.warn('Drive upload failed (non-fatal):', uploadErr);
+      }
+
       await fetchWorkflow();
     }
     setWorkflowLoading(false);
