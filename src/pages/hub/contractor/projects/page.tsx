@@ -548,6 +548,7 @@ const getCardPalette = (service: string | null) => {
   if (s.includes('seo'))                 return { from: '#84cc16', to: '#10b981' }; // lime-emerald
   if (s.includes('digital ads') || s.includes('ads')) return { from: '#f59e0b', to: '#ef4444' }; // amber-red
   if (s.includes('email'))               return { from: '#8b5cf6', to: '#ec4899' }; // violet-pink
+  if (s.includes('marketing'))           return { from: '#f97316', to: '#f59e0b' }; // orange-amber
   return                                        { from: '#94a3b8', to: '#64748b' }; // gray — other/internal
 };
 

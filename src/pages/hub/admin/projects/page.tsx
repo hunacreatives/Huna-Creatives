@@ -48,6 +48,7 @@ const getServicePalette = (service: string | null | undefined) => {
   if (s.includes('seo'))                 return { from: '#84cc16', to: '#10b981' };
   if (s.includes('digital ads') || s.includes('ads')) return { from: '#f59e0b', to: '#ef4444' };
   if (s.includes('email'))               return { from: '#8b5cf6', to: '#ec4899' };
+  if (s.includes('marketing'))           return { from: '#f97316', to: '#f59e0b' };
   return                                        { from: '#94a3b8', to: '#64748b' };
 };
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
@@ -146,7 +147,7 @@ export default function AdminProjectsPage() {
   });
 
   // Project form
-  const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Other'];
+  const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Marketing', 'Other'];
   const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
