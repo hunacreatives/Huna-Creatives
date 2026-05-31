@@ -555,6 +555,42 @@ export default function AdminProjectsPage() {
 
   const activeClient = intlClients.find(c => c.id === activeClientId) ?? null;
 
+  const [openingWorkspace, setOpeningWorkspace] = useState(false);
+
+  const openClientWorkspace = async (client: typeof intlClients[0]) => {
+    setOpeningWorkspace(true);
+    // Check if a retainer project already exists for this client
+    let project = projects.find(p => p.project_type === 'retainer' && (p.client_name.toLowerCase() === client.client_name.toLowerCase() || p.project_name.toLowerCase() === client.client_name.toLowerCase()));
+    if (!project) {
+      // Create a retainer project linked to this client
+      const { data, error } = await supabase.from('hub_projects').insert({
+        project_type: 'retainer',
+        client_name: client.client_name,
+        project_name: client.client_name,
+        service: client.platform ?? 'Marketing',
+        contract_price: 0,
+        monthly_rate: client.contract_value ?? 0,
+        status: 'ongoing',
+        notes: client.notes ?? null,
+      }).select('id').single();
+      if (error) { setOpeningWorkspace(false); return; }
+      // Auto-assign existing team members
+      if (client.assignments.length > 0) {
+        await supabase.from('hub_project_contractors').insert(
+          client.assignments.map(a => ({ project_id: data.id, contractor_id: a.contractor_id, payout_type: 'percentage', percentage: 0, payout_status: 'pending' }))
+        ).catch(() => {});
+      }
+      await fetchAll();
+      openWorkspaceOnLoad.current = true;
+      setActiveId(data.id);
+    } else {
+      openWorkspaceOnLoad.current = true;
+      setActiveId(project.id);
+    }
+    setActiveClientId(null);
+    setOpeningWorkspace(false);
+  };
+
   const saveClient = async () => {
     if (!clientForm.client_name.trim()) return;
     setClientSaving(true); setClientError('');
@@ -2104,6 +2140,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => openClientWorkspace(activeClient)} disabled={openingWorkspace}
+                  className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 cursor-pointer flex items-center gap-1 disabled:opacity-50">
+                  <i className="ri-layout-grid-line text-xs"></i> {openingWorkspace ? 'Opening…' : 'Workspace'}
+                </button>
                 <button onClick={() => { setEditingClient(activeClient); setClientForm({ client_name: activeClient.client_name, platform: activeClient.platform ?? '', status: activeClient.status, notes: activeClient.notes ?? '', contract_value: activeClient.contract_value != null ? String(activeClient.contract_value) : '', contract_currency: activeClient.contract_currency ?? 'PHP' }); setShowClientModal(true); }}
                   className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center gap-1">
                   <i className="ri-edit-line text-xs"></i> Edit
