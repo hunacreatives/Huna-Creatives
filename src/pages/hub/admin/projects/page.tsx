@@ -1862,60 +1862,35 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
         <section className="space-y-3">
 
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto w-fit">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Status tabs */}
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto">
               {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setStatusFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                    statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
+                <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                   {tab.label}
                 </button>
               ))}
             </div>
+            {/* Type dropdown */}
+            <select value={projectTypeFilter} onChange={e => setProjectTypeFilter(e.target.value as any)}
+              className="px-3 py-1.5 text-xs border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none cursor-pointer">
+              <option value="all">All Types</option>
+              <option value="client">One-time</option>
+              <option value="internal">Internal</option>
+            </select>
+            {/* Service dropdown */}
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none cursor-pointer">
+              <option value="all">All Services</option>
+              {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <div className="flex-1" />
             <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
               <i className="ri-add-line text-sm"></i>
               <span className="hidden sm:inline">New Project</span>
             </button>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 items-center">
-            {/* Project type filter */}
-            <div className="flex gap-1 mr-1">
-              {(['all', 'client', 'internal'] as const).map(pt => (
-                <button
-                  key={pt}
-                  onClick={() => setProjectTypeFilter(pt)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${projectTypeFilter === pt ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100'}`}
-                >
-                  {pt === 'all' ? 'All' : pt === 'client' ? 'One-time' : 'Internal'}
-                </button>
-              ))}
-            </div>
-            <span className="text-gray-200 text-xs">|</span>
-            <button
-              onClick={() => setTypeFilter('all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-            >
-              All Services
-            </button>
-            {projectTypes.map(type => (
-              <button
-                key={type}
-                onClick={() => setTypeFilter(typeFilter === type ? 'all' : type)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${typeFilter === type ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-              >
-                {type}
-                <span className="ml-1.5 opacity-50">{projects.filter(p => p.service === type && (statusFilter === 'all' || p.status === statusFilter)).length}</span>
-              </button>
-            ))}
-            {projectTypes.length === 0 && (
-              <span className="text-xs text-gray-300 italic">Set a service type on a project to filter here</span>
-            )}
           </div>
 
           <div className="pt-1 pb-3">
