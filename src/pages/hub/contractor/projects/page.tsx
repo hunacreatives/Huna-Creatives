@@ -536,21 +536,21 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
 }
 
 // ── Per-project color palette ──────────────────────────────────────────────
-const CARD_PALETTE = [
-  { from: '#6366f1', to: '#8b5cf6', light: '#ede9fe', text: '#4c1d95' }, // indigo-violet
-  { from: '#0ea5e9', to: '#6366f1', light: '#e0f2fe', text: '#075985' }, // sky-indigo
-  { from: '#10b981', to: '#0ea5e9', light: '#d1fae5', text: '#064e3b' }, // emerald-sky
-  { from: '#f59e0b', to: '#ef4444', light: '#fef3c7', text: '#78350f' }, // amber-rose
-  { from: '#ec4899', to: '#8b5cf6', light: '#fce7f3', text: '#831843' }, // pink-violet
-  { from: '#14b8a6', to: '#6366f1', light: '#ccfbf1', text: '#134e4a' }, // teal-indigo
-];
+// Colors based on project state, not index
+const getCardPalette = (status: string, isOverdue: boolean, daysLeft: number | null) => {
+  if (isOverdue)                                    return { from: '#ef4444', to: '#f97316' }; // red   — overdue
+  if (daysLeft !== null && daysLeft <= 7)           return { from: '#f59e0b', to: '#ef4444' }; // amber — due soon
+  if (status === 'ongoing')                         return { from: '#6366f1', to: '#0ea5e9' }; // indigo — active
+  if (status === 'completed')                       return { from: '#10b981', to: '#0ea5e9' }; // green — done
+  if (status === 'paused')                          return { from: '#94a3b8', to: '#64748b' }; // gray  — paused
+  return                                                   { from: '#94a3b8', to: '#64748b' }; // gray  — default
+};
 
 // ── Project card (summary) ─────────────────────────────────────────────────
-function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
+function ProjectCard({ row, projectTasks, onClick }: {
   row: ProjectRow;
   projectTasks: ProjectTask[];
   onClick: () => void;
-  colorIdx?: number;
 }) {
   const p = row.hub_projects;
   if (!p) return null;
@@ -570,11 +570,11 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
   const isFullyPaid = totalPaidOut >= myCut && myCut > 0;
   const showPayout = !internalProject && myCut > 0;
 
-  const palette = CARD_PALETTE[colorIdx % CARD_PALETTE.length];
-  const isOverdue = p.deadline && p.deadline < today && p.status !== 'completed';
   const daysLeft = p.deadline
     ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000)
     : null;
+  const isOverdue = !!(p.deadline && p.deadline < today && p.status !== 'completed');
+  const palette = getCardPalette(p.status, isOverdue, daysLeft);
 
   const statusLabel = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' }[p.status] ?? p.status;
   const healthLabel = (() => {
@@ -1117,8 +1117,26 @@ export default function ContractorProjectsPage() {
           || p?.service?.toLowerCase().includes(searchLower);
       })
     : rows;
-  const active = filteredRows.filter(r => r.hub_projects?.status === 'ongoing');
-  const other = filteredRows.filter(r => r.hub_projects?.status !== 'ongoing');
+  const sortedRows = [...filteredRows].sort((a, b) => {
+    const p1 = a.hub_projects, p2 = b.hub_projects;
+    const today2 = new Date().toISOString().slice(0, 10);
+    const urgency = (p: typeof p1) => {
+      if (!p) return 5;
+      const overdue = p.deadline && p.deadline < today2 && p.status !== 'completed';
+      if (overdue) return 0;
+      if (p.status === 'ongoing' && p.deadline) {
+        const d = Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - Date.now()) / 86400000);
+        if (d <= 7) return 1;
+      }
+      if (p.status === 'ongoing') return 2;
+      if (p.status === 'paused') return 3;
+      if (p.status === 'completed') return 4;
+      return 5;
+    };
+    return urgency(p1) - urgency(p2);
+  });
+  const active = sortedRows.filter(r => r.hub_projects?.status === 'ongoing');
+  const other = sortedRows.filter(r => r.hub_projects?.status !== 'ongoing');
 
   const wsRow = workspaceRow;
   const wsProject = wsRow?.hub_projects;
@@ -1881,8 +1899,8 @@ export default function ContractorProjectsPage() {
               <div className="space-y-3">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Projects</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {active.map((r, i) => (
-                    <ProjectCard key={r.id} row={r} colorIdx={i}
+                  {active.map((r) => (
+                    <ProjectCard key={r.id} row={r}
                       projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
                       onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
                     />
@@ -1895,8 +1913,8 @@ export default function ContractorProjectsPage() {
               <div className="space-y-3">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Other</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {other.map((r, i) => (
-                    <ProjectCard key={r.id} row={r} colorIdx={active.length + i}
+                  {other.map((r) => (
+                    <ProjectCard key={r.id} row={r}
                       projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
                       onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
                     />
