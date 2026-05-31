@@ -46,9 +46,9 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
   const tasksByDate: Record<string, ProjectTask[]> = {};
   const pad2 = (n: number) => String(n).padStart(2, '0');
   for (const t of tasks) {
-    if (!t.due_date) continue;
-    const start = t.start_date ?? t.due_date;
-    const end = t.due_date;
+    if (!t.due_date && !t.start_date) continue;
+    const start = t.start_date ?? t.due_date!;
+    const end = t.due_date ?? t.start_date!;
     const cur = new Date(start + 'T00:00:00');
     const endD = new Date(end + 'T00:00:00');
     while (cur <= endD) {
