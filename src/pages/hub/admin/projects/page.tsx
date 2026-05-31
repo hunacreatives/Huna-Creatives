@@ -254,7 +254,7 @@ export default function AdminProjectsPage() {
   const fetchTasks = async (projectId: number) => {
     const [tRes, aRes] = await Promise.all([
       supabase.from('hub_project_tasks')
-        .select('*, hub_users(id, full_name, avatar_url)')
+        .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: true }),
       supabase.from('hub_project_activity')
@@ -1378,15 +1378,15 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                   </span>
                                 </div>
                               )}
-                              {task.hub_users && (
+                              {(() => { const u = wsTaskTeam.find(m => m?.id === task.assigned_to); return u ? (
                                 <div className="flex items-center gap-1 ml-auto">
-                                  {task.hub_users.avatar_url
-                                    ? <img src={task.hub_users.avatar_url} alt={task.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
-                                    : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center text-[9px] font-bold text-white">{task.hub_users.full_name[0]}</div>
+                                  {u.avatar_url
+                                    ? <img src={u.avatar_url} alt={u.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
+                                    : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center text-[9px] font-bold text-white">{u.full_name[0]}</div>
                                   }
-                                  <span className="text-[10px] text-gray-500 font-medium">{task.hub_users.full_name.split(' ')[0]}</span>
+                                  <span className="text-[10px] text-gray-500 font-medium">{u.full_name.split(' ')[0]}</span>
                                 </div>
-                              )}
+                              ) : null; })()}
                             </div>
                           </div>
                         );
@@ -1452,15 +1452,15 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                               </span>
                                             </div>
                                           )}
-                                          {task.hub_users && (
+                                          {(() => { const u = wsTaskTeam.find(m => m?.id === task.assigned_to); return u ? (
                                             <div className="flex items-center gap-1 ml-auto">
-                                              {task.hub_users.avatar_url
-                                                ? <img src={task.hub_users.avatar_url} alt={task.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
-                                                : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center text-[9px] font-bold text-white">{task.hub_users.full_name[0]}</div>
+                                              {u.avatar_url
+                                                ? <img src={u.avatar_url} alt={u.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
+                                                : <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center text-[9px] font-bold text-white">{u.full_name[0]}</div>
                                               }
-                                              <span className="text-[10px] text-gray-500 font-medium">{task.hub_users.full_name.split(' ')[0]}</span>
+                                              <span className="text-[10px] text-gray-500 font-medium">{u.full_name.split(' ')[0]}</span>
                                             </div>
-                                          )}
+                                          ) : null; })()}
                                         </div>
                                       </div>
                                     );
