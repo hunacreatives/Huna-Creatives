@@ -136,6 +136,7 @@ function Avatar({ name, url }: { name: string; url?: string | null }) {
 export default function AdminProjectsPage() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
+  const isOwner = hubUser?.role === 'owner' || isDemo;
   const [usdRate, setUsdRate] = useState(56);
   useEffect(() => { getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v))); }, []);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1763,7 +1764,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         {isRetainerProject(p) ? (<>
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400">Monthly Rate</span>
-                            <span className="font-semibold text-indigo-600">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
+                            <span className="font-semibold text-indigo-600">{isOwner ? fmtRate(p.monthly_rate, (p as any).monthly_rate_currency) : 'Retainer'}</span>
                           </div>
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400">Total Collected</span>
@@ -1849,11 +1850,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <p className="text-[22px] font-bold text-white mt-1.5 leading-none">{fmt(summaryTotals.contractValue)}</p>
                 <p className="text-xs text-blue-200 mt-1.5">{projects.filter(p => p.project_type === 'client').length} one-time project{projects.filter(p => p.project_type === 'client').length !== 1 ? 's' : ''}</p>
               </div>
-              <div className="rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' }}>
-                <p className="text-[11px] text-violet-200 uppercase tracking-widest font-semibold">Monthly Retainer</p>
-                <p className="text-[22px] font-bold text-white mt-1.5 leading-none">{fmt(summaryTotals.mrr)}</p>
-                <p className="text-xs text-violet-200 mt-1.5">{projects.filter(p => p.project_type === 'retainer' && p.status === 'ongoing').length} active client{projects.filter(p => p.project_type === 'retainer' && p.status === 'ongoing').length !== 1 ? 's' : ''}</p>
-              </div>
+              {isOwner && (
+                <div className="rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' }}>
+                  <p className="text-[11px] text-violet-200 uppercase tracking-widest font-semibold">Monthly Retainer</p>
+                  <p className="text-[22px] font-bold text-white mt-1.5 leading-none">{fmt(summaryTotals.mrr)}</p>
+                  <p className="text-xs text-violet-200 mt-1.5">{projects.filter(p => p.project_type === 'retainer' && p.status === 'ongoing').length} active client{projects.filter(p => p.project_type === 'retainer' && p.status === 'ongoing').length !== 1 ? 's' : ''}</p>
+                </div>
+              )}
               <div className="rounded-2xl p-5 bg-white border border-gray-100">
                 <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Active</p>
                 <p className="text-[22px] font-bold text-[#111827] mt-1.5 leading-none">{projects.filter(p => p.status === 'ongoing').length}</p>
@@ -2071,7 +2074,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                               <p className="text-[11px] text-white/60 mt-0.5 truncate">{p.client_name}</p>
                             </div>
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/20 text-white flex-shrink-0 whitespace-nowrap">
-                              {p.monthly_rate ? fmtRate(p.monthly_rate, (p as any).monthly_rate_currency) : 'Retainer'}
+                              {isOwner && p.monthly_rate ? fmtRate(p.monthly_rate, (p as any).monthly_rate_currency) : 'Retainer'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between pt-2 border-t border-white/20">
@@ -2295,10 +2298,17 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       { label: 'Done', value: String(tasks.filter(t => t.status === 'done').length), cls: 'text-emerald-600' },
                       { label: 'Status', value: cfg.label, cls: 'text-gray-500' },
                     ] : isRetainerProject(activeProject) ? [
-                      { label: 'Monthly', value: fmtRate(activeProject.monthly_rate, (activeProject as any).monthly_rate_currency), cls: 'text-indigo-600' },
-                      { label: 'Collected', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
-                      { label: 'Months Paid', value: String(d.monthsCollected ?? '—'), cls: 'text-gray-700' },
-                      { label: 'Costs', value: fmt(d.totalCosts), cls: 'text-orange-600' },
+                      ...(isOwner ? [
+                        { label: 'Monthly', value: fmtRate(activeProject.monthly_rate, (activeProject as any).monthly_rate_currency), cls: 'text-indigo-600' },
+                        { label: 'Collected', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
+                        { label: 'Months Paid', value: String(d.monthsCollected ?? '—'), cls: 'text-gray-700' },
+                        { label: 'Costs', value: fmt(d.totalCosts), cls: 'text-orange-600' },
+                      ] : [
+                        { label: 'Team', value: String(activeProject.hub_project_contractors.length), cls: 'text-gray-800' },
+                        { label: 'Tasks', value: String(tasks.length), cls: 'text-indigo-600' },
+                        { label: 'Done', value: String(tasks.filter(t => t.status === 'done').length), cls: 'text-emerald-600' },
+                        { label: 'Status', value: cfg.label, cls: 'text-gray-500' },
+                      ]),
                     ] : [
                       { label: 'Contract', value: fmt(activeProject.contract_price), cls: 'text-gray-800' },
                       { label: 'Paid', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
@@ -2438,8 +2448,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   </div>
                 ) : isRetainerProject(activeProject) ? (
                   <>
-                    {/* Retainer finance strip */}
-                    <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
+                    {/* Retainer finance strip — owner only */}
+                    {isOwner && <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
                       <span>Monthly: <strong className="text-indigo-600">{fmtRate(activeProject.monthly_rate, (activeProject as any).monthly_rate_currency)}</strong></span>
                       <span className="text-gray-200">|</span>
                       <span>Collected: <strong className="text-emerald-600">{fmt(d.totalPaid)}</strong></span>
@@ -2457,7 +2467,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white/55">
                         <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: d.totalPaid > 0 ? '100%' : '0%' }} />
                       </div>
-                    </div>
+                    </div>}
                   </>
                 ) : (
                   <>
