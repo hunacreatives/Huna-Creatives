@@ -4,6 +4,17 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const TIMEOFF_URL = 'https://www.hunacreatives.com/hub/contractor/timeoff';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+
+async function sendPush(user_id: string, title: string, body: string, url?: string) {
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, title, body, url }),
+    });
+  } catch {}
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -77,6 +88,8 @@ Deno.serve(async (req) => {
       link: TIMEOFF_URL,
       read: false,
     }).catch(() => {});
+
+    await sendPush(contractor_id, notifTitle, notifBody, TIMEOFF_URL);
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {

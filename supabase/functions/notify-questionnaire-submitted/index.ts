@@ -1,4 +1,8 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const NOTIFY_USERS = ['U091BL9PQ77', 'U0838LWSY4E']; // Abigail, Francis
 
 const cors = {
@@ -55,6 +59,17 @@ Deno.serve(async (req) => {
     }
 
     await Promise.all(NOTIFY_USERS.map(id => dm(id, client_name, service_type)));
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    const { data: admins } = await supabase.from('hub_users').select('id').in('role', ['admin', 'owner']).eq('status', 'active');
+    await Promise.all((admins ?? []).map((a: any) =>
+      fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: a.id, title: 'New questionnaire submitted', body: `${client_name} filled out their ${service_type} questionnaire.`, url: 'https://hunacreatives.com/hub/admin/questionnaires' }),
+      }).catch(() => {})
+    ));
+
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });

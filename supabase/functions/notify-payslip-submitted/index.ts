@@ -18,6 +18,17 @@ function fmt(val: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val);
 }
 
+async function pushToAdmins(supabase: ReturnType<typeof createClient>, title: string, body: string, url?: string) {
+  const { data: admins } = await supabase.from('hub_users').select('id').in('role', ['admin', 'owner']).eq('status', 'active');
+  await Promise.all((admins ?? []).map((a: any) =>
+    fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: a.id, title, body, url }),
+    }).catch(() => {})
+  ));
+}
+
 async function sendNotification(payout_id: string, type: 'submitted' | 'dispute' = 'submitted') {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -127,6 +138,7 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
         console.error('Slack DM failed (dispute notification):', slackErr);
       }
     }
+    await pushToAdmins(supabase, 'Payslip disputed', `${contractor.full_name} has flagged their payslip for ${periodLabel}. Review needed.`, payrollUrl);
     return;
   }
 
@@ -184,6 +196,8 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
       }),
     });
   }
+
+  await pushToAdmins(supabase, 'Payslip submitted', `${contractor.full_name} submitted their payslip for ${periodLabel} (${fmt(payout.final_payout)}). Review needed.`, payrollUrl);
 
   // Slack DM to Abigail — isolated so email success is not masked
   if (SLACK_BOT_TOKEN) {

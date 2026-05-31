@@ -201,6 +201,16 @@ Deno.serve(async (req) => {
       } catch (_) { /* non-fatal */ }
     }
 
+    if (contractor_id) {
+      const amountFmt = '₱' + (amount as number).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const periodText = period_label ? ` · ${period_label}` : '';
+      await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: contractor_id, title: 'Payment received', body: `${amountFmt} has been sent for ${project_name}${periodText}.`, url: HUB_URL }),
+      }).catch(() => {});
+    }
+
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });

@@ -129,6 +129,12 @@ async function run(assignment_id: string) {
     }),
   }).then(r => r.json());
   console.log('[notify-contract-assigned] email result:', JSON.stringify(emailResult));
+
+  await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: assignment.contractor_id, title: 'Document needs your signature', body: `"${doc?.title}" is waiting for your signature.`, url: HUB_URL }),
+  }).catch(() => {});
 }
 
 Deno.serve(async (req) => {

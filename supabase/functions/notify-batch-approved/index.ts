@@ -5,6 +5,16 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const PAYOUTS_URL = 'https://www.hunacreatives.com/hub/contractor/payouts';
 
+async function sendPush(user_id: string, title: string, body: string, url?: string) {
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, title, body, url }),
+    });
+  } catch {}
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -79,6 +89,7 @@ Deno.serve(async (req) => {
           read: false,
         }).catch(() => {});
 
+        await sendPush(contractor_id, 'Payroll approved', `Your payment of ${payoutFmt} for ${period_label} has been approved and is being processed.`, PAYOUTS_URL);
         results.push({ contractor_id, ok: true });
       } catch (err) {
         results.push({ contractor_id, ok: false, error: String(err) });

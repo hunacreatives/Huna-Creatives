@@ -63,7 +63,7 @@ async function sendNotification(batchId: string, closedByName?: string | null) {
 
   const { data: owners, error: ownerError } = await supabase
     .from('hub_users')
-    .select('slack_id, full_name')
+    .select('id, slack_id, full_name')
     .eq('role', 'owner')
     .eq('status', 'active')
     .not('slack_id', 'is', null);
@@ -93,6 +93,16 @@ async function sendNotification(batchId: string, closedByName?: string | null) {
   if (recipients.size === 0) {
     console.warn('notify-payroll-closed: no Slack recipients found');
     return;
+  }
+
+  for (const owner of owners ?? []) {
+    if (owner.id) {
+      await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: owner.id, title: 'Payroll closed', body: message }),
+      }).catch(() => {});
+    }
   }
 
   await Promise.all(
