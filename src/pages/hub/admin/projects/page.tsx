@@ -37,6 +37,8 @@ function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
 }
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtRate = (rate: number | null, currency?: string | null) =>
+  rate == null ? '—' : currency === 'USD' ? `$${rate.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/mo` : `${fmt(rate)}/mo`;
 
 const getServicePalette = (service: string | null | undefined) => {
   const s = (service ?? '').toLowerCase();
@@ -1735,7 +1737,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         {isRetainerProject(p) ? (<>
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400">Monthly Rate</span>
-                            <span className="font-semibold text-indigo-600">{fmt(p.monthly_rate ?? 0)}/mo</span>
+                            <span className="font-semibold text-indigo-600">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
                           </div>
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400">Total Collected</span>
@@ -1966,7 +1968,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Internal</span>
                           )}
                           {p.project_type === 'retainer' && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-500">Retainer · {fmt(p.monthly_rate ?? 0)}/mo</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-500">Retainer · {fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
                           )}
                         </div>
                         <div className="flex -space-x-1.5">
@@ -2078,7 +2080,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                               <p className="text-[11px] text-white/60 mt-0.5 truncate">{p.client_name}</p>
                             </div>
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/20 text-white flex-shrink-0 whitespace-nowrap">
-                              {p.monthly_rate ? `${fmt(p.monthly_rate)}/mo` : 'Retainer'}
+                              {p.monthly_rate ? fmtRate(p.monthly_rate, (p as any).monthly_rate_currency) : 'Retainer'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between pt-2 border-t border-white/20">
@@ -2300,7 +2302,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       { label: 'Done', value: String(tasks.filter(t => t.status === 'done').length), cls: 'text-emerald-600' },
                       { label: 'Status', value: cfg.label, cls: 'text-gray-500' },
                     ] : isRetainerProject(activeProject) ? [
-                      { label: 'Monthly', value: `${fmt(activeProject.monthly_rate ?? 0)}/mo`, cls: 'text-indigo-600' },
+                      { label: 'Monthly', value: fmtRate(activeProject.monthly_rate, (activeProject as any).monthly_rate_currency), cls: 'text-indigo-600' },
                       { label: 'Collected', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
                       { label: 'Months Paid', value: String(d.monthsCollected ?? '—'), cls: 'text-gray-700' },
                       { label: 'Costs', value: fmt(d.totalCosts), cls: 'text-orange-600' },
@@ -2445,7 +2447,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <>
                     {/* Retainer finance strip */}
                     <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
-                      <span>Monthly: <strong className="text-indigo-600">{(activeProject as any).monthly_rate_currency === 'USD' ? `$${(activeProject.monthly_rate ?? 0).toLocaleString()}/mo` : `${fmt(activeProject.monthly_rate ?? 0)}/mo`}</strong></span>
+                      <span>Monthly: <strong className="text-indigo-600">{fmtRate(activeProject.monthly_rate, (activeProject as any).monthly_rate_currency)}</strong></span>
                       <span className="text-gray-200">|</span>
                       <span>Collected: <strong className="text-emerald-600">{fmt(d.totalPaid)}</strong></span>
                       <span className="text-gray-200">|</span>
