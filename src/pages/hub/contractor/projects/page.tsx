@@ -602,17 +602,17 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
       className="w-full text-left rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
       style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
 
-      <div className="p-5 space-y-4">
+      <div className="p-3.5 space-y-2.5">
         {/* Header row */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             {/* Service chip */}
             {p.service && (
-              <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1.5" style={{ color: palette.from }}>
+              <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1" style={{ color: palette.from }}>
                 {p.service}
               </span>
             )}
-            <h3 className="font-bold text-gray-900 text-lg leading-tight line-clamp-2 min-h-[3.5rem] group-hover:text-gray-700 transition-colors">
+            <h3 className="font-bold text-gray-900 text-sm leading-tight line-clamp-1 group-hover:text-gray-700 transition-colors">
               {p.project_name}
             </h3>
             <p className="text-xs text-gray-400 mt-0.5 truncate">
@@ -635,73 +635,30 @@ function ProjectCard({ row, projectTasks, onClick, colorIdx = 0 }: {
 
         {/* Task progress */}
         {projectTasks.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500 font-medium">{tasksDone} of {projectTasks.length} tasks</span>
-              <span className="font-bold" style={{ color: tasksPct === 100 ? '#10b981' : palette.from }}>{tasksPct}%</span>
+              <span className="text-gray-500">{tasksDone}/{projectTasks.length} tasks</span>
+              <span className="font-semibold text-[11px]" style={{ color: tasksPct === 100 ? '#10b981' : palette.from }}>{tasksPct}%</span>
             </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500"
                 style={{ width: `${tasksPct}%`, background: tasksPct === 100 ? '#10b981' : `linear-gradient(90deg, ${palette.from}, ${palette.to})` }} />
             </div>
-            {overdueCount > 0 && (
-              <p className="text-[11px] text-rose-500 font-medium flex items-center gap-1">
-                <i className="ri-alarm-warning-line text-[10px]"></i>{overdueCount} overdue
-              </p>
-            )}
-            {overdueCount === 0 && inProgressCount > 0 && (
-              <p className="text-[11px] text-gray-400">{inProgressCount} in progress</p>
-            )}
-            {overdueCount === 0 && inProgressCount === 0 && todoCount > 0 && (
-              <p className="text-[11px] text-gray-400">{todoCount} ready to start</p>
-            )}
           </div>
-        )}
-
-        {projectTasks.length === 0 && (
-          <p className="text-[11px] text-gray-300 italic">No tasks yet</p>
         )}
 
         {/* Footer row */}
-        <div className="space-y-2 pt-1 border-t border-gray-100/80">
-          <div className="flex items-center justify-between gap-3">
-            <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold ${healthCls}`}>{healthLabel}</span>
-            <span className="text-[10px] text-gray-400">{projectTasks.length} tasks</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-            {daysLeft !== null ? (
-              isOverdue ? (
-                <span className="text-xs text-rose-500 font-semibold flex items-center gap-1">
-                  <i className="ri-time-line text-[10px]"></i>
-                  {Math.abs(daysLeft)}d overdue
-                </span>
-              ) : daysLeft === 0 ? (
-                <span className="text-xs text-amber-600 font-semibold">Due today</span>
-              ) : daysLeft <= 7 ? (
-                <span className="text-xs text-amber-500 font-medium flex items-center gap-1">
-                  <i className="ri-calendar-line text-[10px]"></i>{daysLeft}d left
-                </span>
-              ) : (
-                <span className="text-xs text-gray-400">
-                  {new Date(p.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              )
-            ) : (
-              <span className="text-xs text-gray-300">No deadline</span>
-            )}
-            </div>
-
-            {internalProject ? (
-              <span className="text-[10px] text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-medium">Internal</span>
-            ) : showPayout ? (
-              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${isFullyPaid ? 'bg-emerald-50 text-emerald-600' : 'text-gray-500 bg-gray-50'}`}>
-                {isFullyPaid ? '✓ Paid' : `Your cut ${fmt(myCut)}`}
-              </span>
-            ) : (
-              <i className="ri-arrow-right-s-line text-gray-300 text-base group-hover:translate-x-0.5 transition-transform"></i>
-            )}
-          </div>
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100/80">
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${healthCls}`}>{healthLabel}</span>
+          {daysLeft !== null ? (
+            isOverdue
+              ? <span className="text-[10px] text-rose-500 font-semibold">{Math.abs(daysLeft)}d overdue</span>
+              : daysLeft === 0 ? <span className="text-[10px] text-amber-600 font-semibold">Due today</span>
+              : daysLeft <= 7 ? <span className="text-[10px] text-amber-500">{daysLeft}d left</span>
+              : <span className="text-[10px] text-gray-400">{new Date(p.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+          ) : (
+            <span className="text-[10px] text-gray-300">No deadline</span>
+          )}
         </div>
       </div>
     </button>
