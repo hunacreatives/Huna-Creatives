@@ -133,6 +133,7 @@ export default function AdminProjectsPage() {
   const [form, setForm] = useState(emptyForm);
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [importing, setImporting] = useState(false);
 
   // Payment log
   const [payAmount, setPayAmount] = useState('');
@@ -2567,7 +2568,52 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-[#111827]">{editingProject ? 'Edit Project' : 'New Project'}</h2>
-              <button onClick={() => { setShowForm(false); setEditingProject(null); }} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>
+              <div className="flex items-center gap-2">
+                {!editingProject && (
+                  <>
+                    <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors ${importing ? 'opacity-60 pointer-events-none' : ''}`}>
+                      <i className={`${importing ? 'ri-loader-4-line animate-spin' : 'ri-sparkling-2-line'} text-sm text-indigo-500`}></i>
+                      {importing ? 'Reading…' : 'Import from file'}
+                      <input type="file" className="hidden" accept=".pdf,.csv,.txt,.png,.jpg,.jpeg"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setImporting(true);
+                          try {
+                            const buffer = await file.arrayBuffer();
+                            const bytes = new Uint8Array(buffer);
+                            let binary = '';
+                            bytes.forEach(b => binary += String.fromCharCode(b));
+                            const file_base64 = btoa(binary);
+                            const { data, error } = await supabase.functions.invoke('parse-project-doc', {
+                              body: { file_base64, mime_type: file.type, file_name: file.name },
+                            });
+                            if (error || !data) throw new Error(error?.message ?? 'No data returned');
+                            setForm(f => ({
+                              ...f,
+                              project_name: data.project_name ?? f.project_name,
+                              client_name: data.client_name ?? f.client_name,
+                              project_type: data.project_type ?? f.project_type,
+                              service: data.service ?? f.service,
+                              contract_price: data.contract_price != null ? String(data.contract_price) : f.contract_price,
+                              monthly_rate: data.monthly_rate != null ? String(data.monthly_rate) : (f as any).monthly_rate,
+                              start_date: data.start_date ?? f.start_date,
+                              deadline: data.deadline ?? f.deadline,
+                              notes: data.notes ?? f.notes,
+                            } as any));
+                          } catch (err) {
+                            setFormError(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                          } finally {
+                            setImporting(false);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                  </>
+                )}
+                <button onClick={() => { setShowForm(false); setEditingProject(null); }} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>
+              </div>
             </div>
             <div className="p-5 space-y-3">
               <div className="space-y-1">
