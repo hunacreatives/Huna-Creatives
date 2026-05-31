@@ -1899,34 +1899,41 @@ export default function ContractorProjectsPage() {
               </div>
             )}
 
-            {/* Active project cards */}
-            {active.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Projects</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {active.map((r) => (
-                    <ProjectCard key={r.id} row={r}
-                      projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
-                      onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Project cards grouped by status */}
+            {(() => {
+              const overdue  = sortedRows.filter(r => r.hub_projects?.deadline && r.hub_projects.deadline < today && r.hub_projects.status !== 'completed');
+              const dueSoon  = sortedRows.filter(r => { const p = r.hub_projects; if (!p || overdue.includes(r)) return false; const d = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null; return p.status === 'ongoing' && d !== null && d <= 7; });
+              const active2  = sortedRows.filter(r => r.hub_projects?.status === 'ongoing' && !overdue.includes(r) && !dueSoon.includes(r));
+              const paused   = sortedRows.filter(r => r.hub_projects?.status === 'paused');
+              const done     = sortedRows.filter(r => r.hub_projects?.status === 'completed');
 
-            {other.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Other</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {other.map((r) => (
-                    <ProjectCard key={r.id} row={r}
-                      projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
-                      onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
-                    />
-                  ))}
+              const Section = ({ label, rows: sRows, dot }: { label: string; rows: typeof sortedRows; dot: string }) => sRows.length === 0 ? null : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`}></span>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{label} <span className="text-gray-300 font-normal">({sRows.length})</span></p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {sRows.map((r) => (
+                      <ProjectCard key={r.id} row={r}
+                        projectTasks={tasks.filter(t => t.project_id === r.hub_projects?.id)}
+                        onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+
+              return (
+                <>
+                  <Section label="Overdue" rows={overdue} dot="bg-rose-400" />
+                  <Section label="Due This Week" rows={dueSoon} dot="bg-amber-400" />
+                  <Section label="Active" rows={active2} dot="bg-indigo-400" />
+                  <Section label="Paused" rows={paused} dot="bg-gray-300" />
+                  <Section label="Completed" rows={done} dot="bg-emerald-400" />
+                </>
+              );
+            })()}
           </div>
 
           {/* ── RIGHT: task panel ── */}
