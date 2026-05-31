@@ -677,12 +677,13 @@ export default function ContractorProjectsPage() {
   const hubUser = realHubUser ?? demoHubUser;
   const { isDemo } = useDemo();
   const [rows, setRows] = useState<ProjectRow[]>([]);
-  const [clientEntries, setClientEntries] = useState<{ id: string; name: string; type: 'retainer' | 'assignment'; status: string; service?: string | null; monthly_rate?: number | null; months_paid?: number; platform?: string | null; role?: string | null; notes?: string | null }[]>([]);
+  const [clientEntries, setClientEntries] = useState<{ id: string; rowId?: number; name: string; type: 'retainer' | 'assignment'; status: string; service?: string | null; monthly_rate?: number | null; months_paid?: number; platform?: string | null; role?: string | null; notes?: string | null; clientId?: number }[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [teamMap, setTeamMap] = useState<Record<number, TeamMember[]>>({});
   const [loading, setLoading] = useState(true);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [workspaceRow, setWorkspaceRow] = useState<ProjectRow | null>(null);
+  const [clientWorkspace, setClientWorkspace] = useState<typeof clientEntries[0] | null>(null);
   const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'overdue'>('all');
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -1066,12 +1067,12 @@ export default function ContractorProjectsPage() {
             const p = Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects;
             const totalPaid = (r.hub_project_contractor_payouts ?? []).reduce((s: number, x: any) => s + x.amount, 0);
             const monthlyRate = p?.monthly_rate ?? 0;
-            return { id: `retainer-${r.id}`, name: p?.client_name ?? p?.project_name ?? 'Retainer', type: 'retainer' as const, status: p?.status ?? 'ongoing', service: p?.service, monthly_rate: monthlyRate, months_paid: monthlyRate > 0 ? Math.round(totalPaid / monthlyRate) : 0 };
+            return { id: `retainer-${r.id}`, rowId: r.id as number, name: p?.project_name ?? p?.client_name ?? 'Retainer', type: 'retainer' as const, status: p?.status ?? 'ongoing', service: p?.service, monthly_rate: monthlyRate, months_paid: monthlyRate > 0 ? Math.round(totalPaid / monthlyRate) : 0 };
           });
 
         const assignmentEntries = (assignData ?? []).map((a: any) => {
           const c = Array.isArray(a.hub_clients) ? a.hub_clients[0] : a.hub_clients;
-          return { id: `assign-${a.id}`, name: c?.client_name ?? 'Client', type: 'assignment' as const, status: c?.status ?? 'active', platform: c?.platform, role: a.role, notes: c?.notes };
+          return { id: `assign-${a.id}`, clientId: c?.id as number, name: c?.client_name ?? 'Client', type: 'assignment' as const, status: c?.status ?? 'active', platform: c?.platform, role: a.role, notes: c?.notes };
         });
 
         setClientEntries([...retainerEntries, ...assignmentEntries]);
@@ -1469,10 +1470,63 @@ export default function ContractorProjectsPage() {
             <p className="text-xs text-gray-400 truncate">{wsIsInternal ? 'Internal Project' : wsProject.client_name}{wsProject.service ? ` · ${wsProject.service}` : ''}</p>
           </div>
         </div>
+      ) : clientWorkspace ? (
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => setClientWorkspace(null)}
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
+            <i className="ri-arrow-left-s-line text-base"></i>
+          </button>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-gray-900 truncate leading-tight">{clientWorkspace.name}</p>
+            <p className="text-xs text-gray-400 truncate">{clientWorkspace.platform ?? clientWorkspace.role ?? 'International Client'}</p>
+          </div>
+        </div>
       ) : undefined}
     >
+      {/* ── International Client Workspace ── */}
+      {clientWorkspace && (
+        <div className="space-y-4 max-w-2xl">
+          <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                <i className="ri-building-line text-[#FF6B35] text-lg"></i>
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">{clientWorkspace.name}</p>
+                <p className="text-xs text-gray-400">{clientWorkspace.platform ?? clientWorkspace.role ?? 'International Client'}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {clientWorkspace.role && (
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Role</p>
+                  <p className="text-sm font-semibold text-gray-800 mt-0.5">{clientWorkspace.role}</p>
+                </div>
+              )}
+              {clientWorkspace.platform && (
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Platform</p>
+                  <p className="text-sm font-semibold text-gray-800 mt-0.5">{clientWorkspace.platform}</p>
+                </div>
+              )}
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Status</p>
+                <p className="text-sm font-semibold text-gray-800 mt-0.5 capitalize">{clientWorkspace.status}</p>
+              </div>
+              <div className="bg-orange-50 rounded-xl p-3">
+                <p className="text-[10px] text-orange-400 uppercase tracking-wide">Type</p>
+                <p className="text-sm font-semibold text-orange-600 mt-0.5">International</p>
+              </div>
+            </div>
+            {clientWorkspace.notes && (
+              <p className="text-xs text-gray-500 italic mt-3 pt-3 border-t border-gray-100">{clientWorkspace.notes}</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Workspace ── */}
-      {workspaceRow && wsProject && (
+      {!clientWorkspace && workspaceRow && wsProject && (
         <div className="flex flex-col -mx-4 -my-4 md:-mx-6 md:-my-6 min-h-full">
 
           {/* ── Hero banner ── */}
@@ -1879,7 +1933,7 @@ export default function ContractorProjectsPage() {
       )}
 
       {/* ── Project list ── */}
-      {!workspaceRow && (loading ? (
+      {!workspaceRow && !clientWorkspace && (loading ? (
         <div className="flex justify-center py-24">
           <i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i>
         </div>
@@ -1980,29 +2034,37 @@ export default function ContractorProjectsPage() {
                 {/* Cards — same style as project cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {clientEntries.map(c => (
-                    <div key={c.id} className="w-full text-left rounded-3xl overflow-hidden"
-                      style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
+                    <button key={c.id} onClick={() => {
+                      if (c.type === 'retainer' && c.rowId) {
+                        const row = rows.find(r => r.id === c.rowId);
+                        if (row) { setWorkspaceRow(row); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }
+                      } else {
+                        setClientWorkspace(c);
+                      }
+                    }}
+                      className="w-full text-left rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+                      style={{ background: 'rgba(220,225,240,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(200,210,235,0.8)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
                       <div className="p-3.5 space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-[#FF6B35]">{c.service}</span>}
                             <p className="font-bold text-gray-900 text-sm leading-tight truncate">{c.name}</p>
-                            {(c.role || c.platform) && <p className="text-xs text-gray-400 mt-0.5 truncate">{c.role ?? c.platform}</p>}
+                            {(c.role || c.platform) && <p className="text-xs text-gray-500 mt-0.5 truncate">{c.role ?? c.platform}</p>}
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.type === 'retainer' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}`}>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.type === 'retainer' ? 'bg-indigo-100 text-indigo-600' : 'bg-orange-100 text-orange-600'}`}>
                             {c.type === 'retainer' ? 'Retainer' : 'International'}
                           </span>
                         </div>
                         {c.type === 'retainer' && c.monthly_rate ? (
-                          <div className="flex items-center justify-between pt-1 border-t border-gray-100/80">
+                          <div className="flex items-center justify-between pt-1 border-t border-white/60">
                             <span className="text-[10px] text-indigo-600 font-semibold">₱{c.monthly_rate.toLocaleString()}/mo</span>
-                            <span className="text-[10px] text-gray-400">{c.months_paid} month{c.months_paid !== 1 ? 's' : ''} paid</span>
+                            <span className="text-[10px] text-gray-500">{c.months_paid} month{c.months_paid !== 1 ? 's' : ''} paid</span>
                           </div>
                         ) : c.notes ? (
-                          <p className="text-[10px] text-gray-400 italic pt-1 border-t border-gray-100/80 truncate">{c.notes}</p>
+                          <p className="text-[10px] text-gray-500 italic pt-1 border-t border-white/60 truncate">{c.notes}</p>
                         ) : null}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
