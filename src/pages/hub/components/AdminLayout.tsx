@@ -250,7 +250,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-[260px] flex-shrink-0">
+          <div className="w-[260px] flex-shrink-0 h-full">
             <AdminSidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
           </div>
           <div className="flex-1 bg-black/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />

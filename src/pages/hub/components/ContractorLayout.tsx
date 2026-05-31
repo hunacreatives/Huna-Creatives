@@ -184,7 +184,7 @@ export default function ContractorLayout({ children, title, titleContent, action
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-[220px] flex-shrink-0">
+          <div className="w-[220px] flex-shrink-0 h-full">
             <ContractorSidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
           </div>
           <div className="flex-1 bg-black/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />

@@ -50,7 +50,7 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
 
   return (
     <aside
-      className={`h-screen lg:px-4 lg:py-5 bg-transparent flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${
+      className={`h-full lg:h-screen lg:px-4 lg:py-5 bg-transparent flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${
         collapsed ? 'w-[92px]' : 'w-full lg:w-[260px]'
       }`}
     >
