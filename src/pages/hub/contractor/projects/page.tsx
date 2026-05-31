@@ -1017,7 +1017,8 @@ export default function ContractorProjectsPage() {
       .from('hub_project_contractors')
       .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url), hub_projects(id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, hub_project_payments(amount), hub_project_costs(amount))')
       .eq('contractor_id', hubUser.id)
-      .then(async ({ data }) => {
+      .then(async ({ data, error }) => {
+        if (error) { console.error('Projects fetch error:', error); setLoading(false); return; }
         const normalized = ((data ?? []) as ProjectRowRaw[]).map((row) => ({
           ...row,
           hub_project_contractor_payouts: row.hub_project_contractor_payouts ?? [],
@@ -1034,17 +1035,25 @@ export default function ContractorProjectsPage() {
               .in('project_id', projectIds),
             supabase
               .from('hub_project_contractors')
-              .select('project_id, hub_users(id, full_name, avatar_url)')
+              .select('project_id, contractor_id')
               .in('project_id', projectIds),
           ]);
           setTasks((taskData as ProjectTask[]) ?? []);
-          const map: Record<number, TeamMember[]> = {};
-          for (const entry of (teamData ?? []) as any[]) {
-            const pid = entry.project_id as number;
-            const u = entry.hub_users as TeamMember | null;
-            if (u) (map[pid] ??= []).push(u);
+          const pcRows = (teamData ?? []) as { project_id: number; contractor_id: string }[];
+          const allUserIds = [...new Set(pcRows.map(r => r.contractor_id))];
+          if (allUserIds.length > 0) {
+            const { data: usersData } = await supabase
+              .from('hub_users')
+              .select('id, full_name, avatar_url')
+              .in('id', allUserIds);
+            const usersById = Object.fromEntries((usersData ?? []).map((u: any) => [u.id, u]));
+            const map: Record<number, TeamMember[]> = {};
+            for (const r of pcRows) {
+              const u = usersById[r.contractor_id];
+              if (u) (map[r.project_id] ??= []).push(u);
+            }
+            setTeamMap(map);
           }
-          setTeamMap(map);
         }
         setLoading(false);
       });
