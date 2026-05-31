@@ -1013,50 +1013,88 @@ export default function ContractorProjectsPage() {
       return;
     }
 
-    supabase
-      .from('hub_project_contractors')
-      .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at, hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url), hub_projects(id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, hub_project_payments(amount), hub_project_costs(amount))')
-      .eq('contractor_id', hubUser.id)
-      .then(async ({ data, error }) => {
-        if (error) { console.error('Projects fetch error:', error); setLoading(false); return; }
-        const normalized = ((data ?? []) as ProjectRowRaw[]).map((row) => ({
-          ...row,
-          hub_project_contractor_payouts: row.hub_project_contractor_payouts ?? [],
-          hub_projects: Array.isArray(row.hub_projects) ? row.hub_projects[0] : row.hub_projects,
-        }));
+    (async () => {
+      try {
+        // Step 1: get contractor's project assignments
+        const { data: pcData, error: pcErr } = await supabase
+          .from('hub_project_contractors')
+          .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at')
+          .eq('contractor_id', hubUser.id);
+        if (pcErr) throw pcErr;
+        if (!pcData?.length) { setLoading(false); return; }
+
+        const projectIds = pcData.map(r => r.id); // these are pc IDs
+        const allProjectIds: number[] = [];
+
+        // Step 2: fetch projects, payouts, payments, costs separately
+        const [{ data: projectsData }, { data: payoutsData }, { data: paymentsData }, { data: costsData }] = await Promise.all([
+          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url').in('id',
+            (await supabase.from('hub_project_contractors').select('project_id').eq('contractor_id', hubUser.id)).data?.map((r: any) => r.project_id) ?? []
+          ),
+          supabase.from('hub_project_contractor_payouts').select('id, amount, paid_at, notes, receipt_url, project_contractor_id').in('project_contractor_id', pcData.map(r => r.id)),
+          supabase.from('hub_project_payments').select('amount, project_id'),
+          supabase.from('hub_project_costs').select('amount, project_id'),
+        ]);
+
+        // Step 3: get project_id mapping for each pc row
+        const { data: pcFull } = await supabase
+          .from('hub_project_contractors')
+          .select('id, project_id')
+          .eq('contractor_id', hubUser.id);
+
+        const pcProjectMap = Object.fromEntries((pcFull ?? []).map((r: any) => [r.id, r.project_id]));
+        const projectMap = Object.fromEntries((projectsData ?? []).map((p: any) => [p.id, p]));
+        const payoutsByPc: Record<number, any[]> = {};
+        for (const p of (payoutsData ?? [])) {
+          (payoutsByPc[p.project_contractor_id] ??= []).push(p);
+        }
+        const paymentsByProject: Record<number, number[]> = {};
+        for (const p of (paymentsData ?? [])) (paymentsByProject[p.project_id] ??= []).push(p.amount);
+        const costsByProject: Record<number, number[]> = {};
+        for (const c of (costsData ?? [])) (costsByProject[c.project_id] ??= []).push(c.amount);
+
+        const normalized: ProjectRow[] = pcData.map(pc => {
+          const projectId = pcProjectMap[pc.id];
+          const project = projectMap[projectId];
+          if (!project) return null;
+          allProjectIds.push(projectId);
+          return {
+            ...pc,
+            hub_project_contractor_payouts: payoutsByPc[pc.id] ?? [],
+            hub_projects: {
+              ...project,
+              hub_project_payments: (paymentsByProject[projectId] ?? []).map(amount => ({ amount })),
+              hub_project_costs: (costsByProject[projectId] ?? []).map(amount => ({ amount })),
+            },
+          };
+        }).filter(Boolean) as ProjectRow[];
+
         setRows(normalized);
 
-        const projectIds = normalized.map(r => r.hub_projects?.id).filter(Boolean) as number[];
-        if (projectIds.length > 0) {
-          const [{ data: taskData }, { data: teamData }] = await Promise.all([
-            supabase
-              .from('hub_project_tasks')
-              .select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to')
-              .in('project_id', projectIds),
-            supabase
-              .from('hub_project_contractors')
-              .select('project_id, contractor_id')
-              .in('project_id', projectIds),
+        if (allProjectIds.length > 0) {
+          const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
+            supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to').in('project_id', allProjectIds),
+            supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', allProjectIds),
           ]);
           setTasks((taskData as ProjectTask[]) ?? []);
-          const pcRows = (teamData ?? []) as { project_id: number; contractor_id: string }[];
-          const allUserIds = [...new Set(pcRows.map(r => r.contractor_id))];
+          const allUserIds = [...new Set((pcTeamData ?? []).map((r: any) => r.contractor_id))];
           if (allUserIds.length > 0) {
-            const { data: usersData } = await supabase
-              .from('hub_users')
-              .select('id, full_name, avatar_url')
-              .in('id', allUserIds);
+            const { data: usersData } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', allUserIds);
             const usersById = Object.fromEntries((usersData ?? []).map((u: any) => [u.id, u]));
             const map: Record<number, TeamMember[]> = {};
-            for (const r of pcRows) {
+            for (const r of (pcTeamData ?? []) as any[]) {
               const u = usersById[r.contractor_id];
               if (u) (map[r.project_id] ??= []).push(u);
             }
             setTeamMap(map);
           }
         }
+      } catch (err) {
+        console.error('Projects load error:', err);
+      } finally {
         setLoading(false);
-      }).catch((err) => { console.error('Projects fetch exception:', err); setLoading(false); });
+      }
+    })();
   }, [hubUser]);
 
   const hour = new Date().getHours();
