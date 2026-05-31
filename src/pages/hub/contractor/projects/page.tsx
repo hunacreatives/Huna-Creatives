@@ -1015,79 +1015,76 @@ export default function ContractorProjectsPage() {
 
     (async () => {
       try {
-        // Step 1: get contractor's project assignments
+        // 1. contractor's assignments + project_ids in one query
         const { data: pcData, error: pcErr } = await supabase
           .from('hub_project_contractors')
-          .select('id, percentage, payout_type, fixed_amount, payout_status, paid_at')
+          .select('id, project_id, percentage, payout_type, fixed_amount, payout_status, paid_at')
           .eq('contractor_id', hubUser.id);
         if (pcErr) throw pcErr;
         if (!pcData?.length) { setLoading(false); return; }
 
-        const projectIds = pcData.map(r => r.id); // these are pc IDs
-        const allProjectIds: number[] = [];
+        const projectIds = [...new Set(pcData.map((r: any) => r.project_id as number))];
+        const pcIds = pcData.map((r: any) => r.id as number);
 
-        // Step 2: fetch projects, payouts, payments, costs separately
-        const [{ data: projectsData }, { data: payoutsData }, { data: paymentsData }, { data: costsData }] = await Promise.all([
-          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url').in('id',
-            (await supabase.from('hub_project_contractors').select('project_id').eq('contractor_id', hubUser.id)).data?.map((r: any) => r.project_id) ?? []
-          ),
-          supabase.from('hub_project_contractor_payouts').select('id, amount, paid_at, notes, receipt_url, project_contractor_id').in('project_contractor_id', pcData.map(r => r.id)),
-          supabase.from('hub_project_payments').select('amount, project_id'),
-          supabase.from('hub_project_costs').select('amount, project_id'),
+        // 2. fetch everything in parallel — no nested joins
+        const [
+          { data: projectsData },
+          { data: payoutsData },
+          { data: paymentsData },
+          { data: costsData },
+        ] = await Promise.all([
+          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url').in('id', projectIds),
+          supabase.from('hub_project_contractor_payouts').select('id, amount, paid_at, notes, receipt_url, project_contractor_id').in('project_contractor_id', pcIds),
+          supabase.from('hub_project_payments').select('amount, project_id').in('project_id', projectIds),
+          supabase.from('hub_project_costs').select('amount, project_id').in('project_id', projectIds),
         ]);
 
-        // Step 3: get project_id mapping for each pc row
-        const { data: pcFull } = await supabase
-          .from('hub_project_contractors')
-          .select('id, project_id')
-          .eq('contractor_id', hubUser.id);
-
-        const pcProjectMap = Object.fromEntries((pcFull ?? []).map((r: any) => [r.id, r.project_id]));
         const projectMap = Object.fromEntries((projectsData ?? []).map((p: any) => [p.id, p]));
         const payoutsByPc: Record<number, any[]> = {};
-        for (const p of (payoutsData ?? [])) {
-          (payoutsByPc[p.project_contractor_id] ??= []).push(p);
-        }
-        const paymentsByProject: Record<number, number[]> = {};
-        for (const p of (paymentsData ?? [])) (paymentsByProject[p.project_id] ??= []).push(p.amount);
-        const costsByProject: Record<number, number[]> = {};
-        for (const c of (costsData ?? [])) (costsByProject[c.project_id] ??= []).push(c.amount);
+        for (const p of (payoutsData ?? [])) (payoutsByPc[p.project_contractor_id] ??= []).push(p);
+        const paymentsByProject: Record<number, { amount: number }[]> = {};
+        for (const p of (paymentsData ?? [])) (paymentsByProject[p.project_id] ??= []).push({ amount: p.amount });
+        const costsByProject: Record<number, { amount: number }[]> = {};
+        for (const c of (costsData ?? [])) (costsByProject[c.project_id] ??= []).push({ amount: c.amount });
 
-        const normalized: ProjectRow[] = pcData.map(pc => {
-          const projectId = pcProjectMap[pc.id];
-          const project = projectMap[projectId];
+        const normalized: ProjectRow[] = pcData.map((pc: any) => {
+          const project = projectMap[pc.project_id];
           if (!project) return null;
-          allProjectIds.push(projectId);
           return {
-            ...pc,
+            id: pc.id,
+            percentage: pc.percentage,
+            payout_type: pc.payout_type,
+            fixed_amount: pc.fixed_amount,
+            payout_status: pc.payout_status,
+            paid_at: pc.paid_at,
             hub_project_contractor_payouts: payoutsByPc[pc.id] ?? [],
             hub_projects: {
               ...project,
-              hub_project_payments: (paymentsByProject[projectId] ?? []).map(amount => ({ amount })),
-              hub_project_costs: (costsByProject[projectId] ?? []).map(amount => ({ amount })),
+              hub_project_payments: paymentsByProject[pc.project_id] ?? [],
+              hub_project_costs: costsByProject[pc.project_id] ?? [],
             },
           };
         }).filter(Boolean) as ProjectRow[];
 
         setRows(normalized);
 
-        if (allProjectIds.length > 0) {
-          const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
-            supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to').in('project_id', allProjectIds),
-            supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', allProjectIds),
-          ]);
-          setTasks((taskData as ProjectTask[]) ?? []);
-          const allUserIds = [...new Set((pcTeamData ?? []).map((r: any) => r.contractor_id))];
-          if (allUserIds.length > 0) {
-            const { data: usersData } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', allUserIds);
-            const usersById = Object.fromEntries((usersData ?? []).map((u: any) => [u.id, u]));
-            const map: Record<number, TeamMember[]> = {};
-            for (const r of (pcTeamData ?? []) as any[]) {
-              const u = usersById[r.contractor_id];
-              if (u) (map[r.project_id] ??= []).push(u);
-            }
-            setTeamMap(map);
+        // 3. tasks + team
+        const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
+          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to').in('project_id', projectIds),
+          supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', projectIds),
+        ]);
+        setTasks((taskData as ProjectTask[]) ?? []);
+
+        const allUserIds = [...new Set((pcTeamData ?? []).map((r: any) => r.contractor_id as string))];
+        if (allUserIds.length > 0) {
+          const { data: usersData } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', allUserIds);
+          const usersById = Object.fromEntries((usersData ?? []).map((u: any) => [u.id, u]));
+          const map: Record<number, TeamMember[]> = {};
+          for (const r of (pcTeamData ?? []) as any[]) {
+            const u = usersById[r.contractor_id];
+            if (u) (map[r.project_id] ??= []).push(u);
           }
+          setTeamMap(map);
         }
       } catch (err) {
         console.error('Projects load error:', err);
