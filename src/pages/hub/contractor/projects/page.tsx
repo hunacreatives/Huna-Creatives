@@ -1056,7 +1056,7 @@ export default function ContractorProjectsPage() {
           }
         }
         setLoading(false);
-      });
+      }).catch((err) => { console.error('Projects fetch exception:', err); setLoading(false); });
   }, [hubUser]);
 
   const hour = new Date().getHours();
