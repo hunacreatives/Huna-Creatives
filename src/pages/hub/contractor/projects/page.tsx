@@ -2038,22 +2038,20 @@ export default function ContractorProjectsPage() {
                       }
                     }}
                       className="w-full text-left rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-                      style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
-                      {/* Color bar based on service */}
-                      {(() => { const pal = getCardPalette(c.service ?? null); return <div className="h-1" style={{ background: `linear-gradient(90deg, ${pal.from}, ${pal.to})` }} />; })()}
+                      style={(() => { const pal = getCardPalette(c.service ?? null); return { background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 2px 20px rgba(0,0,0,0.12)' }; })()}>
                       <div className="p-3.5 space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1" style={{ color: getCardPalette(c.service).from }}>{c.service}</span>}
-                            <p className="font-bold text-gray-900 text-sm leading-tight truncate">{c.name}</p>
-                            {(c.role || c.platform) && <p className="text-xs text-gray-500 mt-0.5 truncate">{c.role ?? c.platform}</p>}
+                            {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{c.service}</span>}
+                            <p className="font-bold text-white text-sm leading-tight truncate">{c.name}</p>
+                            {(c.role || c.platform) && <p className="text-xs text-white/70 mt-0.5 truncate">{c.role ?? c.platform}</p>}
                           </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.type === 'retainer' ? 'bg-indigo-100 text-indigo-600' : 'bg-orange-100 text-orange-600'}`}>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 bg-white/20 text-white">
                             {c.type === 'retainer' ? 'Retainer' : 'International'}
                           </span>
                         </div>
                         {c.notes ? (
-                          <p className="text-[10px] text-gray-500 italic pt-1 border-t border-white/60 truncate">{c.notes}</p>
+                          <p className="text-[10px] text-white/60 italic pt-1 border-t border-white/20 truncate">{c.notes}</p>
                         ) : null}
                       </div>
                     </button>
