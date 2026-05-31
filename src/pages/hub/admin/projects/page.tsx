@@ -1713,7 +1713,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   onClick={() => setProjectTypeFilter(pt)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${projectTypeFilter === pt ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100'}`}
                 >
-                  {pt === 'all' ? 'All' : pt === 'client' ? 'Client' : pt === 'retainer' ? 'Retainer' : 'Internal'}
+                  {pt === 'all' ? 'All' : pt === 'client' ? 'One-time' : pt === 'retainer' ? 'Retainer' : 'Internal'}
                 </button>
               ))}
             </div>
@@ -2574,7 +2574,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <label className="text-xs font-medium text-gray-700">Project Type</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { value: 'client',   label: 'Client',   sub: 'One-time billing' },
+                    { value: 'client',   label: 'One-time',   sub: 'Fixed contract billing' },
                     { value: 'retainer', label: 'Retainer', sub: 'Monthly recurring' },
                     { value: 'internal', label: 'Internal', sub: 'Tasks & team only' },
                   ].map(option => (
