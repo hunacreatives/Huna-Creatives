@@ -1193,6 +1193,7 @@ export default function AdminPayrollPage() {
         {/* Payroll cutoff banner — hidden for closed periods */}
         {!closedPeriods.has(selectedPeriod.start) && (() => {
           const cutoff = getNextPayrollCutoff();
+          if (cutoff.daysAway > 3) return null;
           const urgent = cutoff.daysAway <= 3;
           const soon = cutoff.daysAway <= 7;
           return (
