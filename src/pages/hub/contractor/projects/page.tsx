@@ -1980,7 +1980,7 @@ export default function ContractorProjectsPage() {
                   {featuredTasks.slice(0, 10).map((t, i) => {
                     const projectName = getProjectName(t.project_id);
                     const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
-                    const palColor = CARD_PALETTE[i % CARD_PALETTE.length];
+                    const palColor = getCardPalette('ongoing', !!(t.due_date && t.due_date < today), null);
                     return (
                       <button
                         key={t.id}
