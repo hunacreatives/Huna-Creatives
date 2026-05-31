@@ -226,7 +226,7 @@ export default function TaskDetailPanel({
         description: description.trim() || null,
         status,
         priority,
-        assignee_id: assigneeId || null,
+        assigned_to: assigneeId || null,
         due_date: dueDate || null,
         start_date: startDate || null,
         checklist,
