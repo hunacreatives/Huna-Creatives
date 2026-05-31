@@ -233,15 +233,20 @@ export default function TaskDetailPanel({
         updated_at: new Date().toISOString(),
       };
 
+      const assigneeMember = teamMembers.find(m => m.id === assigneeId) ?? null;
+      const hub_users = assigneeMember
+        ? { id: assigneeMember.id, full_name: assigneeMember.full_name, avatar_url: assigneeMember.avatar_url ?? null }
+        : null;
+
       if (isNew) {
         const { data, error } = await supabase
           .from('hub_project_tasks')
           .insert({ ...payload, project_id: projectId, created_by: currentUserId })
-          .select('*, hub_users!assignee_id(id, full_name, avatar_url)')
+          .select('*')
           .single();
         if (error) throw error;
         await logActivity(data.id, 'created', `created this task`);
-        onSaved(data as TaskDetailTask);
+        onSaved({ ...data, hub_users } as TaskDetailTask);
         onClose();
       } else {
         const prev = task!;
@@ -249,7 +254,7 @@ export default function TaskDetailPanel({
           .from('hub_project_tasks')
           .update(payload)
           .eq('id', prev.id)
-          .select('*, hub_users!assignee_id(id, full_name, avatar_url)')
+          .select('*')
           .single();
         if (error) throw error;
 
@@ -263,7 +268,7 @@ export default function TaskDetailPanel({
 
         setChecklist(data.checklist ?? []);
         setEditing(false);
-        onSaved(data as TaskDetailTask);
+        onSaved({ ...data, hub_users } as TaskDetailTask);
         fetchTaskData(prev.id);
       }
     } catch (err: unknown) {
