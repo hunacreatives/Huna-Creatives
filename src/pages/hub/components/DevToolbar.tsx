@@ -20,7 +20,6 @@ export default function DevToolbar() {
 
   useEffect(() => {
     if (!hubUser?.is_developer || !hubUser?.id) return;
-    // Sync from Supabase in background (cross-device source of truth)
     supabase
       .from('hub_users')
       .select('dev_toolbar_hidden')
@@ -28,14 +27,30 @@ export default function DevToolbar() {
       .single()
       .then(({ data }) => {
         const serverHidden = !!(data as any)?.dev_toolbar_hidden;
-        // Update local state and localStorage to match server
         setHidden(serverHidden);
         localStorage.setItem(LS_KEY, String(serverHidden));
       });
   }, [hubUser?.id]);
 
+  // Ctrl+Shift+D toggles the toolbar regardless of hidden state
+  useEffect(() => {
+    if (!hubUser?.is_developer) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setHidden(prev => {
+          const next = !prev;
+          localStorage.setItem(LS_KEY, String(next));
+          supabase.from('hub_users').update({ dev_toolbar_hidden: next } as any).eq('id', hubUser!.id);
+          return next;
+        });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [hubUser?.is_developer, hubUser?.id]);
+
   if (!hubUser?.is_developer) return null;
-  if (hidden) return null;
 
   const hide = async () => {
     setHidden(true);
@@ -50,6 +65,8 @@ export default function DevToolbar() {
     setDevViewAs(role);
     navigate(role === 'contractor' ? '/hub/contractor/dashboard' : '/hub/admin/dashboard');
   };
+
+  if (hidden) return null;
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 bg-[#111827] text-white px-3 py-2 rounded-full shadow-2xl border border-white/10">
