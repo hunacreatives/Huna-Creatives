@@ -6,17 +6,31 @@ const cors = {
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
-const SYSTEM_PROMPT = `You are a project data extractor for a creative agency. Extract project details from the provided document and return ONLY valid JSON with exactly these fields:
-- project_name: string
-- client_name: string
-- project_type: "client" | "retainer" | "internal" (client = one-time fixed price, retainer = monthly recurring, internal = no external client)
-- service: string (e.g. "Website Design", "Branding", "Social Media Management", "UI/UX Design")
-- contract_price: number | null (total fixed price for client projects, null for retainers)
-- monthly_rate: number | null (monthly fee for retainer projects, null otherwise)
-- start_date: string | null (YYYY-MM-DD)
-- deadline: string | null (YYYY-MM-DD)
-- notes: string | null (brief scope or key terms, max 2 sentences)
+const SYSTEM_PROMPT = `You are a project data extractor for a creative agency. Extract project details AND tasks from the provided document.
 
+Return ONLY valid JSON with exactly these fields:
+{
+  "project_name": string,
+  "client_name": string,
+  "project_type": "client" | "retainer" | "internal",
+  "service": string (e.g. "Website Design", "Branding", "Social Media Management"),
+  "contract_price": number | null,
+  "monthly_rate": number | null,
+  "start_date": string | null (YYYY-MM-DD),
+  "deadline": string | null (YYYY-MM-DD),
+  "notes": string | null (max 2 sentences),
+  "tasks": [
+    {
+      "title": string,
+      "description": string | null,
+      "priority": "low" | "medium" | "high",
+      "start_date": string | null (YYYY-MM-DD),
+      "due_date": string | null (YYYY-MM-DD)
+    }
+  ]
+}
+
+For tasks: extract every task, deliverable, milestone, or to-do item listed in the document. If none are found, return an empty array.
 Use null for any field that cannot be determined. Return ONLY the JSON object with no explanation or markdown.`;
 
 Deno.serve(async (req) => {
@@ -29,17 +43,17 @@ Deno.serve(async (req) => {
 
     if (mime_type === 'application/pdf') {
       content = [
-        { type: 'text', text: 'Extract project details from this document.' },
+        { type: 'text', text: 'Extract project details and tasks from this document.' },
         { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: file_base64 } },
       ];
     } else if (mime_type.startsWith('image/')) {
       content = [
-        { type: 'text', text: 'Extract project details from this document image.' },
+        { type: 'text', text: 'Extract project details and tasks from this document image.' },
         { type: 'image', source: { type: 'base64', media_type: mime_type, data: file_base64 } },
       ];
     } else {
       const text = new TextDecoder().decode(Uint8Array.from(atob(file_base64), c => c.charCodeAt(0)));
-      content = [{ type: 'text', text: `Extract project details from this document:\n\n${text.slice(0, 12000)}` }];
+      content = [{ type: 'text', text: `Extract project details and tasks from this document:\n\n${text.slice(0, 12000)}` }];
     }
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -51,7 +65,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 600,
+        max_tokens: 2000,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content }],
       }),

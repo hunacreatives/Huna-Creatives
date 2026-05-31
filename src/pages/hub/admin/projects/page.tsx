@@ -134,6 +134,7 @@ export default function AdminProjectsPage() {
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [importedTasks, setImportedTasks] = useState<{ title: string; description: string | null; priority: 'low' | 'medium' | 'high'; start_date: string | null; due_date: string | null }[]>([]);
 
   // Payment log
   const [payAmount, setPayAmount] = useState('');
@@ -443,9 +444,25 @@ export default function AdminProjectsPage() {
           payout_status: 'pending',
         }).then(({ error: e }) => { if (e) console.error('Auto-assign owner failed:', e); });
       }
-      if (data) setActiveId(data.id);
+      if (data) {
+        setActiveId(data.id);
+        if (importedTasks.length > 0) {
+          await supabase.from('hub_project_tasks').insert(
+            importedTasks.map(t => ({
+              project_id: data.id,
+              title: t.title,
+              description: t.description || null,
+              status: 'todo' as const,
+              priority: t.priority,
+              start_date: t.start_date || null,
+              due_date: t.due_date || null,
+              assigned_to: null,
+            }))
+          );
+        }
+      }
     }
-    setFormSaving(false); setShowForm(false); setEditingProject(null); setForm(emptyForm);
+    setFormSaving(false); setShowForm(false); setEditingProject(null); setForm(emptyForm); setImportedTasks([]);
     fetchAll();
   };
 
@@ -2601,6 +2618,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                               deadline: data.deadline ?? f.deadline,
                               notes: data.notes ?? f.notes,
                             } as any));
+                            if (data.tasks?.length) setImportedTasks(data.tasks);
                           } catch (err) {
                             setFormError(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
                           } finally {
@@ -2718,10 +2736,26 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
               )}
+              {importedTasks.length > 0 && (
+                <div className="mt-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                  <p className="text-xs font-semibold text-indigo-700 mb-1.5"><i className="ri-sparkling-2-line mr-1"></i>{importedTasks.length} task{importedTasks.length !== 1 ? 's' : ''} will be added</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {importedTasks.map((t, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-indigo-800 truncate">{t.title}</span>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${t.priority === 'high' ? 'bg-rose-100 text-rose-600' : t.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-500'}`}>{t.priority}</span>
+                          <button onClick={() => setImportedTasks(prev => prev.filter((_, j) => j !== i))} className="text-indigo-400 hover:text-indigo-600 cursor-pointer"><i className="ri-close-line text-xs"></i></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {formError && <p className="text-xs text-red-500">{formError}</p>}
             </div>
             <div className="flex gap-2 p-5 pt-0">
-              <button onClick={() => { setShowForm(false); setEditingProject(null); }} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
+              <button onClick={() => { setShowForm(false); setEditingProject(null); setImportedTasks([]); }} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
               <button onClick={saveProject} disabled={formSaving}
                 className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-40 cursor-pointer">
                 {formSaving ? 'Saving...' : editingProject ? 'Save Changes' : 'Create Project'}
