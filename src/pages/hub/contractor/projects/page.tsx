@@ -2448,6 +2448,7 @@ export default function ContractorProjectsPage() {
         }}
         onDeleted={(id) => { setTasks(prev => prev.filter(t => t.id !== id)); setDetailPanelOpen(false); setEditingTask(null); }}
         projectId={wsRow?.id ?? 0}
+        projectName={wsProject?.project_name ?? 'General'}
         teamMembers={wsTeam}
         canEdit={true}
         currentUserId={hubUser?.id ?? ''}

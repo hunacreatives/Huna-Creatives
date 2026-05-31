@@ -7,6 +7,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
 import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/TaskDetailPanel';
+import { uploadFileToDrive } from '@/lib/driveUpload';
 
 // ── SVG progress ring ──────────────────────────────────────────────────────
 function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
@@ -476,13 +477,7 @@ export default function AdminProjectsPage() {
 
     let receipt_url: string | null = null;
     if (payReceipt) {
-      const ext = payReceipt.name.split('.').pop();
-      const path = `client-payments/${activeId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('payout-receipts').upload(path, payReceipt, { upsert: true });
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('payout-receipts').getPublicUrl(path);
-        receipt_url = urlData.publicUrl;
-      }
+      receipt_url = await uploadFileToDrive(payReceipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
     }
 
     const { error } = await supabase.from('hub_project_payments').insert({
@@ -546,13 +541,7 @@ export default function AdminProjectsPage() {
 
     let receipt_url = editPayForm.existingReceiptUrl;
     if (editPayForm.receipt) {
-      const ext = editPayForm.receipt.name.split('.').pop();
-      const path = `client-payments/${activeId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('payout-receipts').upload(path, editPayForm.receipt, { upsert: true });
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('payout-receipts').getPublicUrl(path);
-        receipt_url = urlData.publicUrl;
-      }
+      receipt_url = await uploadFileToDrive(editPayForm.receipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
     }
 
     const { error } = await supabase.from('hub_project_payments').update({
@@ -641,13 +630,7 @@ export default function AdminProjectsPage() {
 
     let receipt_url: string | null = null;
     if (form.receipt) {
-      const ext = form.receipt.name.split('.').pop();
-      const path = `payouts/${pcId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('payout-receipts').upload(path, form.receipt, { upsert: true });
-      if (!upErr) {
-        const { data: urlData } = supabase.storage.from('payout-receipts').getPublicUrl(path);
-        receipt_url = urlData.publicUrl;
-      }
+      receipt_url = await uploadFileToDrive(form.receipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
     }
 
     const amount = parseFloat(form.amount);
@@ -2938,6 +2921,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         }}
         onDeleted={(id) => { setTasks(prev => prev.filter(t => t.id !== id)); setDetailOpen(false); setDetailTask(null); }}
         projectId={activeId ?? 0}
+        projectName={activeProject?.project_name ?? 'General'}
         teamMembers={wsTaskTeam.map(u => ({ id: u!.id, full_name: u!.full_name, avatar_url: u!.avatar_url }))}
         canEdit={true}
         currentUserId={hubUser?.id ?? ''}

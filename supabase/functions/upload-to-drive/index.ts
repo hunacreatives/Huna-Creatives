@@ -21,28 +21,52 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-// Folder IDs in Sentro OS Drive
+// ── Root Sentro OS Drive folder ───────────────────────────────────────────────
+const SENTRO_ROOT = '1XQzc0U_pQrhCtivjR4SsgE_WTG9DpvYd';
+
+// ── Static folder IDs in Sentro OS Drive ─────────────────────────────────────
 const FOLDERS = {
   // Attendance Reports
-  attendance_weekly:  '1U-pv4haPrxs7J2qK8ZMHL5cDgQfxu-mf',
-  attendance_monthly: '1aegFEr1kSyGD9VFY_yx9GRAi9tFDRNDS',
-  attendance_yearly:  '1u2tyo7N68QYQEWoVayCghVbhXwc6FauD',
+  attendance_weekly:       '1U-pv4haPrxs7J2qK8ZMHL5cDgQfxu-mf',
+  attendance_monthly:      '1aegFEr1kSyGD9VFY_yx9GRAi9tFDRNDS',
+  attendance_yearly:       '1u2tyo7N68QYQEWoVayCghVbhXwc6FauD',
   // Invoices by year
-  invoices_2025: '1jz5FDLTMzE7l-mOrhLihiIhyECVE50fE',
-  invoices_2026: '1GTimrkflGp6LcbAQAh-kLY1fPiFEjTFi',
+  invoices_2025:           '1jz5FDLTMzE7l-mOrhLihiIhyECVE50fE',
+  invoices_2026:           '1GTimrkflGp6LcbAQAh-kLY1fPiFEjTFi',
   // Payroll by year
-  payroll_2025: '1_YXPRMM4s0jGq6WjeE_WaBboD0xsNXjU',
-  payroll_2026: '1XUVMJAfrj02wVSBeq13wYpcntxDr_h_d',
+  payroll_2025:            '1_YXPRMM4s0jGq6WjeE_WaBboD0xsNXjU',
+  payroll_2026:            '1XUVMJAfrj02wVSBeq13wYpcntxDr_h_d',
   // Contractors
-  contractors_agreements: '1Pvqf6N4ZkBWimTVlbwzn1zKi04cP1jkM',
-  contractors_ids:        '1LipR8kjOLhTubugnT8EdUWFKaLsP_PqQ',
-  contractors_rates:      '1m3nLFN10T2JirT0L3ReMBXT5_Hcgv_o_',
+  contractors_agreements:  '1Pvqf6N4ZkBWimTVlbwzn1zKi04cP1jkM',
+  contractors_ids:         '1LipR8kjOLhTubugnT8EdUWFKaLsP_PqQ',
+  contractors_rates:       '1m3nLFN10T2JirT0L3ReMBXT5_Hcgv_o_',
   // Clients
-  clients_active:    '11uYE23gr8vekpSSCpNPZPDWwOadBpAgB',
-  clients_completed: '1r8XUoedmhB2V_NsFygX829mj88bjhJF2',
+  clients_active:          '11uYE23gr8vekpSSCpNPZPDWwOadBpAgB',
+  clients_completed:       '1r8XUoedmhB2V_NsFygX829mj88bjhJF2',
 };
 
-function getFolderForType(type: string, meta: Record<string, string>): string {
+// ── Create or get a subfolder by name under a parent ─────────────────────────
+async function createOrGetFolder(name: string, parentId: string, accessToken: string): Promise<string> {
+  const safeName = name.replace(/['"\\]/g, '');
+  const searchRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=name='${safeName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  const searchData = await searchRes.json();
+  if (searchData.files?.length > 0) return searchData.files[0].id;
+
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: safeName, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }),
+  });
+  const createData = await createRes.json();
+  if (!createData.id) throw new Error(`Failed to create folder "${safeName}": ${JSON.stringify(createData)}`);
+  return createData.id;
+}
+
+// ── Resolve target folder for each upload type ────────────────────────────────
+async function getFolderForType(type: string, meta: Record<string, string>, accessToken: string): Promise<string> {
   const year = meta.year || String(new Date().getFullYear());
 
   if (type === 'attendance_weekly')  return FOLDERS.attendance_weekly;
@@ -61,6 +85,32 @@ function getFolderForType(type: string, meta: Record<string, string>): string {
   if (type === 'client_active')        return FOLDERS.clients_active;
   if (type === 'client_completed')     return FOLDERS.clients_completed;
 
+  // ── New types routed through Drive ─────────────────────────────────────────
+
+  if (type === 'task_attachment') {
+    // Sentro Root / Task Attachments / {project_name}
+    const projectName = meta.project_name || 'General';
+    const rootFolder = await createOrGetFolder('Task Attachments', SENTRO_ROOT, accessToken);
+    return createOrGetFolder(projectName, rootFolder, accessToken);
+  }
+
+  if (type === 'payout_receipt') {
+    // Payroll {year} / Receipts
+    const payrollFolder = year === '2025' ? FOLDERS.payroll_2025 : FOLDERS.payroll_2026;
+    return createOrGetFolder('Receipts', payrollFolder, accessToken);
+  }
+
+  if (type === 'payment_proof') {
+    // Clients Active / Payment Proofs / {year}
+    const proofsFolder = await createOrGetFolder('Payment Proofs', FOLDERS.clients_active, accessToken);
+    return createOrGetFolder(year, proofsFolder, accessToken);
+  }
+
+  if (type === 'hub_document') {
+    // Contractors / Agreements
+    return FOLDERS.contractors_agreements;
+  }
+
   throw new Error(`Unknown upload type: ${type}`);
 }
 
@@ -76,8 +126,8 @@ serve(async (req) => {
       });
     }
 
-    const folderId = getFolderForType(type, meta);
     const accessToken = await getAccessToken();
+    const folderId = await getFolderForType(type, meta, accessToken);
 
     // Convert HTML → Google Doc if convertToDoc flag is set
     const convertToDoc = meta.convertToDoc === 'true' || mimeType === 'text/html';
@@ -109,22 +159,22 @@ serve(async (req) => {
       ? 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&convert=true'
       : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
 
-    const uploadRes = await fetch(
-      uploadUrl,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': `multipart/related; boundary=${boundary}`,
-        },
-        body: combined,
-      }
-    );
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`,
+      },
+      body: combined,
+    });
 
     const result = await uploadRes.json();
     if (!uploadRes.ok) throw new Error(JSON.stringify(result));
 
-    return new Response(JSON.stringify({ success: true, fileId: result.id, name: result.name }), {
+    const fileId = result.id;
+    const url = `https://drive.google.com/file/d/${fileId}/view`;
+
+    return new Response(JSON.stringify({ success: true, fileId, name: result.name, url }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     });
   } catch (err) {

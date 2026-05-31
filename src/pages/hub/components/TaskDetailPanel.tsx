@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
+import { uploadFileToDrive } from '@/lib/driveUpload';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ interface Props {
   onSaved: (task: TaskDetailTask) => void;
   onDeleted: (taskId: number) => void;
   projectId: number;
+  projectName?: string;
   teamMembers: TeamMember[];
   canEdit: boolean;
   currentUserId: string;
@@ -124,6 +126,7 @@ export default function TaskDetailPanel({
   onSaved,
   onDeleted,
   projectId,
+  projectName = 'General',
   teamMembers,
   canEdit,
   currentUserId,
@@ -359,14 +362,11 @@ export default function TaskDetailPanel({
     const file = e.target.files?.[0];
     if (!file || !task) return;
     setUploading(true);
-    const path = `${task.id}/${Date.now()}-${file.name}`;
-    const { error: upErr } = await supabase.storage.from('task-attachments').upload(path, file);
-    if (!upErr) {
-      const { data: urlData } = supabase.storage.from('task-attachments').getPublicUrl(path);
-      const url = urlData?.publicUrl;
+    const url = await uploadFileToDrive(file, 'task_attachment', { project_name: projectName });
+    if (url) {
       const { data } = await supabase
         .from('hub_project_task_attachments')
-        .insert({ task_id: task.id, uploaded_by: currentUserId, name: file.name, url: url ?? path, size: file.size, mime_type: file.type })
+        .insert({ task_id: task.id, uploaded_by: currentUserId, name: file.name, url, size: file.size, mime_type: file.type })
         .select('*').single();
       if (data) {
         setAttachments(prev => [data, ...prev]);
