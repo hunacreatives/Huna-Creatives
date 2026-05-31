@@ -4,7 +4,7 @@ const cors = {
   'Content-Type': 'application/json',
 };
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!;
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
 
 const SYSTEM_PROMPT = `You are a project data extractor for a creative agency. Extract project details from the provided document and return ONLY valid JSON with exactly these fields:
 - project_name: string
@@ -25,44 +25,46 @@ Deno.serve(async (req) => {
   try {
     const { file_base64, mime_type, file_name } = await req.json();
 
-    let userContent: unknown[];
+    let content: unknown[];
 
     if (mime_type === 'application/pdf') {
-      userContent = [
+      content = [
         { type: 'text', text: 'Extract project details from this document.' },
-        { type: 'file', file: { filename: file_name, file_data: `data:application/pdf;base64,${file_base64}` } },
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: file_base64 } },
       ];
     } else if (mime_type.startsWith('image/')) {
-      userContent = [
+      content = [
         { type: 'text', text: 'Extract project details from this document image.' },
-        { type: 'image_url', image_url: { url: `data:${mime_type};base64,${file_base64}` } },
+        { type: 'image', source: { type: 'base64', media_type: mime_type, data: file_base64 } },
       ];
     } else {
       const text = new TextDecoder().decode(Uint8Array.from(atob(file_base64), c => c.charCodeAt(0)));
-      userContent = [{ type: 'text', text: `Extract project details from this document:\n\n${text.slice(0, 12000)}` }];
+      content = [{ type: 'text', text: `Extract project details from this document:\n\n${text.slice(0, 12000)}` }];
     }
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userContent },
-        ],
-        response_format: { type: 'json_object' },
+        model: 'claude-sonnet-4-6',
         max_tokens: 600,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content }],
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      return new Response(JSON.stringify({ error: `OpenAI error: ${err}` }), { status: 500, headers: cors });
+      return new Response(JSON.stringify({ error: `Claude error: ${err}` }), { status: 500, headers: cors });
     }
 
     const result = await res.json();
-    const extracted = JSON.parse(result.choices[0].message.content);
+    const text = result.content[0].text;
+    const extracted = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] ?? text);
     return new Response(JSON.stringify(extracted), { headers: cors });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });
