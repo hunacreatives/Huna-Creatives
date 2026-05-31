@@ -1014,13 +1014,20 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
   const projectTypes = Array.from(new Set(projects.map(p => p.service).filter(Boolean) as string[])).sort();
 
+  // Main grid: one-time + internal only (retainers shown in Clients section below)
   const filtered = projects.filter(p => {
+    if (p.project_type === 'retainer') return false;
     const matchesSearch = !search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.project_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
     const matchesType = typeFilter === 'all' || p.service === typeFilter;
     const matchesProjectType = projectTypeFilter === 'all' || p.project_type === projectTypeFilter;
     return matchesSearch && matchesStatus && matchesType && matchesProjectType;
   });
+
+  // Retainer projects for the clients section
+  const retainerProjects = projects.filter(p => p.project_type === 'retainer' &&
+    (!search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.project_name.toLowerCase().includes(search.toLowerCase()))
+  );
 
   const deadlineStatus = (deadline: string | null, status: string) => {
     if (!deadline || status === 'completed' || status === 'cancelled') return null;
@@ -1774,13 +1781,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           <div className="flex flex-wrap gap-1.5 items-center">
             {/* Project type filter */}
             <div className="flex gap-1 mr-1">
-              {(['all', 'client', 'retainer', 'internal'] as const).map(pt => (
+              {(['all', 'client', 'internal'] as const).map(pt => (
                 <button
                   key={pt}
                   onClick={() => setProjectTypeFilter(pt)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${projectTypeFilter === pt ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100'}`}
                 >
-                  {pt === 'all' ? 'All' : pt === 'client' ? 'One-time' : pt === 'retainer' ? 'Retainer' : 'Internal'}
+                  {pt === 'all' ? 'All' : pt === 'client' ? 'One-time' : 'Internal'}
                 </button>
               ))}
             </div>
@@ -1926,52 +1933,87 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 })}
               </div>
             )}
-          {/* ── International Clients section ── */}
-          {intlClients.length > 0 && (
-            <div className="-mx-4 md:-mx-6 px-4 md:px-6 pt-5 pb-6 mt-2 space-y-3"
-              style={{ background: 'rgba(30,40,70,0.06)', borderTop: '1px solid rgba(30,40,70,0.10)' }}>
-              <div className="flex items-center gap-2">
-                <i className="ri-global-line text-[#FF6B35] text-sm"></i>
-                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">International Clients <span className="text-gray-400 font-normal">({intlClients.length})</span></p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {intlClients.map(c => {
-                  const pal = getServicePalette(c.platform);
-                  return (
-                    <div key={c.id} className="rounded-xl overflow-hidden border border-white/20"
-                      style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
-                      <div className="p-3.5">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            {c.platform && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{c.platform}</span>}
-                            <p className="font-bold text-white text-sm leading-tight truncate">{c.client_name}</p>
-                          </div>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.status === 'active' ? 'bg-white/25 text-white' : 'bg-black/20 text-white/70'}`}>
-                            {c.status}
-                          </span>
-                        </div>
-                        {c.assignments.length > 0 && (
-                          <div className="flex items-center gap-1.5 pt-2 border-t border-white/20">
-                            <div className="flex -space-x-1">
-                              {c.assignments.slice(0, 3).map((a, i) => (
-                                a.hub_users?.avatar_url
-                                  ? <img key={i} src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white/30" />
-                                  : <div key={i} className="w-5 h-5 rounded-full bg-white/30 border border-white/30 flex items-center justify-center text-[8px] font-bold text-white">{a.hub_users?.full_name?.[0]}</div>
-                              ))}
+          {/* ── Retainer Clients section ── */}
+          {(() => {
+            // Merge retainer projects + hub_clients, dedup by client_name
+            const retainerNames = new Set(retainerProjects.map(p => p.client_name.toLowerCase()));
+            const extraIntl = intlClients.filter(c => !retainerNames.has(c.client_name.toLowerCase()));
+            const totalCount = retainerProjects.length + extraIntl.length;
+            if (totalCount === 0) return null;
+            return (
+              <div className="-mx-4 md:-mx-6 px-4 md:px-6 pt-5 pb-6 mt-2 space-y-3"
+                style={{ background: 'rgba(30,40,70,0.06)', borderTop: '1px solid rgba(30,40,70,0.10)' }}>
+                <div className="flex items-center gap-2">
+                  <i className="ri-building-line text-[#FF6B35] text-sm"></i>
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Retainer Clients <span className="text-gray-400 font-normal">({totalCount})</span></p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {/* Retainer projects — clickable to open workspace */}
+                  {retainerProjects.map(p => {
+                    const pal = getServicePalette(p.service);
+                    const d = derived(p);
+                    return (
+                      <button key={p.id} onClick={() => { setActiveId(p.id); setWorkspaceOpen(true); }}
+                        className="rounded-xl overflow-hidden border border-white/20 text-left hover:-translate-y-0.5 transition-all cursor-pointer"
+                        style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
+                        <div className="p-3.5">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              {p.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{p.service}</span>}
+                              <p className="font-bold text-white text-sm leading-tight truncate">{p.project_name}</p>
+                              <p className="text-[11px] text-white/70 mt-0.5 truncate">{p.client_name}</p>
                             </div>
-                            <span className="text-[10px] text-white/70 truncate">
-                              {c.assignments[0]?.hub_users?.full_name?.split(' ')[0]}{c.assignments.length > 1 ? ` +${c.assignments.length - 1}` : ''}
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/20 text-white flex-shrink-0">
+                              {fmt(p.monthly_rate ?? 0)}/mo
                             </span>
                           </div>
-                        )}
-                        {c.notes && <p className="text-[10px] text-white/60 italic mt-1 truncate">{c.notes}</p>}
+                          <div className="flex items-center justify-between pt-2 border-t border-white/20">
+                            <span className="text-[10px] text-white/70">{d.monthsCollected ?? 0} months paid</span>
+                            <i className="ri-arrow-right-s-line text-white/50 text-sm"></i>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {/* Extra hub_clients not already in retainer projects */}
+                  {extraIntl.map(c => {
+                    const pal = getServicePalette(c.platform);
+                    return (
+                      <div key={c.id} className="rounded-xl overflow-hidden border border-white/20"
+                        style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
+                        <div className="p-3.5">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              {c.platform && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{c.platform}</span>}
+                              <p className="font-bold text-white text-sm leading-tight truncate">{c.client_name}</p>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.status === 'active' ? 'bg-white/25 text-white' : 'bg-black/20 text-white/70'}`}>
+                              {c.status}
+                            </span>
+                          </div>
+                          {c.assignments.length > 0 && (
+                            <div className="flex items-center gap-1.5 pt-2 border-t border-white/20">
+                              <div className="flex -space-x-1">
+                                {c.assignments.slice(0, 3).map((a, i) => (
+                                  a.hub_users?.avatar_url
+                                    ? <img key={i} src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white/30" />
+                                    : <div key={i} className="w-5 h-5 rounded-full bg-white/30 border border-white/30 flex items-center justify-center text-[8px] font-bold text-white">{a.hub_users?.full_name?.[0]}</div>
+                                ))}
+                              </div>
+                              <span className="text-[10px] text-white/70 truncate">
+                                {c.assignments[0]?.hub_users?.full_name?.split(' ')[0]}{c.assignments.length > 1 ? ` +${c.assignments.length - 1}` : ''}
+                              </span>
+                            </div>
+                          )}
+                          {c.notes && <p className="text-[10px] text-white/60 italic mt-1 truncate">{c.notes}</p>}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
           </div>
         </section>
 
