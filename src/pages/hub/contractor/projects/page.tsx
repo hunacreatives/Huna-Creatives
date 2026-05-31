@@ -2018,20 +2018,15 @@ export default function ContractorProjectsPage() {
               );
             })()}
 
-            {/* ── My Clients divider + section ── */}
+            {/* ── My Clients section ── */}
             {clientEntries.length > 0 && (
-              <div className="space-y-3">
-                {/* Divider */}
-                <div className="flex items-center gap-3 pt-2">
-                  <div className="flex-1 border-t border-gray-200/80"></div>
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 border border-gray-200/80 shadow-sm">
-                    <i className="ri-building-line text-[#FF6B35] text-xs"></i>
-                    <span className="text-[11px] font-semibold text-gray-500">My Clients</span>
-                    <span className="text-[10px] text-gray-400">({clientEntries.length})</span>
-                  </div>
-                  <div className="flex-1 border-t border-gray-200/80"></div>
+              <div className="-mx-4 md:-mx-6 px-4 md:px-6 pt-5 pb-6 mt-2 space-y-3"
+                style={{ background: 'rgba(30,40,70,0.06)', borderTop: '1px solid rgba(30,40,70,0.10)' }}>
+                {/* Header */}
+                <div className="flex items-center gap-2">
+                  <i className="ri-building-line text-[#FF6B35] text-sm"></i>
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">My Clients <span className="text-gray-400 font-normal">({clientEntries.length})</span></p>
                 </div>
-                {/* Cards — same style as project cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {clientEntries.map(c => (
                     <button key={c.id} onClick={() => {
@@ -2055,12 +2050,7 @@ export default function ContractorProjectsPage() {
                             {c.type === 'retainer' ? 'Retainer' : 'International'}
                           </span>
                         </div>
-                        {c.type === 'retainer' && c.monthly_rate ? (
-                          <div className="flex items-center justify-between pt-1 border-t border-white/60">
-                            <span className="text-[10px] text-indigo-600 font-semibold">₱{c.monthly_rate.toLocaleString()}/mo</span>
-                            <span className="text-[10px] text-gray-500">{c.months_paid} month{c.months_paid !== 1 ? 's' : ''} paid</span>
-                          </div>
-                        ) : c.notes ? (
+                        {c.notes ? (
                           <p className="text-[10px] text-gray-500 italic pt-1 border-t border-white/60 truncate">{c.notes}</p>
                         ) : null}
                       </div>
