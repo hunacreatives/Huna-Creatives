@@ -1950,18 +1950,18 @@ export default function ContractorProjectsPage() {
         <div className="flex gap-6 min-h-full">
 
           {/* ── LEFT: projects ── */}
-          <div className="flex-1 min-w-0 space-y-6">
+          <div className="flex-1 min-w-0 space-y-4">
 
             {/* Greeting */}
             <div>
               <p className="text-xs text-gray-400 mb-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-              <h2 className="text-[28px] font-bold tracking-tight leading-tight">
+              <h2 className="text-xl font-bold tracking-tight leading-tight">
                 <span style={{ background: greetingGradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
                   {greeting}, {firstName}.
                 </span>
                 {' '}<span className="not-italic" style={{ WebkitTextFillColor: 'initial' }}>{greetingEmoji}</span>
                 <br />
-                <span className="text-gray-400 font-normal text-xl">
+                <span className="text-gray-400 font-normal text-base">
                   {todayDueTasks.length > 0
                     ? `You've got ${todayDueTasks.length} task${todayDueTasks.length > 1 ? 's' : ''} due today.`
                     : overdueTasks.length > 0
@@ -1991,7 +1991,7 @@ export default function ContractorProjectsPage() {
               const done     = sortedRows.filter(r => r.hub_projects?.status === 'completed');
 
               const Section = ({ label, rows: sRows, dot }: { label: string; rows: typeof sortedRows; dot: string }) => sRows.length === 0 ? null : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`}></span>
                     <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{label} <span className="text-gray-300 font-normal">({sRows.length})</span></p>
@@ -2119,27 +2119,32 @@ export default function ContractorProjectsPage() {
                     const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
                     const palColor = getCardPalette(null);
                     return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => openTaskFromDashboard(t)}
-                        className={`w-full text-left flex items-start gap-3 p-3 rounded-2xl transition-colors cursor-pointer ${t.status === 'done' ? 'opacity-50' : 'hover:bg-gray-50/80'}`}>
-                        {/* Color dot */}
-                        <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ background: palColor.from }} />
-                        <div className="flex-1 min-w-0">
+                      <div key={t.id} className={`flex items-start gap-2 p-2.5 rounded-2xl transition-colors ${t.status === 'done' ? 'opacity-50' : 'hover:bg-gray-50/80'}`}>
+                        {/* Status toggle */}
+                        <button type="button" title="Change status"
+                          onClick={() => cycleTask(t)}
+                          className="mt-0.5 flex-shrink-0 cursor-pointer">
+                          <i className={`text-base ${
+                            t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' :
+                            t.status === 'in_progress' ? 'ri-loader-2-line text-sky-500' :
+                            'ri-checkbox-blank-circle-line text-gray-300 hover:text-gray-400'
+                          }`}></i>
+                        </button>
+                        {/* Title — click to open workspace */}
+                        <button type="button" onClick={() => openTaskFromDashboard(t)} className="flex-1 min-w-0 text-left cursor-pointer">
                           <p className={`text-sm font-medium leading-snug ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                             {t.title}
                           </p>
                           {projectName && (
                             <p className="text-[11px] text-gray-400 mt-0.5 truncate">{projectName}</p>
                           )}
-                        </div>
+                        </button>
                         {t.due_date && (
                           <span className={`text-[10px] font-semibold flex-shrink-0 mt-0.5 ${isOverdue ? 'text-rose-500' : t.due_date === today ? 'text-amber-600' : 'text-gray-400'}`}>
                             {t.due_date === today ? 'Today' : isOverdue ? 'Overdue' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                   {featuredTasks.length > 10 && (
