@@ -139,6 +139,9 @@ export default function AdminProjectsPage() {
   useEffect(() => { getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v))); }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [statsPeriod, setStatsPeriod] = useState<'month' | 'year' | 'all'>('all');
+  const [statsDateFrom, setStatsDateFrom] = useState('');
+  const [statsDateTo, setStatsDateTo] = useState('');
   const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; contract_value: number | null; contract_currency: string | null; assignments: { id: number; contractor_id: string; role: string | null; hub_users: { id: string; full_name: string; avatar_url: string | null; department: string | null } | null }[] }[]>([]);
   const [activeClientId, setActiveClientId] = useState<number | null>(null);
   const [clientForm, setClientForm] = useState({ client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' });
@@ -1142,17 +1145,29 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   };
 
   const summaryTotals = (() => {
+    const now = new Date();
+    const filterPayment = (paid_at: string) => {
+      if (statsPeriod === 'month') {
+        const m = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        return paid_at.startsWith(m);
+      }
+      if (statsPeriod === 'year') return paid_at.startsWith(String(now.getFullYear()));
+      if (statsPeriod === 'custom') {
+        if (statsDateFrom && paid_at < statsDateFrom) return false;
+        if (statsDateTo && paid_at > statsDateTo) return false;
+      }
+      return true;
+    };
     let contractValue = 0, costs = 0, collected = 0, mrr = 0;
     for (const p of projects.filter(p => p.project_type !== 'internal')) {
       if (p.project_type === 'retainer') {
         const rate = p.monthly_rate ?? 0;
-        const inPHP = (p as any).monthly_rate_currency === 'USD' ? rate * usdRate : rate;
-        mrr += inPHP;
+        mrr += (p as any).monthly_rate_currency === 'USD' ? rate * usdRate : rate;
       } else {
         contractValue += p.contract_price;
       }
       costs += p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
-      collected += p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
+      collected += p.hub_project_payments.filter(x => filterPayment(x.paid_at)).reduce((s, x) => s + x.amount, 0);
     }
     const netProfit = contractValue - costs;
     const collectionPct = contractValue > 0 ? Math.min((collected / contractValue) * 100, 100) : 0;
@@ -1264,9 +1279,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
   const serviceBreakdown = (() => {
     const map: Record<string, number> = {};
-    for (const p of projects) {
+    for (const p of projects.filter(p => p.project_type !== 'internal')) {
       const key = p.service || 'General';
-      map[key] = (map[key] ?? 0) + p.contract_price;
+      const value = p.project_type === 'retainer'
+        ? ((p as any).monthly_rate_currency === 'USD' ? (p.monthly_rate ?? 0) * usdRate : (p.monthly_rate ?? 0))
+        : p.contract_price;
+      map[key] = (map[key] ?? 0) + value;
     }
     const total = Object.values(map).reduce((s, v) => s + v, 0) || 1;
     return Object.entries(map)
@@ -1797,6 +1815,31 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             <div>
               <h2 className="text-[22px] font-bold text-[#111827]">{greeting}, {firstName}!</h2>
               <p className="text-sm text-gray-400 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex gap-1 bg-gray-100 p-0.5 rounded-xl">
+                {(['month', 'year', 'all'] as const).map(p => (
+                  <button key={p} onClick={() => setStatsPeriod(p)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${statsPeriod === p ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    {p === 'month' ? 'This Month' : p === 'year' ? 'This Year' : 'All Time'}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setStatsPeriod('custom' as any)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium border cursor-pointer transition-all ${statsPeriod === 'custom' ? 'bg-[#111827] text-white border-[#111827]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                Custom
+              </button>
+              {(statsPeriod as string) === 'custom' && (
+                <div className="flex items-center gap-1.5">
+                  <input type="date" value={statsDateFrom} onChange={e => setStatsDateFrom(e.target.value)}
+                    className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                  <span className="text-xs text-gray-400">to</span>
+                  <input type="date" value={statsDateTo} onChange={e => setStatsDateTo(e.target.value)}
+                    className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                </div>
+              )}
+              <p className="text-[11px] text-gray-400 ml-1">Collected filters by payment date</p>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
