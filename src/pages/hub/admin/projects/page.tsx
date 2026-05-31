@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
 import { supabase } from '@/lib/supabase';
@@ -116,6 +117,7 @@ function Avatar({ name, url }: { name: string; url?: string | null }) {
 export default function AdminProjectsPage() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +125,10 @@ export default function AdminProjectsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('ongoing');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [projectTypeFilter, setProjectTypeFilter] = useState<'all' | 'client' | 'internal' | 'retainer'>('all');
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(() => {
+    const w = searchParams.get('w');
+    return w ? parseInt(w) : null;
+  });
 
   // Project form
   const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Other'];
@@ -1043,7 +1048,22 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     else if (!activeId) { setTasks([]); setActivity([]); }
     setWorkspaceOpen(false);
     setOpenSections({});
+    // Sync URL
+    if (activeId) setSearchParams({ w: String(activeId) }, { replace: true });
+    else setSearchParams({}, { replace: true });
   }, [activeId, isDemo]);
+
+  // Open workspace directly if ?w= param is set on load
+  useEffect(() => {
+    const w = searchParams.get('w');
+    if (w && projects.length > 0) {
+      const id = parseInt(w);
+      if (projects.some(p => p.id === id)) {
+        setActiveId(id);
+        setWorkspaceOpen(true);
+      }
+    }
+  }, [projects]);
 
   const projectTags = (project: Project) => {
     const serviceTag = project.service ? [project.service] : ['General'];
@@ -1152,10 +1172,16 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
                   <i className="ri-arrow-left-s-line text-base"></i>
                 </button>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-gray-900 truncate leading-tight">{p.project_name}</p>
                   <p className="text-xs text-gray-400 truncate">{internalProject ? 'Internal Project' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                 </div>
+                <button
+                  onClick={() => { const url = `${window.location.origin}/hub/admin/projects?w=${activeId}`; navigator.clipboard.writeText(url); }}
+                  title="Copy workspace link"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer transition-all shadow-sm flex-shrink-0">
+                  <i className="ri-link text-base"></i>
+                </button>
               </div>
 
               {/* Info card — matches contractor workspace layout */}
