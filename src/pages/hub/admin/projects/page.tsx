@@ -289,7 +289,6 @@ export default function AdminProjectsPage() {
       priority: newTaskPriority,
       assigned_to: newTaskAssignee || null,
       due_date: newTaskDue || null,
-      created_by: hubUser?.id ?? null,
     }).select('*').single();
     setTaskSaving(false);
     if (error || !data) return;
