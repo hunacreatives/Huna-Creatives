@@ -568,36 +568,40 @@ export default function AdminProjectsPage() {
 
   const openClientWorkspace = async (client: typeof intlClients[0]) => {
     setOpeningWorkspace(true);
-    // Check if a retainer project already exists for this client
-    let project = projects.find(p => p.project_type === 'retainer' && (p.client_name.toLowerCase() === client.client_name.toLowerCase() || p.project_name.toLowerCase() === client.client_name.toLowerCase()));
-    if (!project) {
-      // Create a retainer project linked to this client
-      const { data, error } = await supabase.from('hub_projects').insert({
-        project_type: 'retainer',
-        client_name: client.client_name,
-        project_name: client.client_name,
-        service: client.platform ?? 'Marketing',
-        contract_price: 0,
-        monthly_rate: client.contract_value ?? 0,
-        status: 'ongoing',
-        notes: client.notes ?? null,
-      }).select('id').single();
-      if (error) { setOpeningWorkspace(false); return; }
-      // Auto-assign existing team members
-      if (client.assignments.length > 0) {
-        await supabase.from('hub_project_contractors').insert(
-          client.assignments.map(a => ({ project_id: data.id, contractor_id: a.contractor_id, payout_type: 'percentage', percentage: 0, payout_status: 'pending' }))
-        ).catch(() => {});
+    try {
+      // Check if a retainer project already exists for this client
+      const project = projects.find(p =>
+        p.project_type === 'retainer' && (
+          p.client_name.toLowerCase() === client.client_name.toLowerCase() ||
+          p.project_name.toLowerCase() === client.client_name.toLowerCase()
+        )
+      );
+      if (!project) {
+        const { data, error } = await supabase.from('hub_projects').insert({
+          project_type: 'retainer',
+          client_name: client.client_name,
+          project_name: client.client_name,
+          service: client.platform ?? 'Marketing',
+          contract_price: 0,
+          monthly_rate: client.contract_value ?? 0,
+          status: 'ongoing',
+          notes: client.notes ?? null,
+        }).select('id').single();
+        if (error) { alert(`Could not create workspace: ${error.message}`); return; }
+        if (client.assignments.length > 0) {
+          await supabase.from('hub_project_contractors').insert(
+            client.assignments.map(a => ({ project_id: data.id, contractor_id: a.contractor_id, payout_type: 'percentage', percentage: 0, payout_status: 'pending' }))
+          ).catch(() => {});
+        }
+        await fetchAll();
+        setActiveId(data.id);
+      } else {
+        setActiveId(project.id);
       }
-      await fetchAll();
-      openWorkspaceOnLoad.current = true;
-      setActiveId(data.id);
-    } else {
-      openWorkspaceOnLoad.current = true;
-      setActiveId(project.id);
+      setActiveClientId(null);
+    } finally {
+      setOpeningWorkspace(false);
     }
-    setActiveClientId(null);
-    setOpeningWorkspace(false);
   };
 
   const saveClient = async () => {
@@ -2054,7 +2058,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <i className="ri-building-line text-[#FF6B35] text-sm"></i>
                     <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Retainer Clients <span className="text-gray-400 font-normal">({totalCount})</span></p>
                   </div>
-                  <button onClick={() => { setEditingClient(null); setClientForm({ client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' }); setShowClientModal(true); }}
+                  <button onClick={() => { setEditingProject(null); setForm({ ...emptyForm, project_type: 'retainer' }); setShowForm(true); }}
                     className="flex items-center gap-1 px-2.5 py-1 bg-white/70 border border-gray-200/80 text-gray-500 text-[11px] rounded-lg hover:bg-white cursor-pointer">
                     <i className="ri-add-line text-xs"></i> Add Client
                   </button>
