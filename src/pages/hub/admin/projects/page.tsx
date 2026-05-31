@@ -36,6 +36,20 @@ function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
 }
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const getServicePalette = (service: string | null | undefined) => {
+  const s = (service ?? '').toLowerCase();
+  if (s.includes('website design'))      return { from: '#6366f1', to: '#8b5cf6' };
+  if (s.includes('website maintenance')) return { from: '#0ea5e9', to: '#6366f1' };
+  if (s.includes('branding'))            return { from: '#ec4899', to: '#f97316' };
+  if (s.includes('graphic'))             return { from: '#f97316', to: '#f59e0b' };
+  if (s.includes('social media'))        return { from: '#10b981', to: '#0ea5e9' };
+  if (s.includes('content'))             return { from: '#14b8a6', to: '#6366f1' };
+  if (s.includes('seo'))                 return { from: '#84cc16', to: '#10b981' };
+  if (s.includes('digital ads') || s.includes('ads')) return { from: '#f59e0b', to: '#ef4444' };
+  if (s.includes('email'))               return { from: '#8b5cf6', to: '#ec4899' };
+  return                                        { from: '#94a3b8', to: '#64748b' };
+};
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 const fmtDate = (d: string | null | undefined, fallback = '—') => {
   if (!d) return fallback;
@@ -1816,12 +1830,15 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <button
                       key={p.id}
                       onClick={() => setActiveId(prev => prev === p.id ? null : p.id)}
-                      className={`rounded-xl border bg-white p-4 text-left transition-all flex flex-col gap-3 ${
+                      className={`rounded-xl border bg-white text-left transition-all flex flex-col overflow-hidden ${
                         activeId === p.id
                           ? 'border-[#FF6B35] shadow-[0_6px_18px_rgba(255,107,53,0.10)]'
                           : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_14px_rgba(15,23,42,0.04)]'
                       }`}
                     >
+                      {/* Service color stripe */}
+                      {(() => { const pal = getServicePalette(p.service); return <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${pal.from}, ${pal.to})` }} />; })()}
+                      <div className="p-4 flex flex-col gap-3 flex-1">
                       {/* Top row: status badge + type badge + team avatars */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1893,6 +1910,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         {dl && (
                           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${dl.cls}`}>{dl.label}</span>
                         )}
+                      </div>
                       </div>
                     </button>
                   );
