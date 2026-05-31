@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
 import { supabase } from '@/lib/supabase';
@@ -132,6 +132,7 @@ function Avatar({ name, url }: { name: string; url?: string | null }) {
 export default function AdminProjectsPage() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; assignments: { role: string | null; hub_users: { full_name: string; avatar_url: string | null } | null }[] }[]>([]);
@@ -1945,9 +1946,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           {/* ── Retainer Clients section ── */}
           {(() => {
             // Merge retainer projects + hub_clients, dedup by client_name
-            const retainerNames = new Set(retainerProjects.map(p => p.client_name.toLowerCase()));
+            const retainerNames = new Set([
+              ...retainerProjects.map(p => p.client_name.toLowerCase()),
+              ...retainerProjects.map(p => p.project_name.toLowerCase()),
+            ]);
             const extraIntl = intlClients.filter(c => !retainerNames.has(c.client_name.toLowerCase()));
-            const totalCount = retainerProjects.length + extraIntl.length;
+            const sortedRetainers = [...retainerProjects].sort((a, b) => a.project_name.localeCompare(b.project_name));
+            const sortedIntl = [...extraIntl].sort((a, b) => a.client_name.localeCompare(b.client_name));
+            const totalCount = sortedRetainers.length + sortedIntl.length;
             if (totalCount === 0) return null;
             return (
               <div className="-mx-4 md:-mx-6 px-4 md:px-6 pt-5 pb-6 mt-2 space-y-3"
@@ -1958,7 +1964,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {/* Retainer projects — clickable */}
-                  {retainerProjects.map(p => {
+                  {sortedRetainers.map(p => {
                     const pal = getServicePalette(p.service);
                     const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                     return (
@@ -1993,11 +1999,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       </button>
                     );
                   })}
-                  {/* Extra hub_clients */}
-                  {extraIntl.map(c => {
+                  {/* Extra hub_clients — clickable, navigate to client management */}
+                  {sortedIntl.map(c => {
                     const pal = getServicePalette(c.platform);
                     return (
-                      <div key={c.id} className="rounded-xl overflow-hidden border border-white/20"
+                      <button key={c.id} onClick={() => navigate('/hub/admin/clients')}
+                        className="rounded-xl overflow-hidden border border-white/20 text-left hover:-translate-y-0.5 transition-all cursor-pointer"
                         style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
                         <div className="p-3.5 space-y-2.5">
                           <div className="flex items-start justify-between gap-2">
@@ -2021,7 +2028,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                             {c.assignments.length > 0 && <span className="text-[10px] text-white/70 truncate">{c.assignments[0]?.hub_users?.full_name?.split(' ')[0]}{c.assignments.length > 1 ? ` +${c.assignments.length - 1}` : ''}</span>}
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
