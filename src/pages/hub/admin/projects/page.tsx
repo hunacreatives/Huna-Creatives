@@ -1903,6 +1903,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <p className="text-sm text-gray-400">No projects match this view yet.</p>
               </div>
             ) : (
+              <div className="space-y-3">
+                {!activeId && (
+                  <div className="flex items-center gap-2">
+                    <i className="ri-folder-line text-[#FF6B35] text-sm"></i>
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Projects <span className="text-gray-400 font-normal">({filtered.length})</span></p>
+                  </div>
+                )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {(activeId ? filtered.filter(p => p.id === activeId) : filtered).map(p => {
                   const d = derived(p);
@@ -2016,6 +2023,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     </button>
                   );
                 })}
+              </div>
               </div>
             )}
           {/* ── Retainer Clients section ── */}
