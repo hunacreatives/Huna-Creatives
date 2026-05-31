@@ -287,10 +287,10 @@ export default function AdminProjectsPage() {
       title: newTaskTitle.trim(),
       status: 'todo',
       priority: newTaskPriority,
-      assignee_id: newTaskAssignee || null,
+      assigned_to: newTaskAssignee || null,
       due_date: newTaskDue || null,
       created_by: hubUser?.id ?? null,
-    }).select('*, hub_users(id, full_name, avatar_url)').single();
+    }).select('*').single();
     setTaskSaving(false);
     if (error || !data) return;
     setTasks(prev => [...prev, data as ProjectTask]);
