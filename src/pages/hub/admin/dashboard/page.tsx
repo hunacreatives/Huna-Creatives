@@ -410,15 +410,17 @@ export default function AdminDashboardPage() {
       setAtRiskCount(atRisk);
       setInternalProjectCount(internalCount);
 
-      // Monthly retainer total — hub_clients + hub_projects retainers
+      // Monthly retainer total — hub_projects retainers only (authoritative source)
+      // USD rates are converted to PHP; PHP rates are added as-is
       const clientUsdRate = parseFloat(usdRateStr);
-      const clientsTotal = ((clientsResult.data as any[]) || [])
-        .filter((c: any) => c.status === 'active' && c.contract_value)
-        .reduce((s: number, c: any) => s + (c.contract_currency === 'USD' ? c.contract_value * clientUsdRate : c.contract_value), 0);
-      const projectsRetainerTotal = ((projectsResult.data as any[]) || [])
+      const retainerTotal = ((projectsResult.data as any[]) || [])
         .filter((p: any) => p.project_type === 'retainer' && p.status === 'ongoing' && p.monthly_rate)
-        .reduce((s: number, p: any) => s + (p.monthly_rate_currency === 'USD' ? p.monthly_rate * clientUsdRate : p.monthly_rate), 0);
-      setMonthlyRetainerTotal(clientsTotal + projectsRetainerTotal);
+        .reduce((s: number, p: any) => {
+          const rate = p.monthly_rate as number;
+          const inPHP = p.monthly_rate_currency === 'USD' ? rate * clientUsdRate : rate;
+          return s + inPHP;
+        }, 0);
+      setMonthlyRetainerTotal(retainerTotal);
 
       // Build due_date map from payment links (latest link per invoice+project)
       const dueDateMap: Record<string, string | null> = {};
