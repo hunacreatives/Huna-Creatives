@@ -168,6 +168,8 @@ export default function AdminProjectsPage() {
 
   // Payment log
   const [payAmount, setPayAmount] = useState('');
+  const [payCurrency, setPayCurrency] = useState<'PHP' | 'USD'>('PHP');
+  const [payUsdRate, setPayUsdRate] = useState('56');
   const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
   const [payNotes, setPayNotes] = useState('');
   const [payReceipt, setPayReceipt] = useState<File | null>(null);
@@ -544,12 +546,14 @@ export default function AdminProjectsPage() {
       receipt_url = await uploadFileToDrive(payReceipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
     }
 
+    const amountPHP = payCurrency === 'USD' ? parseFloat(payAmount) * parseFloat(payUsdRate || '56') : parseFloat(payAmount);
+    const noteWithCurrency = payCurrency === 'USD' ? `$${payAmount} USD @ ₱${payUsdRate}${payNotes ? ' · ' + payNotes : ''}` : (payNotes || null);
     const { error } = await supabase.from('hub_project_payments').insert({
-      project_id: activeId, amount: parseFloat(payAmount), paid_at: payDate, notes: payNotes || null, receipt_url,
+      project_id: activeId, amount: amountPHP, paid_at: payDate, notes: noteWithCurrency, receipt_url,
     });
     setPaySaving(false);
     if (error) { setPayError(error.message); return; }
-    setPayAmount(''); setPayNotes(''); setPayReceipt(null);
+    setPayAmount(''); setPayNotes(''); setPayReceipt(null); setPayCurrency('PHP');
     fetchAll();
   };
 
@@ -2091,7 +2095,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   {sortedIntl.map(c => {
                     const pal = getServicePalette(c.platform);
                     return (
-                      <button key={c.id} onClick={() => { setActiveClientId(prev => prev === c.id ? null : c.id); setActiveId(null); }}
+                      <button key={c.id} onClick={() => openClientWorkspace(c)} disabled={openingWorkspace}
                         className="rounded-xl overflow-hidden border border-white/20 text-left hover:-translate-y-0.5 transition-all cursor-pointer"
                         style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
                         <div className="p-3.5 space-y-2.5">
@@ -2126,8 +2130,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
         </section>
 
-        {/* ── Client detail panel ── */}
-        {activeClient && (
+        {/* ── Client detail panel (hidden — workspace used instead) ── */}
+        {false && activeClient && (
           <section className="mt-4 bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
               <div className="flex items-center gap-3">
@@ -2575,11 +2579,26 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       )}
                       <div className="border-t border-gray-100 pt-3 space-y-2">
                         <div className="flex gap-2">
-                          <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="Amount"
-                            className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                          <div className="flex flex-1 gap-0">
+                            <select value={payCurrency} onChange={e => setPayCurrency(e.target.value as 'PHP' | 'USD')}
+                              className="px-2 py-1.5 text-xs border border-gray-200 rounded-l-lg focus:outline-none bg-gray-50 border-r-0">
+                              <option value="PHP">₱</option>
+                              <option value="USD">$</option>
+                            </select>
+                            <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="Amount"
+                              className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                          </div>
                           <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
                             className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
                         </div>
+                        {payCurrency === 'USD' && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400">Rate:</span>
+                            <input type="number" value={payUsdRate} onChange={e => setPayUsdRate(e.target.value)} placeholder="56"
+                              className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                            <span className="text-xs text-gray-400">= ₱{payAmount ? (parseFloat(payAmount) * parseFloat(payUsdRate || '56')).toLocaleString() : '0'}</span>
+                          </div>
+                        )}
                         <div className="flex gap-2">
                           <input value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder="Notes (optional)"
                             className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
