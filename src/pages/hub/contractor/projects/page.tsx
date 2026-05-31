@@ -2038,11 +2038,13 @@ export default function ContractorProjectsPage() {
                       }
                     }}
                       className="w-full text-left rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-                      style={{ background: 'rgba(220,225,240,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(200,210,235,0.8)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
+                      style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
+                      {/* Color bar based on service */}
+                      {(() => { const pal = getCardPalette(c.service ?? null); return <div className="h-1" style={{ background: `linear-gradient(90deg, ${pal.from}, ${pal.to})` }} />; })()}
                       <div className="p-3.5 space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-[#FF6B35]">{c.service}</span>}
+                            {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1" style={{ color: getCardPalette(c.service).from }}>{c.service}</span>}
                             <p className="font-bold text-gray-900 text-sm leading-tight truncate">{c.name}</p>
                             {(c.role || c.platform) && <p className="text-xs text-gray-500 mt-0.5 truncate">{c.role ?? c.platform}</p>}
                           </div>
