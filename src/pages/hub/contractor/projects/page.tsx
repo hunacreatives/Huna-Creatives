@@ -536,14 +536,19 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
 }
 
 // ── Per-project color palette ──────────────────────────────────────────────
-// Colors based on project state, not index
-const getCardPalette = (status: string, isOverdue: boolean, daysLeft: number | null) => {
-  if (isOverdue)                                    return { from: '#ef4444', to: '#f97316' }; // red   — overdue
-  if (daysLeft !== null && daysLeft <= 7)           return { from: '#f59e0b', to: '#ef4444' }; // amber — due soon
-  if (status === 'ongoing')                         return { from: '#6366f1', to: '#0ea5e9' }; // indigo — active
-  if (status === 'completed')                       return { from: '#10b981', to: '#0ea5e9' }; // green — done
-  if (status === 'paused')                          return { from: '#94a3b8', to: '#64748b' }; // gray  — paused
-  return                                                   { from: '#94a3b8', to: '#64748b' }; // gray  — default
+// Colors based on service type
+const getCardPalette = (service: string | null) => {
+  const s = (service ?? '').toLowerCase();
+  if (s.includes('website design'))      return { from: '#6366f1', to: '#8b5cf6' }; // indigo-violet
+  if (s.includes('website maintenance')) return { from: '#0ea5e9', to: '#6366f1' }; // sky-indigo
+  if (s.includes('branding'))            return { from: '#ec4899', to: '#f97316' }; // pink-orange
+  if (s.includes('graphic'))             return { from: '#f97316', to: '#f59e0b' }; // orange-amber
+  if (s.includes('social media'))        return { from: '#10b981', to: '#0ea5e9' }; // emerald-sky
+  if (s.includes('content'))             return { from: '#14b8a6', to: '#6366f1' }; // teal-indigo
+  if (s.includes('seo'))                 return { from: '#84cc16', to: '#10b981' }; // lime-emerald
+  if (s.includes('digital ads') || s.includes('ads')) return { from: '#f59e0b', to: '#ef4444' }; // amber-red
+  if (s.includes('email'))               return { from: '#8b5cf6', to: '#ec4899' }; // violet-pink
+  return                                        { from: '#94a3b8', to: '#64748b' }; // gray — other/internal
 };
 
 // ── Project card (summary) ─────────────────────────────────────────────────
@@ -574,7 +579,7 @@ function ProjectCard({ row, projectTasks, onClick }: {
     ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000)
     : null;
   const isOverdue = !!(p.deadline && p.deadline < today && p.status !== 'completed');
-  const palette = getCardPalette(p.status, isOverdue, daysLeft);
+  const palette = getCardPalette(p.service);
 
   const statusLabel = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' }[p.status] ?? p.status;
   const healthLabel = (() => {
@@ -1980,7 +1985,7 @@ export default function ContractorProjectsPage() {
                   {featuredTasks.slice(0, 10).map((t, i) => {
                     const projectName = getProjectName(t.project_id);
                     const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
-                    const palColor = getCardPalette('ongoing', !!(t.due_date && t.due_date < today), null);
+                    const palColor = getCardPalette(null);
                     return (
                       <button
                         key={t.id}
