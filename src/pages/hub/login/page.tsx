@@ -241,7 +241,7 @@ export default function HubLoginPage() {
 
         {/* Footer */}
         <div className="relative z-10 p-8 md:p-10 form-in" style={{ animationDelay: '0.2s' }}>
-          <p className="text-xs text-white/15">© Sentro OS {new Date().getFullYear()}</p>
+          <p className="text-xs text-white/15">© Sentro OS {new Date().getFullYear()} · by <a href="https://hunacreatives.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">Huna Creatives</a></p>
         </div>
       </div>
 
