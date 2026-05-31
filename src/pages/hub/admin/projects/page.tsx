@@ -2449,7 +2449,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 ) : isRetainerProject(activeProject) ? (
                   <>
                     {/* Retainer finance strip — owner only */}
-                    {isOwner && <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
+                    {isOwner && <><div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
                       <span>Monthly: <strong className="text-indigo-600">{fmtRate(activeProject.monthly_rate, (activeProject as any).monthly_rate_currency)}</strong></span>
                       <span className="text-gray-200">|</span>
                       <span>Collected: <strong className="text-emerald-600">{fmt(d.totalPaid)}</strong></span>
@@ -2467,7 +2467,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white/55">
                         <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: d.totalPaid > 0 ? '100%' : '0%' }} />
                       </div>
-                    </div>}
+                    </div></>}
                   </>
                 ) : (
                   <>
