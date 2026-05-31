@@ -280,27 +280,25 @@ export default function HubLoginPage() {
           }} />
         </div>
 
-        {/* Layer 3 — S logo */}
+        {/* Layer 3 — S logo + tagline grouped */}
         <div className="logo-in absolute inset-0 flex items-center justify-center" style={{ zIndex: 3 }}>
-          <img src="/s-logo.png" alt="S"
-            style={{ width: '200px', height: '200px', objectFit: 'contain', filter: 'invert(1) brightness(0.88) sepia(0.15)' }} />
-        </div>
-
-        {/* Layer 4 — typewriter text */}
-        <div className="logo-in absolute bottom-16 left-0 right-0 flex justify-center" style={{ zIndex: 4 }}>
-          <div className="text-center">
-            <p className="text-white/40 text-[10px] tracking-[0.35em] uppercase mb-2">Sentro OS</p>
-            <p className="text-white/80 text-base font-medium" style={{ minWidth: '240px', minHeight: '28px' }}>
-              Centralize your{' '}
-              <span className="text-[#FF6B35]">
-                {displayed}
-                <span className="inline-block w-[2px] h-[1em] bg-[#FF6B35] ml-[1px] align-middle"
-                  style={{ animation: 'blink 1s step-end infinite' }} />
-              </span>
-            </p>
+          <div className="flex flex-col items-center gap-6">
+            <img src="/s-logo.png" alt="S"
+              style={{ width: '200px', height: '200px', objectFit: 'contain', filter: 'invert(1) brightness(0.88) sepia(0.15)' }} />
+            <div className="text-center">
+              <p className="text-white/40 text-[10px] tracking-[0.35em] uppercase mb-2">Sentro OS</p>
+              <p className="text-white/80 text-base font-medium" style={{ minWidth: '240px', minHeight: '28px' }}>
+                Centralize your{' '}
+                <span className="text-[#FF6B35]">
+                  {displayed}
+                  <span className="inline-block w-[2px] h-[1em] bg-[#FF6B35] ml-[1px] align-middle"
+                    style={{ animation: 'blink 1s step-end infinite' }} />
+                </span>
+              </p>
+            </div>
           </div>
-          <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
         </div>
+        <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
       </div>
     </div>
   );
