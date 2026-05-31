@@ -68,7 +68,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
             onClick={collapsed ? onToggle : undefined}
             className={`w-10 h-10 rounded-2xl bg-[#FF6B35] text-white flex items-center justify-center shadow-sm flex-shrink-0 ${collapsed ? 'cursor-pointer hover:bg-[#e55a27] transition-colors' : ''}`}
           >
-            <span className="text-sm font-black tracking-tight">S</span>
+            <img src="/s-logo.png" alt="S" className="w-6 h-6 object-contain" style={{ filter: 'invert(1)' }} />
           </div>
           {!collapsed && (
             <>

@@ -75,7 +75,7 @@ export default function HubSignupPage() {
       <div className="hidden lg:flex lg:w-1/2 bg-[#080c14] flex-col justify-between p-12">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
-            <span className="text-white text-sm font-black">S</span>
+            <img src="/s-logo.png" alt="S" className="w-5 h-5 object-contain" style={{ filter: 'invert(1)' }} />
           </div>
           <span className="text-white font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
         </div>
@@ -92,7 +92,7 @@ export default function HubSignupPage() {
         <div className="w-full max-w-md space-y-8">
           <div className="flex items-center gap-2 lg:hidden">
             <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
-              <span className="text-white text-sm font-black">S</span>
+              <img src="/s-logo.png" alt="S" className="w-5 h-5 object-contain" style={{ filter: 'invert(1)' }} />
             </div>
             <span className="text-[#111827] font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
           </div>

@@ -91,10 +91,9 @@ export default function HubLoginPage() {
             className="w-12 h-12 rounded-2xl bg-[#FF6B35] flex items-center justify-center mb-3 shadow-lg"
             style={{ boxShadow: '0 8px 24px rgba(255,107,53,0.30)' }}
           >
-            <span className="text-white text-lg font-black">S</span>
+            <img src="/s-logo.png" alt="S" className="w-7 h-7 object-contain" style={{ filter: 'invert(1)' }} />
           </div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400 font-semibold">Huna Creatives</p>
-          <p className="text-gray-800 text-lg font-bold leading-tight">Sentro</p>
+          <p className="text-gray-800 text-lg font-bold leading-tight tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></p>
         </div>
 
         {/* Glass form card */}

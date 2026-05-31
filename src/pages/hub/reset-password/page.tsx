@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md space-y-8">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-[#FF6B35] rounded-lg flex items-center justify-center">
-            <span className="text-white text-sm font-black">S</span>
+            <img src="/s-logo.png" alt="S" className="w-5 h-5 object-contain" style={{ filter: 'invert(1)' }} />
           </div>
           <span className="text-[#111827] font-bold text-base tracking-wide">SENTRO <span className="text-[#FF6B35]">OS</span></span>
         </div>

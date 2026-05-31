@@ -28,7 +28,7 @@ export default function HubDemoPage() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-14 h-14 rounded-3xl bg-[#FF6B35] text-white flex items-center justify-center shadow-lg shadow-orange-200 mb-4">
-            <span className="text-2xl font-black tracking-tight">S</span>
+            <img src="/s-logo.png" alt="S" className="w-8 h-8 object-contain" style={{ filter: 'invert(1)' }} />
           </div>
           <p className="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">Huna Ops</p>
           <h1 className="text-2xl font-bold text-gray-800">Sentro</h1>
