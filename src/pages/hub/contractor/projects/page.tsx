@@ -6,6 +6,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import { DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS, DEMO_CONTRACTOR_TEAM } from '@/lib/demoData';
 import TaskDetailPanel from '@/pages/hub/components/TaskDetailPanel';
+import { localToday } from '@/lib/formatUtils';
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -285,7 +286,7 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
 
 // ── Task row (used in feed and detail) ────────────────────────────────────
 function TaskRow({ task, projectName, team }: { task: ProjectTask; projectName?: string; team?: TeamMember[] }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const isOverdue = task.due_date && task.due_date < today && task.status !== 'done';
   const priorityCls = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-gray-300' }[task.priority];
   const statusIcon =
@@ -324,7 +325,7 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
   onReceiptClick: (url: string) => void;
 }) {
   const p = row.hub_projects;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const isInternal = p.project_type === 'internal';
   const isRetainer = p.project_type === 'retainer';
   const totalPaid = p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
@@ -561,7 +562,7 @@ function ProjectCard({ row, projectTasks, onClick }: {
 }) {
   const p = row.hub_projects;
   if (!p) return null;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const tasksDone = projectTasks.filter(t => t.status === 'done').length;
   const tasksPct = projectTasks.length > 0 ? Math.round((tasksDone / projectTasks.length) * 100) : 0;
   const overdueCount = projectTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done').length;
@@ -1103,7 +1104,7 @@ export default function ContractorProjectsPage() {
     : hour < 20
     ? 'linear-gradient(135deg, #f97316 0%, #8b5cf6 100%)'   // evening — orange-violet
     : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';  // night — indigo-violet
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   const firstName = hubUser?.full_name?.split(' ')[0] ?? '';
 
   const myTasks = tasks.filter(t => t.assigned_to === hubUser?.id);
@@ -1157,7 +1158,7 @@ export default function ContractorProjectsPage() {
     : workRows;
   const sortedRows = [...filteredRows].sort((a, b) => {
     const p1 = a.hub_projects, p2 = b.hub_projects;
-    const today2 = new Date().toISOString().slice(0, 10);
+    const today2 = localToday();
     const urgency = (p: typeof p1) => {
       if (!p) return 5;
       const overdue = p.deadline && p.deadline < today2 && p.status !== 'completed';
@@ -1180,7 +1181,7 @@ export default function ContractorProjectsPage() {
   const wsProject = wsRow?.hub_projects;
   const wsIsInternal = wsProject?.project_type === 'internal';
   const wsTasks = wsRow ? tasks.filter(t => t.project_id === wsProject?.id) : [];
-  const wsToday = new Date().toISOString().slice(0, 10);
+  const wsToday = localToday();
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
   // wsTeam must be declared before wsFiltered — wsFiltered references wsTeam
   const wsTeam = wsRow ? (teamMap[wsProject?.id ?? 0] ?? []) : [];

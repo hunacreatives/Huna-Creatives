@@ -5,6 +5,12 @@ function pad(n: number) {
   return String(n).padStart(2, '0');
 }
 
+/** Returns today's date in YYYY-MM-DD using LOCAL time (not UTC) */
+export function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function toDateStr(date: Date) {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }

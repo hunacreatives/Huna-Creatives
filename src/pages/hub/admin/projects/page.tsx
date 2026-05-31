@@ -7,6 +7,7 @@ import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
 import { getSetting } from '@/lib/settings';
+import { localToday } from '@/lib/formatUtils';
 import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/TaskDetailPanel';
 import { uploadFileToDrive } from '@/lib/driveUpload';
@@ -177,7 +178,7 @@ export default function AdminProjectsPage() {
   // Payment log
   const [payAmount, setPayAmount] = useState('');
   const [payCurrency, setPayCurrency] = useState<'PHP' | 'USD'>('PHP');
-  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate] = useState(localToday());
   const [payNotes, setPayNotes] = useState('');
   const [payReceipt, setPayReceipt] = useState<File | null>(null);
   const [paySaving, setPaySaving] = useState(false);
@@ -192,7 +193,7 @@ export default function AdminProjectsPage() {
   // Cost log
   const [costLabel, setCostLabel] = useState('');
   const [costAmount, setCostAmount] = useState('');
-  const [costDate, setCostDate] = useState(new Date().toISOString().slice(0, 10));
+  const [costDate, setCostDate] = useState(localToday());
   const [costSaving, setCostSaving] = useState(false);
   const [costError, setCostError] = useState('');
 
@@ -791,7 +792,7 @@ export default function AdminProjectsPage() {
     }
 
     const amount = parseFloat(form.amount);
-    const paid_at = form.date || new Date().toISOString().slice(0, 10);
+    const paid_at = form.date || localToday();
     const { error } = await supabase.from('hub_project_contractor_payouts').insert({
       project_contractor_id: pcId,
       amount,
@@ -801,7 +802,7 @@ export default function AdminProjectsPage() {
     });
     setCtxPaySaving(p => ({ ...p, [pcId]: false }));
     if (error) { setCtxPayError(p => ({ ...p, [pcId]: error.message })); return; }
-    setCtxPayForm(p => ({ ...p, [pcId]: { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null, notify: true } }));
+    setCtxPayForm(p => ({ ...p, [pcId]: { amount: '', date: localToday(), notes: '', receipt: null, notify: true } }));
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'project_payout', description: `Logged payout of ₱${form.amount} to ${contractorName}` });
 
     // auto-mark paid if fully paid
@@ -1236,7 +1237,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     return [...new Set([...serviceTag, ...roleTags, ...deptTags])].slice(0, 3);
   };
 
-  const wsToday = new Date().toISOString().slice(0, 10);
+  const wsToday = localToday();
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
   const wsFilteredTasks = tasks.filter(t => {
     if (taskFilter === 'all') return true;
@@ -1968,7 +1969,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   const d = derived(p);
                   const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                   const dl = deadlineStatus(p.deadline, p.status);
-                  const todayStr = new Date().toISOString().slice(0, 10);
+                  const todayStr = localToday();
                   const pTasks = tasks.filter(t => t.project_id === p.id);
                   const pTasksDone = pTasks.filter(t => t.status === 'done').length;
                   const healthLabel = getProjectHealth(p, p.hub_project_contractors.length, pTasksDone, pTasks.length, todayStr);
@@ -2640,7 +2641,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       ) : (
                         <div className="space-y-1.5">
                           {[...(activeProject.hub_payment_reminders ?? [])].sort((a, b) => a.send_date.localeCompare(b.send_date)).map(r => {
-                            const isPast = r.send_date < new Date().toISOString().slice(0, 10);
+                            const isPast = r.send_date < localToday();
                             const statusCls = r.status === 'sent' ? 'text-emerald-600 bg-emerald-50' : r.status === 'cancelled' ? 'text-gray-400 bg-gray-100 line-through' : isPast ? 'text-rose-500 bg-rose-50' : 'text-amber-600 bg-amber-50';
                             const statusLabel = r.status === 'sent' ? 'Sent' : r.status === 'cancelled' ? 'Cancelled' : isPast ? 'Overdue' : 'Pending';
                             return (
@@ -2783,7 +2784,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       const totalPaidOut = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
                       const paidPct = cut > 0 ? Math.min((totalPaidOut / cut) * 100, 100) : 0;
                       const isFullyPaid = totalPaidOut >= cut && cut > 0;
-                      const pf = ctxPayForm[pc.id] ?? { amount: '', date: new Date().toISOString().slice(0, 10), notes: '', receipt: null, notify: true };
+                      const pf = ctxPayForm[pc.id] ?? { amount: '', date: localToday(), notes: '', receipt: null, notify: true };
                       const setPf = (patch: Partial<typeof pf>) => setCtxPayForm(prev => ({ ...prev, [pc.id]: { ...pf, ...patch } }));
                       return (
                         <div key={pc.id} className="border border-gray-100 bg-white rounded-xl overflow-hidden">
