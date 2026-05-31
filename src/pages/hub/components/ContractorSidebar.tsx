@@ -123,7 +123,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
         </nav>
 
         {/* Bottom: user + sign out */}
-        <div className={`border-t border-white/60 p-3 ${collapsed ? 'px-2' : ''}`}>
+        <div className={`border-t border-white/60 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] ${collapsed ? 'px-2' : ''}`}>
           {!collapsed && hubUser && (
             <div className="flex items-center gap-2.5 px-2 pb-2.5 mb-1 min-w-0">
               {hubUser.avatar_url ? (
