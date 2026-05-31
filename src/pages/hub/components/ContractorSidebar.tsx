@@ -37,7 +37,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
   const dividerIdx = filteredBase.findIndex(i => (i as any).divider);
   const navItems = [
     ...filteredBase.slice(0, dividerIdx),
-    { to: '/hub/contractor/projects', label: 'My Projects', icon: 'ri-folder-line' },
+    { to: '/hub/contractor/projects', label: 'My Work', icon: 'ri-folder-line' },
     ...filteredBase.slice(dividerIdx),
   ];
 

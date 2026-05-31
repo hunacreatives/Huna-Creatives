@@ -1114,14 +1114,16 @@ export default function ContractorProjectsPage() {
   };
 
   const searchLower = search.toLowerCase();
+  // My Work = one-time + internal only (retainers live in My Clients)
+  const workRows = rows.filter(r => r.hub_projects?.project_type !== 'retainer');
   const filteredRows = search
-    ? rows.filter(r => {
+    ? workRows.filter(r => {
         const p = r.hub_projects;
         return p?.project_name?.toLowerCase().includes(searchLower)
           || p?.client_name?.toLowerCase().includes(searchLower)
           || p?.service?.toLowerCase().includes(searchLower);
       })
-    : rows;
+    : workRows;
   const sortedRows = [...filteredRows].sort((a, b) => {
     const p1 = a.hub_projects, p2 = b.hub_projects;
     const today2 = new Date().toISOString().slice(0, 10);
@@ -1426,7 +1428,7 @@ export default function ContractorProjectsPage() {
 
   return (
     <ContractorLayout
-      title={workspaceRow ? undefined : 'My Projects'}
+      title={workspaceRow ? undefined : 'My Work'}
       hideGlobalSearch={!!workspaceRow}
       actions={wsSearchActions}
       titleContent={workspaceRow && wsProject ? (

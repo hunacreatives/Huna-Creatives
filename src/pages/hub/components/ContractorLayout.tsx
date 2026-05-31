@@ -18,7 +18,7 @@ const QUICK_ACTIONS = [
 
 const HUB_PAGES = [
   { label: 'Dashboard', description: 'Overview & stats', icon: 'ri-home-5-line', path: '/hub/contractor/dashboard', keywords: ['dashboard', 'home', 'overview', 'stats', 'summary'] },
-  { label: 'My Projects', description: 'Projects & workspace', icon: 'ri-folder-line', path: '/hub/contractor/projects', keywords: ['projects', 'work', 'client', 'workspace', 'brief'] },
+  { label: 'My Work', description: 'One-time projects & workspace', icon: 'ri-folder-line', path: '/hub/contractor/projects', keywords: ['projects', 'work', 'workspace', 'brief', 'one-time'] },
   { label: 'Timeline', description: 'Gantt chart & schedule', icon: 'ri-bar-chart-grouped-line', path: '/hub/contractor/projects', keywords: ['timeline', 'gantt', 'schedule', 'chart', 'deadline', 'calendar'] },
   { label: 'My Payouts', description: 'Submit payslip & payment history', icon: 'ri-money-dollar-circle-line', path: '/hub/contractor/payouts', keywords: ['payout', 'payslip', 'salary', 'payment', 'submit', 'payroll', 'earn', 'money', 'income'] },
   { label: 'Time Off', description: 'Leave, vacation & sick days', icon: 'ri-calendar-check-line', path: '/hub/contractor/timeoff', keywords: ['time off', 'leave', 'vacation', 'sick', 'pto', 'absence', 'holiday', 'rest'] },
