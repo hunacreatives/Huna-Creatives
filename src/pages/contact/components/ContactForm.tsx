@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { supabase } from '@/lib/supabase';
 
 export default function ContactForm() {
   const { t } = useTranslation();
@@ -29,24 +30,17 @@ export default function ContactForm() {
     setStatus('sending');
 
     const form = e.currentTarget;
-    const data = new URLSearchParams();
     const elements = form.elements as HTMLFormControlsCollection;
 
-    Array.from(elements).forEach((el) => {
-      const input = el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-      if (input.name) {
-        data.append(input.name, input.value);
-      }
-    });
-
     try {
-      data.append('access_key', import.meta.env.VITE_WEB3FORMS_KEY || '');
-      const res = await fetch('https://api.web3forms.com/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: data.toString(),
+      const fields: Record<string, string> = {};
+      Array.from(elements).forEach((el) => {
+        const input = el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+        if (input.name) fields[input.name] = input.value;
       });
-      if (res.ok) {
+
+      const { error } = await supabase.functions.invoke('submit-contact', { body: fields });
+      if (!error) {
         setStatus('success');
         form.reset();
         setCharCount(0);

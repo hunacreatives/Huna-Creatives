@@ -4,6 +4,7 @@ import Navigation from '../../components/feature/Navigation';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { useSEO } from '../../hooks/useSEO';
+import { supabase } from '@/lib/supabase';
 
 const SERVICE_OPTIONS = [
   'Brand Identity & Logo Design',
@@ -66,22 +67,17 @@ export default function ContactPage() {
     setStatus('sending');
     
     try {
-      const formPayload = new FormData();
-      formPayload.append('access_key', '4c9aac92-b34b-466d-937a-f75704660413');
-      formPayload.append('name', formData.name);
-      formPayload.append('email', formData.email);
-      formPayload.append('service', formData.service);
-      formPayload.append('budget', formData.budget || 'Not specified');
-      formPayload.append('message', formData.message);
-
-      const res = await fetch('https://api.web3forms.com/submit', {
-        method: 'POST',
-        body: formPayload,
+      const { error } = await supabase.functions.invoke('submit-contact', {
+        body: {
+          name: formData.name,
+          email: formData.email,
+          service: formData.service,
+          budget: formData.budget || 'Not specified',
+          message: formData.message,
+        },
       });
 
-      const data = await res.json().catch(() => ({}));
-
-      if (res.ok && data?.success === true) {
+      if (!error) {
         setStatus('success');
         setFormData({ name: '', email: '', service: '', budget: '', message: '' });
 

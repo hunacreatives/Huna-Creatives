@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Footer from '../home/components/Footer';
 import Navigation from '../../components/feature/Navigation';
 import { useSEO } from '../../hooks/useSEO';
+import { supabase } from '@/lib/supabase';
 
 interface JobListing {
   id: string;
@@ -62,34 +63,42 @@ export default function CareersPage() {
     setErrorMsg('');
 
     try {
-      const payload = new FormData();
-      payload.append('name', formData.name);
-      payload.append('email', formData.email);
       const roleValue = HAS_OPENINGS && selectedJob ? selectedJob.title : formData.role;
-      if (roleValue) payload.append('role', roleValue);
-      payload.append('expected_rate', formData.rate);
-      if (portfolioLink.trim()) payload.append('portfolio_link', portfolioLink.trim());
-      if (resumeMode === 'upload' && resumeFile) {
-        payload.append('attachment', resumeFile);
-      } else if (resumeMode === 'link' && resumeLink.trim()) {
-        payload.append('resume_link', resumeLink.trim());
-      }
-      payload.append('message', formData.message);
-      payload.append('access_key', '7e42135a-f8bb-46ef-ba9b-eadd09929497');
-      payload.append('_gotcha', '');
 
-      const res = await fetch('https://api.web3forms.com/submit', {
-        method: 'POST',
-        body: payload,
+      // Read resume file as base64 if uploaded
+      let resume_base64: string | undefined;
+      let resume_filename: string | undefined;
+      let resume_mime: string | undefined;
+      if (resumeMode === 'upload' && resumeFile) {
+        const buffer = await resumeFile.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        resume_base64 = btoa(binary);
+        resume_filename = resumeFile.name;
+        resume_mime = resumeFile.type;
+      }
+
+      const { error } = await supabase.functions.invoke('submit-careers', {
+        body: {
+          name: formData.name,
+          email: formData.email,
+          role: roleValue || undefined,
+          expected_rate: formData.rate,
+          portfolio_link: portfolioLink.trim() || undefined,
+          resume_link: resumeMode === 'link' ? resumeLink.trim() || undefined : undefined,
+          resume_base64,
+          resume_filename,
+          resume_mime,
+          message: formData.message,
+        },
       });
 
-      if (res.ok) {
+      if (!error) {
         setStatus('success');
         resetForm();
-
       } else {
-        const data = await res.json().catch(() => ({}));
-        setErrorMsg(data?.message ?? `Submission failed (${res.status}). Please try again.`);
+        setErrorMsg(error.message ?? 'Submission failed. Please try again.');
         setStatus('error');
       }
     } catch {
