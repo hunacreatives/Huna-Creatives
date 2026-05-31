@@ -1069,7 +1069,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       setActiveId(null);
       return;
     }
-    if (activeId && !filtered.some(p => p.id === activeId)) {
+    // Only reset activeId if it's not a retainer (retainers are in the clients section)
+    if (activeId && !filtered.some(p => p.id === activeId) && !projects.some(p => p.id === activeId && p.project_type === 'retainer')) {
       setActiveId(filtered[0].id);
     }
   }, [filtered, activeId]);
