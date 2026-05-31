@@ -157,7 +157,7 @@ export default function AdminProjectsPage() {
 
   // Project form
   const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Marketing', 'Other'];
-  const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
+  const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', monthly_rate_currency: 'PHP' as 'PHP' | 'USD', usd_rate: '56', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -460,7 +460,12 @@ export default function AdminProjectsPage() {
       project_name: form.project_name.trim(),
       service: form.service || null,
       contract_price: isInternal || isRetainer ? 0 : parseFloat(form.contract_price),
-      monthly_rate: isRetainer ? parseFloat((form as any).monthly_rate) : null,
+      monthly_rate: isRetainer ? (
+        (form as any).monthly_rate_currency === 'USD'
+          ? parseFloat((form as any).monthly_rate) * parseFloat((form as any).usd_rate || '56')
+          : parseFloat((form as any).monthly_rate)
+      ) : null,
+      monthly_rate_currency: isRetainer ? (form as any).monthly_rate_currency : 'PHP',
       status: form.status,
       start_date: form.start_date || null,
       deadline: isRetainer ? null : (form.deadline || null),
@@ -2315,7 +2320,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>}
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_rate_currency: (activeProject as any).monthly_rate_currency ?? 'PHP', usd_rate: '56', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
                       className="px-4 flex items-center gap-1.5 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-xl cursor-pointer">
                       <i className="ri-edit-line"></i>
                     </button>
@@ -2438,7 +2443,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <>
                     {/* Retainer finance strip */}
                     <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
-                      <span>Monthly: <strong className="text-indigo-600">{fmt(activeProject.monthly_rate ?? 0)}/mo</strong></span>
+                      <span>Monthly: <strong className="text-indigo-600">{fmt(activeProject.monthly_rate ?? 0)}/mo</strong>{(activeProject as any).monthly_rate_currency === 'USD' ? <span className="text-[10px] text-indigo-400 ml-1">USD</span> : null}</span>
                       <span className="text-gray-200">|</span>
                       <span>Collected: <strong className="text-emerald-600">{fmt(d.totalPaid)}</strong></span>
                       <span className="text-gray-200">|</span>
@@ -3092,9 +3097,24 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 )}
                 {form.project_type === 'retainer' && (
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-700">Monthly Rate (PHP) *</label>
-                    <input type="number" value={(form as any).monthly_rate} onChange={e => setForm({ ...form, monthly_rate: e.target.value } as any)} placeholder="0.00"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    <label className="text-xs font-medium text-gray-700">Monthly Rate *</label>
+                    <div className="flex gap-0">
+                      <select value={(form as any).monthly_rate_currency} onChange={e => setForm({ ...form, monthly_rate_currency: e.target.value } as any)}
+                        className="px-2.5 py-2 text-sm border border-gray-200 rounded-l-lg focus:outline-none bg-gray-50 border-r-0 text-gray-600">
+                        <option value="PHP">₱ PHP</option>
+                        <option value="USD">$ USD</option>
+                      </select>
+                      <input type="number" value={(form as any).monthly_rate} onChange={e => setForm({ ...form, monthly_rate: e.target.value } as any)} placeholder="0.00"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    </div>
+                    {(form as any).monthly_rate_currency === 'USD' && (form as any).monthly_rate && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-400">Rate:</span>
+                        <input type="number" value={(form as any).usd_rate} onChange={e => setForm({ ...form, usd_rate: e.target.value } as any)} placeholder="56"
+                          className="w-16 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                        <span className="text-xs text-gray-400">= ₱{((parseFloat((form as any).monthly_rate) || 0) * (parseFloat((form as any).usd_rate) || 56)).toLocaleString()}/mo stored</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
