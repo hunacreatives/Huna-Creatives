@@ -237,7 +237,7 @@ export default function TaskDetailPanel({
         const { data, error } = await supabase
           .from('hub_project_tasks')
           .insert({ ...payload, project_id: projectId, created_by: currentUserId })
-          .select('*, hub_users(id, full_name, avatar_url)')
+          .select('*, hub_users!assignee_id(id, full_name, avatar_url)')
           .single();
         if (error) throw error;
         await logActivity(data.id, 'created', `created this task`);
@@ -249,7 +249,7 @@ export default function TaskDetailPanel({
           .from('hub_project_tasks')
           .update(payload)
           .eq('id', prev.id)
-          .select('*, hub_users(id, full_name, avatar_url)')
+          .select('*, hub_users!assignee_id(id, full_name, avatar_url)')
           .single();
         if (error) throw error;
 
