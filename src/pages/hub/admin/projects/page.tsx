@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
@@ -244,6 +244,7 @@ export default function AdminProjectsPage() {
 
   // Workspace overlay
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const openWorkspaceOnLoad = useRef(false);
   // Collapsible detail sections (all closed by default)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   // Collapsed task groups in workspace
@@ -1076,7 +1077,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   useEffect(() => {
     if (activeId && !isDemo) fetchTasks(activeId);
     else if (!activeId) { setTasks([]); setActivity([]); }
-    setWorkspaceOpen(false);
+    if (openWorkspaceOnLoad.current) { setWorkspaceOpen(true); openWorkspaceOnLoad.current = false; }
+    else { setWorkspaceOpen(false); }
     setOpenSections({});
     // Sync URL
     if (activeId) setSearchParams({ w: String(activeId) }, { replace: true });
@@ -1953,7 +1955,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     const pal = getServicePalette(p.service);
                     const d = derived(p);
                     return (
-                      <button key={p.id} onClick={() => { setActiveId(p.id); setWorkspaceOpen(true); }}
+                      <button key={p.id} onClick={() => { openWorkspaceOnLoad.current = true; setActiveId(p.id); }}
                         className="rounded-xl overflow-hidden border border-white/20 text-left hover:-translate-y-0.5 transition-all cursor-pointer"
                         style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
                         <div className="p-3.5">
@@ -1964,7 +1966,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                               <p className="text-[11px] text-white/70 mt-0.5 truncate">{p.client_name}</p>
                             </div>
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/20 text-white flex-shrink-0">
-                              {fmt(p.monthly_rate ?? 0)}/mo
+                              {p.monthly_rate ? `${fmt(p.monthly_rate)}/mo` : 'Retainer'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between pt-2 border-t border-white/20">
