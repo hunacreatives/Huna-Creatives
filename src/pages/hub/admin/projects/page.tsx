@@ -1939,6 +1939,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${cfg.cls}`}>{cfg.label}</span>
+                          {p.project_type === 'client' && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-orange-50 text-orange-500">One-time</span>
+                          )}
                           {p.project_type === 'internal' && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Internal</span>
                           )}
@@ -2021,21 +2024,31 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               ...retainerProjects.map(p => p.project_name.toLowerCase()),
             ]);
             const extraIntl = intlClients.filter(c => !retainerNames.has(c.client_name.toLowerCase()));
-            const sortedRetainers = [...retainerProjects].sort((a, b) => a.project_name.localeCompare(b.project_name));
+            const sortedRetainers = [...retainerProjects]
+              .filter(p => statusFilter === 'all' || p.status === statusFilter)
+              .sort((a, b) => a.project_name.localeCompare(b.project_name));
             const sortedIntl = [...extraIntl].sort((a, b) => a.client_name.localeCompare(b.client_name));
             const totalCount = sortedRetainers.length + sortedIntl.length;
             if (totalCount === 0) return null;
             return (
               <div className="-mx-4 md:-mx-6 px-4 md:px-6 pt-5 pb-6 mt-2 space-y-3"
                 style={{ background: 'rgba(30,40,70,0.06)', borderTop: '1px solid rgba(30,40,70,0.10)' }}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <i className="ri-building-line text-[#FF6B35] text-sm"></i>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <i className="ri-building-line text-[#FF6B35] text-sm flex-shrink-0"></i>
                     <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Retainer Clients <span className="text-gray-400 font-normal">({totalCount})</span></p>
                   </div>
+                  <div className="flex gap-1 bg-white/60 p-0.5 rounded-xl">
+                    {(['ongoing', 'paused', 'completed'] as const).map(s => (
+                      <button key={s} onClick={() => setStatusFilter(s)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap ${statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                        {s === 'ongoing' ? 'Active' : s === 'paused' ? 'Paused' : 'Done'}
+                      </button>
+                    ))}
+                  </div>
                   <button onClick={() => { setEditingProject(null); setForm({ ...emptyForm, project_type: 'retainer' }); setShowForm(true); }}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-white/70 border border-gray-200/80 text-gray-500 text-[11px] rounded-lg hover:bg-white cursor-pointer">
-                    <i className="ri-add-line text-xs"></i> Add Client
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
+                    <i className="ri-add-line text-sm"></i> Add Client
                   </button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
