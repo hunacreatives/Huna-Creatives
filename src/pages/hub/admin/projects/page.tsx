@@ -93,11 +93,9 @@ interface ProjectTask {
   description: string | null;
   status: 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done';
   priority: 'low' | 'medium' | 'high';
-  assignee_id: string | null;
+  assigned_to: string | null;
   due_date: string | null;
   start_date: string | null;
-  checklist?: { id: string; text: string; done: boolean }[] | null;
-  created_by: string | null;
   created_at: string;
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
 }
@@ -1122,8 +1120,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           status: t.status,
           priority: t.priority,
           due_date: t.due_date,
-          start_date: null,
-          assigned_to: t.assignee_id,
+          start_date: t.start_date ?? null,
+          assigned_to: t.assigned_to,
         }));
 
         return (
