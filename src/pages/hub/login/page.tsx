@@ -284,7 +284,7 @@ export default function HubLoginPage() {
         <div className="logo-in absolute inset-0 flex items-center justify-center" style={{ zIndex: 3 }}>
           <div className="flex flex-col items-center gap-6">
             <img src="/s-logo.png" alt="S"
-              style={{ width: '200px', height: '200px', objectFit: 'contain', filter: 'invert(1)' }} />
+              style={{ width: '200px', height: '200px', objectFit: 'contain', filter: 'invert(1)', opacity: 0.95 }} />
             <div className="text-center">
               <p className="text-white/40 text-[10px] tracking-[0.35em] uppercase mb-2">Sentro OS</p>
               <p className="text-white/80 text-base font-medium" style={{ minWidth: '240px', minHeight: '28px' }}>
