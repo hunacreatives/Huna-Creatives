@@ -1797,25 +1797,25 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="col-span-2 lg:col-span-1 rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' }}>
-                <p className="text-[11px] text-blue-200 uppercase tracking-widest font-semibold">Contract Value</p>
+              <div className="rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' }}>
+                <p className="text-[11px] text-blue-200 uppercase tracking-widest font-semibold">Project Value</p>
                 <p className="text-[22px] font-bold text-white mt-1.5 leading-none">{fmt(summaryTotals.contractValue)}</p>
-                <p className="text-xs text-blue-200 mt-1.5">{projects.length} project{projects.length !== 1 ? 's' : ''} total</p>
+                <p className="text-xs text-blue-200 mt-1.5">{projects.filter(p => p.project_type === 'client').length} one-time project{projects.filter(p => p.project_type === 'client').length !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' }}>
+                <p className="text-[11px] text-violet-200 uppercase tracking-widest font-semibold">Monthly Retainer</p>
+                <p className="text-[22px] font-bold text-white mt-1.5 leading-none">{fmt(summaryTotals.mrr)}</p>
+                <p className="text-xs text-violet-200 mt-1.5">{projects.filter(p => p.project_type === 'retainer' && p.status === 'ongoing').length} active client{projects.filter(p => p.project_type === 'retainer' && p.status === 'ongoing').length !== 1 ? 's' : ''}</p>
               </div>
               <div className="rounded-2xl p-5 bg-white border border-gray-100">
                 <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Active</p>
                 <p className="text-[22px] font-bold text-[#111827] mt-1.5 leading-none">{projects.filter(p => p.status === 'ongoing').length}</p>
-                <p className="text-xs text-gray-400 mt-1.5">In progress</p>
-              </div>
-              <div className="rounded-2xl p-5 bg-white border border-gray-100">
-                <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Net Profit</p>
-                <p className="text-[22px] font-bold text-teal-600 mt-1.5 leading-none">{fmt(summaryTotals.netProfit)}</p>
-                <p className="text-xs text-gray-400 mt-1.5">{summaryTotals.collectionPct.toFixed(0)}% collected</p>
+                <p className="text-xs text-gray-400 mt-1.5">Projects + retainers</p>
               </div>
               <div className="rounded-2xl p-5 bg-white border border-gray-100">
                 <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Collected</p>
                 <p className="text-[22px] font-bold text-emerald-600 mt-1.5 leading-none">{fmt(summaryTotals.collected)}</p>
-                <p className="text-xs text-gray-400 mt-1.5">of {fmt(summaryTotals.contractValue)}</p>
+                <p className="text-xs text-gray-400 mt-1.5">{summaryTotals.collectionPct.toFixed(0)}% of one-time contracts</p>
               </div>
             </div>
 
