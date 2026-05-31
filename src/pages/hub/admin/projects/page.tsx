@@ -1086,15 +1086,20 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     else setSearchParams({}, { replace: true });
   }, [activeId, isDemo]);
 
-  // Open workspace directly if ?w= param is set on load
+  // Open workspace directly if ?w= param is set on initial load only
+  const didInitWorkspace = useRef(false);
   useEffect(() => {
+    if (didInitWorkspace.current || projects.length === 0) return;
     const w = searchParams.get('w');
-    if (w && projects.length > 0) {
+    if (w) {
       const id = parseInt(w);
       if (projects.some(p => p.id === id)) {
+        didInitWorkspace.current = true;
         setActiveId(id);
         setWorkspaceOpen(true);
       }
+    } else {
+      didInitWorkspace.current = true;
     }
   }, [projects]);
 
