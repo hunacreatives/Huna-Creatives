@@ -5,6 +5,7 @@ import { useHubAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import { DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS, DEMO_CONTRACTOR_TEAM } from '@/lib/demoData';
+import TaskDetailPanel from '@/pages/hub/components/TaskDetailPanel';
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -46,11 +47,12 @@ interface ProjectTask {
   project_id: number;
   title: string;
   description: string | null;
-  status: 'todo' | 'in_progress' | 'done';
+  status: 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done';
   priority: 'low' | 'medium' | 'high';
   due_date: string | null;
   start_date: string | null;
   assigned_to: string | null;
+  checklist?: { id: string; text: string; done: boolean }[] | null;
 }
 
 const emptyTaskForm = () => ({
@@ -721,6 +723,7 @@ export default function ContractorProjectsPage() {
   const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'overdue'>('all');
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [taskForm, setTaskForm] = useState(emptyTaskForm());
   const [taskSaving, setTaskSaving] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
@@ -770,24 +773,12 @@ export default function ContractorProjectsPage() {
 
   const openAddTask = () => {
     setEditingTask(null);
-    setTaskForm(emptyTaskForm());
-    setDrawerMode('edit');
-    setShowTaskModal(true);
+    setDetailPanelOpen(true);
   };
 
   const openViewTask = (task: ProjectTask) => {
     setEditingTask(task);
-    setTaskForm({
-      title: task.title,
-      description: task.description ?? '',
-      status: task.status,
-      priority: task.priority,
-      start_date: task.start_date ?? '',
-      due_date: task.due_date ?? '',
-      assigned_to: task.assigned_to ?? '',
-    });
-    setDrawerMode('view');
-    setShowTaskModal(true);
+    setDetailPanelOpen(true);
   };
 
   const openEditTask = (task: ProjectTask) => {
@@ -2430,6 +2421,38 @@ export default function ContractorProjectsPage() {
           </>
         );
       })()}
+      <TaskDetailPanel
+        task={editingTask ? {
+          id: editingTask.id,
+          project_id: editingTask.project_id,
+          title: editingTask.title,
+          description: editingTask.description,
+          status: editingTask.status,
+          priority: editingTask.priority,
+          assignee_id: editingTask.assigned_to,
+          due_date: editingTask.due_date,
+          start_date: editingTask.start_date,
+          checklist: editingTask.checklist,
+          hub_users: wsTeam.find(m => m.id === editingTask.assigned_to)
+            ? { id: wsTeam.find(m => m.id === editingTask.assigned_to)!.id, full_name: wsTeam.find(m => m.id === editingTask.assigned_to)!.full_name, avatar_url: wsTeam.find(m => m.id === editingTask.assigned_to)!.avatar_url ?? null }
+            : null,
+        } : null}
+        open={detailPanelOpen}
+        onClose={() => { setDetailPanelOpen(false); setEditingTask(null); }}
+        onSaved={(saved) => {
+          const mapped: ProjectTask = { ...saved, assigned_to: saved.assignee_id, start_date: saved.start_date ?? null, checklist: saved.checklist };
+          setTasks(prev => prev.some(t => t.id === saved.id)
+            ? prev.map(t => t.id === saved.id ? mapped : t)
+            : [...prev, mapped]);
+          setEditingTask(mapped);
+        }}
+        onDeleted={(id) => { setTasks(prev => prev.filter(t => t.id !== id)); setDetailPanelOpen(false); setEditingTask(null); }}
+        projectId={wsRow?.id ?? 0}
+        teamMembers={wsTeam}
+        canEdit={true}
+        currentUserId={hubUser?.id ?? ''}
+        currentUserName={hubUser?.full_name ?? 'Contractor'}
+      />
     </ContractorLayout>
   );
 }

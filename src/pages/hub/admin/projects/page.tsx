@@ -6,6 +6,7 @@ import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
 import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
+import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/TaskDetailPanel';
 
 // ── SVG progress ring ──────────────────────────────────────────────────────
 function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
@@ -89,10 +90,12 @@ interface ProjectTask {
   project_id: number;
   title: string;
   description: string | null;
-  status: 'todo' | 'in_progress' | 'done';
+  status: 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done';
   priority: 'low' | 'medium' | 'high';
   assignee_id: string | null;
   due_date: string | null;
+  start_date: string | null;
+  checklist?: { id: string; text: string; done: boolean }[] | null;
   created_by: string | null;
   created_at: string;
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
@@ -208,6 +211,12 @@ export default function AdminProjectsPage() {
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [taskSaving, setTaskSaving] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
+
+  // Task detail panel
+  const [detailTask, setDetailTask] = useState<TaskDetailTask | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const openTaskDetail = (task: ProjectTask) => { setDetailTask(task as TaskDetailTask); setDetailOpen(true); };
+  const openNewTask = () => { setDetailTask(null); setDetailOpen(true); };
 
   // Activity
   const [activity, setActivity] = useState<ProjectActivity[]>([]);
@@ -1050,9 +1059,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   const wsPct = tasks.length > 0 ? Math.round((wsDoneCt / tasks.length) * 100) : 0;
   const wsTaskTeam = activeProject ? activeProject.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean) : [];
   const wsStatusCycle: Record<string, { icon: string; cls: string }> = {
-    todo: { icon: 'ri-checkbox-blank-circle-line', cls: 'text-gray-300 hover:text-gray-500' },
-    in_progress: { icon: 'ri-loader-2-line', cls: 'text-sky-400 hover:text-sky-600' },
-    done: { icon: 'ri-checkbox-circle-fill', cls: 'text-emerald-500' },
+    todo:        { icon: 'ri-checkbox-blank-circle-line',  cls: 'text-gray-300 hover:text-gray-500' },
+    in_progress: { icon: 'ri-loader-2-line',               cls: 'text-sky-400 hover:text-sky-600' },
+    in_review:   { icon: 'ri-eye-line',                    cls: 'text-purple-400 hover:text-purple-600' },
+    blocked:     { icon: 'ri-indeterminate-circle-line',   cls: 'text-rose-400 hover:text-rose-600' },
+    done:        { icon: 'ri-checkbox-circle-fill',        cls: 'text-emerald-500' },
   };
 
   const hour = new Date().getHours();
@@ -1277,10 +1288,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           </div>
                         )}
                       </div>
-                      <button onClick={() => setShowTaskForm(s => !s)}
+                      <button onClick={openNewTask}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
-                        <i className={showTaskForm ? 'ri-close-line' : 'ri-add-line'}></i>
-                        {showTaskForm ? 'Cancel' : 'Add Task'}
+                        <i className="ri-add-line"></i>
+                        Add Task
                       </button>
                     </div>
                     <div className="flex gap-1 flex-wrap">
@@ -1337,7 +1348,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <div className="py-14 text-center">
                       <i className="ri-task-line text-3xl text-gray-200 block mb-2"></i>
                       <p className="text-sm text-gray-400 mb-3">No tasks yet</p>
-                      <button onClick={() => setShowTaskForm(true)} className="text-sm text-[#FF6B35] hover:underline cursor-pointer">Add the first task</button>
+                      <button onClick={openNewTask} className="text-sm text-[#FF6B35] hover:underline cursor-pointer">Add the first task</button>
                     </div>
                   ) : wsFilteredTasks.length === 0 ? (
                     <div className="py-10 text-center">
@@ -1354,19 +1365,16 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
                           : null;
                         return (
-                          <div key={task.id}
-                            className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 ${priorityBorder} group`}>
+                          <div key={task.id} onClick={() => openTaskDetail(task)}
+                            className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 ${priorityBorder} group cursor-pointer hover:shadow-md transition-shadow`}>
                             <div className="flex items-start gap-2.5">
-                              <button onClick={() => toggleTask(task)} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
+                              <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                 <i className={`${sc.icon} text-lg`}></i>
                               </button>
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
                               </div>
-                              <button onClick={() => deleteTask(task)}
-                                className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all">
-                                <i className="ri-delete-bin-line text-sm"></i>
-                              </button>
+                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 text-base transition-colors ml-1"></i>
                             </div>
                             <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
                               {task.due_date && (
@@ -1431,19 +1439,16 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                       ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
                                       : null;
                                     return (
-                                      <div key={task.id}
-                                        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 ${priorityBorder} group`}>
+                                      <div key={task.id} onClick={() => openTaskDetail(task)}
+                                        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 ${priorityBorder} group cursor-pointer hover:shadow-md transition-shadow`}>
                                         <div className="flex items-start gap-2.5">
-                                          <button onClick={() => toggleTask(task)} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
+                                          <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                             <i className={`${sc.icon} text-lg`}></i>
                                           </button>
                                           <div className="flex-1 min-w-0">
                                             <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
                                           </div>
-                                          <button onClick={() => deleteTask(task)}
-                                            className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all">
-                                            <i className="ri-delete-bin-line text-sm"></i>
-                                          </button>
+                                          <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 text-base transition-colors ml-1"></i>
                                         </div>
                                         <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
                                           {task.due_date && (
@@ -2920,6 +2925,24 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
         </div>
       )}
+
+      <TaskDetailPanel
+        task={detailTask}
+        open={detailOpen}
+        onClose={() => { setDetailOpen(false); setDetailTask(null); }}
+        onSaved={(saved) => {
+          setTasks(prev => prev.some(t => t.id === saved.id)
+            ? prev.map(t => t.id === saved.id ? { ...t, ...saved } : t)
+            : [...prev, saved as ProjectTask]);
+          setDetailTask(saved);
+        }}
+        onDeleted={(id) => { setTasks(prev => prev.filter(t => t.id !== id)); setDetailOpen(false); setDetailTask(null); }}
+        projectId={activeId ?? 0}
+        teamMembers={wsTaskTeam.map(u => ({ id: u!.id, full_name: u!.full_name, avatar_url: u!.avatar_url }))}
+        canEdit={true}
+        currentUserId={hubUser?.id ?? ''}
+        currentUserName={hubUser?.full_name ?? 'Admin'}
+      />
     </AdminLayout>
   );
 }
