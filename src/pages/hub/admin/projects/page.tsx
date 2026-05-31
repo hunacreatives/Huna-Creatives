@@ -411,7 +411,10 @@ export default function AdminProjectsPage() {
     const balance = p.project_type === 'retainer' ? 0 : p.contract_price - totalPaid;
     const paidPct = p.project_type === 'retainer' ? 100 : (p.contract_price > 0 ? (totalPaid / p.contract_price) * 100 : 0);
     const monthsActive = p.start_date ? Math.max(1, Math.ceil((Date.now() - new Date(p.start_date).getTime()) / (1000 * 60 * 60 * 24 * 30.5))) : null;
-    const monthsCollected = (p.monthly_rate && p.monthly_rate > 0) ? Math.round(totalPaid / p.monthly_rate) : null;
+    const monthlyRatePHP = p.monthly_rate
+      ? ((p as any).monthly_rate_currency === 'USD' ? p.monthly_rate * usdRate : p.monthly_rate)
+      : 0;
+    const monthsCollected = monthlyRatePHP > 0 ? Math.round(totalPaid / monthlyRatePHP) : null;
     return { totalPaid, totalCosts, netProfit, balance, paidPct, monthsActive, monthsCollected };
   };
 
