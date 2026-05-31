@@ -261,6 +261,7 @@ export default function AdminProjectsPage() {
   // Workspace overlay
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const openWorkspaceOnLoad = useRef(false);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
   // Collapsible detail sections (all closed by default)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   // Collapsed task groups in workspace
@@ -1178,6 +1179,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     if (openWorkspaceOnLoad.current) { setWorkspaceOpen(true); openWorkspaceOnLoad.current = false; }
     else { setWorkspaceOpen(false); }
     setOpenSections({});
+    if (activeId) setTimeout(() => detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
     // Sync URL
     if (activeId) setSearchParams({ w: String(activeId) }, { replace: true });
     else setSearchParams({}, { replace: true });
@@ -1902,7 +1904,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filtered.map(p => {
+                {(activeId ? filtered.filter(p => p.id === activeId) : filtered).map(p => {
                   const d = derived(p);
                   const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                   const dl = deadlineStatus(p.deadline, p.status);
@@ -2053,7 +2055,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {/* Retainer projects — clickable */}
-                  {sortedRetainers.map(p => {
+                  {(activeId ? sortedRetainers.filter(p => p.id === activeId) : sortedRetainers).map(p => {
                     const pal = getServicePalette(p.service);
                     const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                     return (
@@ -2261,6 +2263,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
         )}
 
+        <div ref={detailPanelRef} />
         {activeProject ? (() => {
           const d = derived(activeProject);
           const cfg = statusCfg[activeProject.status] ?? statusCfg.ongoing;
