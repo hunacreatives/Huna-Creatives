@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -404,7 +405,7 @@ export default function TaskDetailPanel({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -809,6 +810,7 @@ export default function TaskDetailPanel({
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
