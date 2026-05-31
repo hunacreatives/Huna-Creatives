@@ -366,7 +366,7 @@ export default function ContractorPayoutsPage() {
     if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
       const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-      const effectiveEnd = isCurrentPeriod && selectedPeriod.start >= '2026-06-01'
+      const effectiveEnd = isCurrentPeriod
         ? (today < selectedPeriod.end ? today : selectedPeriod.end)
         : selectedPeriod.end;
       const oldSegmentEnd = changeInPeriod.effective_date > selectedPeriod.start
@@ -418,16 +418,12 @@ export default function ContractorPayoutsPage() {
     if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
       const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-      if (selectedPeriod.start >= '2026-06-01') {
-        const effectiveEnd = isCurrentPeriod ? (today < selectedPeriod.end ? today : selectedPeriod.end) : selectedPeriod.end;
-        const expectedHours = countScheduledHours(selectedPeriod.start, effectiveEnd, workDays);
-        const accrualRatio = expectedHours > 0 ? Math.min(totalHoursBillable / expectedHours, 1) : 0;
-        basePay = (monthly / 2) * accrualRatio;
-        isProrated = true;
-        proratedLabel = `${totalHoursBillable.toFixed(1)}/${expectedHours}h scheduled${isCurrentPeriod ? ' · accruing' : ''}`;
-      } else {
-        basePay = monthly / 2;
-      }
+      const effectiveEnd = isCurrentPeriod ? (today < selectedPeriod.end ? today : selectedPeriod.end) : selectedPeriod.end;
+      const expectedHours = countScheduledHours(selectedPeriod.start, effectiveEnd, workDays);
+      const accrualRatio = expectedHours > 0 ? Math.min(totalHoursBillable / expectedHours, 1) : 0;
+      basePay = (monthly / 2) * accrualRatio;
+      isProrated = true;
+      proratedLabel = `${totalHoursBillable.toFixed(1)}/${expectedHours}h scheduled${isCurrentPeriod ? ' · accruing' : ''}`;
       otRate = hourly || monthly / 176;
     } else {
       basePay = totalHoursBillable * hourly;

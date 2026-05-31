@@ -3,11 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
+import { getPeriods } from '@/lib/formatUtils';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF } from '@/lib/demoData';
 
 const REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
+const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined) {
+  if (!startDate || !endDate || endDate < startDate) return 0;
+  const scheduled = workDays && workDays.length > 0
+    ? new Set(workDays.map(d => DAY_MAP[d]))
+    : new Set([1, 2, 3, 4, 5]);
+  let count = 0;
+  const end = new Date(`${endDate}T00:00:00`);
+  const cur = new Date(`${startDate}T00:00:00`);
+  while (cur <= end) {
+    if (scheduled.has(cur.getDay())) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count * 8;
+}
 
 interface Reaction { emoji: string; user_id: string; }
 interface Comment { id: string; body: string; user_id: string; created_at: string; hub_users: { full_name: string; avatar_url: string | null } | null; }
@@ -290,38 +307,27 @@ export default function ContractorDashboard() {
   const [activeProjects, setActiveProjects] = useState<{ id: number; project_name: string; client_name: string; service: string | null; status: string; deadline: string | null; tasksDone: number; tasksTotal: number }[]>([]);
 
   const today = new Date();
-  const isFirstHalf = today.getDate() <= 15;
-  const _pad = (n: number) => String(n).padStart(2, '0');
-  const _y = today.getFullYear();
-  const _m = today.getMonth();
-  const _lastDay = new Date(_y, _m + 1, 0).getDate();
-  const cutoffStartStr = isFirstHalf ? `${_y}-${_pad(_m + 1)}-01` : `${_y}-${_pad(_m + 1)}-16`;
-  const cutoffEndStr   = isFirstHalf ? `${_y}-${_pad(_m + 1)}-15` : `${_y}-${_pad(_m + 1)}-${_pad(_lastDay)}`;
-  const cutoffStart = new Date(cutoffStartStr + 'T00:00:00');
-  const cutoffEnd   = new Date(cutoffEndStr   + 'T00:00:00');
+  const currentPeriod = getPeriods().at(-1) ?? {
+    label: '',
+    start: today.toISOString().slice(0, 10),
+    end: today.toISOString().slice(0, 10),
+  };
+  const cutoffStartStr = currentPeriod.start;
+  const cutoffEndStr = currentPeriod.end;
+  const cutoffStart = new Date(`${cutoffStartStr}T00:00:00`);
+  const cutoffEnd = new Date(`${cutoffEndStr}T00:00:00`);
 
   const periodTotal = Math.round((cutoffEnd.getTime() - cutoffStart.getTime()) / 86400000) + 1;
   const daysElapsed = Math.min(Math.round((today.getTime() - cutoffStart.getTime()) / 86400000) + 1, periodTotal);
   const daysLeft = Math.max(periodTotal - daysElapsed, 0);
-  const paydayLabel = isFirstHalf
-    ? `${today.toLocaleDateString('en-US', { month: 'long' })} 15`
-    : new Date(today.getFullYear(), today.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  const paydayLabel = cutoffEnd.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 
   const isFixed = (user as any)?.payment_type === 'fixed';
   const maxHours = daysElapsed * 8;
   const hoursProgress = maxHours > 0 ? Math.min((hoursThisCutoff / maxHours) * 100, 100) : 0;
 
-  // Last working day of current month (Sat→Fri, Sun→Fri)
-  const _lastWorkingDay = (() => {
-    const last = new Date(_y, _m + 1, 0);
-    const dow = last.getDay();
-    if (dow === 6) last.setDate(last.getDate() - 1);
-    if (dow === 0) last.setDate(last.getDate() - 2);
-    return last.getDate();
-  })();
-  const cutoffDeadlineDay = isFirstHalf ? 15 : _lastWorkingDay;
-  const cutoffDeadlineDate = new Date(_y, _m, cutoffDeadlineDay);
-  const todayMidnight = new Date(_y, _m, today.getDate());
+  const cutoffDeadlineDate = new Date(`${cutoffEndStr}T00:00:00`);
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const daysUntilCutoff = Math.round((cutoffDeadlineDate.getTime() - todayMidnight.getTime()) / 86400000);
   const showPayslipBanner = daysUntilCutoff <= 3 && !['submitted','hr_approved','paid'].includes(payoutStatus ?? '');
 
@@ -403,17 +409,35 @@ export default function ContractorDashboard() {
       const newMonthly = changeInPeriod.monthly_rate || 0;
       const newHourly  = changeInPeriod.hourly_rate  || 0;
       if (isFixed) {
-        const totalD = Math.round((cutoffEnd.getTime() - cutoffStart.getTime()) / 86400000) + 1;
-        const chDate = new Date(changeInPeriod.effective_date);
-        const dAtOld = Math.max(0, Math.round((chDate.getTime() - cutoffStart.getTime()) / 86400000));
-        const dAtNew = totalD - dAtOld;
-        const base = (oldMonthly / 2 / totalD * dAtOld) + (newMonthly / 2 / totalD * dAtNew);
+        const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const isCurrentPeriod = todayStr >= periodStartStr && todayStr <= periodEndStr;
+        const effectiveEnd = isCurrentPeriod ? (todayStr < periodEndStr ? todayStr : periodEndStr) : periodEndStr;
+        const oldSegmentEnd = changeInPeriod.effective_date > periodStartStr
+          ? new Date(new Date(`${changeInPeriod.effective_date}T00:00:00`).getTime() - 86400000).toISOString().slice(0, 10)
+          : '';
+        const expectedOldHours = oldSegmentEnd
+          ? countScheduledHours(periodStartStr, oldSegmentEnd, (user as any)?.work_days || [])
+          : 0;
+        const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
+          ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, (user as any)?.work_days || [])
+          : 0;
+        const totalExpectedHours = expectedOldHours + expectedNewHours;
+        let hrsAtOld = 0, hrsAtNew = 0;
+        for (const d of days as any[]) {
+          if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped || 0;
+          else if (d.date <= effectiveEnd) hrsAtNew += d.hours_capped || 0;
+        }
+        const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
+        const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
+        const base =
+          (expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0) +
+          (expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0);
         const oldOT = oldHourly || oldMonthly / 176;
         const newOT = newHourly || newMonthly / 176;
         let otAtOld = 0, otAtNew = 0;
         for (const d of days as any[]) {
           if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
-          else otAtNew += d.overtime_hours || 0;
+          else if (d.date <= effectiveEnd) otAtNew += d.overtime_hours || 0;
         }
         estimated = base + otAtOld * oldOT + otAtNew * newOT;
       } else {
@@ -423,7 +447,12 @@ export default function ContractorDashboard() {
       const monthly = rateAtStart?.monthly_rate ?? currentMonthly;
       const hourly  = rateAtStart?.hourly_rate  ?? currentHourly;
       if (isFixed) {
-        estimated = monthly / 2 + totalOT * (hourly || monthly / 176);
+        const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const isCurrentPeriod = todayStr >= periodStartStr && todayStr <= periodEndStr;
+        const effectiveEnd = isCurrentPeriod ? (todayStr < periodEndStr ? todayStr : periodEndStr) : periodEndStr;
+        const expectedHours = countScheduledHours(periodStartStr, effectiveEnd, (user as any)?.work_days || []);
+        const accrualRatio = expectedHours > 0 ? Math.min(totalHours / expectedHours, 1) : 0;
+        estimated = (monthly / 2) * accrualRatio + totalOT * (hourly || monthly / 176);
       } else {
         estimated = totalHours * hourly + totalOT * hourly;
       }
@@ -598,9 +627,7 @@ export default function ContractorDashboard() {
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-1.5">
                     <p className="text-white/50 text-xs">
-                      Pay period · {isFirstHalf
-                        ? `${today.toLocaleDateString('en-US', { month: 'short' })} 1–15`
-                        : `${today.toLocaleDateString('en-US', { month: 'short' })} 16–${cutoffEnd.getDate()}`}
+                      Pay period · {currentPeriod.label}
                     </p>
                     <p className="text-white/50 text-xs">
                       {daysLeft === 0 ? `Payday: ${paydayLabel}` : `${daysLeft}d until ${paydayLabel}`}

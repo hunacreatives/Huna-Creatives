@@ -122,7 +122,7 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
       if (payType === 'fixed' || payType === 'fixed_flexible') {
         const today = new Date().toISOString().slice(0, 10);
         const isCurrentPeriod = today >= periodStart && today <= periodEnd;
-        const effectiveEnd = isCurrentPeriod && periodStart >= '2026-06-01'
+        const effectiveEnd = isCurrentPeriod
           ? (today < periodEnd ? today : periodEnd)
           : periodEnd;
         const oldSegmentEnd = changeInPeriod.effective_date > periodStart
@@ -169,16 +169,12 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
       const hourly  = rateAtStart?.hourly_rate  ?? c.hourly_rate  ?? 0;
       const otRate  = payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / 176) : hourly;
       if (payType === 'fixed' || payType === 'fixed_flexible') {
-        if (periodStart >= '2026-06-01') {
-          const today = new Date().toISOString().slice(0, 10);
-          const isCurrentPeriod = today >= periodStart && today <= periodEnd;
-          const effectiveEnd = isCurrentPeriod ? (today < periodEnd ? today : periodEnd) : periodEnd;
-          const expectedHours = countScheduledHours(periodStart, effectiveEnd, c.work_days);
-          const accrualRatio = expectedHours > 0 ? Math.min(hrs.capped / expectedHours, 1) : 0;
-          pay = (monthly / 2) * accrualRatio + hrs.overtime * otRate;
-        } else {
-          pay = monthly / 2 + hrs.overtime * otRate;
-        }
+        const today = new Date().toISOString().slice(0, 10);
+        const isCurrentPeriod = today >= periodStart && today <= periodEnd;
+        const effectiveEnd = isCurrentPeriod ? (today < periodEnd ? today : periodEnd) : periodEnd;
+        const expectedHours = countScheduledHours(periodStart, effectiveEnd, c.work_days);
+        const accrualRatio = expectedHours > 0 ? Math.min(hrs.capped / expectedHours, 1) : 0;
+        pay = (monthly / 2) * accrualRatio + hrs.overtime * otRate;
       } else {
         pay = hrs.capped * hourly + hrs.overtime * hourly;
       }

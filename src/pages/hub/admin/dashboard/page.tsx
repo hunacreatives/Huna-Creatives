@@ -309,7 +309,7 @@ export default function AdminDashboardPage() {
           if (payType === 'fixed' || payType === 'fixed_flexible') {
             const currentDate = new Date().toISOString().slice(0, 10);
             const isCurrentPeriod = currentDate >= cutoffStart && currentDate <= cutoffEnd;
-            const effectiveEnd = isCurrentPeriod && cutoffStart >= '2026-06-01'
+            const effectiveEnd = isCurrentPeriod
               ? (currentDate < cutoffEnd ? currentDate : cutoffEnd)
               : cutoffEnd;
             const oldSegmentEnd = changeInPeriod.effective_date > cutoffStart
@@ -363,14 +363,10 @@ export default function AdminDashboardPage() {
           } else {
             const currentDate = new Date().toISOString().slice(0, 10);
             const isCurrentPeriod = currentDate >= cutoffStart && currentDate <= cutoffEnd;
-            if (cutoffStart >= '2026-06-01') {
-              const effectiveEnd = isCurrentPeriod ? (currentDate < cutoffEnd ? currentDate : cutoffEnd) : cutoffEnd;
-              const expectedHours = countScheduledHours(cutoffStart, effectiveEnd, c.work_days);
-              const accrualRatio = expectedHours > 0 ? Math.min(h.capped / expectedHours, 1) : 0;
-              pay = (monthly / 2) * accrualRatio;
-            } else {
-              pay = monthly / 2;
-            }
+            const effectiveEnd = isCurrentPeriod ? (currentDate < cutoffEnd ? currentDate : cutoffEnd) : cutoffEnd;
+            const expectedHours = countScheduledHours(cutoffStart, effectiveEnd, c.work_days);
+            const accrualRatio = expectedHours > 0 ? Math.min(h.capped / expectedHours, 1) : 0;
+            pay = (monthly / 2) * accrualRatio;
           }
         }
         const inPHP = c.currency === 'USD' ? pay * usdRate : pay;

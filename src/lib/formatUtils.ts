@@ -1,10 +1,36 @@
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+function pad(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+function toDateStr(date: Date) {
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+function addUtcDays(dateStr: string, days: number) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return toDateStr(d);
+}
+
+export function formatPayrollPeriodLabel(start: string, end: string): string {
+  const startDate = new Date(`${start}T00:00:00Z`);
+  const endDate = new Date(`${end}T00:00:00Z`);
+  const sameYear = startDate.getUTCFullYear() === endDate.getUTCFullYear();
+  const sameMonth = sameYear && startDate.getUTCMonth() === endDate.getUTCMonth();
+
+  if (sameMonth) {
+    return `${MONTHS[startDate.getUTCMonth()]} ${startDate.getUTCDate()}–${endDate.getUTCDate()}, ${startDate.getUTCFullYear()}`;
+  }
+
+  return `${MONTHS[startDate.getUTCMonth()]} ${startDate.getUTCDate()} – ${MONTHS[endDate.getUTCMonth()]} ${endDate.getUTCDate()}, ${endDate.getUTCFullYear()}`;
+}
+
 export function getPeriods(): { label: string; start: string; end: string }[] {
   const periods: { label: string; start: string; end: string }[] = [];
   const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
   const lastDay = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
   const lastWorkingDay = (y: number, m: number) => {
     const d = new Date(y, m + 1, 0); // last calendar day
@@ -21,14 +47,14 @@ export function getPeriods(): { label: string; start: string; end: string }[] {
     const start = firstHalf
       ? `${year}-${pad(month + 1)}-01`
       : `${year}-${pad(month + 1)}-16`;
-    if (new Date(start) > now) break;
+    if (new Date(start) > now) return periods;
 
     const endDay = firstHalf ? 15 : lastWorkingDay(year, month);
-    const calEndDay = firstHalf ? 15 : lastDay(year, month);
+    const calendarEndDay = firstHalf ? 15 : lastDay(year, month);
     const end = `${year}-${pad(month + 1)}-${pad(endDay)}`;
     const label = firstHalf
       ? `${MONTHS[month]} 1–15, ${year}`
-      : `${MONTHS[month]} 16–${calEndDay}, ${year}`;
+      : `${MONTHS[month]} 16–${calendarEndDay}, ${year}`;
 
     periods.push({ label, start, end });
 
@@ -40,7 +66,6 @@ export function getPeriods(): { label: string; start: string; end: string }[] {
       if (month > 11) { month = 0; year += 1; }
     }
   }
-  return periods;
 }
 
 export function getNextPayrollCutoff(): { date: string; label: string; daysAway: number } {

@@ -62,7 +62,6 @@ async function sendPayslip(payout_id: string) {
 
   const periodStart = new Date(payout.cutoff_start);
   const periodEnd = new Date(payout.cutoff_end);
-  // Show full calendar period (e.g. May 16–31), not the internal cutoff day (May 29)
   const calendarEndDay = periodStart.getDate() >= 16
     ? new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 0).getDate()
     : periodEnd.getDate();

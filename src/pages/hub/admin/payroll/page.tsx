@@ -158,6 +158,7 @@ export default function AdminPayrollPage() {
 
   const years = [...new Set(periods.map(p => p.start.slice(0, 4)))];
   const [selectedYear, setSelectedYear] = useState(lastPeriod.start.slice(0, 4));
+  const [closedPeriods, setClosedPeriods] = useState<Set<string>>(new Set());
 
   const monthsInYear = [...new Set(
     periods.filter(p => p.start.startsWith(selectedYear))
@@ -166,12 +167,13 @@ export default function AdminPayrollPage() {
   const [selectedMonth, setSelectedMonth] = useState(lastPeriod.start.slice(0, 7));
 
   const periodsInMonth = periods.filter(p => p.start.startsWith(selectedMonth));
+  const openPeriodsInMonth = periodsInMonth.filter(p => !closedPeriods.has(p.start));
+  const archivedPeriodsInMonth = periodsInMonth.filter(p => closedPeriods.has(p.start));
   const [selectedPeriod, setSelectedPeriod] = useState(lastPeriod);
 
   const [rows, setRows] = useState<PayRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [usdRate, setUsdRate] = useState<number>(56);
-  const [closedPeriods, setClosedPeriods] = useState<Set<string>>(new Set());
 
   // Load closed periods once on mount
   useEffect(() => {
@@ -329,14 +331,14 @@ export default function AdminPayrollPage() {
     setSelectedYear(year);
     const firstMonth = periods.find(p => p.start.startsWith(year))?.start.slice(0, 7) || '';
     setSelectedMonth(firstMonth);
-    const firstPeriod = periods.find(p => p.start.startsWith(firstMonth));
-    if (firstPeriod) setSelectedPeriod(firstPeriod);
+    const latestPeriod = periods.filter(p => p.start.startsWith(firstMonth)).at(-1);
+    if (latestPeriod) setSelectedPeriod(latestPeriod);
   };
 
   const handleMonthChange = (month: string) => {
     setSelectedMonth(month);
-    const firstPeriod = periods.find(p => p.start.startsWith(month));
-    if (firstPeriod) setSelectedPeriod(firstPeriod);
+    const latestPeriod = periods.filter(p => p.start.startsWith(month)).at(-1);
+    if (latestPeriod) setSelectedPeriod(latestPeriod);
   };
 
   const fetchWorkflow = async () => {
@@ -591,7 +593,7 @@ export default function AdminPayrollPage() {
       const p = payoutsMap[c.id];
       const adjs: { amount: number }[] = p?.adjustments || [];
       const adjTotal = adjs.reduce((sum, item) => sum + item.amount, 0);
-      const total = basePay + displayOTPay + adjTotal;
+      const total = getRowDisplayTotal(r);
       return `
         <tr>
           <td>${c.full_name}</td>
@@ -623,7 +625,7 @@ export default function AdminPayrollPage() {
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px;">
           ${[
-            { label: 'Total Payroll', value: fmt(totalPay, 'PHP') },
+            { label: 'Total Payroll', value: fmt(displayTotalPay, 'PHP') },
             { label: 'Total Hours', value: `${totalHours.toFixed(2)}h` },
             { label: 'Contractors', value: `${rows.length}` },
             { label: 'Hourly / Fixed', value: `${hourlyRows} / ${fixedRows}` },
@@ -651,7 +653,7 @@ export default function AdminPayrollPage() {
             ${tableRows}
             <tr>
               <td colspan="7" style="padding:12px;border-top:2px solid #111827;font-weight:800;font-size:14px;">Total</td>
-              <td style="padding:12px;border-top:2px solid #111827;text-align:right;font-weight:800;font-size:14px;">${fmt(totalPay, 'PHP')}</td>
+              <td style="padding:12px;border-top:2px solid #111827;text-align:right;font-weight:800;font-size:14px;">${fmt(displayTotalPay, 'PHP')}</td>
             </tr>
           </tbody>
         </table>
@@ -902,7 +904,7 @@ export default function AdminPayrollPage() {
         if (payType === 'fixed' || payType === 'fixed_flexible') {
           const today = new Date().toISOString().slice(0, 10);
           const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-          const effectiveEnd = isCurrentPeriod && selectedPeriod.start >= '2026-06-01'
+          const effectiveEnd = isCurrentPeriod
             ? (today < selectedPeriod.end ? today : selectedPeriod.end)
             : selectedPeriod.end;
           const oldSegmentEnd = changeInPeriod.effective_date > selectedPeriod.start
@@ -971,16 +973,12 @@ export default function AdminPayrollPage() {
           overtimePay = hrs.overtime * derivedHourlyRate;
           const today = new Date().toISOString().slice(0, 10);
           const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-          if (selectedPeriod.start >= '2026-06-01') {
-            const effectiveEnd = isCurrentPeriod ? (today < selectedPeriod.end ? today : selectedPeriod.end) : selectedPeriod.end;
-            const expectedHours = countScheduledHours(selectedPeriod.start, effectiveEnd, c.work_days);
-            const accrualRatio = expectedHours > 0 ? Math.min(hrs.capped / expectedHours, 1) : 0;
-            pay = (monthly / 2) * accrualRatio;
-            prorated = true;
-            proratedNote = `${hrs.capped.toFixed(1)}/${expectedHours}h scheduled${isCurrentPeriod ? ' · accruing' : ''}`;
-          } else {
-            pay = monthly / 2;
-          }
+          const effectiveEnd = isCurrentPeriod ? (today < selectedPeriod.end ? today : selectedPeriod.end) : selectedPeriod.end;
+          const expectedHours = countScheduledHours(selectedPeriod.start, effectiveEnd, c.work_days);
+          const accrualRatio = expectedHours > 0 ? Math.min(hrs.capped / expectedHours, 1) : 0;
+          pay = (monthly / 2) * accrualRatio;
+          prorated = true;
+          proratedNote = `${hrs.capped.toFixed(1)}/${expectedHours}h scheduled${isCurrentPeriod ? ' · accruing' : ''}`;
         }
       }
 
@@ -1024,15 +1022,34 @@ export default function AdminPayrollPage() {
     const adjTotal = adjs.reduce((as: number, a: any) => as + (a.amount || 0), 0);
     return s + basePay + otPay + adjTotal;
   }, 0);
+  const isSelectedPeriodClosed = closedPeriods.has(selectedPeriod.start);
+  const getRowDisplayTotal = (row: PayRow) => {
+    const payout = payoutsMap[row.contractor.id];
+    if (isSelectedPeriodClosed && payout?.final_payout != null) {
+      return Number(payout.final_payout);
+    }
+
+    const override = rowOverrides[row.contractor.id];
+    const basePay = override?.pay !== undefined ? override.pay : row.pay;
+    const otPay = override?.otHours !== undefined && override?.otRate !== undefined
+      ? override.otHours * override.otRate
+      : row.overtimePay;
+    const adjs: any[] = payout?.adjustments || [];
+    const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
+    return basePay + otPay + adjTotal;
+  };
+  const displayTotalPay = isSelectedPeriodClosed && batch?.total_amount != null
+    ? Number(batch.total_amount)
+    : rows.reduce((s, r) => s + getRowDisplayTotal(r), 0);
 
   useEffect(() => {
     if (rows.length > 0) {
       supabase.from('hub_payroll_cache').upsert(
-        { period_start: selectedPeriod.start, computed_total: totalPay, updated_at: new Date().toISOString() },
+        { period_start: selectedPeriod.start, computed_total: displayTotalPay, updated_at: new Date().toISOString() },
         { onConflict: 'period_start' }
       );
     }
-  }, [totalPay, selectedPeriod.start]);
+  }, [displayTotalPay, selectedPeriod.start]);
   const totalHours = rows.reduce((s, r) => s + r.cappedHours, 0);
   const hourlyCount = rows.filter(r => r.contractor.payment_type === 'hourly').length;
   const fixedCount = rows.filter(r => r.contractor.payment_type === 'fixed').length;
@@ -1051,6 +1068,7 @@ export default function AdminPayrollPage() {
       const otCell = r.overtimeHours > 0
         ? `+${r.overtimeHours}h (${fmt(r.overtimePay, 'PHP')})`
         : '—';
+      const total = getRowDisplayTotal(r);
       return `
         <tr>
           <td>${c.full_name}</td>
@@ -1061,7 +1079,7 @@ export default function AdminPayrollPage() {
           <td>${r.hours.toFixed(2)}h</td>
           <td>${r.cappedHours.toFixed(2)}h</td>
           <td>${otCell}</td>
-          <td><strong>${fmt(r.pay, 'PHP')}</strong></td>
+          <td><strong>${fmt(total, 'PHP')}</strong></td>
         </tr>`;
     }).join('');
 
@@ -1104,7 +1122,7 @@ export default function AdminPayrollPage() {
   <div class="summary">
     <div class="summary-item">
       <div class="label">Total Payroll</div>
-      <div class="value accent">${fmt(totalPay, 'PHP')}</div>
+      <div class="value accent">${fmt(displayTotalPay, 'PHP')}</div>
     </div>
     <div class="summary-item">
       <div class="label">Total Hours</div>
@@ -1139,7 +1157,7 @@ export default function AdminPayrollPage() {
         <td colspan="6">Total</td>
         <td>${totalHours.toFixed(2)}h</td>
         <td></td>
-        <td>${fmt(totalPay, 'PHP')}</td>
+        <td>${fmt(displayTotalPay, 'PHP')}</td>
       </tr>
     </tfoot>
   </table>
@@ -1155,7 +1173,7 @@ export default function AdminPayrollPage() {
       `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
       `Contractors: ${rows.length}`,
       `Total Hours: ${totalHours.toFixed(2)}h`,
-      `Total Payroll: ₱${totalPay.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
+      `Total Payroll: ₱${displayTotalPay.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`,
     ].join('\n');
     supabase.functions.invoke('upload-to-drive', {
       body: {
@@ -1217,27 +1235,28 @@ export default function AdminPayrollPage() {
                     <option key={m} value={m} className="text-gray-900 bg-white">{FULL_MONTHS[parseInt(m.slice(5, 7)) - 1]}</option>
                   ))}
                 </select>
-                <div className="flex gap-1">
-                  {periodsInMonth.map((p) => {
-                    const isClosed = closedPeriods.has(p.start);
-                    return (
-                      <button
-                        key={p.start}
-                        onClick={() => setSelectedPeriod(p)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                          selectedPeriod.start === p.start
-                            ? 'bg-[#FF6B35] text-white'
-                            : isClosed
-                            ? 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50'
-                            : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
-                        }`}
-                      >
-                        {p.label}
-                        {isClosed && <i className="ri-lock-fill text-[9px] opacity-60"></i>}
-                      </button>
-                    );
-                  })}
-                </div>
+                <select
+                  value={selectedPeriod.start}
+                  onChange={e => {
+                    const picked = periodsInMonth.find(p => p.start === e.target.value);
+                    if (picked) setSelectedPeriod(picked);
+                  }}
+                  className="min-w-[220px] bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
+                >
+                  {openPeriodsInMonth.map((p) => (
+                    <option key={p.start} value={p.start} className="text-gray-900 bg-white">
+                      {p.label}
+                    </option>
+                  ))}
+                  {archivedPeriodsInMonth.length > 0 && (
+                    <option disabled className="text-gray-500 bg-white">────────</option>
+                  )}
+                  {archivedPeriodsInMonth.map((p) => (
+                    <option key={p.start} value={p.start} className="text-gray-900 bg-white">
+                      {p.label} (Archived)
+                    </option>
+                  ))}
+                </select>
                 <button
                   onClick={() => fetchWorkflow()}
                   title="Refresh submission statuses"
@@ -1250,7 +1269,7 @@ export default function AdminPayrollPage() {
               {/* KPIs inline */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { label: 'Total Payroll', value: fmt(totalPay, 'PHP'), accent: true },
+                  { label: 'Total Payroll', value: fmt(displayTotalPay, 'PHP'), accent: true },
                   { label: 'Total Hours', value: `${totalHours.toFixed(1)}h` },
                   { label: 'Hourly', value: `${hourlyCount} contractor${hourlyCount !== 1 ? 's' : ''}` },
                   { label: 'Fixed Rate', value: `${fixedCount} contractor${fixedCount !== 1 ? 's' : ''}` },
@@ -1277,7 +1296,7 @@ export default function AdminPayrollPage() {
                       const override = rowOverrides[c.id];
                       const displayPay = override?.pay !== undefined ? override.pay : r.pay;
                       const displayOT = override?.otHours !== undefined && override?.otRate !== undefined ? override.otHours * override.otRate : r.overtimePay;
-                      const total = displayPay + displayOT + adjTotal;
+                      const total = getRowDisplayTotal(r);
                       const rate = c.payment_type === 'fixed' ? `${c.monthly_rate}/mo` : `${c.hourly_rate}/hr`;
                       return [c.full_name, c.department || '', c.payment_type, rate, r.days, r.hours.toFixed(2), r.cappedHours.toFixed(2), r.overtimeHours.toFixed(2), r.overtimePay.toFixed(2), total.toFixed(2)];
                     });
@@ -1391,7 +1410,7 @@ export default function AdminPayrollPage() {
               const adjTotal = adjs.reduce((s, i) => s + i.amount, 0);
               const displayOTHours = override?.otHours !== undefined ? override.otHours : r.overtimeHours;
               const displayOTPay = override?.otHours !== undefined && override?.otRate !== undefined ? override.otHours * override.otRate : r.overtimePay;
-              const total = displayPay + displayOTPay + adjTotal;
+              const total = getRowDisplayTotal(r);
               const dispute = p ? disputesMap[p.id] : null;
               const hoursExceeded = r.hours > r.cappedHours;
 
@@ -1509,7 +1528,7 @@ export default function AdminPayrollPage() {
                     </button>
                   )}
                   <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900">{fmt(totalPay, 'PHP')}</p>
+                    <p className="text-sm font-bold text-gray-900">{fmt(displayTotalPay, 'PHP')}</p>
                     <p className="text-xs text-gray-400">{totalHours.toFixed(1)}h</p>
                   </div>
                 </div>
@@ -1566,7 +1585,7 @@ export default function AdminPayrollPage() {
                     const displayOTPay = override?.otHours !== undefined && override?.otRate !== undefined
                       ? override.otHours * override.otRate
                       : r.overtimePay;
-                    const total = displayPay + displayOTPay + adjTotal;
+                    const total = getRowDisplayTotal(r);
                     const dispute = p ? disputesMap[p.id] : null;
 
                     return (
@@ -1737,7 +1756,7 @@ export default function AdminPayrollPage() {
                       <td className="px-5 py-3.5 text-sm font-semibold text-gray-700">Total</td>
                       <td className="px-5 py-3.5 font-semibold text-gray-800 text-sm">{totalHours.toFixed(2)}h</td>
                       <td className="px-5 py-3.5"></td>
-                      <td className="px-5 py-3.5 font-bold text-gray-900">{fmt(totalPay, 'PHP')}</td>
+                      <td className="px-5 py-3.5 font-bold text-gray-900">{fmt(displayTotalPay, 'PHP')}</td>
                       <td className="px-5 py-3.5 text-right">
                         {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
                           <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
