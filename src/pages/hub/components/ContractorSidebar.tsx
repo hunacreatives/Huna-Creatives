@@ -124,8 +124,8 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
 
         {/* Bottom: user + sign out */}
         <div className={`border-t border-white/60 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] ${collapsed ? 'px-2' : ''}`}>
-          {!collapsed && hubUser && (
-            <div className="flex items-center gap-2.5 px-2 pb-2.5 mb-1 min-w-0">
+          {!collapsed && hubUser ? (
+            <div className="flex items-center gap-2.5 px-2 py-1 min-w-0">
               {hubUser.avatar_url ? (
                 <img src={hubUser.avatar_url} alt={hubUser.full_name} className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0" />
               ) : (
@@ -133,20 +133,21 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
                   <span className="text-xs font-bold text-white">{hubUser.full_name.charAt(0)}</span>
                 </div>
               )}
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-gray-800 truncate leading-tight">{hubUser.full_name}</p>
                 <p className="text-[11px] text-gray-400 truncate">{hubUser.department ?? 'Contractor'}</p>
               </div>
+              <button onClick={handleSignOut} title="Sign out"
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-white/50 transition-colors cursor-pointer flex-shrink-0">
+                <i className="ri-logout-box-r-line text-[18px]"></i>
+              </button>
             </div>
-          )}
-          <button
-            onClick={handleSignOut}
-            className={`flex items-center gap-2.5 text-gray-400 hover:text-red-500 transition-colors cursor-pointer w-full rounded-2xl px-3 py-2 hover:bg-white/50 ${collapsed ? 'justify-center px-0' : ''}`}
-            title="Sign out"
-          >
-            <i className="ri-logout-box-r-line text-[18px] flex-shrink-0"></i>
-            {!collapsed && <span className="text-sm">Sign out</span>}
-          </button>
+          ) : collapsed ? (
+            <button onClick={handleSignOut} title="Sign out"
+              className="flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors cursor-pointer w-full rounded-2xl px-0 py-2 hover:bg-white/50">
+              <i className="ri-logout-box-r-line text-[18px]"></i>
+            </button>
+          ) : null}
         </div>
       </div>
     </aside>
