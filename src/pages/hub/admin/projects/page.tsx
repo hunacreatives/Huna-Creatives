@@ -1950,64 +1950,69 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Retainer Clients <span className="text-gray-400 font-normal">({totalCount})</span></p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {/* Retainer projects — clickable to open workspace */}
+                  {/* Retainer projects — clickable */}
                   {retainerProjects.map(p => {
                     const pal = getServicePalette(p.service);
-                    const d = derived(p);
+                    const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                     return (
                       <button key={p.id} onClick={() => { openWorkspaceOnLoad.current = true; setActiveId(p.id); }}
                         className="rounded-xl overflow-hidden border border-white/20 text-left hover:-translate-y-0.5 transition-all cursor-pointer"
                         style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
-                        <div className="p-3.5">
-                          <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="p-3.5 space-y-2.5">
+                          <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              {p.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{p.service}</span>}
+                              {p.service && <span className="block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{p.service}</span>}
                               <p className="font-bold text-white text-sm leading-tight truncate">{p.project_name}</p>
-                              <p className="text-[11px] text-white/70 mt-0.5 truncate">{p.client_name}</p>
+                              <p className="text-[11px] text-white/60 mt-0.5 truncate">{p.client_name}</p>
                             </div>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/20 text-white flex-shrink-0">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/20 text-white flex-shrink-0 whitespace-nowrap">
                               {p.monthly_rate ? `${fmt(p.monthly_rate)}/mo` : 'Retainer'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between pt-2 border-t border-white/20">
-                            <span className="text-[10px] text-white/70">{d.monthsCollected ?? 0} months paid</span>
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex -space-x-1">
+                                {team.slice(0, 3).map((u: any, i: number) => (
+                                  u?.avatar_url
+                                    ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white/30" />
+                                    : <div key={i} className="w-5 h-5 rounded-full bg-white/30 border border-white/30 flex items-center justify-center text-[8px] font-bold text-white">{u?.full_name?.[0]}</div>
+                                ))}
+                              </div>
+                              {team.length > 0 && <span className="text-[10px] text-white/70">{team[0]?.full_name?.split(' ')[0]}{team.length > 1 ? ` +${team.length - 1}` : ''}</span>}
+                            </div>
                             <i className="ri-arrow-right-s-line text-white/50 text-sm"></i>
                           </div>
                         </div>
                       </button>
                     );
                   })}
-                  {/* Extra hub_clients not already in retainer projects */}
+                  {/* Extra hub_clients */}
                   {extraIntl.map(c => {
                     const pal = getServicePalette(c.platform);
                     return (
                       <div key={c.id} className="rounded-xl overflow-hidden border border-white/20"
                         style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
-                        <div className="p-3.5">
-                          <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="p-3.5 space-y-2.5">
+                          <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              {c.platform && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{c.platform}</span>}
+                              {c.platform && <span className="block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{c.platform}</span>}
                               <p className="font-bold text-white text-sm leading-tight truncate">{c.client_name}</p>
+                              <p className="text-[11px] text-white/60 mt-0.5 truncate">{c.notes ?? 'Client'}</p>
                             </div>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.status === 'active' ? 'bg-white/25 text-white' : 'bg-black/20 text-white/70'}`}>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 whitespace-nowrap ${c.status === 'active' ? 'bg-white/20 text-white' : 'bg-black/20 text-white/60'}`}>
                               {c.status}
                             </span>
                           </div>
-                          {c.assignments.length > 0 && (
-                            <div className="flex items-center gap-1.5 pt-2 border-t border-white/20">
-                              <div className="flex -space-x-1">
-                                {c.assignments.slice(0, 3).map((a, i) => (
-                                  a.hub_users?.avatar_url
-                                    ? <img key={i} src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white/30" />
-                                    : <div key={i} className="w-5 h-5 rounded-full bg-white/30 border border-white/30 flex items-center justify-center text-[8px] font-bold text-white">{a.hub_users?.full_name?.[0]}</div>
-                                ))}
-                              </div>
-                              <span className="text-[10px] text-white/70 truncate">
-                                {c.assignments[0]?.hub_users?.full_name?.split(' ')[0]}{c.assignments.length > 1 ? ` +${c.assignments.length - 1}` : ''}
-                              </span>
+                          <div className="flex items-center gap-1.5 pt-2 border-t border-white/20">
+                            <div className="flex -space-x-1">
+                              {c.assignments.slice(0, 3).map((a, i) => (
+                                a.hub_users?.avatar_url
+                                  ? <img key={i} src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white/30" />
+                                  : <div key={i} className="w-5 h-5 rounded-full bg-white/30 border border-white/30 flex items-center justify-center text-[8px] font-bold text-white">{a.hub_users?.full_name?.[0]}</div>
+                              ))}
                             </div>
-                          )}
-                          {c.notes && <p className="text-[10px] text-white/60 italic mt-1 truncate">{c.notes}</p>}
+                            {c.assignments.length > 0 && <span className="text-[10px] text-white/70 truncate">{c.assignments[0]?.hub_users?.full_name?.split(' ')[0]}{c.assignments.length > 1 ? ` +${c.assignments.length - 1}` : ''}</span>}
+                          </div>
                         </div>
                       </div>
                     );
