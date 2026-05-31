@@ -2028,9 +2028,32 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <span className="text-gray-200">|</span>
                     <span className={`text-xs font-medium ${cfg.cls} px-2 py-0.5 rounded-full`}>{cfg.label}</span>
                   </div>
+                ) : isRetainerProject(activeProject) ? (
+                  <>
+                    {/* Retainer finance strip */}
+                    <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
+                      <span>Monthly: <strong className="text-indigo-600">{fmt(activeProject.monthly_rate ?? 0)}/mo</strong></span>
+                      <span className="text-gray-200">|</span>
+                      <span>Collected: <strong className="text-emerald-600">{fmt(d.totalPaid)}</strong></span>
+                      <span className="text-gray-200">|</span>
+                      <span>Months paid: <strong className="text-gray-700">{d.monthsCollected ?? 0}</strong></span>
+                      <span className="text-gray-200">|</span>
+                      <span>Costs: <strong className="text-rose-500">{fmt(d.totalCosts)}</strong></span>
+                    </div>
+                    {/* Retainer payment history bar */}
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>Client payments</span>
+                        <span>{d.monthsCollected ?? 0} month{(d.monthsCollected ?? 0) !== 1 ? 's' : ''} · {fmt(d.totalPaid)} collected</span>
+                      </div>
+                      <div className="h-2 bg-white/60 rounded-full overflow-hidden border border-white/55">
+                        <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: d.totalPaid > 0 ? '100%' : '0%' }} />
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <>
-                    {/* Client finance strip — secondary, not headline */}
+                    {/* Client finance strip */}
                     <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
                       <span>Contract: <strong className="text-gray-700">{fmt(activeProject.contract_price)}</strong></span>
                       <span className="text-gray-200">|</span>
