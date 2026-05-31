@@ -19,7 +19,6 @@ const navItems = [
   { to: '/hub/admin/sop', label: 'SOP Library', icon: 'ri-book-open-line' },
   { to: '/hub/admin/announcements', label: 'Announcements', icon: 'ri-megaphone-line' },
   { to: '/hub/admin/questionnaires', label: 'Questionnaires', icon: 'ri-questionnaire-line', devOnly: true },
-  { to: '/hub/admin/clients', label: 'Client Assignments', icon: 'ri-building-2-line' },
   { to: '/hub/admin/assets', label: 'Asset Access', icon: 'ri-key-2-line' },
   { to: '/hub/admin/credentials', label: 'Credentials Vault', icon: 'ri-lock-2-line' },
   { to: '/hub/admin/auditlog', label: 'Audit Log', icon: 'ri-shield-check-line' },

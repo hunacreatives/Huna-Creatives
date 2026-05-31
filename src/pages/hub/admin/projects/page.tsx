@@ -133,6 +133,7 @@ export default function AdminProjectsPage() {
   const { isDemo } = useDemo();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; assignments: { role: string | null; hub_users: { full_name: string; avatar_url: string | null } | null }[] }[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -350,15 +351,23 @@ export default function AdminProjectsPage() {
   };
 
   const fetchAll = async () => {
-    const [pRes, cRes] = await Promise.all([
+    const [pRes, cRes, clientRes] = await Promise.all([
       supabase.from('hub_projects')
         .select('*, hub_project_payments(id, amount, paid_at, notes, receipt_url), hub_project_costs(id, label, amount, date), hub_payment_reminders(id, send_date, amount_due, notes, status, sent_at), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
+      supabase.from('hub_clients').select('id, client_name, platform, status, notes, hub_client_assignments(role, hub_users(full_name, avatar_url))').order('client_name'),
     ]);
     setProjects((pRes.data as Project[]) ?? []);
     setContractors((cRes.data as Contractor[]) ?? []);
+    setIntlClients((clientRes.data ?? []).map((c: any) => ({
+      ...c,
+      assignments: (Array.isArray(c.hub_client_assignments) ? c.hub_client_assignments : []).map((a: any) => ({
+        role: a.role,
+        hub_users: Array.isArray(a.hub_users) ? a.hub_users[0] : a.hub_users,
+      })),
+    })));
     setLoading(false);
   };
 
@@ -1917,6 +1926,52 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 })}
               </div>
             )}
+          {/* ── International Clients section ── */}
+          {intlClients.length > 0 && (
+            <div className="-mx-4 md:-mx-6 px-4 md:px-6 pt-5 pb-6 mt-2 space-y-3"
+              style={{ background: 'rgba(30,40,70,0.06)', borderTop: '1px solid rgba(30,40,70,0.10)' }}>
+              <div className="flex items-center gap-2">
+                <i className="ri-global-line text-[#FF6B35] text-sm"></i>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">International Clients <span className="text-gray-400 font-normal">({intlClients.length})</span></p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {intlClients.map(c => {
+                  const pal = getServicePalette(c.platform);
+                  return (
+                    <div key={c.id} className="rounded-xl overflow-hidden border border-white/20"
+                      style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
+                      <div className="p-3.5">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            {c.platform && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{c.platform}</span>}
+                            <p className="font-bold text-white text-sm leading-tight truncate">{c.client_name}</p>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.status === 'active' ? 'bg-white/25 text-white' : 'bg-black/20 text-white/70'}`}>
+                            {c.status}
+                          </span>
+                        </div>
+                        {c.assignments.length > 0 && (
+                          <div className="flex items-center gap-1.5 pt-2 border-t border-white/20">
+                            <div className="flex -space-x-1">
+                              {c.assignments.slice(0, 3).map((a, i) => (
+                                a.hub_users?.avatar_url
+                                  ? <img key={i} src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white/30" />
+                                  : <div key={i} className="w-5 h-5 rounded-full bg-white/30 border border-white/30 flex items-center justify-center text-[8px] font-bold text-white">{a.hub_users?.full_name?.[0]}</div>
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-white/70 truncate">
+                              {c.assignments[0]?.hub_users?.full_name?.split(' ')[0]}{c.assignments.length > 1 ? ` +${c.assignments.length - 1}` : ''}
+                            </span>
+                          </div>
+                        )}
+                        {c.notes && <p className="text-[10px] text-white/60 italic mt-1 truncate">{c.notes}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           </div>
         </section>
 
