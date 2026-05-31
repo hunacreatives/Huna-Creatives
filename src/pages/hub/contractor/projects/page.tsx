@@ -326,6 +326,7 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
   const p = row.hub_projects;
   const today = new Date().toISOString().slice(0, 10);
   const isInternal = p.project_type === 'internal';
+  const isRetainer = p.project_type === 'retainer';
   const totalPaid = p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
   const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
   const netProfit = p.contract_price - totalCosts;
@@ -413,11 +414,11 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
                   </div>
                 </div>
               </div>
-              {isInternal ? (
+              {isInternal || isRetainer ? (
                 <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Project</p>
-                  <p className="text-sm font-bold text-gray-900 leading-none">Internal</p>
-                  <p className="text-[11px] text-gray-400">No payout applicable</p>
+                  <p className="text-sm font-bold text-gray-900 leading-none">{isRetainer ? 'Retainer' : 'Internal'}</p>
+                  <p className="text-[11px] text-gray-400">Ongoing engagement</p>
                 </div>
               ) : (
                 <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
@@ -434,8 +435,8 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
               )}
             </div>
 
-            {/* Project overall payment progress — client only */}
-            {!isInternal && (
+            {/* Project overall payment progress — client only, not retainer */}
+            {!isInternal && !isRetainer && (
               <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Project Collections</p>
@@ -503,8 +504,8 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
               </div>
             )}
 
-            {/* Payout history — client only */}
-            {!isInternal && payouts.length > 0 && (
+            {/* Payout history — client only, not retainer */}
+            {!isInternal && !isRetainer && payouts.length > 0 && (
               <div>
                 <p className="text-sm font-semibold text-gray-800 mb-3">Payout History</p>
                 <div className="space-y-2">
@@ -574,7 +575,8 @@ function ProjectCard({ row, projectTasks, onClick }: {
   const payouts = row.hub_project_contractor_payouts ?? [];
   const totalPaidOut = payouts.reduce((s, x) => s + x.amount, 0);
   const isFullyPaid = totalPaidOut >= myCut && myCut > 0;
-  const showPayout = !internalProject && myCut > 0;
+  const isRetainerProject = p.project_type === 'retainer';
+  const showPayout = !internalProject && !isRetainerProject && myCut > 0;
 
   const daysLeft = p.deadline
     ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000)
