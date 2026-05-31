@@ -43,11 +43,12 @@ export function getPeriods(): { label: string; start: string; end: string }[] {
   let month = 0;
   let firstHalf = true;
 
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   while (true) {
     const start = firstHalf
       ? `${year}-${pad(month + 1)}-01`
       : `${year}-${pad(month + 1)}-16`;
-    if (new Date(start) > now) return periods;
+    if (start > todayStr) return periods;
 
     const endDay = firstHalf ? 15 : lastWorkingDay(year, month);
     const calendarEndDay = firstHalf ? 15 : lastDay(year, month);
