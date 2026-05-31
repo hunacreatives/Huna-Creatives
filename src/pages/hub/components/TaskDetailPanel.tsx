@@ -154,6 +154,7 @@ export default function TaskDetailPanel({
   // UI state
   const [editing, setEditing]       = useState(false);
   const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState<string | null>(null);
   const [deleting, setDeleting]     = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newComment, setNewComment] = useState('');
@@ -218,6 +219,7 @@ export default function TaskDetailPanel({
   const handleSave = async () => {
     if (!title.trim()) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const payload = {
         title: title.trim(),
@@ -264,6 +266,9 @@ export default function TaskDetailPanel({
         onSaved(data as TaskDetailTask);
         fetchTaskData(prev.id);
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to save task';
+      setSaveError(msg);
     } finally {
       setSaving(false);
     }
@@ -794,17 +799,22 @@ export default function TaskDetailPanel({
               </div>
             )}
             {!confirmDelete && (
-              <div className="flex gap-2 ml-auto">
-                {!isNew && (
-                  <button onClick={() => setEditing(false)}
-                    className="px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 transition-colors cursor-pointer">
-                    Cancel
-                  </button>
+              <div className="flex flex-col gap-2 ml-auto items-end">
+                {saveError && (
+                  <p className="text-xs text-red-500">{saveError}</p>
                 )}
-                <button onClick={handleSave} disabled={saving || !title.trim()}
-                  className="px-5 py-2.5 bg-[#111827] text-white rounded-xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors cursor-pointer">
-                  {saving ? 'Saving…' : isNew ? 'Create Task' : 'Save Changes'}
-                </button>
+                <div className="flex gap-2">
+                  {!isNew && (
+                    <button onClick={() => setEditing(false)}
+                      className="px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 transition-colors cursor-pointer">
+                      Cancel
+                    </button>
+                  )}
+                  <button onClick={handleSave} disabled={saving || !title.trim()}
+                    className="px-5 py-2.5 bg-[#111827] text-white rounded-xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors cursor-pointer">
+                    {saving ? 'Saving…' : isNew ? 'Create Task' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
