@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
 import { supabase } from '@/lib/supabase';
@@ -132,10 +132,18 @@ function Avatar({ name, url }: { name: string; url?: string | null }) {
 export default function AdminProjectsPage() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; assignments: { role: string | null; hub_users: { full_name: string; avatar_url: string | null } | null }[] }[]>([]);
+  const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; contract_value: number | null; contract_currency: string | null; assignments: { id: number; contractor_id: string; role: string | null; hub_users: { id: string; full_name: string; avatar_url: string | null; department: string | null } | null }[] }[]>([]);
+  const [activeClientId, setActiveClientId] = useState<number | null>(null);
+  const [clientForm, setClientForm] = useState({ client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' });
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<typeof intlClients[0] | null>(null);
+  const [clientSaving, setClientSaving] = useState(false);
+  const [clientError, setClientError] = useState('');
+  const [assignAddId, setAssignAddId] = useState('');
+  const [assignAddRole, setAssignAddRole] = useState('');
+  const [assignSaving, setAssignSaving] = useState(false);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -360,14 +368,15 @@ export default function AdminProjectsPage() {
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
-      supabase.from('hub_clients').select('id, client_name, platform, status, notes, hub_client_assignments(role, hub_users(full_name, avatar_url))').order('client_name'),
+      supabase.from('hub_clients').select('id, client_name, platform, status, notes, contract_value, contract_currency, hub_client_assignments(id, contractor_id, role, hub_users(id, full_name, avatar_url, department))').order('client_name'),
     ]);
     setProjects((pRes.data as Project[]) ?? []);
     setContractors((cRes.data as Contractor[]) ?? []);
     setIntlClients((clientRes.data ?? []).map((c: any) => ({
-      ...c,
+      id: c.id, client_name: c.client_name, platform: c.platform, status: c.status,
+      notes: c.notes, contract_value: c.contract_value, contract_currency: c.contract_currency,
       assignments: (Array.isArray(c.hub_client_assignments) ? c.hub_client_assignments : []).map((a: any) => ({
-        role: a.role,
+        id: a.id, contractor_id: a.contractor_id, role: a.role,
         hub_users: Array.isArray(a.hub_users) ? a.hub_users[0] : a.hub_users,
       })),
     })));
@@ -541,6 +550,43 @@ export default function AdminProjectsPage() {
     setPaySaving(false);
     if (error) { setPayError(error.message); return; }
     setPayAmount(''); setPayNotes(''); setPayReceipt(null);
+    fetchAll();
+  };
+
+  const activeClient = intlClients.find(c => c.id === activeClientId) ?? null;
+
+  const saveClient = async () => {
+    if (!clientForm.client_name.trim()) return;
+    setClientSaving(true); setClientError('');
+    const payload = { client_name: clientForm.client_name.trim(), platform: clientForm.platform.trim() || null, status: clientForm.status, notes: clientForm.notes.trim() || null, contract_value: clientForm.contract_value ? parseFloat(clientForm.contract_value) : null, contract_currency: clientForm.contract_currency };
+    if (editingClient) {
+      const { error } = await supabase.from('hub_clients').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editingClient.id);
+      if (error) { setClientError(error.message); setClientSaving(false); return; }
+    } else {
+      const { error } = await supabase.from('hub_clients').insert(payload);
+      if (error) { setClientError(error.message); setClientSaving(false); return; }
+    }
+    setClientSaving(false); setShowClientModal(false); setEditingClient(null);
+    fetchAll();
+  };
+
+  const addClientAssignment = async () => {
+    if (!activeClientId || !assignAddId) return;
+    setAssignSaving(true);
+    await supabase.from('hub_client_assignments').insert({ client_id: activeClientId, contractor_id: assignAddId, role: assignAddRole.trim() || null });
+    setAssignAddId(''); setAssignAddRole('');
+    setAssignSaving(false);
+    fetchAll();
+  };
+
+  const removeClientAssignment = async (assignmentId: number) => {
+    await supabase.from('hub_client_assignments').delete().eq('id', assignmentId);
+    fetchAll();
+  };
+
+  const deleteClient = async (id: number) => {
+    await supabase.from('hub_clients').delete().eq('id', id);
+    if (activeClientId === id) setActiveClientId(null);
     fetchAll();
   };
 
@@ -1958,9 +2004,15 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             return (
               <div className="-mx-4 md:-mx-6 px-4 md:px-6 pt-5 pb-6 mt-2 space-y-3"
                 style={{ background: 'rgba(30,40,70,0.06)', borderTop: '1px solid rgba(30,40,70,0.10)' }}>
-                <div className="flex items-center gap-2">
-                  <i className="ri-building-line text-[#FF6B35] text-sm"></i>
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Retainer Clients <span className="text-gray-400 font-normal">({totalCount})</span></p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <i className="ri-building-line text-[#FF6B35] text-sm"></i>
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">Retainer Clients <span className="text-gray-400 font-normal">({totalCount})</span></p>
+                  </div>
+                  <button onClick={() => { setEditingClient(null); setClientForm({ client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' }); setShowClientModal(true); }}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-white/70 border border-gray-200/80 text-gray-500 text-[11px] rounded-lg hover:bg-white cursor-pointer">
+                    <i className="ri-add-line text-xs"></i> Add Client
+                  </button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {/* Retainer projects — clickable */}
@@ -2003,7 +2055,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   {sortedIntl.map(c => {
                     const pal = getServicePalette(c.platform);
                     return (
-                      <button key={c.id} onClick={() => navigate('/hub/admin/clients')}
+                      <button key={c.id} onClick={() => { setActiveClientId(prev => prev === c.id ? null : c.id); setActiveId(null); }}
                         className="rounded-xl overflow-hidden border border-white/20 text-left hover:-translate-y-0.5 transition-all cursor-pointer"
                         style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
                         <div className="p-3.5 space-y-2.5">
@@ -2037,6 +2089,136 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           })()}
           </div>
         </section>
+
+        {/* ── Client detail panel ── */}
+        {activeClient && (
+          <section className="mt-4 bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `linear-gradient(135deg, ${getServicePalette(activeClient.platform).from}, ${getServicePalette(activeClient.platform).to})` }}>
+                  <i className="ri-building-line text-white text-base"></i>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">{activeClient.client_name}</p>
+                  <p className="text-xs text-gray-400">{activeClient.platform ?? 'Client'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setEditingClient(activeClient); setClientForm({ client_name: activeClient.client_name, platform: activeClient.platform ?? '', status: activeClient.status, notes: activeClient.notes ?? '', contract_value: activeClient.contract_value != null ? String(activeClient.contract_value) : '', contract_currency: activeClient.contract_currency ?? 'PHP' }); setShowClientModal(true); }}
+                  className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer flex items-center gap-1">
+                  <i className="ri-edit-line text-xs"></i> Edit
+                </button>
+                <button onClick={() => { if (confirm(`Delete ${activeClient.client_name}?`)) deleteClient(activeClient.id); }}
+                  className="px-3 py-1.5 text-xs border border-rose-200 text-rose-500 rounded-lg hover:bg-rose-50 cursor-pointer flex items-center gap-1">
+                  <i className="ri-delete-bin-line text-xs"></i>
+                </button>
+                <button onClick={() => setActiveClientId(null)} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line"></i></button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5">
+              {/* Client info */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Status</p>
+                    <p className="text-sm font-semibold text-gray-800 mt-0.5 capitalize">{activeClient.status}</p>
+                  </div>
+                  {activeClient.platform && (
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide">Platform</p>
+                      <p className="text-sm font-semibold text-gray-800 mt-0.5">{activeClient.platform}</p>
+                    </div>
+                  )}
+                  {activeClient.contract_value && (
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide">Contract Value</p>
+                      <p className="text-sm font-semibold text-gray-800 mt-0.5">{activeClient.contract_currency ?? 'PHP'} {activeClient.contract_value.toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
+                {activeClient.notes && <p className="text-sm text-gray-500 italic">{activeClient.notes}</p>}
+              </div>
+              {/* Team assignments */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team</p>
+                {activeClient.assignments.map(a => (
+                  <div key={a.id} className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
+                    {a.hub_users?.avatar_url
+                      ? <img src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-8 h-8 rounded-full object-cover object-top flex-shrink-0" />
+                      : <div className="w-8 h-8 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0"><span className="text-white text-sm font-bold">{a.hub_users?.full_name?.[0]}</span></div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{a.hub_users?.full_name}</p>
+                      {a.role && <p className="text-xs text-gray-400 truncate">{a.role}</p>}
+                    </div>
+                    <button onClick={() => removeClientAssignment(a.id)} className="text-gray-300 hover:text-rose-500 cursor-pointer transition-colors"><i className="ri-close-line text-sm"></i></button>
+                  </div>
+                ))}
+                {/* Add assignment */}
+                <div className="flex gap-2">
+                  <select value={assignAddId} onChange={e => setAssignAddId(e.target.value)}
+                    className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white">
+                    <option value="">Add team member…</option>
+                    {contractors.filter(c => !activeClient.assignments.some(a => a.contractor_id === c.id)).map(c => (
+                      <option key={c.id} value={c.id}>{c.full_name}</option>
+                    ))}
+                  </select>
+                  <input value={assignAddRole} onChange={e => setAssignAddRole(e.target.value)} placeholder="Role (optional)"
+                    className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                  <button onClick={addClientAssignment} disabled={!assignAddId || assignSaving}
+                    className="px-3 py-1.5 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 whitespace-nowrap">
+                    {assignSaving ? '...' : 'Add'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── Client modal (add/edit) ── */}
+        {showClientModal && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                <h2 className="font-semibold text-[#111827]">{editingClient ? 'Edit Client' : 'New Client'}</h2>
+                <button onClick={() => { setShowClientModal(false); setEditingClient(null); }} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
+              </div>
+              <div className="p-5 space-y-3">
+                {[['Client Name', 'client_name', 'text', 'e.g. Blue Collar Nutrition'], ['Platform', 'platform', 'text', 'e.g. Meta, Google, TikTok'], ['Notes', 'notes', 'text', 'Optional notes']].map(([label, field, type, ph]) => (
+                  <div key={field} className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">{label}</label>
+                    <input type={type} value={(clientForm as any)[field]} onChange={e => setClientForm(f => ({ ...f, [field]: e.target.value }))} placeholder={ph}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+                  </div>
+                ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Status</label>
+                    <select value={clientForm.status} onChange={e => setClientForm(f => ({ ...f, status: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
+                      <option value="active">Active</option>
+                      <option value="paused">Paused</option>
+                      <option value="ended">Ended</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Contract Value</label>
+                    <input type="number" value={clientForm.contract_value} onChange={e => setClientForm(f => ({ ...f, contract_value: e.target.value }))} placeholder="0"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
+                  </div>
+                </div>
+                {clientError && <p className="text-xs text-red-500">{clientError}</p>}
+              </div>
+              <div className="flex gap-2 p-5 pt-0">
+                <button onClick={() => { setShowClientModal(false); setEditingClient(null); }} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
+                <button onClick={saveClient} disabled={clientSaving || !clientForm.client_name.trim()}
+                  className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-40 cursor-pointer">
+                  {clientSaving ? 'Saving...' : editingClient ? 'Save Changes' : 'Add Client'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeProject ? (() => {
           const d = derived(activeProject);

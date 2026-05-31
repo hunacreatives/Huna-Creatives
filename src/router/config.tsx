@@ -25,7 +25,6 @@ const HubAdminRequests = lazy(() => import('../pages/hub/admin/requests/page'));
 const HubAdminTimeOff = lazy(() => import('../pages/hub/admin/timeoff/page'));
 const HubAdminAnnouncements = lazy(() => import('../pages/hub/admin/announcements/page'));
 const HubAdminSop = lazy(() => import('../pages/hub/admin/sop/page'));
-const HubAdminClients = lazy(() => import('../pages/hub/admin/clients/page'));
 const HubAdminAssets = lazy(() => import('../pages/hub/admin/assets/page'));
 const HubAdminAuditLog = lazy(() => import('../pages/hub/admin/auditlog/page'));
 const HubAdminSettings = lazy(() => import('../pages/hub/admin/settings/page'));
@@ -131,7 +130,6 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/timeoff', element: withAdminGate(<HubAdminTimeOff />) },
   { path: '/hub/admin/announcements', element: withAdminGate(<HubAdminAnnouncements />) },
   { path: '/hub/admin/sop', element: withAdminGate(<HubAdminSop />) },
-  { path: '/hub/admin/clients', element: withAdminGate(<HubAdminClients />) },
   { path: '/hub/admin/assets', element: withAdminGate(<HubAdminAssets />) },
   { path: '/hub/admin/auditlog', element: withAdminGate(<HubAdminAuditLog />) },
   { path: '/hub/admin/performance', element: withAdminGate(<HubAdminPerformance />) },

@@ -882,7 +882,7 @@ export default function AdminDashboardPage() {
                     <p className="text-2xl font-bold text-violet-900">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
                     <p className="text-violet-500/70 text-xs mt-1">active client contracts · converted to PHP</p>
                     <button
-                      onClick={() => navigate('/hub/admin/clients')}
+                      onClick={() => navigate('/hub/admin/projects')}
                       className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-violet-700 hover:bg-violet-500/10"
                       style={{ background: 'rgba(139,92,246,0.08)' }}
                     >
