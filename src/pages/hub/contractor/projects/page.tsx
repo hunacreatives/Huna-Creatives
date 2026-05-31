@@ -1113,12 +1113,13 @@ export default function ContractorProjectsPage() {
   const today = new Date().toISOString().slice(0, 10);
   const firstName = hubUser?.full_name?.split(' ')[0] ?? '';
 
-  const doneTasks = tasks.filter(t => t.status === 'done');
-  const inProgressTasks = tasks.filter(t => t.status === 'in_progress');
-  const todoTasks = tasks.filter(t => t.status === 'todo');
-  const overdueTasks = tasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done');
-  const todayDueTasks = tasks.filter(t => t.due_date === today && t.status !== 'done');
-  const pct = tasks.length > 0 ? Math.round((doneTasks.length / tasks.length) * 100) : 0;
+  const myTasks = tasks.filter(t => t.assigned_to === hubUser?.id);
+  const doneTasks = myTasks.filter(t => t.status === 'done');
+  const inProgressTasks = myTasks.filter(t => t.status === 'in_progress');
+  const todoTasks = myTasks.filter(t => t.status === 'todo');
+  const overdueTasks = myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done');
+  const todayDueTasks = myTasks.filter(t => t.due_date === today && t.status !== 'done');
+  const pct = myTasks.length > 0 ? Math.round((doneTasks.length / myTasks.length) * 100) : 0;
 
   const featuredTasks = todayDueTasks.length > 0 ? todayDueTasks
     : overdueTasks.length > 0 ? overdueTasks
@@ -1129,9 +1130,11 @@ export default function ContractorProjectsPage() {
     ? `${todayDueTasks.length} task${todayDueTasks.length > 1 ? 's' : ''} due today`
     : overdueTasks.length > 0
     ? `${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}`
-    : doneTasks.length === tasks.length && tasks.length > 0
+    : doneTasks.length === myTasks.length && myTasks.length > 0
     ? "You're all caught up 🎉"
-    : `${tasks.length} tasks across your projects`;
+    : myTasks.length > 0
+    ? `${myTasks.length} task${myTasks.length !== 1 ? 's' : ''} assigned to you`
+    : `No tasks assigned to you yet`;
 
   const getProjectName = (projectId: number) =>
     rows.find(r => r.hub_projects?.id === projectId)?.hub_projects?.project_name ?? '';
@@ -1900,8 +1903,8 @@ export default function ContractorProjectsPage() {
                     ? `You've got ${todayDueTasks.length} task${todayDueTasks.length > 1 ? 's' : ''} due today.`
                     : overdueTasks.length > 0
                     ? `${overdueTasks.length} task${overdueTasks.length > 1 ? 's' : ''} ${overdueTasks.length > 1 ? 'need' : 'needs'} attention.`
-                    : tasks.length > 0
-                    ? `${tasks.length - doneTasks.length} task${tasks.length - doneTasks.length !== 1 ? 's' : ''} remaining.`
+                    : myTasks.length > 0
+                    ? `${myTasks.length - doneTasks.length} task${myTasks.length - doneTasks.length !== 1 ? 's' : ''} remaining.`
                     : 'All clear — nothing pending.'}
                 </span>
               </h2>
