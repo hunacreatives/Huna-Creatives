@@ -1936,94 +1936,47 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     'Internal sprint': 'bg-indigo-100 text-indigo-600',
                     'In progress': 'bg-sky-100 text-sky-600',
                   };
+                  const pal = getServicePalette(p.service);
+                  const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                   return (
-                    <button
-                      key={p.id}
+                    <button key={p.id}
                       onClick={() => { setActiveClientId(null); setActiveId(prev => prev === p.id ? null : p.id); }}
-                      className={`rounded-xl border bg-white text-left transition-all flex flex-col overflow-hidden ${
-                        activeId === p.id
-                          ? 'border-[#FF6B35] shadow-[0_6px_18px_rgba(255,107,53,0.10)]'
-                          : 'border-gray-100 hover:border-gray-200 hover:shadow-[0_4px_14px_rgba(15,23,42,0.04)]'
-                      }`}
-                    >
+                      className={`rounded-xl bg-white text-left transition-all flex flex-col overflow-hidden hover:-translate-y-0.5 ${
+                        activeId === p.id ? 'border-2 border-[#FF6B35] shadow-[0_6px_18px_rgba(255,107,53,0.10)]' : 'border border-gray-100 hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)]'
+                      }`}>
                       {/* Service color stripe */}
-                      {(() => { const pal = getServicePalette(p.service); return <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${pal.from}, ${pal.to})` }} />; })()}
-                      <div className="p-4 flex flex-col gap-3 flex-1">
-                      {/* Top row: status badge + type badge + team avatars */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${cfg.cls}`}>{cfg.label}</span>
-                          {p.project_type === 'client' && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-orange-50 text-orange-500">One-time</span>
-                          )}
-                          {p.project_type === 'internal' && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Internal</span>
-                          )}
-                          {p.project_type === 'retainer' && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-500">Retainer · {fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
-                          )}
-                        </div>
-                        <div className="flex -space-x-1.5">
-                          {p.hub_project_contractors.slice(0, 3).map((pc: any) => (
-                            pc.hub_users?.avatar_url
-                              ? <img key={pc.hub_users.id} src={pc.hub_users.avatar_url} alt={pc.hub_users.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white" />
-                              : <div key={pc.hub_users?.id} className="w-5 h-5 rounded-full bg-gray-200 border border-white flex items-center justify-center text-[8px] font-bold text-gray-500">{pc.hub_users?.full_name?.[0]}</div>
-                          ))}
-                          {p.hub_project_contractors.length > 3 && (
-                            <div className="w-5 h-5 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[8px] text-gray-400">+{p.hub_project_contractors.length - 3}</div>
-                          )}
-                          {p.hub_project_contractors.length === 0 && (
-                            <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center" title="No team">
-                              <i className="ri-user-line text-[8px] text-gray-400"></i>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Project + client name */}
-                      <div>
-                        <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
-                        <p className="text-xs text-gray-400 mt-0.5 truncate">
-                          {p.project_type === 'internal' ? 'Internal Project · Internal' : p.project_type === 'retainer' ? `${p.client_name} · Retainer` : `${p.client_name} · Client`}
-                        </p>
-                      </div>
-
-                      {/* Middle row: due date + team count + task progress */}
-                      <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <i className="ri-calendar-line text-[10px]"></i>
-                          {p.project_type === 'retainer' ? 'Open-ended' : p.deadline ? `Due ${fmtDate(p.deadline)}` : 'No deadline'}
-                        </span>
-                        <span className="text-gray-200">·</span>
-                        <span className="flex items-center gap-1">
-                          <i className="ri-team-line text-[10px]"></i>
-                          {p.hub_project_contractors.length}
-                        </span>
-                        {pTasks.length > 0 && (
-                          <>
-                            <span className="text-gray-200">·</span>
-                            <span className="flex items-center gap-1">
-                              <i className="ri-task-line text-[10px]"></i>
-                              {pTasksDone}/{pTasks.length}
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Bottom: health label + finance signal */}
-                      <div className="flex items-center justify-between gap-2 border-t border-gray-50 pt-2.5">
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${healthCls[healthLabel] ?? 'bg-gray-100 text-gray-500'}`}>
-                          {healthLabel}
-                        </span>
-                        {p.project_type === 'client' && p.contract_price > 0 && (
-                          <span className="text-[10px] text-gray-400">
-                            {d.paidPct >= 100 ? 'Fully paid' : `${d.paidPct.toFixed(0)}% collected`}
+                      <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${pal.from}, ${pal.to})` }} />
+                      <div className="p-3.5 space-y-2.5 flex-1 flex flex-col">
+                        {/* Service + status badge */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            {p.service && <span className="block text-[10px] font-semibold tracking-widest uppercase mb-1" style={{ color: pal.from }}>{p.service}</span>}
+                            <h3 className="text-sm font-bold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
+                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{p.project_type === 'internal' ? 'Internal' : p.client_name}</p>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${dl ? dl.cls : cfg.cls}`}>
+                            {dl ? dl.label : cfg.label}
                           </span>
-                        )}
-                        {dl && (
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${dl.cls}`}>{dl.label}</span>
-                        )}
-                      </div>
+                        </div>
+                        {/* Team + task count */}
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-auto">
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex -space-x-1">
+                              {team.slice(0, 3).map((u: any, i: number) => (
+                                u?.avatar_url
+                                  ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-5 h-5 rounded-full object-cover object-top border border-white" />
+                                  : <div key={i} className="w-5 h-5 rounded-full bg-gray-200 border border-white flex items-center justify-center text-[8px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
+                              ))}
+                              {team.length === 0 && <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center"><i className="ri-user-line text-[8px] text-gray-400"></i></div>}
+                            </div>
+                            {team.length > 0 && <span className="text-[10px] text-gray-400">{team[0]?.full_name?.split(' ')[0]}{team.length > 1 ? ` +${team.length - 1}` : ''}</span>}
+                          </div>
+                          {pTasks.length > 0 ? (
+                            <span className="text-[10px] text-gray-400">{pTasksDone}/{pTasks.length} tasks</span>
+                          ) : (
+                            <span className="text-[10px] text-gray-300">No tasks</span>
+                          )}
+                        </div>
                       </div>
                     </button>
                   );
