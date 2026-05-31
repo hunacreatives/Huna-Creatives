@@ -105,13 +105,12 @@ async function sendNotification(batchId: string, closedByName?: string | null) {
     }
   }
 
-  await Promise.all(
+  await Promise.allSettled(
     Array.from(recipients.keys()).map(async (slackId) => {
       try {
         await slackDm(slackId, message);
       } catch (error) {
         console.error('notify-payroll-closed: failed to DM recipient', { slackId, error });
-        throw error;
       }
     }),
   );

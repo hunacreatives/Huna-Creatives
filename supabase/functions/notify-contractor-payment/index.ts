@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     } = await req.json();
 
     if (!to || !contractor_name || !project_name || !amount) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 200, headers: cors });
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: cors });
     }
 
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
@@ -213,6 +213,6 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });
   }
 });

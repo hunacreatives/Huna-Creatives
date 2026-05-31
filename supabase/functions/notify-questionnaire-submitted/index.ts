@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
   try {
     const { client_name, service_type } = await req.json();
     if (!client_name || !service_type) {
-      return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 200, headers: cors });
+      return new Response(JSON.stringify({ error: 'Missing fields' }), { status: 400, headers: cors });
     }
 
     await Promise.all(NOTIFY_USERS.map(id => dm(id, client_name, service_type)));
@@ -72,6 +72,6 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });
   }
 });
