@@ -229,7 +229,7 @@ export default function AdminDashboardPage() {
         supabase.from('hub_time_off').select('*, hub_users(full_name, avatar_url)').eq('status', 'pending').order('created_at', { ascending: false }),
         supabase.from('hub_users').select('id, full_name, avatar_url, payment_type, hourly_rate, monthly_rate, currency, birthday, start_date, work_days').eq('status', 'active').in('role', ['contractor', 'admin']),
         supabase.from('hub_daily_hours').select('user_id, hours_capped, hours_raw, overtime_hours, date').gte('date', cutoffStart).lte('date', cutoffEnd),
-        supabase.from('hub_projects').select('contract_price, status, deadline, project_type, hub_project_costs(amount), hub_project_payments(amount)'),
+        supabase.from('hub_projects').select('contract_price, status, deadline, project_type, monthly_rate, monthly_rate_currency, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
         supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').eq('settled', false).order('sent_at', { ascending: false }),
@@ -410,12 +410,15 @@ export default function AdminDashboardPage() {
       setAtRiskCount(atRisk);
       setInternalProjectCount(internalCount);
 
-      // Monthly retainer total (owner-only display, but we fetch regardless)
+      // Monthly retainer total — hub_clients + hub_projects retainers
       const clientUsdRate = parseFloat(usdRateStr);
-      const retainerTotal = ((clientsResult.data as any[]) || [])
+      const clientsTotal = ((clientsResult.data as any[]) || [])
         .filter((c: any) => c.status === 'active' && c.contract_value)
         .reduce((s: number, c: any) => s + (c.contract_currency === 'USD' ? c.contract_value * clientUsdRate : c.contract_value), 0);
-      setMonthlyRetainerTotal(retainerTotal);
+      const projectsRetainerTotal = ((projectsResult.data as any[]) || [])
+        .filter((p: any) => p.project_type === 'retainer' && p.status === 'ongoing' && p.monthly_rate)
+        .reduce((s: number, p: any) => s + (p.monthly_rate_currency === 'USD' ? p.monthly_rate * clientUsdRate : p.monthly_rate), 0);
+      setMonthlyRetainerTotal(clientsTotal + projectsRetainerTotal);
 
       // Build due_date map from payment links (latest link per invoice+project)
       const dueDateMap: Record<string, string | null> = {};

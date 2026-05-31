@@ -1142,7 +1142,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     let contractValue = 0, costs = 0, collected = 0, mrr = 0;
     for (const p of projects.filter(p => p.project_type !== 'internal')) {
       if (p.project_type === 'retainer') {
-        mrr += p.monthly_rate ?? 0;
+        const rate = p.monthly_rate ?? 0;
+        const inPHP = (p as any).monthly_rate_currency === 'USD' ? rate * usdRate : rate;
+        mrr += inPHP;
       } else {
         contractValue += p.contract_price;
       }
