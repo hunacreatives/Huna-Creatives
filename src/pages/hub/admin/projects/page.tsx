@@ -2060,7 +2060,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     const pal = getServicePalette(p.service);
                     const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                     return (
-                      <button key={p.id} onClick={() => { setActiveClientId(null); setActiveId(prev => prev === p.id ? null : p.id); }}
+                      <button key={p.id} onClick={() => { setActiveClientId(null); openWorkspaceOnLoad.current = true; setActiveId(prev => prev === p.id ? null : p.id); }}
                         className="rounded-xl overflow-hidden border border-white/20 text-left hover:-translate-y-0.5 transition-all cursor-pointer"
                         style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
                         <div className="p-3.5 space-y-2.5">
