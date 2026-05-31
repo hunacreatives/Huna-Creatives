@@ -1988,7 +1988,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <div className="space-y-1.5">
                         {activeProject.hub_project_payments.map((pay: any) => (
                           <div key={pay.id} className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">{pay.label || new Date(pay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            <span className="text-gray-600">{fmtDate(pay.paid_at)}</span>
                             <span className="font-medium text-emerald-600">{fmt(pay.amount)}</span>
                           </div>
                         ))}
