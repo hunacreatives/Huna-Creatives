@@ -677,6 +677,7 @@ export default function ContractorProjectsPage() {
   const hubUser = realHubUser ?? demoHubUser;
   const { isDemo } = useDemo();
   const [rows, setRows] = useState<ProjectRow[]>([]);
+  const [clientEntries, setClientEntries] = useState<{ id: string; name: string; type: 'retainer' | 'assignment'; status: string; service?: string | null; monthly_rate?: number | null; months_paid?: number; platform?: string | null; role?: string | null; notes?: string | null }[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [teamMap, setTeamMap] = useState<Record<number, TeamMember[]>>({});
   const [loading, setLoading] = useState(true);
@@ -1048,6 +1049,32 @@ export default function ContractorProjectsPage() {
           }
           setTeamMap(map);
         }
+
+        // Fetch retainer clients + international assignments
+        const [{ data: pcRetainers }, { data: assignData }] = await Promise.all([
+          supabase.from('hub_project_contractors')
+            .select('id, hub_project_contractor_payouts(amount), hub_projects(id, client_name, project_name, service, status, project_type, monthly_rate)')
+            .eq('contractor_id', hubUser.id),
+          supabase.from('hub_client_assignments')
+            .select('id, role, hub_clients(id, client_name, platform, status, notes)')
+            .eq('contractor_id', hubUser.id),
+        ]);
+
+        const retainerEntries = (pcRetainers ?? [])
+          .filter((r: any) => { const p = Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects; return p?.project_type === 'retainer'; })
+          .map((r: any) => {
+            const p = Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects;
+            const totalPaid = (r.hub_project_contractor_payouts ?? []).reduce((s: number, x: any) => s + x.amount, 0);
+            const monthlyRate = p?.monthly_rate ?? 0;
+            return { id: `retainer-${r.id}`, name: p?.client_name ?? p?.project_name ?? 'Retainer', type: 'retainer' as const, status: p?.status ?? 'ongoing', service: p?.service, monthly_rate: monthlyRate, months_paid: monthlyRate > 0 ? Math.round(totalPaid / monthlyRate) : 0 };
+          });
+
+        const assignmentEntries = (assignData ?? []).map((a: any) => {
+          const c = Array.isArray(a.hub_clients) ? a.hub_clients[0] : a.hub_clients;
+          return { id: `assign-${a.id}`, name: c?.client_name ?? 'Client', type: 'assignment' as const, status: c?.status ?? 'active', platform: c?.platform, role: a.role, notes: c?.notes };
+        });
+
+        setClientEntries([...retainerEntries, ...assignmentEntries]);
       } catch (err) {
         console.error('Projects load error:', err);
       } finally {
@@ -1936,6 +1963,42 @@ export default function ContractorProjectsPage() {
                 </>
               );
             })()}
+
+            {/* ── My Clients section ── */}
+            {clientEntries.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0"></span>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Clients <span className="text-gray-300 font-normal">({clientEntries.length})</span></p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {clientEntries.map(c => (
+                    <div key={c.id} className="rounded-2xl p-3.5 text-left"
+                      style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex-1 min-w-0">
+                          {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-orange-500">{c.service}</span>}
+                          <p className="font-bold text-gray-900 text-sm leading-tight truncate">{c.name}</p>
+                          {c.role && <p className="text-xs text-gray-400 mt-0.5 truncate">{c.role}</p>}
+                          {c.platform && <p className="text-xs text-gray-400 mt-0.5 truncate">{c.platform}</p>}
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.type === 'retainer' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}`}>
+                          {c.type === 'retainer' ? 'Retainer' : 'International'}
+                        </span>
+                      </div>
+                      {c.type === 'retainer' && c.monthly_rate ? (
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100/80">
+                          <span className="text-[10px] text-indigo-600 font-semibold">₱{c.monthly_rate.toLocaleString()}/mo</span>
+                          <span className="text-[10px] text-gray-400">{c.months_paid} month{c.months_paid !== 1 ? 's' : ''} paid</span>
+                        </div>
+                      ) : c.notes ? (
+                        <p className="text-[10px] text-gray-400 italic pt-2 border-t border-gray-100/80 truncate">{c.notes}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── RIGHT: task panel ── */}
