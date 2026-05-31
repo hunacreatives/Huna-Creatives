@@ -1985,7 +1985,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               </div>
             )}
           {/* ── Retainer Clients section ── */}
-          {(() => {
+          {!activeId && !activeClientId && (() => {
             // Merge retainer projects + hub_clients, dedup by client_name
             const retainerNames = new Set([
               ...retainerProjects.map(p => p.client_name.toLowerCase()),
@@ -2080,6 +2080,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           })()}
           </div>
         </section>
+
 
         {/* ── Client detail panel (hidden — workspace used instead) ── */}
         {false && activeClient && (
