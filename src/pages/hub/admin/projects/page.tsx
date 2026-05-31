@@ -70,8 +70,8 @@ type InvoiceSendMode = 'now' | 'schedule';
 
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
-  project_type: 'client' | 'internal';
-  contract_price: number; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
+  project_type: 'client' | 'internal' | 'retainer';
+  contract_price: number; monthly_rate: number | null; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
   hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
   hub_payment_reminders: PaymentReminder[];
@@ -124,12 +124,12 @@ export default function AdminProjectsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('ongoing');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [projectTypeFilter, setProjectTypeFilter] = useState<'all' | 'client' | 'internal'>('all');
+  const [projectTypeFilter, setProjectTypeFilter] = useState<'all' | 'client' | 'internal' | 'retainer'>('all');
   const [activeId, setActiveId] = useState<number | null>(null);
 
   // Project form
   const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Other'];
-  const emptyForm = { project_type: 'client' as 'client' | 'internal', client_name: '', project_name: '', service: 'Website Design', contract_price: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
+  const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -356,13 +356,17 @@ export default function AdminProjectsPage() {
 
   const activeProject = projects.find(p => p.id === activeId) ?? null;
 
+  const isRetainerProject = (project: Project | null | undefined) => project?.project_type === 'retainer';
+
   const derived = (p: Project) => {
     const totalPaid = p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
     const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
-    const netProfit = p.contract_price - totalCosts;
-    const balance = p.contract_price - totalPaid;
-    const paidPct = p.contract_price > 0 ? (totalPaid / p.contract_price) * 100 : 0;
-    return { totalPaid, totalCosts, netProfit, balance, paidPct };
+    const netProfit = (p.project_type === 'retainer' ? totalPaid : p.contract_price) - totalCosts;
+    const balance = p.project_type === 'retainer' ? 0 : p.contract_price - totalPaid;
+    const paidPct = p.project_type === 'retainer' ? 100 : (p.contract_price > 0 ? (totalPaid / p.contract_price) * 100 : 0);
+    const monthsActive = p.start_date ? Math.max(1, Math.ceil((Date.now() - new Date(p.start_date).getTime()) / (1000 * 60 * 60 * 24 * 30.5))) : null;
+    const monthsCollected = (p.monthly_rate && p.monthly_rate > 0) ? Math.round(totalPaid / p.monthly_rate) : null;
+    return { totalPaid, totalCosts, netProfit, balance, paidPct, monthsActive, monthsCollected };
   };
 
   const isInternalProject = (project: Project | null | undefined) => project?.project_type === 'internal';
@@ -393,6 +397,7 @@ export default function AdminProjectsPage() {
       const d = derived(project);
       if (d.paidPct >= 100) return 'Fully paid';
     }
+    if (project.project_type === 'retainer') return 'Active retainer';
     if (project.project_type === 'internal') {
       const hasInProgress = tasksTotal > tasksDone && tasksTotal > 0;
       if (hasInProgress) return 'Internal sprint';
@@ -402,18 +407,22 @@ export default function AdminProjectsPage() {
 
   const saveProject = async () => {
     const isInternal = form.project_type === 'internal';
+    const isRetainer = form.project_type === 'retainer';
     if (!form.project_name.trim()) { setFormError('Project name is required.'); return; }
-    if (!isInternal && (!form.client_name.trim() || !form.contract_price)) { setFormError('Client, project name and contract price are required.'); return; }
+    if (!isInternal && !form.client_name.trim()) { setFormError('Client name is required.'); return; }
+    if (!isRetainer && !isInternal && !form.contract_price) { setFormError('Contract price is required.'); return; }
+    if (isRetainer && !form.monthly_rate) { setFormError('Monthly rate is required for retainer projects.'); return; }
     setFormSaving(true); setFormError('');
     const payload = {
       project_type: form.project_type,
       client_name: isInternal ? (form.client_name.trim() || 'Internal') : form.client_name.trim(),
       project_name: form.project_name.trim(),
       service: form.service || null,
-      contract_price: isInternal ? 0 : parseFloat(form.contract_price),
+      contract_price: isInternal || isRetainer ? 0 : parseFloat(form.contract_price),
+      monthly_rate: isRetainer ? parseFloat((form as any).monthly_rate) : null,
       status: form.status,
       start_date: form.start_date || null,
-      deadline: form.deadline || null,
+      deadline: isRetainer ? null : (form.deadline || null),
       notes: form.notes || null,
       contact_email: isInternal ? null : (form.contact_email.trim() || null),
       drive_url: (form as any).drive_url?.trim() || null,
@@ -425,7 +434,7 @@ export default function AdminProjectsPage() {
     } else {
       const { data, error } = await supabase.from('hub_projects').insert(payload).select('id').single();
       if (error) { setFormError(error.message); setFormSaving(false); return; }
-      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'project', description: `Created ${isInternal ? 'internal' : 'client'} project "${form.project_name}"` });
+      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'project', description: `Created ${isRetainer ? 'retainer' : isInternal ? 'internal' : 'client'} project "${form.project_name}"` });
       // Auto-assign the creator (owner/admin) to the new project
       if (data && hubUser?.id) {
         await supabase.from('hub_project_contractors').insert({
@@ -981,15 +990,19 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   };
 
   const summaryTotals = (() => {
-    let contractValue = 0, costs = 0, collected = 0;
+    let contractValue = 0, costs = 0, collected = 0, mrr = 0;
     for (const p of projects.filter(p => p.project_type !== 'internal')) {
-      contractValue += p.contract_price;
+      if (p.project_type === 'retainer') {
+        mrr += p.monthly_rate ?? 0;
+      } else {
+        contractValue += p.contract_price;
+      }
       costs += p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
       collected += p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
     }
     const netProfit = contractValue - costs;
     const collectionPct = contractValue > 0 ? Math.min((collected / contractValue) * 100, 100) : 0;
-    return { contractValue, costs, netProfit, collected, collectionPct };
+    return { contractValue, costs, netProfit, collected, collectionPct, mrr };
   })();
 
   const statusTabs = [
@@ -1540,25 +1553,42 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     </div>
                   )}
 
-                  {/* Finance strip card — client projects only */}
+                  {/* Finance strip card — client + retainer projects */}
                   {!internalProject && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
                       <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Financials</p>
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Contract</span>
-                          <span className="font-semibold text-gray-700">{fmt(p.contract_price)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Collected</span>
-                          <span className="font-semibold text-emerald-600">{fmt(d.totalPaid)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-400">Balance</span>
-                          <span className={`font-semibold ${d.balance > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{fmt(d.balance)}</span>
-                        </div>
+                        {isRetainerProject(p) ? (<>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Monthly Rate</span>
+                            <span className="font-semibold text-indigo-600">{fmt(p.monthly_rate ?? 0)}/mo</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Total Collected</span>
+                            <span className="font-semibold text-emerald-600">{fmt(d.totalPaid)}</span>
+                          </div>
+                          {d.monthsCollected !== null && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-400">Months Paid</span>
+                              <span className="font-semibold text-gray-700">{d.monthsCollected}</span>
+                            </div>
+                          )}
+                        </>) : (<>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Contract</span>
+                            <span className="font-semibold text-gray-700">{fmt(p.contract_price)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Collected</span>
+                            <span className="font-semibold text-emerald-600">{fmt(d.totalPaid)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-400">Balance</span>
+                            <span className={`font-semibold ${d.balance > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{fmt(d.balance)}</span>
+                          </div>
+                        </>)}
                       </div>
-                      <div className="space-y-1">
+                      {!isRetainerProject(p) && <div className="space-y-1">
                         <div className="flex justify-between text-[10px] text-gray-400">
                           <span>Collection progress</span>
                           <span>{d.paidPct.toFixed(0)}%</span>
@@ -1566,7 +1596,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                           <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${Math.min(d.paidPct, 100)}%` }} />
                         </div>
-                      </div>
+                      </div>}
                     </div>
                   )}
                 </div>
@@ -1678,15 +1708,15 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
 
           <div className="flex flex-wrap gap-1.5 items-center">
-            {/* Project type filter: Client | Internal */}
+            {/* Project type filter */}
             <div className="flex gap-1 mr-1">
-              {(['all', 'client', 'internal'] as const).map(pt => (
+              {(['all', 'client', 'retainer', 'internal'] as const).map(pt => (
                 <button
                   key={pt}
                   onClick={() => setProjectTypeFilter(pt)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${projectTypeFilter === pt ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100'}`}
                 >
-                  {pt === 'all' ? 'All' : pt === 'client' ? 'Client' : 'Internal'}
+                  {pt === 'all' ? 'All' : pt === 'client' ? 'Client' : pt === 'retainer' ? 'Retainer' : 'Internal'}
                 </button>
               ))}
             </div>
@@ -1758,6 +1788,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           {p.project_type === 'internal' && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Internal</span>
                           )}
+                          {p.project_type === 'retainer' && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-500">Retainer · {fmt(p.monthly_rate ?? 0)}/mo</span>
+                          )}
                         </div>
                         <div className="flex -space-x-1.5">
                           {p.hub_project_contractors.slice(0, 3).map((pc: any) => (
@@ -1780,7 +1813,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <div>
                         <h3 className="text-sm font-semibold text-[#111827] line-clamp-1 leading-snug">{p.project_name}</h3>
                         <p className="text-xs text-gray-400 mt-0.5 truncate">
-                          {p.project_type === 'internal' ? 'Internal Project · Internal' : `${p.client_name} · Client`}
+                          {p.project_type === 'internal' ? 'Internal Project · Internal' : p.project_type === 'retainer' ? `${p.client_name} · Retainer` : `${p.client_name} · Client`}
                         </p>
                       </div>
 
@@ -1788,7 +1821,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <div className="flex items-center gap-2 text-[11px] text-gray-500 flex-wrap">
                         <span className="flex items-center gap-1">
                           <i className="ri-calendar-line text-[10px]"></i>
-                          {p.deadline ? `Due ${fmtDate(p.deadline)}` : 'No deadline'}
+                          {p.project_type === 'retainer' ? 'Open-ended' : p.deadline ? `Due ${fmtDate(p.deadline)}` : 'No deadline'}
                         </span>
                         <span className="text-gray-200">·</span>
                         <span className="flex items-center gap-1">
@@ -1856,6 +1889,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       { label: 'Tasks', value: String(tasks.length), cls: 'text-indigo-600' },
                       { label: 'Done', value: String(tasks.filter(t => t.status === 'done').length), cls: 'text-emerald-600' },
                       { label: 'Status', value: cfg.label, cls: 'text-gray-500' },
+                    ] : isRetainerProject(activeProject) ? [
+                      { label: 'Monthly', value: `${fmt(activeProject.monthly_rate ?? 0)}/mo`, cls: 'text-indigo-600' },
+                      { label: 'Collected', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
+                      { label: 'Months Paid', value: String(d.monthsCollected ?? '—'), cls: 'text-gray-700' },
+                      { label: 'Costs', value: fmt(d.totalCosts), cls: 'text-orange-600' },
                     ] : [
                       { label: 'Contract', value: fmt(activeProject.contract_price), cls: 'text-gray-800' },
                       { label: 'Paid', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
@@ -1874,7 +1912,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>}
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: String(activeProject.contract_price), deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
                       className="px-4 flex items-center gap-1.5 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-xl cursor-pointer">
                       <i className="ri-edit-line"></i>
                     </button>
@@ -1947,7 +1985,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {/* Secondary actions */}
                     <div className="flex items-center gap-0.5 bg-white/60 border border-gray-200 rounded-xl px-1 py-1">
-                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: String(activeProject.contract_price), status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
+                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
                         className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors">
                         <i className="ri-edit-line text-sm"></i> Edit
                       </button>
@@ -2514,26 +2552,27 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             <div className="p-5 space-y-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Project Type</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
-                    { value: 'client', label: 'Client Project', sub: 'Billing, invoices, payouts' },
-                    { value: 'internal', label: 'Internal Project', sub: 'Tasks, team, files only' },
+                    { value: 'client',   label: 'Client',   sub: 'One-time billing' },
+                    { value: 'retainer', label: 'Retainer', sub: 'Monthly recurring' },
+                    { value: 'internal', label: 'Internal', sub: 'Tasks & team only' },
                   ].map(option => (
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setForm({ ...form, project_type: option.value as 'client' | 'internal', client_name: option.value === 'internal' && !form.client_name ? 'Internal' : form.client_name, contract_price: option.value === 'internal' ? '' : form.contract_price, contact_email: option.value === 'internal' ? '' : form.contact_email })}
-                      className={`rounded-xl border px-3 py-3 text-left transition-colors cursor-pointer ${form.project_type === option.value ? 'border-[#111827] bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
+                      onClick={() => setForm({ ...form, project_type: option.value as 'client' | 'internal' | 'retainer', client_name: option.value === 'internal' && !form.client_name ? 'Internal' : form.client_name, contract_price: option.value !== 'client' ? '' : form.contract_price, monthly_rate: option.value !== 'retainer' ? '' : (form as any).monthly_rate, contact_email: option.value === 'internal' ? '' : form.contact_email } as any)}
+                      className={`rounded-xl border px-2 py-3 text-left transition-colors cursor-pointer ${form.project_type === option.value ? 'border-[#111827] bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
                     >
                       <p className="text-sm font-medium text-gray-800">{option.label}</p>
-                      <p className="text-[11px] text-gray-400 mt-0.5">{option.sub}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{option.sub}</p>
                     </button>
                   ))}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">{form.project_type === 'internal' ? 'Owner / Label' : 'Client Name'}{form.project_type === 'client' ? ' *' : ''}</label>
+                  <label className="text-xs font-medium text-gray-700">{form.project_type === 'internal' ? 'Owner / Label' : 'Client Name'}{form.project_type !== 'internal' ? ' *' : ''}</label>
                   <input value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} placeholder={form.project_type === 'internal' ? 'e.g. Internal, Marketing, Ops' : 'e.g. FS Architects'}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
@@ -2564,6 +2603,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                   </div>
                 )}
+                {form.project_type === 'retainer' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Monthly Rate (PHP) *</label>
+                    <input type="number" value={(form as any).monthly_rate} onChange={e => setForm({ ...form, monthly_rate: e.target.value } as any)} placeholder="0.00"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -2579,10 +2625,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <label className="text-xs font-medium text-gray-700">Start Date</label>
                   <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Deadline</label>
-                  <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
-                </div>
+                {form.project_type !== 'retainer' && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Deadline</label>
+                    <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Notes</label>
@@ -2597,7 +2645,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <input type="url" value={(form as any).drive_url ?? ''} onChange={e => setForm({ ...form, drive_url: e.target.value } as any)} placeholder="https://drive.google.com/drive/u/0/folders/..."
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
               </div>
-              {form.project_type === 'client' && (
+              {(form.project_type === 'client' || form.project_type === 'retainer') && (
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Client Contact Email <span className="text-gray-400 font-normal">(for invoices)</span></label>
                   <input type="email" value={form.contact_email} onChange={e => setForm({ ...form, contact_email: e.target.value })} placeholder="client@email.com"
