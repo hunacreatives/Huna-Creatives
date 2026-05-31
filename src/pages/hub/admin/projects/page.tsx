@@ -1990,7 +1990,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               </div>
             )}
           {/* ── Retainer Clients section ── */}
-          {!activeId && !activeClientId && (() => {
+          {!activeClientId && !(activeId && projects.find(p => p.id === activeId && p.project_type !== 'retainer')) && (() => {
             // Merge retainer projects + hub_clients, dedup by client_name
             const retainerNames = new Set([
               ...retainerProjects.map(p => p.client_name.toLowerCase()),
