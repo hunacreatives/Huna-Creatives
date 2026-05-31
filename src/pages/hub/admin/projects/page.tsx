@@ -1839,7 +1839,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
                 </div>
               )}
-              <p className="text-[11px] text-gray-400 ml-1">Collected filters by payment date</p>
+              {(statsPeriod as string) !== 'all' && <p className="text-[11px] text-gray-400 ml-1">Filtering Collected by payment date</p>}
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
