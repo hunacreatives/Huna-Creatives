@@ -1966,33 +1966,43 @@ export default function ContractorProjectsPage() {
 
             {/* ── My Clients section ── */}
             {clientEntries.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0"></span>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Clients <span className="text-gray-300 font-normal">({clientEntries.length})</span></p>
+              <div className="mt-4 rounded-3xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.8)' }}>
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-white/60 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-[#FF6B35]/10 flex items-center justify-center">
+                      <i className="ri-building-line text-[#FF6B35] text-sm"></i>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 leading-none">My Clients</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Ongoing client relationships</p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-semibold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">{clientEntries.length}</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Cards */}
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {clientEntries.map(c => (
-                    <div key={c.id} className="rounded-2xl p-3.5 text-left"
-                      style={{ background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 20px rgba(0,0,0,0.06)' }}>
+                    <div key={c.id} className="bg-white/70 rounded-2xl p-3.5 border border-white/80">
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex-1 min-w-0">
-                          {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-orange-500">{c.service}</span>}
+                          {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-[#FF6B35]">{c.service}</span>}
                           <p className="font-bold text-gray-900 text-sm leading-tight truncate">{c.name}</p>
-                          {c.role && <p className="text-xs text-gray-400 mt-0.5 truncate">{c.role}</p>}
-                          {c.platform && <p className="text-xs text-gray-400 mt-0.5 truncate">{c.platform}</p>}
+                          {(c.role || c.platform) && (
+                            <p className="text-xs text-gray-400 mt-0.5 truncate">{c.role ?? c.platform}</p>
+                          )}
                         </div>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${c.type === 'retainer' ? 'bg-indigo-50 text-indigo-600' : 'bg-orange-50 text-orange-600'}`}>
                           {c.type === 'retainer' ? 'Retainer' : 'International'}
                         </span>
                       </div>
                       {c.type === 'retainer' && c.monthly_rate ? (
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-100/80">
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                           <span className="text-[10px] text-indigo-600 font-semibold">₱{c.monthly_rate.toLocaleString()}/mo</span>
                           <span className="text-[10px] text-gray-400">{c.months_paid} month{c.months_paid !== 1 ? 's' : ''} paid</span>
                         </div>
                       ) : c.notes ? (
-                        <p className="text-[10px] text-gray-400 italic pt-2 border-t border-gray-100/80 truncate">{c.notes}</p>
+                        <p className="text-[10px] text-gray-400 italic pt-2 border-t border-gray-100 truncate">{c.notes}</p>
                       ) : null}
                     </div>
                   ))}
