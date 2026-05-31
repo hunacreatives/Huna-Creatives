@@ -229,6 +229,7 @@ export default function TaskDetailPanel({
         assigned_to: assigneeId || null,
         due_date: dueDate || null,
         start_date: startDate || null,
+        checklist,
       };
 
       const assigneeMember = teamMembers.find(m => m.id === assigneeId) ?? null;
