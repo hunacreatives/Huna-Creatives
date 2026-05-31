@@ -205,7 +205,7 @@ export default function ContractorLayout({ children, title, titleContent, action
               <i className="ri-menu-line text-lg"></i>
             </button>
             <div className="flex-1 min-w-0">
-              {titleContent ?? (title && <h1 className="text-gray-900 font-semibold text-[28px] leading-tight truncate">{title}</h1>)}
+              {titleContent ?? (title && <h1 className="text-gray-900 font-semibold text-lg sm:text-[28px] leading-tight truncate">{title}</h1>)}
             </div>
             <div className="flex items-center gap-3">
               {actions}
