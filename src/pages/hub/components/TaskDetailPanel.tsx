@@ -922,7 +922,8 @@ export default function TaskDetailPanel({
                 const isEditing = editingFieldId === f.id;
                 const saveField = () => {
                   setEditingFieldId(null);
-                  if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: customFields } }).eq('id', task.id).catch(() => {});
+                  if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: customFields } }).eq('id', task.id)
+                    .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
                 };
                 return (
                   <div key={f.id} className="flex items-center gap-2 group">
@@ -955,7 +956,8 @@ export default function TaskDetailPanel({
                       <button onClick={() => {
                         const updated = customFields.filter(x => x.id !== f.id);
                         setCustomFields(updated);
-                        if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
+                        if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id)
+                        .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
                       }} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 cursor-pointer transition-all flex-shrink-0">
                         <i className="ri-delete-bin-line text-[10px]"></i>
                       </button>
@@ -972,7 +974,8 @@ export default function TaskDetailPanel({
                       setCustomFields(updated);
                       setNewFieldLabel(''); setShowAddField(false);
                       setEditingFieldId(id); // immediately open for editing
-                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
+                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id)
+                        .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
                     }}}
                     className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30" autoFocus />
                   <button onClick={() => {
@@ -982,7 +985,8 @@ export default function TaskDetailPanel({
                     setCustomFields(updated);
                     setNewFieldLabel(''); setShowAddField(false);
                     setEditingFieldId(id);
-                    if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
+                    if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id)
+                        .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
                   }} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs cursor-pointer">Add</button>
                 </div>
               )}
