@@ -820,8 +820,17 @@ export default function TaskDetailPanel({
             ) : (
               <div className="text-sm text-gray-600 leading-relaxed space-y-2">
                 {description ? description.split('\n').map((line, i) =>
-                  line.match(/^https?:\/\//) && (line.includes('drive.google') || line.includes('googleusercontent') || line.includes('supabase'))
-                    ? <img key={i} src={line.includes('drive.google') ? `https://drive.google.com/thumbnail?id=${line.match(/[?&]id=([^&]+)/)?.[1] || line.match(/\/d\/([^/]+)/)?.[1]}&sz=w600` : line} alt="attachment" className="max-w-full rounded-lg border border-gray-100 cursor-pointer" onClick={() => window.open(line,'_blank')} />
+                  line.match(/^https?:\/\//) && (line.includes('drive.google') || line.includes('googleusercontent') || line.includes('supabase') || line.includes('storage'))
+                    ? <div key={i} className="space-y-1">
+                        <img src={line.includes('drive.google') ? `https://drive.google.com/thumbnail?id=${line.match(/[?&]id=([^&]+)/)?.[1] || line.match(/\/d\/([^/]+)/)?.[1]}&sz=w600` : line}
+                          alt="attachment" className="max-w-full rounded-lg border border-gray-100 cursor-pointer"
+                          onClick={() => window.open(line,'_blank')}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('hidden'); }} />
+                        <a href={line} target="_blank" rel="noopener noreferrer" hidden
+                          className="text-xs text-sky-600 hover:underline flex items-center gap-1">
+                          <i className="ri-image-line text-[10px]"></i> View image
+                        </a>
+                      </div>
                     : <p key={i}>{line || <br />}</p>
                 ) : <span className="text-gray-400 italic">No description</span>}
               </div>
