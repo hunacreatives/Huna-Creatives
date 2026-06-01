@@ -142,6 +142,7 @@ export default function HubLoginPage() {
           border: 1px solid rgba(255,255,255,0.1);
           color: rgba(255,255,255,0.85);
           transition: border 0.2s, background 0.2s, box-shadow 0.2s;
+          font-size: 16px;
         }
         .input-dark::placeholder { color: rgba(255,255,255,0.2); }
         .input-dark:focus {
