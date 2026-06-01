@@ -239,6 +239,7 @@ export default function TaskDetailPanel({
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStart, setMentionStart] = useState(0);
   const commentRef = useRef<HTMLDivElement>(null);
+  const descRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Populate form when task changes
@@ -247,6 +248,8 @@ export default function TaskDetailPanel({
     if (task) {
       setTitle(task.title);
       setDesc(task.description ?? '');
+      // Sync contenteditable div on next tick
+      setTimeout(() => { if (descRef.current) descRef.current.innerHTML = task.description ?? ''; }, 0);
       setStatus(task.status);
       setPriority(task.priority);
       setAssigneeId(task.assigned_to ?? task.assignee_id ?? '');
@@ -313,7 +316,7 @@ export default function TaskDetailPanel({
     try {
       const payload = {
         title: title.trim(),
-        description: description.trim() || null,
+        description: (descRef.current?.innerHTML?.trim() || description.trim()) || null,
         status,
         priority,
         assigned_to: assigneeId || null,
@@ -777,9 +780,11 @@ export default function TaskDetailPanel({
           <div className="p-5 border-b border-gray-100">
             <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Description</p>
             {editing ? (
-              <textarea
-                value={description}
-                onChange={e => setDesc(e.target.value)}
+              <div
+                ref={descRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={e => setDesc((e.target as HTMLDivElement).innerHTML)}
                 onPaste={async (e) => {
                   const items = Array.from(e.clipboardData?.items ?? []);
                   const imgItem = items.find(i => i.type.startsWith('image/'));
@@ -787,52 +792,51 @@ export default function TaskDetailPanel({
                     e.preventDefault();
                     const file = imgItem.getAsFile();
                     if (!file) return;
-                    const placeholder = `[img:uploading-${Date.now()}]`;
-                    setDesc(prev => prev + (prev ? '\n' : '') + placeholder);
+                    // Insert loading placeholder image
+                    const loadingImg = document.createElement('img');
+                    loadingImg.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="%23f3f4f6" rx="6"/><text x="50%" y="55%" text-anchor="middle" fill="%239ca3af" font-size="11" font-family="sans-serif">Uploading...</text></svg>';
+                    loadingImg.style.borderRadius = '6px';
+                    const sel = window.getSelection();
+                    if (sel?.rangeCount) sel.getRangeAt(0).insertNode(loadingImg);
                     try {
                       const ext = file.type.split('/')[1] || 'png';
                       const path = `task-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
                       const { error } = await supabase.storage.from('task-attachments').upload(path, file, { contentType: file.type });
                       if (error) throw error;
                       const { data } = supabase.storage.from('task-attachments').getPublicUrl(path);
-                      setDesc(prev => prev.replace(placeholder, data.publicUrl));
+                      loadingImg.src = data.publicUrl;
+                      loadingImg.style.maxWidth = '100%';
+                      loadingImg.style.borderRadius = '8px';
+                      loadingImg.style.border = '1px solid #f3f4f6';
+                      loadingImg.style.cursor = 'pointer';
+                      loadingImg.onclick = () => window.open(data.publicUrl, '_blank');
                     } catch {
-                      setDesc(prev => prev.replace(placeholder, ''));
+                      loadingImg.remove();
                     }
+                    setDesc(descRef.current?.innerHTML ?? '');
                     return;
                   }
-                  // HTML img src fallback (e.g. Monday.com)
+                  // HTML img fallback (Monday.com etc.)
                   const htmlItem = items.find(i => i.type === 'text/html');
                   if (htmlItem) {
-                    htmlItem.getAsString(async (html) => {
+                    htmlItem.getAsString((html) => {
                       const srcMatch = html.match(/src=["']([^"']+)["']/);
-                      if (srcMatch?.[1] && srcMatch[1].startsWith('http')) {
+                      if (srcMatch?.[1]?.startsWith('http')) {
                         e.preventDefault();
-                        setDesc(prev => prev + (prev ? '\n' : '') + srcMatch[1]);
+                        document.execCommand('insertHTML', false, `<img src="${srcMatch[1]}" style="max-width:100%;border-radius:8px;border:1px solid #f3f4f6;cursor:pointer;" onclick="window.open(this.src,'_blank')" />`);
+                        setDesc(descRef.current?.innerHTML ?? '');
                       }
                     });
                   }
                 }}
-                placeholder="Add a description… (paste images from clipboard)"
-                rows={4}
-                className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 resize-none bg-white"
+                data-placeholder="Add a description… (paste images directly)"
+                className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[80px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
               />
             ) : (
-              <div className="text-sm text-gray-600 leading-relaxed space-y-2">
-                {description ? description.split('\n').map((line, i) =>
-                  line.match(/^https?:\/\//) && (line.includes('drive.google') || line.includes('googleusercontent') || line.includes('supabase') || line.includes('storage'))
-                    ? <div key={i} className="space-y-1">
-                        <img src={line.includes('drive.google') ? `https://drive.google.com/thumbnail?id=${line.match(/[?&]id=([^&]+)/)?.[1] || line.match(/\/d\/([^/]+)/)?.[1]}&sz=w600` : line}
-                          alt="attachment" className="max-w-full rounded-lg border border-gray-100 cursor-pointer"
-                          onClick={() => window.open(line,'_blank')}
-                          onError={(e) => { (e.target as HTMLImageElement).style.display='none'; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('hidden'); }} />
-                        <a href={line} target="_blank" rel="noopener noreferrer" hidden
-                          className="text-xs text-sky-600 hover:underline flex items-center gap-1">
-                          <i className="ri-image-line text-[10px]"></i> View image
-                        </a>
-                      </div>
-                    : <p key={i}>{line || <br />}</p>
-                ) : <span className="text-gray-400 italic">No description</span>}
+              <div className="text-sm text-gray-600 leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-gray-100 [&_img]:my-1">
+                {description
+                  ? <div dangerouslySetInnerHTML={{ __html: description.replace(/\n/g, '<br/>') }} />
+                  : <span className="text-gray-400 italic">No description</span>}
               </div>
             )}
           </div>
