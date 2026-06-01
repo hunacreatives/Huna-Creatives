@@ -263,7 +263,7 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                           onDragEnd={handleDragEnd}
                           className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-40 group-hover:opacity-100"
                           title="Drag to extend start"
-                        >◀</span>
+                        ><i className="ri-arrow-left-s-line text-[8px]"></i></span>
                       )}
                       {isStart && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mx-1 ${dotCls(t)}`}></span>}
                       {isStart && <span className="truncate flex-1">{t.title}</span>}
@@ -275,8 +275,7 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                           onDragEnd={handleDragEnd}
                           className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-40 group-hover:opacity-100"
                           title="Drag to extend end"
-                        >▶</span>
-                        </span>
+                        ><i className="ri-arrow-right-s-line text-[8px]"></i></span>
                       )}
                     </div>
                   );
