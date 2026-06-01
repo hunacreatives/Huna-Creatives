@@ -18,6 +18,7 @@ export interface TaskDetailTask {
   due_date: string | null;
   start_date: string | null;
   checklist?: ChecklistItem[] | null;
+  color?: string | null;
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
 }
 
@@ -25,6 +26,7 @@ export interface ChecklistItem {
   id: string;
   text: string;
   done: boolean;
+  detail?: string;
 }
 
 interface Comment {
@@ -206,6 +208,9 @@ export default function TaskDetailPanel({
   const [startDate, setStartDate]   = useState('');
   const [checklist, setChecklist]   = useState<ChecklistItem[]>([]);
   const [newCheckItem, setNewCheckItem] = useState('');
+  const [expandedCheckItems, setExpandedCheckItems] = useState<Set<string>>(new Set());
+  const [taskColor, setTaskColor] = useState<string>('');
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Remote data
   const [comments, setComments]     = useState<Comment[]>([]);
@@ -242,9 +247,12 @@ export default function TaskDetailPanel({
       setDueDate(task.due_date ?? '');
       setStartDate(task.start_date ?? '');
       setChecklist(task.checklist ?? []);
+      setTaskColor(task.color ?? '');
       setPendingAttachment(null);
       setEditing(false);
       setConfirmDelete(false);
+      setExpandedCheckItems(new Set());
+      setShowColorPicker(false);
       fetchTaskData(task.id);
     } else {
       setTitle(''); setDesc(''); setStatus('todo'); setPriority('medium');
@@ -296,6 +304,7 @@ export default function TaskDetailPanel({
         due_date: dueDate || null,
         start_date: startDate || null,
         checklist,
+        color: taskColor || null,
       };
 
       const assigneeMember = teamMembers.find(m => m.id === assigneeId) ?? null;
@@ -338,9 +347,20 @@ export default function TaskDetailPanel({
         // Log meaningful changes
         if (prev.status !== status)
           await logActivity(prev.id, 'status_change', `changed status from ${prev.status.replace('_', ' ')} to ${status.replace('_', ' ')}`);
-        if ((prev.assigned_to ?? prev.assignee_id) !== (assigneeId || null)) {
+        if ((prev.assigned_to ?? prev.assignee_id) !== (assigneeId || null) && assigneeId) {
           const assignee = teamMembers.find(m => m.id === assigneeId);
           await logActivity(prev.id, 'assigned', assignee ? `assigned to ${assignee.full_name}` : 'unassigned');
+          // Notify the newly assigned contractor
+          supabase.functions.invoke('notify-task-assigned', {
+            body: {
+              task_id: prev.id,
+              task_title: title,
+              project_id: prev.project_id,
+              project_name: '',
+              assigned_to_id: assigneeId,
+              assigned_by_name: 'Admin',
+            },
+          }).catch(() => {});
         }
 
         setChecklist(data.checklist ?? []);
@@ -515,7 +535,7 @@ export default function TaskDetailPanel({
       <div className="fixed right-0 top-0 h-full w-full max-w-[520px] bg-white z-50 flex flex-col shadow-2xl">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="bg-[#111827] px-5 py-4 flex-shrink-0">
+        <div className="px-5 py-4 flex-shrink-0" style={{ background: taskColor || '#111827' }}>
           <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               {editing ? (
@@ -541,6 +561,30 @@ export default function TaskDetailPanel({
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Color picker */}
+              {(canEdit || isNew) && (
+                <div className="relative">
+                  <button onClick={() => setShowColorPicker(p => !p)}
+                    className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
+                    title="Pick task color">
+                    <i className="ri-palette-line text-sm"></i>
+                  </button>
+                  {showColorPicker && (
+                    <div className="absolute right-0 top-10 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 w-[200px]">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-2">Task Color</p>
+                      <div className="grid grid-cols-5 gap-2 mb-2">
+                        {['#111827','#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#6b7280'].map(col => (
+                          <button key={col} onClick={() => { setTaskColor(col); setShowColorPicker(false); }}
+                            className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-transform hover:scale-110 ${taskColor === col ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                            style={{ background: col }} />
+                        ))}
+                      </div>
+                      <button onClick={() => { setTaskColor(''); setShowColorPicker(false); }}
+                        className="text-[11px] text-gray-400 hover:text-gray-600 cursor-pointer w-full text-center">Reset to default</button>
+                    </div>
+                  )}
+                </div>
+              )}
               {canEdit && !isNew && (
                 <button
                   onClick={() => setEditing(e => !e)}
@@ -696,16 +740,45 @@ export default function TaskDetailPanel({
                 </div>
                 <div className="space-y-1.5">
                   {checklist.map(item => (
-                    <div key={item.id} className="flex items-center gap-2.5 group">
-                      <button onClick={() => handleToggleCheck(item.id)} className="flex-shrink-0 cursor-pointer">
-                        <i className={`text-base ${item.done ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-gray-400'}`}></i>
-                      </button>
-                      <span className={`flex-1 text-sm ${item.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.text}</span>
-                      {(editing || canEdit) && (
-                        <button onClick={() => removeCheckItem(item.id)}
-                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 transition-all cursor-pointer">
-                          <i className="ri-delete-bin-line text-xs"></i>
+                    <div key={item.id} className="group">
+                      <div className="flex items-center gap-2.5">
+                        <button onClick={() => handleToggleCheck(item.id)} className="flex-shrink-0 cursor-pointer mt-0.5">
+                          <i className={`text-base ${item.done ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-gray-400'}`}></i>
                         </button>
+                        <span className={`flex-1 text-sm ${item.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.text}</span>
+                        {(editing || canEdit) && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => setExpandedCheckItems(prev => { const n = new Set(prev); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n; })}
+                              className="text-gray-300 hover:text-sky-500 cursor-pointer" title="Add details">
+                              <i className="ri-file-text-line text-xs"></i>
+                            </button>
+                            <button onClick={() => removeCheckItem(item.id)}
+                              className="text-gray-300 hover:text-rose-500 cursor-pointer">
+                              <i className="ri-delete-bin-line text-xs"></i>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {expandedCheckItems.has(item.id) && (
+                        <div className="ml-7 mt-1">
+                          <textarea
+                            value={item.detail ?? ''}
+                            onChange={e => {
+                              const updated = checklist.map(i => i.id === item.id ? { ...i, detail: e.target.value } : i);
+                              setChecklist(updated);
+                              saveChecklist(updated);
+                            }}
+                            placeholder="Add details..."
+                            rows={2}
+                            className="w-full text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30 resize-none"
+                          />
+                        </div>
+                      )}
+                      {!expandedCheckItems.has(item.id) && item.detail && (
+                        <p className="ml-7 text-xs text-gray-400 italic mt-0.5 truncate cursor-pointer"
+                           onClick={() => setExpandedCheckItems(prev => { const n = new Set(prev); n.add(item.id); return n; })}>
+                          {item.detail}
+                        </p>
                       )}
                     </div>
                   ))}
