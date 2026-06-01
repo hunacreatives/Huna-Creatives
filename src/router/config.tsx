@@ -49,6 +49,7 @@ const HubContractorOnboarding = lazy(() => import('../pages/hub/contractor/onboa
 const HubContractorClients = lazy(() => import('../pages/hub/contractor/clients/page'));
 const HubContractorProjects = lazy(() => import('../pages/hub/contractor/projects/page'));
 const HubAdminProjects = lazy(() => import('../pages/hub/admin/projects/page'));
+const HubAdminTasks = lazy(() => import('../pages/hub/admin/tasks/page'));
 const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page'));
 const HubAdminInvoiceLog = lazy(() => import('../pages/hub/admin/invoice-log/page'));
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
@@ -153,6 +154,7 @@ const routes: RouteObject[] = [
   { path: '/hub/contractor/clients', element: withContractorGate(<HubContractorClients />) },
   { path: '/hub/contractor/projects', element: withContractorGate(<HubContractorProjects />) },
   { path: '/hub/admin/projects', element: withAdminGate(<HubAdminProjects />) },
+  { path: '/hub/admin/tasks', element: withAdminGate(<HubAdminTasks />) },
   { path: '/hub/admin/overtime', element: withAdminGate(<HubAdminOvertime />) },
   { path: '/hub/admin/documents', element: withAdminGate(<HubAdminDocuments />) },
   { path: '/hub/admin/invoice-log', element: withAdminGate(<HubAdminInvoiceLog />) },

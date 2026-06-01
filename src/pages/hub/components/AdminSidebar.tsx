@@ -13,6 +13,7 @@ const navItems = [
   { divider: true, label: 'Finance' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
   { to: '/hub/admin/projects', label: 'Projects', icon: 'ri-folder-line' },
+  { to: '/hub/admin/tasks', label: 'All Tasks', icon: 'ri-task-line' },
   { to: '/hub/admin/invoice-log', label: 'Invoice Log', icon: 'ri-bill-line' },
   { to: '/hub/admin/documents', label: 'Documents', icon: 'ri-file-text-line' },
   { divider: true, label: 'Content' },
