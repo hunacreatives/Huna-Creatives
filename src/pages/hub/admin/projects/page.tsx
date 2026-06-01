@@ -885,7 +885,7 @@ export default function AdminProjectsPage() {
       message: invoiceForm.message.trim() || undefined,
       invoice_number: invNum,
       project_id: project.id,
-      app_base_url: typeof window !== 'undefined' ? window.location.origin : undefined,
+      app_base_url: 'https://hunacreatives.com',
       amount_requested: invoiceForm.amount_requested ? parseFloat(invoiceForm.amount_requested) : undefined,
     };
   };
@@ -989,7 +989,7 @@ export default function AdminProjectsPage() {
       .limit(1)
       .maybeSingle();
     const payUrl = latestLink?.token
-      ? `${window.location.origin}/pay/${latestLink.token}`
+      ? `https://hunacreatives.com/pay/${latestLink.token}`
       : null;
     const d = derived(project);
     const fmt2 = (n: number) => '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1930,7 +1930,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             <select value={projectTypeFilter} onChange={e => setProjectTypeFilter(e.target.value as any)}
               className="px-3 py-1.5 text-xs border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none cursor-pointer">
               <option value="all">All Types</option>
-              <option value="client">One-time</option>
+              <option value="client">Fixed Contract</option>
               <option value="internal">Internal</option>
             </select>
             {/* Service dropdown */}
@@ -2037,7 +2037,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               </div>
             )}
           {/* ── Retainer Clients section ── */}
-          {!activeClientId && !(activeId && projects.find(p => p.id === activeId && p.project_type !== 'retainer')) && (() => {
+          {false && (() => {
             // Merge retainer projects + hub_clients, dedup by client_name
             const retainerNames = new Set([
               ...retainerProjects.map(p => p.client_name.toLowerCase()),

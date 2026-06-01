@@ -263,7 +263,7 @@ export default function InvoiceLogPage() {
           invoice_number: inv.invoice_number,
           project_id: inv.project_id,
           amount_requested: inv.balance,
-          app_base_url: window.location.origin,
+          app_base_url: 'https://hunacreatives.com',
         },
       });
       if (error || data?.error) {
@@ -304,7 +304,7 @@ export default function InvoiceLogPage() {
           invoice_number: inv.invoice_number,
           project_id: inv.project_id,
           amount_requested: inv.amount_requested ?? undefined,
-          app_base_url: window.location.origin,
+          app_base_url: 'https://hunacreatives.com',
         },
       });
       if (error || data?.error) {
