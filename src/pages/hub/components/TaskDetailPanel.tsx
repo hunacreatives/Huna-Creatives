@@ -782,19 +782,26 @@ export default function TaskDetailPanel({
                 onChange={e => setDesc(e.target.value)}
                 onPaste={async (e) => {
                   const items = Array.from(e.clipboardData?.items ?? []);
-                  // Try raw image blob first
                   const imgItem = items.find(i => i.type.startsWith('image/'));
                   if (imgItem) {
                     e.preventDefault();
                     const file = imgItem.getAsFile();
-                    if (file) {
-                      setDesc(prev => prev + (prev ? '\n' : '') + '[Uploading image...]');
-                      const url = await uploadFileToDrive(file, 'task_description_img', { project_name: projectName });
-                      setDesc(prev => prev.replace('[Uploading image...]', url ? url : ''));
+                    if (!file) return;
+                    const placeholder = `[img:uploading-${Date.now()}]`;
+                    setDesc(prev => prev + (prev ? '\n' : '') + placeholder);
+                    try {
+                      const ext = file.type.split('/')[1] || 'png';
+                      const path = `task-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                      const { error } = await supabase.storage.from('task-attachments').upload(path, file, { contentType: file.type });
+                      if (error) throw error;
+                      const { data } = supabase.storage.from('task-attachments').getPublicUrl(path);
+                      setDesc(prev => prev.replace(placeholder, data.publicUrl));
+                    } catch {
+                      setDesc(prev => prev.replace(placeholder, ''));
                     }
                     return;
                   }
-                  // Try HTML with img src (e.g. from Monday.com copy)
+                  // HTML img src fallback (e.g. Monday.com)
                   const htmlItem = items.find(i => i.type === 'text/html');
                   if (htmlItem) {
                     htmlItem.getAsString(async (html) => {
@@ -813,8 +820,8 @@ export default function TaskDetailPanel({
             ) : (
               <div className="text-sm text-gray-600 leading-relaxed space-y-2">
                 {description ? description.split('\n').map((line, i) =>
-                  line.match(/^https?:\/\//) && (line.includes('drive.google') || line.includes('googleusercontent'))
-                    ? <img key={i} src={`https://drive.google.com/thumbnail?id=${line.match(/[?&]id=([^&]+)/)?.[1] || line.match(/\/d\/([^/]+)/)?.[1]}&sz=w600`} alt="attachment" className="max-w-full rounded-lg border border-gray-100 cursor-pointer" onClick={() => window.open(line,'_blank')} />
+                  line.match(/^https?:\/\//) && (line.includes('drive.google') || line.includes('googleusercontent') || line.includes('supabase'))
+                    ? <img key={i} src={line.includes('drive.google') ? `https://drive.google.com/thumbnail?id=${line.match(/[?&]id=([^&]+)/)?.[1] || line.match(/\/d\/([^/]+)/)?.[1]}&sz=w600` : line} alt="attachment" className="max-w-full rounded-lg border border-gray-100 cursor-pointer" onClick={() => window.open(line,'_blank')} />
                     : <p key={i}>{line || <br />}</p>
                 ) : <span className="text-gray-400 italic">No description</span>}
               </div>
