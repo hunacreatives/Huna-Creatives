@@ -781,14 +781,29 @@ export default function TaskDetailPanel({
                 onChange={e => setDesc(e.target.value)}
                 onPaste={async (e) => {
                   const items = Array.from(e.clipboardData?.items ?? []);
-                  const img = items.find(i => i.type.startsWith('image/'));
-                  if (!img) return;
-                  e.preventDefault();
-                  const file = img.getAsFile();
-                  if (!file) return;
-                  
-                  const url = await uploadFileToDrive(file, 'task_description_img', { project_name: projectName });
-                  if (url) setDesc(prev => prev + (prev ? '\n' : '') + url);
+                  // Try raw image blob first
+                  const imgItem = items.find(i => i.type.startsWith('image/'));
+                  if (imgItem) {
+                    e.preventDefault();
+                    const file = imgItem.getAsFile();
+                    if (file) {
+                      setDesc(prev => prev + (prev ? '\n' : '') + '[Uploading image...]');
+                      const url = await uploadFileToDrive(file, 'task_description_img', { project_name: projectName });
+                      setDesc(prev => prev.replace('[Uploading image...]', url ? url : ''));
+                    }
+                    return;
+                  }
+                  // Try HTML with img src (e.g. from Monday.com copy)
+                  const htmlItem = items.find(i => i.type === 'text/html');
+                  if (htmlItem) {
+                    htmlItem.getAsString(async (html) => {
+                      const srcMatch = html.match(/src=["']([^"']+)["']/);
+                      if (srcMatch?.[1] && srcMatch[1].startsWith('http')) {
+                        e.preventDefault();
+                        setDesc(prev => prev + (prev ? '\n' : '') + srcMatch[1]);
+                      }
+                    });
+                  }
                 }}
                 placeholder="Add a description… (paste images from clipboard)"
                 rows={4}

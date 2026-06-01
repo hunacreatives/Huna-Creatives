@@ -3709,6 +3709,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             ? prev.map(t => t.id === saved.id ? { ...t, ...saved } : t)
             : [...prev, saved as ProjectTask]);
           setDetailTask(saved);
+          // Refresh comment count for this task
+          if (saved.id) supabase.from('hub_project_task_comments').select('task_id').eq('task_id', saved.id)
+            .then(({ data }) => setCommentCounts(prev => ({ ...prev, [saved.id]: data?.length ?? prev[saved.id] ?? 0 })));
         }}
         onDeleted={(id) => { setTasks(prev => prev.filter(t => t.id !== id)); setDetailOpen(false); setDetailTask(null); }}
         projectId={activeId ?? 0}
