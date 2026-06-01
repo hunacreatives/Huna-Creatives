@@ -1,3 +1,4 @@
+import React from 'react';
 import { useRef, useState } from 'react';
 
 export interface ProjectTask {
@@ -84,12 +85,20 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
   ];
   const colorMap = Object.fromEntries(tasks.map((t, i) => [t.id, PALETTE[i % PALETTE.length]]));
 
+  const chipStyle = (t: ProjectTask): React.CSSProperties | undefined => {
+    if ((t as any).color && t.status !== 'done' && !(t.due_date && t.due_date < today)) {
+      return { background: (t as any).color, color: '#fff' };
+    }
+    return undefined;
+  };
   const chipCls = (t: ProjectTask) => {
     if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-100 text-rose-600';
+    if ((t as any).color) return '';
     return colorMap[t.id]?.chip ?? 'bg-indigo-100 text-indigo-700';
   };
   const dotCls = (t: ProjectTask) => {
     if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-400';
+    if ((t as any).color) return 'bg-white/70';
     return colorMap[t.id]?.dot ?? 'bg-indigo-400';
   };
 
@@ -245,6 +254,7 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                       draggable={draggable && isStart}
                       onDragStart={draggable && isStart ? e => handleDragStart(e, t, 'move') : undefined}
                       onDragEnd={handleDragEnd}
+                      style={chipStyle(t)}
                       className={[
                         'flex items-center text-[10px] font-medium truncate select-none group',
                         chipCls(t),

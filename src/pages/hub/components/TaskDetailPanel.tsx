@@ -574,12 +574,20 @@ export default function TaskDetailPanel({
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold mb-2">Task Color</p>
                       <div className="grid grid-cols-5 gap-2 mb-2">
                         {['#111827','#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#6b7280'].map(col => (
-                          <button key={col} onClick={() => { setTaskColor(col); setShowColorPicker(false); }}
+                          <button key={col} onClick={() => {
+                            setTaskColor(col);
+                            setShowColorPicker(false);
+                            if (task?.id) supabase.from('hub_project_tasks').update({ color: col }).eq('id', task.id).then(() => onSaved({ ...task, color: col }));
+                          }}
                             className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-transform hover:scale-110 ${taskColor === col ? 'border-gray-800 scale-110' : 'border-transparent'}`}
                             style={{ background: col }} />
                         ))}
                       </div>
-                      <button onClick={() => { setTaskColor(''); setShowColorPicker(false); }}
+                      <button onClick={() => {
+                        setTaskColor('');
+                        setShowColorPicker(false);
+                        if (task?.id) supabase.from('hub_project_tasks').update({ color: null }).eq('id', task.id).then(() => onSaved({ ...task, color: null }));
+                      }}
                         className="text-[11px] text-gray-400 hover:text-gray-600 cursor-pointer w-full text-center">Reset to default</button>
                     </div>
                   )}
