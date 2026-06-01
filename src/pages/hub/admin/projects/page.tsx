@@ -11,6 +11,7 @@ import { localToday } from '@/lib/formatUtils';
 import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/TaskDetailPanel';
 import { uploadFileToDrive } from '@/lib/driveUpload';
+import { createTaskAttachment } from '@/lib/taskAttachments';
 
 // ── SVG progress ring ──────────────────────────────────────────────────────
 function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
@@ -251,8 +252,10 @@ export default function AdminProjectsPage() {
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
   const [newTaskDue, setNewTaskDue] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [newTaskAttachment, setNewTaskAttachment] = useState<File | null>(null);
   const [taskSaving, setTaskSaving] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const newTaskAttachmentRef = useRef<HTMLInputElement>(null);
 
   // Task detail panel
   const [detailTask, setDetailTask] = useState<TaskDetailTask | null>(null);
@@ -335,6 +338,14 @@ export default function AdminProjectsPage() {
     }).select('*').single();
     setTaskSaving(false);
     if (error || !data) return;
+    if (newTaskAttachment && hubUser?.id) {
+      await createTaskAttachment({
+        taskId: data.id,
+        file: newTaskAttachment,
+        uploadedBy: hubUser.id,
+        projectName: activeProject?.project_name ?? 'General',
+      });
+    }
     setTasks(prev => [...prev, data as ProjectTask]);
     const assigneeName = newTaskAssignee
       ? (activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === newTaskAssignee)?.hub_users?.full_name ?? '')
@@ -352,7 +363,8 @@ export default function AdminProjectsPage() {
         },
       }).catch(() => {});
     }
-    setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue(''); setNewTaskPriority('medium'); setShowTaskForm(false);
+    setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue(''); setNewTaskPriority('medium'); setNewTaskAttachment(null); setShowTaskForm(false);
+    if (newTaskAttachmentRef.current) newTaskAttachmentRef.current.value = '';
     fetchTasks(activeId);
   };
 
@@ -1545,6 +1557,37 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Task title..."
                         autoFocus onKeyDown={e => e.key === 'Enter' && createTask()}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 bg-white" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => newTaskAttachmentRef.current?.click()}
+                          className="px-3 py-1.5 text-xs border border-dashed border-indigo-200 text-indigo-700 rounded-lg bg-white hover:bg-indigo-50 cursor-pointer whitespace-nowrap"
+                        >
+                          <i className="ri-attachment-2 mr-1"></i>
+                          {newTaskAttachment ? 'Change attachment' : 'Add attachment'}
+                        </button>
+                        {newTaskAttachment && (
+                          <div className="min-w-0 flex items-center gap-2 text-xs text-gray-600">
+                            <span className="truncate">{newTaskAttachment.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewTaskAttachment(null);
+                                if (newTaskAttachmentRef.current) newTaskAttachmentRef.current.value = '';
+                              }}
+                              className="text-gray-400 hover:text-rose-500 cursor-pointer"
+                            >
+                              <i className="ri-close-line"></i>
+                            </button>
+                          </div>
+                        )}
+                        <input
+                          ref={newTaskAttachmentRef}
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => setNewTaskAttachment(e.target.files?.[0] ?? null)}
+                        />
+                      </div>
                       <div className="flex gap-2">
                         <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)}
                           className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">

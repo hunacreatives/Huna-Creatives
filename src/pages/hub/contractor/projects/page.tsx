@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS, DEMO_CONTRACTOR_TEAM } from '@/lib/demoData';
 import TaskDetailPanel from '@/pages/hub/components/TaskDetailPanel';
 import { localToday } from '@/lib/formatUtils';
+import { createTaskAttachment } from '@/lib/taskAttachments';
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -693,7 +694,9 @@ export default function ContractorProjectsPage() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [taskForm, setTaskForm] = useState(emptyTaskForm());
+  const [taskAttachment, setTaskAttachment] = useState<File | null>(null);
   const [taskSaving, setTaskSaving] = useState(false);
+  const taskAttachmentRef = useRef<HTMLInputElement>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [search, setSearch] = useState('');
@@ -751,6 +754,8 @@ export default function ContractorProjectsPage() {
 
   const openEditTask = (task: ProjectTask) => {
     setEditingTask(task);
+    setTaskAttachment(null);
+    if (taskAttachmentRef.current) taskAttachmentRef.current.value = '';
     setTaskForm({
       title: task.title,
       description: task.description ?? '',
@@ -786,24 +791,34 @@ export default function ContractorProjectsPage() {
         .insert({ ...payload, project_id: workspaceRow.hub_projects.id })
         .select()
       .single();
-    if (data) {
-      setTasks(prev => [...prev, data as ProjectTask]);
-      await logActivity('task_created', taskForm.title.trim(), (data as ProjectTask).id);
-      if (taskForm.assigned_to && hubUser && taskForm.assigned_to !== hubUser.id) {
-        supabase.functions.invoke('notify-task-assigned', {
-          body: {
-            task_id: (data as ProjectTask).id,
-            task_title: taskForm.title.trim(),
-            project_id: workspaceRow.hub_projects.id,
-            project_name: workspaceRow?.hub_projects?.project_name ?? '',
-            assigned_to_id: taskForm.assigned_to,
-            assigned_by_name: hubUser.full_name ?? 'Team',
-          },
-        }).catch(() => {});
+      if (data) {
+        if (taskAttachment && hubUser?.id) {
+          await createTaskAttachment({
+            taskId: (data as ProjectTask).id,
+            file: taskAttachment,
+            uploadedBy: hubUser.id,
+            projectName: workspaceRow?.hub_projects?.project_name ?? 'General',
+          });
+        }
+        setTasks(prev => [...prev, data as ProjectTask]);
+        await logActivity('task_created', taskForm.title.trim(), (data as ProjectTask).id);
+        if (taskForm.assigned_to && hubUser && taskForm.assigned_to !== hubUser.id) {
+          supabase.functions.invoke('notify-task-assigned', {
+            body: {
+              task_id: (data as ProjectTask).id,
+              task_title: taskForm.title.trim(),
+              project_id: workspaceRow.hub_projects.id,
+              project_name: workspaceRow?.hub_projects?.project_name ?? '',
+              assigned_to_id: taskForm.assigned_to,
+              assigned_by_name: hubUser.full_name ?? 'Team',
+            },
+          }).catch(() => {});
+        }
       }
     }
-    }
     setTaskSaving(false);
+    setTaskAttachment(null);
+    if (taskAttachmentRef.current) taskAttachmentRef.current.value = '';
     setShowTaskModal(false);
     setMentionOpen(false); setMentionQuery('');
   };
@@ -2452,6 +2467,49 @@ export default function ContractorProjectsPage() {
                       {taskForm.priority !== 'medium' && <> — <span className={taskForm.priority === 'high' ? 'text-rose-600 font-medium' : 'text-gray-500'}>{taskForm.priority} priority</span></>}
                       {daysLeft !== null && <> · {daysLeft < 0 ? <span className="text-rose-500 font-medium">{Math.abs(daysLeft)}d overdue</span> : daysLeft === 0 ? <span className="text-amber-600 font-medium">due today</span> : <span>due in {daysLeft}d</span>}</>}
                     </p>
+                  </div>
+                )}
+
+                {!editingTask && (
+                  <div className="px-5 pb-4">
+                    <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Attachment</p>
+                          <p className="text-xs text-gray-600 truncate mt-1">
+                            {taskAttachment ? taskAttachment.name : 'Optional. Upload an image or file together with the new task.'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => taskAttachmentRef.current?.click()}
+                            className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 cursor-pointer whitespace-nowrap"
+                          >
+                            <i className="ri-attachment-2 mr-1"></i>
+                            {taskAttachment ? 'Change' : 'Add file'}
+                          </button>
+                          {taskAttachment && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTaskAttachment(null);
+                                if (taskAttachmentRef.current) taskAttachmentRef.current.value = '';
+                              }}
+                              className="w-7 h-7 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-white cursor-pointer"
+                            >
+                              <i className="ri-close-line"></i>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        ref={taskAttachmentRef}
+                        type="file"
+                        className="hidden"
+                        onChange={(e) => setTaskAttachment(e.target.files?.[0] ?? null)}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { uploadFileToDrive } from '@/lib/driveUpload';
+import { createTaskAttachment } from '@/lib/taskAttachments';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -88,6 +89,22 @@ const PRIORITY_CFG = {
   low:    { label: 'Low',    cls: 'bg-gray-50 text-gray-500 border-gray-200',   dot: 'bg-gray-400' },
 } as const;
 
+function getDriveFileId(url: string | null | undefined) {
+  if (!url) return null;
+  const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return fileMatch[1];
+  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch) return idMatch[1];
+  return null;
+}
+
+function getAttachmentPreviewUrl(att: Attachment) {
+  const driveFileId = getDriveFileId(att.url);
+  if (!driveFileId) return att.url;
+  if (att.mime_type?.startsWith('image/')) return `https://drive.google.com/uc?export=view&id=${driveFileId}`;
+  return att.url;
+}
+
 function timeAgo(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   if (diff < 60) return 'just now';
@@ -160,6 +177,8 @@ export default function TaskDetailPanel({
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPosting] = useState(false);
   const [uploading, setUploading]   = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStart, setMentionStart] = useState(0);
@@ -178,6 +197,7 @@ export default function TaskDetailPanel({
       setDueDate(task.due_date ?? '');
       setStartDate(task.start_date ?? '');
       setChecklist(task.checklist ?? []);
+      setPendingAttachment(null);
       setEditing(false);
       setConfirmDelete(false);
       fetchTaskData(task.id);
@@ -185,6 +205,7 @@ export default function TaskDetailPanel({
       setTitle(''); setDesc(''); setStatus('todo'); setPriority('medium');
       setAssigneeId(''); setDueDate(''); setStartDate(''); setChecklist([]);
       setComments([]); setAttachments([]); setActivity([]); setWatchers([]);
+      setPendingAttachment(null);
       setEditing(true);
     }
   }, [task?.id, open]);
@@ -244,7 +265,19 @@ export default function TaskDetailPanel({
           .select('*')
           .single();
         if (error) throw error;
+        if (pendingAttachment) {
+          const attachment = await createTaskAttachment({
+            taskId: data.id,
+            file: pendingAttachment,
+            uploadedBy: currentUserId,
+            projectName,
+          });
+          if (attachment) {
+            await logActivity(data.id, 'attachment_added', `added attachment "${pendingAttachment.name}"`);
+          }
+        }
         await logActivity(data.id, 'created', `created this task`);
+        setPendingAttachment(null);
         onSaved({ ...data, hub_users } as TaskDetailTask);
         onClose();
       } else {
@@ -369,7 +402,13 @@ export default function TaskDetailPanel({
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !task) return;
+    if (!file) return;
+    if (isNew) {
+      setPendingAttachment(file);
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
+    if (!task) return;
     setUploading(true);
     const url = await uploadFileToDrive(file, 'task_attachment', { project_name: projectName });
     if (url) {
@@ -383,6 +422,11 @@ export default function TaskDetailPanel({
       }
     }
     setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const clearPendingAttachment = () => {
+    setPendingAttachment(null);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -641,47 +685,116 @@ export default function TaskDetailPanel({
           </div>
 
           {/* Attachments */}
-          {!isNew && (
-            <div className="p-5 border-b border-gray-100">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Attachments</p>
-                {canEdit && (
-                  <button onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                    className="flex items-center gap-1 text-[11px] text-[#FF6B35] hover:underline disabled:opacity-40 cursor-pointer">
-                    <i className="ri-upload-2-line text-xs"></i>
-                    {uploading ? 'Uploading…' : 'Upload'}
+          <div className="p-5 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Attachments</p>
+              {(canEdit || isNew) && (
+                <button onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-1 text-[11px] text-[#FF6B35] hover:underline disabled:opacity-40 cursor-pointer">
+                  <i className="ri-upload-2-line text-xs"></i>
+                  {isNew ? (pendingAttachment ? 'Change file' : 'Add file') : (uploading ? 'Uploading…' : 'Upload')}
+                </button>
+              )}
+              <input ref={fileRef} type="file" className="hidden" onChange={handleFileUpload} />
+            </div>
+            {isNew ? (
+              pendingAttachment ? (
+                <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl">
+                  <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <i className={`${pendingAttachment.type.startsWith('image/') ? 'ri-image-line' : 'ri-file-line'} text-gray-500 text-sm`}></i>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-700 truncate">{pendingAttachment.name}</p>
+                    <p className="text-[10px] text-gray-400">{fmtBytes(pendingAttachment.size)} · Uploads when the task is created</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearPendingAttachment}
+                    className="text-gray-300 hover:text-rose-500 transition-colors cursor-pointer"
+                  >
+                    <i className="ri-delete-bin-line text-sm"></i>
                   </button>
-                )}
-                <input ref={fileRef} type="file" className="hidden" onChange={handleFileUpload} />
-              </div>
-              {attachments.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No attachments yet</p>
+                </div>
               ) : (
-                <div className="space-y-2">
-                  {attachments.map(att => {
-                    const isImg = att.mime_type?.startsWith('image/');
-                    return (
-                      <div key={att.id} className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl group">
-                        <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {isImg
-                            ? <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
-                            : <i className="ri-file-line text-gray-500 text-sm"></i>}
-                        </div>
-                        <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-400 italic">Optional. Add a file now and it will upload when the task is created.</p>
+              )
+            ) : attachments.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">No attachments yet</p>
+            ) : (
+              <div className="space-y-2">
+                {attachments.map(att => {
+                  const isImg = att.mime_type?.startsWith('image/');
+                  return (
+                    <div key={att.id} className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl group">
+                      <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {isImg
+                          ? <img src={getAttachmentPreviewUrl(att)} alt={att.name} className="w-full h-full object-cover" />
+                          : <i className="ri-file-line text-gray-500 text-sm"></i>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {isImg ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment(att)}
+                            className="text-xs font-medium text-gray-700 hover:text-[#FF6B35] truncate block cursor-pointer"
+                          >
+                            {att.name}
+                          </button>
+                        ) : (
                           <a href={att.url} target="_blank" rel="noopener noreferrer"
                             className="text-xs font-medium text-gray-700 hover:text-[#FF6B35] truncate block">{att.name}</a>
-                          {att.size && <p className="text-[10px] text-gray-400">{fmtBytes(att.size)}</p>}
-                        </div>
-                        <button onClick={() => deleteAttachment(att)}
-                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 transition-all cursor-pointer">
-                          <i className="ri-delete-bin-line text-sm"></i>
-                        </button>
+                        )}
+                        {att.size && <p className="text-[10px] text-gray-400">{fmtBytes(att.size)}</p>}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      {isImg && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewAttachment(att)}
+                          className="text-[10px] text-sky-600 hover:text-sky-700 cursor-pointer whitespace-nowrap"
+                        >
+                          Preview
+                        </button>
+                      )}
+                      <button onClick={() => deleteAttachment(att)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 transition-all cursor-pointer">
+                        <i className="ri-delete-bin-line text-sm"></i>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {previewAttachment && (
+            <div
+              className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4"
+              onClick={() => setPreviewAttachment(null)}
+            >
+              <div className="relative max-w-5xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                <img
+                  src={getAttachmentPreviewUrl(previewAttachment)}
+                  alt={previewAttachment.name}
+                  className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPreviewAttachment(null)}
+                  className="absolute top-2 right-2 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black cursor-pointer"
+                >
+                  <i className="ri-close-line text-sm"></i>
+                </button>
+                <a
+                  href={previewAttachment.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black"
+                >
+                  <i className="ri-external-link-line text-xs"></i>
+                  Open in Drive
+                </a>
+              </div>
             </div>
           )}
 
