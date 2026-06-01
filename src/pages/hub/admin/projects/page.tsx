@@ -1254,9 +1254,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
   // Open workspace directly if ?w= param is set on initial load only
   const didInitWorkspace = useRef(false);
+  const lastW = useRef<string | null>(null);
   useEffect(() => {
-    if (didInitWorkspace.current || projects.length === 0) return;
+    if (projects.length === 0) return;
     const w = searchParams.get('w');
+    // Fire if: first time, OR URL param changed (e.g. from notification click)
+    if (didInitWorkspace.current && w === lastW.current) return;
+    lastW.current = w;
     if (w) {
       const id = parseInt(w);
       if (projects.some(p => p.id === id)) {
@@ -1267,7 +1271,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     } else {
       didInitWorkspace.current = true;
     }
-  }, [projects]);
+  }, [projects, searchParams]);
 
   const projectTags = (project: Project) => {
     const serviceTag = project.service ? [project.service] : ['General'];

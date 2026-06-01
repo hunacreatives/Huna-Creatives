@@ -894,10 +894,16 @@ export default function ContractorProjectsPage() {
     if (!editingTask) { setTaskComments([]); setNewComment(''); return; }
     supabase
       .from('hub_project_task_comments')
-      .select('id, user_id, body, created_at, hub_users(full_name, avatar_url)')
+      .select('id, user_id, body, created_at')
       .eq('task_id', editingTask.id)
       .order('created_at', { ascending: true })
-      .then(({ data }) => setTaskComments((data as any) ?? []));
+      .then(async ({ data }) => {
+        if (!data?.length) { setTaskComments([]); return; }
+        const ids = [...new Set(data.map((c: any) => c.user_id).filter(Boolean))];
+        const { data: users } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', ids);
+        const map: Record<string, any> = Object.fromEntries((users ?? []).map((u: any) => [u.id, u]));
+        setTaskComments(data.map((c: any) => ({ ...c, hub_users: map[c.user_id] ?? null })));
+      });
   }, [editingTask?.id]);
 
   const postComment = async () => {
@@ -906,10 +912,11 @@ export default function ContractorProjectsPage() {
     const { data, error } = await supabase
       .from('hub_project_task_comments')
       .insert({ task_id: editingTask.id, user_id: hubUser.id, body: newComment.trim() })
-      .select('id, user_id, body, created_at, hub_users(full_name, avatar_url)')
+      .select('id, user_id, body, created_at')
       .single();
     if (!error && data) {
-      setTaskComments(prev => [...prev, data as any]);
+      const commentWithUser = { ...data, hub_users: { full_name: hubUser.full_name ?? 'Me', avatar_url: hubUser.avatar_url ?? null } };
+      setTaskComments(prev => [...prev, commentWithUser as any]);
       setTaskCommentCounts(prev => ({ ...prev, [editingTask.id]: (prev[editingTask.id] ?? 0) + 1 }));
       setNewComment('');
       await logActivity('comment_added', editingTask.title, editingTask.id, { comment: newComment.trim().slice(0, 100) });
