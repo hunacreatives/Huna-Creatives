@@ -200,7 +200,7 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
           const cellDate = inMonth ? `${year}-${pad2(month + 1)}-${pad2(dayNum)}` : null;
           const isToday = cellDate === today;
           const isSelected = cellDate !== null && cellDate === selectedDate;
-          const isDropTarget = cellDate === dragOver;
+          const isDropTarget = cellDate !== null && cellDate === dragOver;
           const colIdx = idx % 7;
           const isWeekend = colIdx === 5 || colIdx === 6;
           const dayTasks = cellDate ? (tasksByDate[cellDate] ?? []) : [];
