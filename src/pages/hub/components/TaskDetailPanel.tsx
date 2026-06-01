@@ -105,6 +105,32 @@ function getAttachmentPreviewUrl(att: Attachment) {
   return att.url;
 }
 
+function getAttachmentExt(name: string | null | undefined) {
+  if (!name) return '';
+  const parts = name.toLowerCase().split('.');
+  return parts.length > 1 ? parts.pop() ?? '' : '';
+}
+
+function isImageAttachment(att: Attachment) {
+  if (att.mime_type?.startsWith('image/')) return true;
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif'].includes(getAttachmentExt(att.name));
+}
+
+function isPdfAttachment(att: Attachment) {
+  if (att.mime_type === 'application/pdf') return true;
+  return getAttachmentExt(att.name) === 'pdf';
+}
+
+function canInlinePreview(att: Attachment) {
+  return Boolean(getDriveFileId(att.url)) || isImageAttachment(att) || isPdfAttachment(att);
+}
+
+function getDriveEmbedUrl(att: Attachment) {
+  const driveFileId = getDriveFileId(att.url);
+  if (!driveFileId) return att.url;
+  return `https://drive.google.com/file/d/${driveFileId}/preview`;
+}
+
 function timeAgo(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   if (diff < 60) return 'just now';
@@ -118,6 +144,27 @@ function fmtBytes(n: number | null) {
   if (n < 1024) return `${n} B`;
   if (n < 1048576) return `${(n / 1024).toFixed(0)} KB`;
   return `${(n / 1048576).toFixed(1)} MB`;
+}
+
+function renderAttachmentPreview(att: Attachment) {
+  if (isImageAttachment(att)) {
+    return (
+      <img
+        src={getAttachmentPreviewUrl(att)}
+        alt={att.name}
+        className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl"
+      />
+    );
+  }
+
+  return (
+    <iframe
+      src={getDriveEmbedUrl(att)}
+      title={att.name}
+      className="w-[min(92vw,960px)] h-[80vh] rounded-xl bg-white shadow-2xl"
+      allow="autoplay"
+    />
+  );
 }
 
 function Avatar({ name, url, size = 7 }: { name: string; url?: string | null; size?: number }) {
@@ -724,7 +771,8 @@ export default function TaskDetailPanel({
             ) : (
               <div className="space-y-2">
                 {attachments.map(att => {
-                  const isImg = att.mime_type?.startsWith('image/');
+                  const isImg = isImageAttachment(att);
+                  const canPreview = canInlinePreview(att);
                   return (
                     <div key={att.id} className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl group">
                       <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -733,7 +781,7 @@ export default function TaskDetailPanel({
                           : <i className="ri-file-line text-gray-500 text-sm"></i>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        {isImg ? (
+                        {canPreview ? (
                           <button
                             type="button"
                             onClick={() => setPreviewAttachment(att)}
@@ -747,7 +795,7 @@ export default function TaskDetailPanel({
                         )}
                         {att.size && <p className="text-[10px] text-gray-400">{fmtBytes(att.size)}</p>}
                       </div>
-                      {isImg && (
+                      {canPreview && (
                         <button
                           type="button"
                           onClick={() => setPreviewAttachment(att)}
@@ -773,11 +821,7 @@ export default function TaskDetailPanel({
               onClick={() => setPreviewAttachment(null)}
             >
               <div className="relative max-w-5xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-                <img
-                  src={getAttachmentPreviewUrl(previewAttachment)}
-                  alt={previewAttachment.name}
-                  className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl"
-                />
+                {renderAttachmentPreview(previewAttachment)}
                 <button
                   type="button"
                   onClick={() => setPreviewAttachment(null)}
