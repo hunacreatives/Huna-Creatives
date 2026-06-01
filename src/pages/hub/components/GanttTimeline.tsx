@@ -14,7 +14,7 @@ export interface ProjectTask {
 
 interface DragState {
   taskId: number;
-  mode: 'move' | 'resize-end';
+  mode: 'move' | 'resize-end' | 'resize-start';
   originalStart: string | null;
   originalEnd: string | null;
 }
@@ -123,12 +123,21 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
         ? { ...t, due_date: newEnd ?? cellDate, start_date: newStart }
         : t
       ));
-    } else {
-      // resize-end: only move due_date, keep start_date
+    } else if (ds.mode === 'resize-end') {
+      // resize-end: extend/shrink due_date, keep start_date
       const start = task.start_date ?? task.due_date!;
       if (cellDate >= start) {
         setLocalTasks(prev => prev.map(t => t.id === ds.taskId
           ? { ...t, due_date: cellDate }
+          : t
+        ));
+      }
+    } else {
+      // resize-start: extend/shrink start_date, keep due_date
+      const end = task.due_date ?? task.start_date!;
+      if (cellDate <= end) {
+        setLocalTasks(prev => prev.map(t => t.id === ds.taskId
+          ? { ...t, start_date: cellDate }
           : t
         ));
       }
@@ -227,36 +236,46 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
               <div className="flex flex-col gap-0.5 flex-1">
                 {visible.map(t => {
                   const isStart = cellDate === (t.start_date ?? t.due_date);
-                  const isEnd = cellDate === t.due_date;
+                  const isEnd = cellDate === (t.due_date ?? t.start_date);
                   const hasRange = t.start_date && t.due_date && t.start_date !== t.due_date;
                   const draggable = !!onTaskUpdate;
+                  const isSingleDay = !hasRange;
                   return (
                     <div
                       key={t.id}
-                      draggable={draggable && isStart}
-                      onDragStart={draggable && isStart ? e => handleDragStart(e, t, 'move') : undefined}
+                      draggable={draggable && isStart && !isSingleDay}
+                      onDragStart={draggable && isStart && !isSingleDay ? e => handleDragStart(e, t, 'move') : undefined}
                       onDragEnd={handleDragEnd}
                       className={[
-                        'flex items-center text-[10px] font-medium truncate select-none',
+                        'flex items-center text-[10px] font-medium truncate select-none group',
                         chipCls(t),
                         hasRange
-                          ? `${isStart ? 'rounded-l-md rounded-r-none pl-1.5 pr-0' : isEnd ? 'rounded-r-md rounded-l-none pl-0 pr-0.5' : 'rounded-none px-0'} py-0.5`
-                          : 'px-1.5 py-0.5 rounded',
-                        draggable && isStart ? 'cursor-grab active:cursor-grabbing' : '',
+                          ? `${isStart ? 'rounded-l-md rounded-r-none pl-0 pr-0' : isEnd ? 'rounded-r-md rounded-l-none pl-0 pr-0' : 'rounded-none px-0'} py-0.5`
+                          : 'px-1 py-0.5 rounded',
+                        draggable && isStart && !isSingleDay ? 'cursor-grab active:cursor-grabbing' : '',
                       ].filter(Boolean).join(' ')}
                     >
-                      {(!hasRange || isStart) && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mr-1 ${dotCls(t)}`}></span>}
+                      {/* Left resize handle (start cell of range) */}
+                      {draggable && isStart && hasRange && (
+                        <span
+                          draggable
+                          onDragStart={e => { e.stopPropagation(); handleDragStart(e, t, 'resize-start'); }}
+                          onDragEnd={handleDragEnd}
+                          className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-40 group-hover:opacity-100"
+                          title="Drag to extend start"
+                        >◀</span>
+                      )}
+                      {isStart && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mx-1 ${dotCls(t)}`}></span>}
                       {isStart && <span className="truncate flex-1">{t.title}</span>}
-                      {/* Resize handle on end cell */}
-                      {draggable && isEnd && hasRange && (
+                      {/* Right resize handle — on end cell of range OR on single-day tasks */}
+                      {draggable && isEnd && (
                         <span
                           draggable
                           onDragStart={e => { e.stopPropagation(); handleDragStart(e, t, 'resize-end'); }}
                           onDragEnd={handleDragEnd}
-                          className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-50 hover:opacity-100"
-                          title="Drag to resize"
-                        >
-                          <i className="ri-more-2-fill text-[8px]"></i>
+                          className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-40 group-hover:opacity-100"
+                          title="Drag to extend end"
+                        >▶</span>
                         </span>
                       )}
                     </div>
