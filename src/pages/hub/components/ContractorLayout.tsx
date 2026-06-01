@@ -361,7 +361,7 @@ export default function ContractorLayout({ children, title, titleContent, action
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-transparent">
+          <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-transparent" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px) + 5rem)' }}>
             <div className="max-w-7xl mx-auto">
               {children}
             </div>
