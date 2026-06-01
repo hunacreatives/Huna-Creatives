@@ -219,6 +219,7 @@ export default function TaskDetailPanel({
   const [customFields, setCustomFields] = useState<{id: string; label: string; value: string}[]>([]);
   const [newFieldLabel, setNewFieldLabel] = useState('');
   const [showAddField, setShowAddField] = useState(false);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [activity, setActivity]     = useState<ActivityItem[]>([]);
   const [watchers, setWatchers]     = useState<string[]>([]);
@@ -908,44 +909,71 @@ export default function TaskDetailPanel({
               {canEdit && <button onClick={() => setShowAddField(v => !v)} className="text-[11px] text-[#FF6B35] hover:underline cursor-pointer">+ Add field</button>}
             </div>
             <div className="space-y-2">
-              {customFields.map(f => (
-                <div key={f.id} className="flex items-center gap-2 group">
-                  <span className="text-xs text-gray-500 font-medium w-28 flex-shrink-0 truncate">{f.label}</span>
-                  {canEdit ? (
-                    <input value={f.value} onChange={e => {
-                      const updated = customFields.map(x => x.id === f.id ? { ...x, value: e.target.value } : x);
-                      setCustomFields(updated);
-                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
-                    }} className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30" />
-                  ) : (
-                    <span className="flex-1 text-xs text-gray-700">{f.value || '—'}</span>
-                  )}
-                  {canEdit && (
-                    <button onClick={() => {
-                      const updated = customFields.filter(x => x.id !== f.id);
-                      setCustomFields(updated);
-                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
-                    }} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 cursor-pointer transition-all">
-                      <i className="ri-delete-bin-line text-xs"></i>
-                    </button>
-                  )}
-                </div>
-              ))}
+              {customFields.map(f => {
+                const isUrl = /^https?:\/\//.test(f.value);
+                const isEditing = editingFieldId === f.id;
+                const saveField = () => {
+                  setEditingFieldId(null);
+                  if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: customFields } }).eq('id', task.id).catch(() => {});
+                };
+                return (
+                  <div key={f.id} className="flex items-center gap-2 group">
+                    <span className="text-xs text-gray-500 font-medium w-28 flex-shrink-0 truncate">{f.label}</span>
+                    {isEditing ? (
+                      <div className="flex-1 flex gap-1">
+                        <input autoFocus value={f.value} onChange={e => setCustomFields(customFields.map(x => x.id === f.id ? { ...x, value: e.target.value } : x))}
+                          onKeyDown={e => { if (e.key === 'Enter') saveField(); if (e.key === 'Escape') setEditingFieldId(null); }}
+                          className="flex-1 text-xs border border-[#FF6B35]/50 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30" />
+                        <button onClick={saveField} className="px-2 py-1 bg-[#FF6B35] text-white text-[10px] rounded-lg cursor-pointer">Save</button>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                        {isUrl ? (
+                          <a href={f.value} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-sky-600 hover:underline truncate flex items-center gap-1">
+                            <i className="ri-link text-[10px] flex-shrink-0"></i>{f.value}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-700 truncate">{f.value || <span className="text-gray-300 italic">Empty</span>}</span>
+                        )}
+                        {canEdit && (
+                          <button onClick={() => setEditingFieldId(f.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-gray-600 cursor-pointer transition-all flex-shrink-0">
+                            <i className="ri-pencil-line text-[10px]"></i>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {canEdit && !isEditing && (
+                      <button onClick={() => {
+                        const updated = customFields.filter(x => x.id !== f.id);
+                        setCustomFields(updated);
+                        if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
+                      }} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 cursor-pointer transition-all flex-shrink-0">
+                        <i className="ri-delete-bin-line text-[10px]"></i>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
               {showAddField && canEdit && (
                 <div className="flex gap-2 mt-2">
                   <input value={newFieldLabel} onChange={e => setNewFieldLabel(e.target.value)}
                     placeholder="Field name..." onKeyDown={e => { if (e.key === 'Enter' && newFieldLabel.trim()) {
-                      const updated = [...customFields, { id: Math.random().toString(36).slice(2), label: newFieldLabel.trim(), value: '' }];
+                      const id = Math.random().toString(36).slice(2);
+                      const updated = [...customFields, { id, label: newFieldLabel.trim(), value: '' }];
                       setCustomFields(updated);
                       setNewFieldLabel(''); setShowAddField(false);
+                      setEditingFieldId(id); // immediately open for editing
                       if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
                     }}}
                     className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30" autoFocus />
                   <button onClick={() => {
                     if (!newFieldLabel.trim()) return;
-                    const updated = [...customFields, { id: Math.random().toString(36).slice(2), label: newFieldLabel.trim(), value: '' }];
+                    const id = Math.random().toString(36).slice(2);
+                    const updated = [...customFields, { id, label: newFieldLabel.trim(), value: '' }];
                     setCustomFields(updated);
                     setNewFieldLabel(''); setShowAddField(false);
+                    setEditingFieldId(id);
                     if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
                   }} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs cursor-pointer">Add</button>
                 </div>
