@@ -1223,23 +1223,23 @@ export default function TaskDetailPanel({
                     data-placeholder="Add a comment… (@mention)"
                     className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[60px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
                   />
-                  {/* Color dots — select text then click */}
+                  {/* Color dots + send button */}
                   <div className="flex items-center gap-1.5 mt-1.5">
                     {['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#111827'].map(col => (
                       <button key={col} type="button" title="Color selected text"
                         onMouseDown={e => {
-                          e.preventDefault(); // keep selection alive
+                          e.preventDefault();
                           document.execCommand('foreColor', false, col);
                           commentRef.current?.focus();
                         }}
                         className="w-4 h-4 rounded-full cursor-pointer hover:scale-125 transition-transform flex-shrink-0 border border-gray-100"
                         style={{ background: col }} />
                     ))}
+                    <button onClick={postComment} disabled={postingComment || !newComment.trim()}
+                      className="ml-auto w-7 h-7 bg-[#FF6B35] disabled:opacity-30 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0">
+                      <i className="ri-send-plane-fill text-white text-xs"></i>
+                    </button>
                   </div>
-                  <button onClick={postComment} disabled={postingComment || !newComment.trim()}
-                    className="absolute right-2 bottom-2 w-7 h-7 bg-[#FF6B35] disabled:opacity-30 rounded-lg flex items-center justify-center cursor-pointer">
-                    <i className="ri-send-plane-fill text-white text-xs"></i>
-                  </button>
                 </div>
               </div>
             </div>
