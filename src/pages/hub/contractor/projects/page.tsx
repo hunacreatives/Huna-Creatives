@@ -786,11 +786,12 @@ export default function ContractorProjectsPage() {
       setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...payload } : t));
       await logActivity('task_updated', taskForm.title.trim(), editingTask.id);
     } else {
-      const { data } = await supabase
+      const { data, error: insertErr } = await supabase
         .from('hub_project_tasks')
         .insert({ ...payload, project_id: workspaceRow.hub_projects.id })
         .select()
-      .single();
+        .single();
+      if (insertErr) { console.error('Task insert error:', insertErr); setTaskSaving(false); return; }
       if (data) {
         if (taskAttachment && hubUser?.id) {
           await createTaskAttachment({
@@ -1053,7 +1054,7 @@ export default function ContractorProjectsPage() {
 
         // 3. tasks + team
         const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
-          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to').in('project_id', projectIds),
+          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, color').in('project_id', projectIds),
           supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', projectIds),
         ]);
         setTasks((taskData as ProjectTask[]) ?? []);
@@ -1442,7 +1443,8 @@ export default function ContractorProjectsPage() {
     const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
     return (
       <div key={task.id} onClick={() => openViewTask(task)}
-        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group border-l-4 ${color.border}`}>
+        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group border-l-4 ${(task as any).color ? '' : color.border}`}
+        style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
         {/* Top row */}
         <div className="flex items-start gap-2.5">
           <button onClick={e => { e.stopPropagation(); cycleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${si.cls}`}>

@@ -577,7 +577,10 @@ export default function TaskDetailPanel({
                           <button key={col} onClick={() => {
                             setTaskColor(col);
                             setShowColorPicker(false);
-                            if (task?.id) supabase.from('hub_project_tasks').update({ color: col }).eq('id', task.id).then(() => onSaved({ ...task, color: col }));
+                            if (task?.id) {
+                              onSaved({ ...task, color: col }); // immediate UI update
+                              supabase.from('hub_project_tasks').update({ color: col }).eq('id', task.id).catch(() => {});
+                            }
                           }}
                             className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-transform hover:scale-110 ${taskColor === col ? 'border-gray-800 scale-110' : 'border-transparent'}`}
                             style={{ background: col }} />
@@ -586,7 +589,10 @@ export default function TaskDetailPanel({
                       <button onClick={() => {
                         setTaskColor('');
                         setShowColorPicker(false);
-                        if (task?.id) supabase.from('hub_project_tasks').update({ color: null }).eq('id', task.id).then(() => onSaved({ ...task, color: null }));
+                        if (task?.id) {
+                          onSaved({ ...task, color: null });
+                          supabase.from('hub_project_tasks').update({ color: null }).eq('id', task.id).catch(() => {});
+                        }
                       }}
                         className="text-[11px] text-gray-400 hover:text-gray-600 cursor-pointer w-full text-center">Reset to default</button>
                     </div>
