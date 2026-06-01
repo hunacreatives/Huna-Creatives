@@ -1218,14 +1218,12 @@ export default function ContractorProjectsPage() {
   const [wsTeamDirect, setWsTeamDirect] = useState<TeamMember[]>([]);
   useEffect(() => {
     if (!wsProject?.id) { setWsTeamDirect([]); return; }
-    supabase.from('hub_project_contractors')
-      .select('contractor_id')
-      .eq('project_id', wsProject.id)
-      .then(async ({ data: pcRows }) => {
-        if (!pcRows?.length) return;
-        const ids = pcRows.map((r: any) => r.contractor_id);
-        const { data: users } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', ids);
-        setWsTeamDirect((users ?? []).map((u: any) => ({ id: u.id, full_name: u.full_name, avatar_url: u.avatar_url ?? null })));
+    // Use SECURITY DEFINER RPC to bypass RLS on hub_project_contractors
+    supabase.rpc('get_project_team', { p_project_id: wsProject.id })
+      .then(({ data }) => {
+        if (data?.length) {
+          setWsTeamDirect((data as any[]).map(u => ({ id: u.id, full_name: u.full_name, avatar_url: u.avatar_url ?? null })));
+        }
       });
   }, [wsProject?.id]);
   const wsTeam = wsTeamDirect.length > 0 ? wsTeamDirect : (wsRow ? (teamMap[wsProject?.id ?? 0] ?? []) : []);

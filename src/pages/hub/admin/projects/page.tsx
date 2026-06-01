@@ -1376,6 +1376,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           due_date: t.due_date,
           start_date: t.start_date ?? null,
           assigned_to: t.assigned_to,
+          color: (t as any).color ?? null,
         }));
 
         return (
@@ -1657,7 +1658,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           : null;
                         return (
                           <div key={task.id} onClick={() => openTaskDetail(task)}
-                            className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 ${priorityBorder} group cursor-pointer hover:shadow-md transition-shadow`}>
+                            className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md transition-shadow ${(task as any).color ? '' : priorityBorder}`}
+                            style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
                             <div className="flex items-start gap-2.5">
                               <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                 <i className={`${sc.icon} text-lg`}></i>
@@ -1731,7 +1733,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                       : null;
                                     return (
                                       <div key={task.id} onClick={() => openTaskDetail(task)}
-                                        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 ${priorityBorder} group cursor-pointer hover:shadow-md transition-shadow`}>
+                                        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md transition-shadow ${(task as any).color ? '' : priorityBorder}`}
+                                        style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
                                         <div className="flex items-start gap-2.5">
                                           <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                             <i className={`${sc.icon} text-lg`}></i>
