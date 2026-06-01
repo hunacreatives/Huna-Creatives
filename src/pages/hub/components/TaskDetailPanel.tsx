@@ -910,7 +910,8 @@ export default function TaskDetailPanel({
             </div>
             <div className="space-y-2">
               {customFields.map(f => {
-                const isUrl = /^https?:\/\//.test(f.value);
+                const isUrl = /^https?:\/\//.test(f.value) || /^www\./i.test(f.value) || /\.com(\/|\s|\?|#|$)/i.test(f.value);
+                const hrefVal = isUrl && !f.value.startsWith('http') ? 'https://' + f.value : f.value;
                 const isEditing = editingFieldId === f.id;
                 const saveField = () => {
                   setEditingFieldId(null);
@@ -929,7 +930,7 @@ export default function TaskDetailPanel({
                     ) : (
                       <div className="flex-1 flex items-center gap-1.5 min-w-0">
                         {isUrl ? (
-                          <a href={f.value} target="_blank" rel="noopener noreferrer"
+                          <a href={hrefVal} target="_blank" rel="noopener noreferrer"
                             className="text-xs text-sky-600 hover:underline truncate flex items-center gap-1">
                             <i className="ri-link text-[10px] flex-shrink-0"></i>{f.value}
                           </a>
