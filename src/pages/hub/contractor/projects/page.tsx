@@ -876,6 +876,21 @@ export default function ContractorProjectsPage() {
       });
   }, [tasks.length, workspaceRow?.hub_projects?.id]);
 
+  // Realtime: update comment counts instantly
+  useEffect(() => {
+    const projectId = workspaceRow?.hub_projects?.id;
+    if (!projectId || isDemo) return;
+    const channel = supabase.channel(`contractor-comments-${projectId}`)
+      .on('postgres_changes' as any, {
+        event: 'INSERT', schema: 'public', table: 'hub_project_task_comments',
+      }, (payload: any) => {
+        const taskId = payload.new?.task_id;
+        if (taskId) setTaskCommentCounts(prev => ({ ...prev, [taskId]: (prev[taskId] ?? 0) + 1 }));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [workspaceRow?.hub_projects?.id, isDemo]);
+
   // Fetch activity log when workspace opens
   useEffect(() => {
     const projectId = workspaceRow?.hub_projects?.id;
@@ -1082,7 +1097,7 @@ export default function ContractorProjectsPage() {
 
         // 3. tasks + team
         const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
-          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, color').in('project_id', projectIds),
+          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, color, meta').in('project_id', projectIds),
           supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', projectIds),
         ]);
         setTasks((taskData as ProjectTask[]) ?? []);
@@ -2714,6 +2729,7 @@ export default function ContractorProjectsPage() {
           start_date: editingTask.start_date,
           checklist: editingTask.checklist,
           color: (editingTask as any).color ?? null,
+          meta: (editingTask as any).meta ?? null,
           hub_users: wsTeam.find(m => m.id === editingTask.assigned_to)
             ? { id: wsTeam.find(m => m.id === editingTask.assigned_to)!.id, full_name: wsTeam.find(m => m.id === editingTask.assigned_to)!.full_name, avatar_url: wsTeam.find(m => m.id === editingTask.assigned_to)!.avatar_url ?? null }
             : null,

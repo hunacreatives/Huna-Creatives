@@ -237,7 +237,7 @@ export default function TaskDetailPanel({
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionStart, setMentionStart] = useState(0);
-  const commentRef = useRef<HTMLTextAreaElement>(null);
+  const commentRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Populate form when task changes
@@ -431,11 +431,12 @@ export default function TaskDetailPanel({
   // ── Comments ───────────────────────────────────────────────────────────────
 
   const postComment = async () => {
-    if (!newComment.trim() || !task) return;
+    const body = commentRef.current?.innerHTML?.trim() || newComment.trim();
+    if (!body || body === '<br>' || !task) return;
     setPosting(true);
     const { data } = await supabase
       .from('hub_project_task_comments')
-      .insert({ task_id: task.id, user_id: currentUserId, body: newComment.trim() })
+      .insert({ task_id: task.id, user_id: currentUserId, body: (commentRef.current?.innerHTML?.trim() || newComment).replace(/<br\s*\/?>/gi,'\n').trim() })
       .select('id, user_id, body, created_at')
       .single();
     if (data) {
@@ -452,6 +453,7 @@ export default function TaskDetailPanel({
       }
     }
     setNewComment('');
+    if (commentRef.current) commentRef.current.innerHTML = '';
     setPosting(false);
   };
 
@@ -477,10 +479,35 @@ export default function TaskDetailPanel({
   };
 
   const insertMention = (member: TeamMember) => {
-    const before = newComment.slice(0, mentionStart);
-    const after = newComment.slice(commentRef.current?.selectionStart ?? newComment.length);
-    setNewComment(`${before}@${member.full_name.split(' ')[0]} ${after}`);
+    const div = commentRef.current;
+    if (!div) { setMentionOpen(false); return; }
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      // Go back to find the @ character and replace query with mention
+      const node = range.startContainer;
+      const offset = range.startOffset;
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent ?? '';
+        const atIdx = text.lastIndexOf('@', offset - 1);
+        if (atIdx >= 0) {
+          const newRange = document.createRange();
+          newRange.setStart(node, atIdx);
+          newRange.setEnd(node, offset);
+          newRange.deleteContents();
+          const mention = document.createTextNode(`@${member.full_name.split(' ')[0]} `);
+          newRange.insertNode(mention);
+          const after = document.createRange();
+          after.setStartAfter(mention);
+          after.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(after);
+        }
+      }
+    }
+    setNewComment(div.innerText);
     setMentionOpen(false);
+    div.focus();
   };
 
   const mentionMatches = teamMembers.filter(m =>
@@ -1096,10 +1123,28 @@ export default function TaskDetailPanel({
                       ))}
                     </div>
                   )}
-                  <textarea
+                  <div
                     ref={commentRef}
-                    value={newComment}
-                    onChange={handleCommentInput}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={e => {
+                      const text = (e.target as HTMLDivElement).innerText;
+                      setNewComment(text);
+                      // @mention detection
+                      const sel = window.getSelection();
+                      if (sel && sel.rangeCount > 0) {
+                        const range = sel.getRangeAt(0);
+                        const textBefore = range.startContainer.textContent?.slice(0, range.startOffset) ?? '';
+                        const atIdx = textBefore.lastIndexOf('@');
+                        if (atIdx >= 0 && !textBefore.slice(atIdx + 1).includes(' ')) {
+                          setMentionOpen(true);
+                          setMentionQuery(textBefore.slice(atIdx + 1));
+                          setMentionStart(atIdx);
+                        } else {
+                          setMentionOpen(false);
+                        }
+                      }
+                    }}
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey && !mentionOpen) {
                         e.preventDefault();
@@ -1107,41 +1152,19 @@ export default function TaskDetailPanel({
                       }
                       if (e.key === 'Escape') setMentionOpen(false);
                     }}
-                    placeholder="Add a comment… (@mention · **bold** · *italic* · [color:#e53935]colored[/color])"
-                    rows={2}
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 resize-none bg-white"
+                    data-placeholder="Add a comment… (@mention)"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[60px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
                   />
-                  {/* Formatting toolbar */}
-                  <div className="flex items-center gap-1 mt-1.5">
-                    <span className="text-[10px] text-gray-300 mr-1">Format:</span>
-                    {[
-                      { label: 'B', title: 'Bold', wrap: '**', cls: 'font-bold' },
-                      { label: 'I', title: 'Italic', wrap: '*', cls: 'italic' },
-                    ].map(btn => (
-                      <button key={btn.label} title={btn.title} type="button"
-                        onClick={() => {
-                          const ta = commentRef.current;
-                          if (!ta) return;
-                          const { selectionStart: s, selectionEnd: e } = ta;
-                          const sel = newComment.slice(s, e) || 'text';
-                          const wrapped = `${btn.wrap}${sel}${btn.wrap}`;
-                          setNewComment(newComment.slice(0, s) + wrapped + newComment.slice(e));
+                  {/* Color dots — select text then click */}
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    {['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#111827'].map(col => (
+                      <button key={col} type="button" title="Color selected text"
+                        onMouseDown={e => {
+                          e.preventDefault(); // keep selection alive
+                          document.execCommand('foreColor', false, col);
+                          commentRef.current?.focus();
                         }}
-                        className={`w-6 h-6 text-[11px] text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded cursor-pointer ${btn.cls}`}>
-                        {btn.label}
-                      </button>
-                    ))}
-                    {['#e53935','#1565c0','#2e7d32','#f57c00','#6a1b9a','#111827'].map(col => (
-                      <button key={col} type="button" title={`Color ${col}`}
-                        onClick={() => {
-                          const ta = commentRef.current;
-                          if (!ta) return;
-                          const { selectionStart: s, selectionEnd: e } = ta;
-                          const sel = newComment.slice(s, e) || 'text';
-                          const wrapped = `[color:${col}]${sel}[/color]`;
-                          setNewComment(newComment.slice(0, s) + wrapped + newComment.slice(e));
-                        }}
-                        className="w-4 h-4 rounded-full cursor-pointer border border-white/50 hover:scale-110 transition-transform flex-shrink-0"
+                        className="w-4 h-4 rounded-full cursor-pointer hover:scale-125 transition-transform flex-shrink-0 border border-gray-100"
                         style={{ background: col }} />
                     ))}
                   </div>

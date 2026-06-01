@@ -119,6 +119,7 @@ interface ProjectTask {
   start_date: string | null;
   created_at: string;
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
+  meta?: { custom_fields?: {id: string; label: string; value: string}[] } | null;
 }
 
 interface ProjectActivity {
@@ -253,6 +254,7 @@ export default function AdminProjectsPage() {
 
   // Tasks
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [commentCounts, setCommentCounts] = useState<Record<number,number>>({});
   const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'overdue'>('all');
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
@@ -318,6 +320,16 @@ export default function AdminProjectsPage() {
         .limit(20),
     ]);
     setTasks((tRes.data as ProjectTask[]) ?? []);
+    // Fetch comment counts for all tasks
+    if (tRes.data?.length) {
+      const ids = (tRes.data as ProjectTask[]).map(t => t.id);
+      supabase.from('hub_project_task_comments').select('task_id').in('task_id', ids)
+        .then(({ data }) => {
+          const counts: Record<number,number> = {};
+          for (const r of data ?? []) counts[r.task_id] = (counts[r.task_id] ?? 0) + 1;
+          setCommentCounts(counts);
+        });
+    }
     setActivity((aRes.data as ProjectActivity[]) ?? []);
   };
 
@@ -1242,7 +1254,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
   useEffect(() => {
     if (activeId && !isDemo) fetchTasks(activeId);
-    else if (!activeId) { setTasks([]); setActivity([]); }
+    else if (!activeId) { setTasks([]); setActivity([]); setCommentCounts({}); }
     if (openWorkspaceOnLoad.current) { setWorkspaceOpen(true); openWorkspaceOnLoad.current = false; }
     else { setWorkspaceOpen(false); }
     setOpenSections({});
@@ -1250,6 +1262,20 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     // Sync URL
     if (activeId) setSearchParams({ w: String(activeId) }, { replace: true });
     else setSearchParams({}, { replace: true });
+  }, [activeId, isDemo]);
+
+  // Realtime: update comment counts when new comments arrive
+  useEffect(() => {
+    if (!activeId || isDemo) return;
+    const channel = supabase.channel(`admin-task-comments-${activeId}`)
+      .on('postgres_changes' as any, {
+        event: 'INSERT', schema: 'public', table: 'hub_project_task_comments',
+      }, (payload: any) => {
+        const taskId = payload.new?.task_id;
+        if (taskId) setCommentCounts(prev => ({ ...prev, [taskId]: (prev[taskId] ?? 0) + 1 }));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [activeId, isDemo]);
 
   // Open workspace directly if ?w= param is set on initial load only
@@ -1681,6 +1707,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     {overdue ? `Overdue ${Math.abs(daysLeft!)}d` : daysLeft === 0 ? 'Due today' : daysLeft === 1 ? 'Tomorrow' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                   </span>
                                 </div>
+                              )}
+                              {(commentCounts[task.id] ?? 0) > 0 && (
+                                <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                                  <i className="ri-chat-3-line text-[10px]"></i>{commentCounts[task.id]}
+                                </span>
                               )}
                               {(() => { const u = wsTaskTeam.find(m => m?.id === task.assigned_to); return u ? (
                                 <div className="flex items-center gap-1 ml-auto">
