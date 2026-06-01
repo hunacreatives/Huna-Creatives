@@ -13,7 +13,8 @@ export interface TaskDetailTask {
   description: string | null;
   status: 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done';
   priority: 'low' | 'medium' | 'high';
-  assignee_id: string | null;
+  assignee_id?: string | null;
+  assigned_to?: string | null;
   due_date: string | null;
   start_date: string | null;
   checklist?: ChecklistItem[] | null;
@@ -237,7 +238,7 @@ export default function TaskDetailPanel({
       setDesc(task.description ?? '');
       setStatus(task.status);
       setPriority(task.priority);
-      setAssigneeId(task.assignee_id ?? '');
+      setAssigneeId(task.assigned_to ?? task.assignee_id ?? '');
       setDueDate(task.due_date ?? '');
       setStartDate(task.start_date ?? '');
       setChecklist(task.checklist ?? []);
@@ -337,7 +338,7 @@ export default function TaskDetailPanel({
         // Log meaningful changes
         if (prev.status !== status)
           await logActivity(prev.id, 'status_change', `changed status from ${prev.status.replace('_', ' ')} to ${status.replace('_', ' ')}`);
-        if (prev.assignee_id !== (assigneeId || null)) {
+        if ((prev.assigned_to ?? prev.assignee_id) !== (assigneeId || null)) {
           const assignee = teamMembers.find(m => m.id === assigneeId);
           await logActivity(prev.id, 'assigned', assignee ? `assigned to ${assignee.full_name}` : 'unassigned');
         }
