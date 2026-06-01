@@ -325,16 +325,22 @@ export default function AdminProjectsPage() {
   const createTask = async () => {
     if (!activeId || !newTaskTitle.trim()) return;
     setTaskSaving(true);
-    const { data, error } = await supabase.from('hub_project_tasks').insert({
-      project_id: activeId,
-      title: newTaskTitle.trim(),
-      status: 'todo',
-      priority: newTaskPriority,
-      assigned_to: newTaskAssignee || null,
-      due_date: newTaskDue || null,
-    }).select('*').single();
+    let data: any = null;
+    let error: any = null;
+    try {
+      ({ data, error } = await supabase.from('hub_project_tasks').insert({
+        project_id: activeId,
+        title: newTaskTitle.trim(),
+        status: 'todo',
+        priority: newTaskPriority,
+        assigned_to: newTaskAssignee || null,
+        due_date: newTaskDue || null,
+      }).select('*').single());
+    } catch (e: any) {
+      error = e;
+    }
     setTaskSaving(false);
-    if (error || !data) return;
+    if (error || !data) { alert('Task error: ' + (error?.message ?? JSON.stringify(error))); return; }
     setTasks(prev => [...prev, data as ProjectTask]);
     const assigneeName = newTaskAssignee
       ? (activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === newTaskAssignee)?.hub_users?.full_name ?? '')
