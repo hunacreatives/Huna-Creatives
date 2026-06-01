@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 export interface ProjectTask {
   id: number;
@@ -12,47 +12,59 @@ export interface ProjectTask {
   assigned_to?: string | null;
 }
 
-export function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
+interface DragState {
+  taskId: number;
+  mode: 'move' | 'resize-end';
+  originalStart: string | null;
+  originalEnd: string | null;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const dateStr = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const addDays = (s: string, n: number) => { const d = new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return dateStr(d); };
+const diffDays = (a: string, b: string) => Math.round((new Date(b+'T00:00:00').getTime() - new Date(a+'T00:00:00').getTime()) / 86400000);
+
+export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUpdate }: {
   tasks: ProjectTask[];
   projectStart: string | null;
   projectEnd: string | null;
   today: string;
+  onTaskUpdate?: (taskId: number, updates: { due_date?: string | null; start_date?: string | null }) => void;
 }) {
+  void projectStart; void projectEnd;
+
   const anchor = new Date(today + 'T00:00:00');
   const [viewMonth, setViewMonth] = useState<Date>(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState<string | null>(today);
-
-  // Suppress unused-variable warnings for projectStart / projectEnd — kept for API compatibility
-  void projectStart; void projectEnd;
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const dragState = useRef<DragState | null>(null);
+  const [localTasks, setLocalTasks] = useState<ProjectTask[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   const year = viewMonth.getFullYear();
   const month = viewMonth.getMonth();
-
   const prevMonth = () => setViewMonth(new Date(year, month - 1, 1));
   const nextMonth = () => setViewMonth(new Date(year, month + 1, 1));
-  const goToday   = () => { setViewMonth(new Date(anchor.getFullYear(), anchor.getMonth(), 1)); setSelectedDate(today); };
-
+  const goToday = () => { setViewMonth(new Date(anchor.getFullYear(), anchor.getMonth(), 1)); setSelectedDate(today); };
   const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Build calendar grid: pad to start on Monday
   const firstDay = new Date(year, month, 1);
-  // getDay(): 0=Sun…6=Sat → convert to Mon-based (0=Mon…6=Sun)
   const startPad = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const totalCells = Math.ceil((startPad + daysInMonth) / 7) * 7;
 
-  // Build a map: dateStr -> tasks that span that date (start_date → due_date range)
-  // Tasks with only a due_date appear as a single dot on the due date
+  // Use localTasks for optimistic updates during drag
+  const displayTasks = isDragging && localTasks.length ? localTasks : tasks;
+
   const tasksByDate: Record<string, ProjectTask[]> = {};
-  const pad2 = (n: number) => String(n).padStart(2, '0');
-  for (const t of tasks) {
+  for (const t of displayTasks) {
     if (!t.due_date && !t.start_date) continue;
     const start = t.start_date ?? t.due_date!;
     const end = t.due_date ?? t.start_date!;
     const cur = new Date(start + 'T00:00:00');
     const endD = new Date(end + 'T00:00:00');
     while (cur <= endD) {
-      const key = `${cur.getFullYear()}-${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`;
+      const key = dateStr(cur);
       (tasksByDate[key] ??= []).push(t);
       cur.setDate(cur.getDate() + 1);
     }
@@ -72,14 +84,73 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
   ];
   const colorMap = Object.fromEntries(tasks.map((t, i) => [t.id, PALETTE[i % PALETTE.length]]));
 
-  const chipCls = (t: ProjectTask): string => {
+  const chipCls = (t: ProjectTask) => {
     if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-100 text-rose-600';
     return colorMap[t.id]?.chip ?? 'bg-indigo-100 text-indigo-700';
   };
-
-  const dotCls = (t: ProjectTask): string => {
+  const dotCls = (t: ProjectTask) => {
     if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-400';
     return colorMap[t.id]?.dot ?? 'bg-indigo-400';
+  };
+
+  // ── Drag handlers ──
+
+  const handleDragStart = (e: React.DragEvent, task: ProjectTask, mode: 'move' | 'resize-end') => {
+    e.stopPropagation();
+    dragState.current = { taskId: task.id, mode, originalStart: task.start_date, originalEnd: task.due_date };
+    setLocalTasks([...displayTasks]);
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(task.id));
+  };
+
+  const handleDragOver = (e: React.DragEvent, cellDate: string | null) => {
+    if (!dragState.current || !cellDate) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOver(cellDate);
+
+    const ds = dragState.current;
+    const task = tasks.find(t => t.id === ds.taskId);
+    if (!task) return;
+
+    if (ds.mode === 'move') {
+      const anchorDate = ds.originalEnd ?? ds.originalStart!;
+      const delta = diffDays(anchorDate, cellDate);
+      const newEnd = ds.originalEnd ? addDays(ds.originalEnd, delta) : null;
+      const newStart = ds.originalStart ? addDays(ds.originalStart, delta) : null;
+      setLocalTasks(prev => prev.map(t => t.id === ds.taskId
+        ? { ...t, due_date: newEnd ?? cellDate, start_date: newStart }
+        : t
+      ));
+    } else {
+      // resize-end: only move due_date, keep start_date
+      const start = task.start_date ?? task.due_date!;
+      if (cellDate >= start) {
+        setLocalTasks(prev => prev.map(t => t.id === ds.taskId
+          ? { ...t, due_date: cellDate }
+          : t
+        ));
+      }
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, cellDate: string | null) => {
+    e.preventDefault();
+    if (!dragState.current || !cellDate || !onTaskUpdate) { handleDragEnd(); return; }
+    const ds = dragState.current;
+    const updated = localTasks.find(t => t.id === ds.taskId);
+    if (updated) {
+      onTaskUpdate(ds.taskId, { due_date: updated.due_date, start_date: updated.start_date });
+    }
+    handleDragEnd();
+  };
+
+  const handleDragEnd = () => {
+    dragState.current = null;
+    setDragOver(null);
+    setIsDragging(false);
+    setLocalTasks([]);
   };
 
   const selectedTasks = selectedDate ? (tasksByDate[selectedDate] ?? []) : [];
@@ -117,11 +188,11 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
         {Array.from({ length: totalCells }).map((_, idx) => {
           const dayNum = idx - startPad + 1;
           const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
-          const p2 = (n: number) => String(n).padStart(2, '0');
-          const cellDate = inMonth ? `${year}-${p2(month + 1)}-${p2(dayNum)}` : null;
+          const cellDate = inMonth ? `${year}-${pad2(month + 1)}-${pad2(dayNum)}` : null;
           const isToday = cellDate === today;
           const isSelected = cellDate !== null && cellDate === selectedDate;
-          const colIdx = idx % 7; // 5=Sat, 6=Sun
+          const isDropTarget = cellDate === dragOver;
+          const colIdx = idx % 7;
           const isWeekend = colIdx === 5 || colIdx === 6;
           const dayTasks = cellDate ? (tasksByDate[cellDate] ?? []) : [];
           const visible = dayTasks.slice(0, 2);
@@ -130,16 +201,20 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
           return (
             <div
               key={idx}
-              onClick={() => inMonth && cellDate && setSelectedDate(isSelected ? null : cellDate)}
+              onClick={() => !isDragging && inMonth && cellDate && setSelectedDate(isSelected ? null : cellDate)}
+              onDragOver={e => handleDragOver(e, cellDate)}
+              onDrop={e => handleDrop(e, cellDate)}
+              onDragLeave={() => setDragOver(null)}
               className={[
-                'min-h-[72px] p-1.5 border-b border-r border-gray-50 flex flex-col gap-0.5',
+                'min-h-[72px] p-1.5 border-b border-r border-gray-50 flex flex-col gap-0.5 transition-colors',
                 !inMonth ? 'bg-gray-50/30' : '',
                 isWeekend && inMonth ? 'bg-gray-50/50' : '',
-                isSelected ? 'ring-2 ring-inset ring-orange-300' : '',
-                inMonth ? 'cursor-pointer hover:bg-orange-50/30 transition-colors' : '',
+                isSelected && !isDragging ? 'ring-2 ring-inset ring-orange-300' : '',
+                isDropTarget ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : '',
+                inMonth && !isDragging ? 'cursor-pointer hover:bg-orange-50/30' : '',
+                inMonth && isDragging ? 'cursor-copy' : '',
               ].filter(Boolean).join(' ')}
             >
-              {/* Date number */}
               <div className="flex justify-end">
                 <span className={[
                   'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
@@ -149,20 +224,41 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
                   {inMonth ? dayNum : ''}
                 </span>
               </div>
-              {/* Task chips */}
               <div className="flex flex-col gap-0.5 flex-1">
                 {visible.map(t => {
                   const isStart = cellDate === (t.start_date ?? t.due_date);
                   const isEnd = cellDate === t.due_date;
-                  const hasRange = t.start_date && t.start_date !== t.due_date;
+                  const hasRange = t.start_date && t.due_date && t.start_date !== t.due_date;
+                  const draggable = !!onTaskUpdate;
                   return (
-                    <div key={t.id} className={`flex items-center gap-1 py-0.5 text-[10px] font-medium truncate ${chipCls(t)} ${
-                      hasRange
-                        ? `px-1.5 ${isStart ? 'rounded-l-md rounded-r-none' : isEnd ? 'rounded-r-md rounded-l-none' : 'rounded-none'}`
-                        : 'px-1.5 rounded'
-                    }`}>
-                      {(!hasRange || isStart) && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls(t)}`}></span>}
-                      {isStart && <span className="truncate">{t.title}</span>}
+                    <div
+                      key={t.id}
+                      draggable={draggable && isStart}
+                      onDragStart={draggable && isStart ? e => handleDragStart(e, t, 'move') : undefined}
+                      onDragEnd={handleDragEnd}
+                      className={[
+                        'flex items-center text-[10px] font-medium truncate select-none',
+                        chipCls(t),
+                        hasRange
+                          ? `${isStart ? 'rounded-l-md rounded-r-none pl-1.5 pr-0' : isEnd ? 'rounded-r-md rounded-l-none pl-0 pr-0.5' : 'rounded-none px-0'} py-0.5`
+                          : 'px-1.5 py-0.5 rounded',
+                        draggable && isStart ? 'cursor-grab active:cursor-grabbing' : '',
+                      ].filter(Boolean).join(' ')}
+                    >
+                      {(!hasRange || isStart) && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mr-1 ${dotCls(t)}`}></span>}
+                      {isStart && <span className="truncate flex-1">{t.title}</span>}
+                      {/* Resize handle on end cell */}
+                      {draggable && isEnd && hasRange && (
+                        <span
+                          draggable
+                          onDragStart={e => { e.stopPropagation(); handleDragStart(e, t, 'resize-end'); }}
+                          onDragEnd={handleDragEnd}
+                          className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-50 hover:opacity-100"
+                          title="Drag to resize"
+                        >
+                          <i className="ri-more-2-fill text-[8px]"></i>
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -176,13 +272,13 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
       </div>
 
       {/* Selected day task list */}
-      {selectedDate && (
+      {selectedDate && !isDragging && (
         <div className="border-t border-gray-100 px-5 py-4">
           <p className="text-xs font-semibold text-gray-500 mb-2">
             {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
           {selectedTasks.length === 0 ? (
-            <p className="text-xs text-gray-300">No tasks due on this day</p>
+            <p className="text-xs text-gray-300">No tasks on this day</p>
           ) : (
             <div className="space-y-1.5">
               {selectedTasks.map(t => {
@@ -198,6 +294,13 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Drag hint */}
+      {isDragging && (
+        <div className="border-t border-indigo-100 bg-indigo-50 px-5 py-2 text-[11px] text-indigo-500 text-center">
+          Drop on a date to move · Drag the ⋯ handle to resize
         </div>
       )}
     </div>

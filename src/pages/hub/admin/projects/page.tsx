@@ -1253,6 +1253,15 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     if (taskFilter === 'all') return true;
     if (taskFilter === 'overdue') return !!wsIsOverdue(t);
     return t.status === taskFilter;
+  }).sort((a, b) => {
+    // Overdue first, then by due_date asc, undated last
+    const aOver = wsIsOverdue(a) ? 0 : 1;
+    const bOver = wsIsOverdue(b) ? 0 : 1;
+    if (aOver !== bOver) return aOver - bOver;
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return a.due_date.localeCompare(b.due_date);
   });
   const wsDoneCt = tasks.filter(t => t.status === 'done').length;
   const wsPct = tasks.length > 0 ? Math.round((wsDoneCt / tasks.length) * 100) : 0;
@@ -1476,6 +1485,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   projectStart={p.start_date}
                   projectEnd={p.deadline}
                   today={wsToday}
+                  onTaskUpdate={async (taskId, updates) => {
+                    await supabase.from('hub_project_tasks').update({
+                      ...(updates.due_date !== undefined && { due_date: updates.due_date }),
+                      ...(updates.start_date !== undefined && { start_date: updates.start_date }),
+                    }).eq('id', taskId);
+                    fetchTasks(activeId!);
+                  }}
                 />
               </div>
 
