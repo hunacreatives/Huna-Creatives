@@ -266,7 +266,7 @@ export default function TaskDetailPanel({
   const fetchTaskData = useCallback(async (taskId: number) => {
     const [commRes, attRes, actRes, watchRes] = await Promise.all([
       supabase.from('hub_project_task_comments')
-        .select('id, user_id, body, created_at, hub_users(full_name, avatar_url)')
+        .select('id, user_id, body, created_at')
         .eq('task_id', taskId).order('created_at', { ascending: true }),
       supabase.from('hub_project_task_attachments')
         .select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
@@ -276,7 +276,15 @@ export default function TaskDetailPanel({
       supabase.from('hub_project_task_watchers')
         .select('user_id').eq('task_id', taskId),
     ]);
-    if (commRes.data) setComments(commRes.data.map((c: any) => ({ ...c, hub_users: Array.isArray(c.hub_users) ? c.hub_users[0] : c.hub_users })));
+    if (commRes.data) {
+      const userIds = [...new Set(commRes.data.map((c: any) => c.user_id).filter(Boolean))];
+      const userMap: Record<string, { full_name: string; avatar_url: string | null }> = {};
+      if (userIds.length) {
+        const { data: users } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', userIds);
+        for (const u of users ?? []) userMap[u.id] = { full_name: u.full_name, avatar_url: u.avatar_url ?? null };
+      }
+      setComments(commRes.data.map((c: any) => ({ ...c, hub_users: userMap[c.user_id] ?? null })));
+    }
     if (attRes.data)  setAttachments(attRes.data);
     if (actRes.data)  setActivity(actRes.data);
     if (watchRes.data) setWatchers(watchRes.data.map((w: any) => w.user_id));
@@ -420,10 +428,12 @@ export default function TaskDetailPanel({
     const { data } = await supabase
       .from('hub_project_task_comments')
       .insert({ task_id: task.id, user_id: currentUserId, body: newComment.trim() })
-      .select('id, user_id, body, created_at, hub_users(full_name, avatar_url)')
+      .select('id, user_id, body, created_at')
       .single();
     if (data) {
-      const norm = { ...data, hub_users: Array.isArray(data.hub_users) ? data.hub_users[0] : data.hub_users };
+      // Fetch commenter info separately to avoid join RLS issues
+      const { data: commenter } = await supabase.from('hub_users').select('full_name, avatar_url').eq('id', currentUserId).single();
+      const norm = { ...data, hub_users: commenter ? { full_name: commenter.full_name, avatar_url: commenter.avatar_url ?? null } : { full_name: currentUserName, avatar_url: null } };
       setComments(prev => [...prev, norm]);
       await logActivity(task.id, 'comment_added', 'added a comment');
       // Notify mentioned users

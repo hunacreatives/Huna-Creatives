@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -24,6 +25,7 @@ function timeAgo(d: Date) {
 
 export default function NotificationBell() {
   const { hubUser } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
@@ -581,7 +583,7 @@ export default function NotificationBell() {
                     </div>
                   );
                   return n.link
-                    ? <a key={n.id} href={n.link} target="_blank" rel="noopener noreferrer" className="block">{inner}</a>
+                    ? <button key={n.id} onClick={() => { setOpen(false); navigate(n.link!); }} className="block w-full text-left cursor-pointer">{inner}</button>
                     : <div key={n.id}>{inner}</div>;
                 })}
               </div>
