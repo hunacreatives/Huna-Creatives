@@ -1147,7 +1147,7 @@ export default function ContractorProjectsPage() {
 
   const searchLower = search.toLowerCase();
   // My Work = one-time + internal only (retainers live in My Clients)
-  const workRows = rows.filter(r => r.hub_projects?.project_type !== 'retainer');
+  const workRows = rows;
   const filteredRows = search
     ? workRows.filter(r => {
         const p = r.hub_projects;

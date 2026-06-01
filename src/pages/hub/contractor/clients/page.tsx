@@ -36,6 +36,7 @@ export default function ContractorClientsPage() {
   useEffect(() => {
     if (!hubUser) return;
     (async () => {
+      try {
       const [{ data: pcData }, { data: assignData }] = await Promise.all([
         // Local retainer projects
         supabase
@@ -86,8 +87,12 @@ export default function ContractorClientsPage() {
         });
 
       setClients([...retainers, ...assignments]);
+    } catch {
+      // ignore fetch errors, show empty state
+    } finally {
       setLoading(false);
-    })();
+    }
+  })();
   }, [hubUser]);
 
   const active = clients.filter(c => ['active', 'ongoing'].includes(c.status));
