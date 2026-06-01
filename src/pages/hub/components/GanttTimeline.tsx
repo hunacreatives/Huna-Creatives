@@ -95,7 +95,7 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
 
   // ── Drag handlers ──
 
-  const handleDragStart = (e: React.DragEvent, task: ProjectTask, mode: 'move' | 'resize-end') => {
+  const handleDragStart = (e: React.DragEvent, task: ProjectTask, mode: 'move' | 'resize-end' | 'resize-start') => {
     e.stopPropagation();
     dragState.current = { taskId: task.id, mode, originalStart: task.start_date, originalEnd: task.due_date };
     setLocalTasks([...displayTasks]);
@@ -239,12 +239,11 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                   const isEnd = cellDate === (t.due_date ?? t.start_date);
                   const hasRange = t.start_date && t.due_date && t.start_date !== t.due_date;
                   const draggable = !!onTaskUpdate;
-                  const isSingleDay = !hasRange;
                   return (
                     <div
                       key={t.id}
-                      draggable={draggable && isStart && !isSingleDay}
-                      onDragStart={draggable && isStart && !isSingleDay ? e => handleDragStart(e, t, 'move') : undefined}
+                      draggable={draggable && isStart}
+                      onDragStart={draggable && isStart ? e => handleDragStart(e, t, 'move') : undefined}
                       onDragEnd={handleDragEnd}
                       className={[
                         'flex items-center text-[10px] font-medium truncate select-none group',
@@ -252,7 +251,7 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                         hasRange
                           ? `${isStart ? 'rounded-l-md rounded-r-none pl-0 pr-0' : isEnd ? 'rounded-r-md rounded-l-none pl-0 pr-0' : 'rounded-none px-0'} py-0.5`
                           : 'px-1 py-0.5 rounded',
-                        draggable && isStart && !isSingleDay ? 'cursor-grab active:cursor-grabbing' : '',
+                        draggable && isStart ? 'cursor-grab active:cursor-grabbing' : '',
                       ].filter(Boolean).join(' ')}
                     >
                       {/* Left resize handle (start cell of range) */}
