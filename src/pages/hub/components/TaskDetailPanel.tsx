@@ -214,6 +214,11 @@ export default function TaskDetailPanel({
 
   // Remote data
   const [comments, setComments]     = useState<Comment[]>([]);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editingCommentBody, setEditingCommentBody] = useState('');
+  const [customFields, setCustomFields] = useState<{id: string; label: string; value: string}[]>([]);
+  const [newFieldLabel, setNewFieldLabel] = useState('');
+  const [showAddField, setShowAddField] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [activity, setActivity]     = useState<ActivityItem[]>([]);
   const [watchers, setWatchers]     = useState<string[]>([]);
@@ -248,6 +253,8 @@ export default function TaskDetailPanel({
       setStartDate(task.start_date ?? '');
       setChecklist(task.checklist ?? []);
       setTaskColor(task.color ?? '');
+      setCustomFields((task as any).meta?.custom_fields ?? []);
+      setShowAddField(false);
       setPendingAttachment(null);
       setEditing(false);
       setConfirmDelete(false);
@@ -313,6 +320,7 @@ export default function TaskDetailPanel({
         start_date: startDate || null,
         checklist,
         color: taskColor || null,
+        meta: customFields.length ? { custom_fields: customFields } : null,
       };
 
       const assigneeMember = teamMembers.find(m => m.id === assigneeId) ?? null;
@@ -744,14 +752,29 @@ export default function TaskDetailPanel({
               <textarea
                 value={description}
                 onChange={e => setDesc(e.target.value)}
-                placeholder="Add a description…"
+                onPaste={async (e) => {
+                  const items = Array.from(e.clipboardData?.items ?? []);
+                  const img = items.find(i => i.type.startsWith('image/'));
+                  if (!img) return;
+                  e.preventDefault();
+                  const file = img.getAsFile();
+                  if (!file) return;
+                  const { uploadFileToDrive } = await import('@/lib/driveUpload');
+                  const url = await uploadFileToDrive(file, 'task_description_img', { project_name: projectName });
+                  if (url) setDesc(prev => prev + (prev ? '\n' : '') + url);
+                }}
+                placeholder="Add a description… (paste images from clipboard)"
                 rows={4}
                 className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 resize-none bg-white"
               />
             ) : (
-              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
-                {description || <span className="text-gray-400 italic">No description</span>}
-              </p>
+              <div className="text-sm text-gray-600 leading-relaxed space-y-2">
+                {description ? description.split('\n').map((line, i) =>
+                  line.match(/^https?:\/\//) && (line.includes('drive.google') || line.includes('googleusercontent'))
+                    ? <img key={i} src={`https://drive.google.com/thumbnail?id=${line.match(/[?&]id=([^&]+)/)?.[1] || line.match(/\/d\/([^/]+)/)?.[1]}&sz=w600`} alt="attachment" className="max-w-full rounded-lg border border-gray-100 cursor-pointer" onClick={() => window.open(line,'_blank')} />
+                    : <p key={i}>{line || <br />}</p>
+                ) : <span className="text-gray-400 italic">No description</span>}
+              </div>
             )}
           </div>
 
@@ -835,6 +858,60 @@ export default function TaskDetailPanel({
           </div>
 
           {/* Attachments */}
+          {/* Custom Fields */}
+          {(canEdit || customFields.length > 0) && (
+          <div className="p-5 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Custom Fields</p>
+              {canEdit && <button onClick={() => setShowAddField(v => !v)} className="text-[11px] text-[#FF6B35] hover:underline cursor-pointer">+ Add field</button>}
+            </div>
+            <div className="space-y-2">
+              {customFields.map(f => (
+                <div key={f.id} className="flex items-center gap-2 group">
+                  <span className="text-xs text-gray-500 font-medium w-28 flex-shrink-0 truncate">{f.label}</span>
+                  {canEdit ? (
+                    <input value={f.value} onChange={e => {
+                      const updated = customFields.map(x => x.id === f.id ? { ...x, value: e.target.value } : x);
+                      setCustomFields(updated);
+                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
+                    }} className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30" />
+                  ) : (
+                    <span className="flex-1 text-xs text-gray-700">{f.value || '—'}</span>
+                  )}
+                  {canEdit && (
+                    <button onClick={() => {
+                      const updated = customFields.filter(x => x.id !== f.id);
+                      setCustomFields(updated);
+                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
+                    }} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 cursor-pointer transition-all">
+                      <i className="ri-delete-bin-line text-xs"></i>
+                    </button>
+                  )}
+                </div>
+              ))}
+              {showAddField && canEdit && (
+                <div className="flex gap-2 mt-2">
+                  <input value={newFieldLabel} onChange={e => setNewFieldLabel(e.target.value)}
+                    placeholder="Field name..." onKeyDown={e => { if (e.key === 'Enter' && newFieldLabel.trim()) {
+                      const updated = [...customFields, { id: Math.random().toString(36).slice(2), label: newFieldLabel.trim(), value: '' }];
+                      setCustomFields(updated);
+                      setNewFieldLabel(''); setShowAddField(false);
+                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
+                    }}}
+                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30" autoFocus />
+                  <button onClick={() => {
+                    if (!newFieldLabel.trim()) return;
+                    const updated = [...customFields, { id: Math.random().toString(36).slice(2), label: newFieldLabel.trim(), value: '' }];
+                    setCustomFields(updated);
+                    setNewFieldLabel(''); setShowAddField(false);
+                    if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id).catch(() => {});
+                  }} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs cursor-pointer">Add</button>
+                </div>
+              )}
+            </div>
+          </div>
+          )}
+
           <div className="p-5 border-b border-gray-100">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Attachments</p>
@@ -971,19 +1048,35 @@ export default function TaskDetailPanel({
                         <span className="text-xs font-semibold text-gray-800">{c.hub_users?.full_name ?? 'Unknown'}</span>
                         <span className="text-[10px] text-gray-400">{timeAgo(c.created_at)}</span>
                         {c.user_id === currentUserId && (
-                          <button onClick={() => deleteComment(c.id)}
-                            className="ml-auto opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 text-xs transition-all cursor-pointer">
-                            <i className="ri-delete-bin-line"></i>
-                          </button>
+                          <div className="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onClick={() => { setEditingCommentId(c.id); setEditingCommentBody(c.body); }}
+                              className="text-gray-300 hover:text-sky-500 text-xs cursor-pointer"><i className="ri-pencil-line"></i></button>
+                            <button onClick={() => deleteComment(c.id)}
+                              className="text-gray-300 hover:text-rose-500 text-xs cursor-pointer"><i className="ri-delete-bin-line"></i></button>
+                          </div>
                         )}
                       </div>
-                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {c.body.split(/(@\w+)/g).map((part, i) =>
-                          part.startsWith('@')
-                            ? <span key={i} className="text-[#FF6B35] font-medium">{part}</span>
-                            : part
-                        )}
-                      </p>
+                      {editingCommentId === c.id ? (
+                        <div className="space-y-1.5">
+                          <textarea value={editingCommentBody} onChange={e => setEditingCommentBody(e.target.value)} rows={2}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30 resize-none" />
+                          <div className="flex gap-2">
+                            <button onClick={async () => {
+                              await supabase.from('hub_project_task_comments').update({ body: editingCommentBody }).eq('id', c.id);
+                              setComments(prev => prev.map(x => x.id === c.id ? { ...x, body: editingCommentBody } : x));
+                              setEditingCommentId(null);
+                            }} className="px-3 py-1 text-xs bg-[#111827] text-white rounded-lg cursor-pointer">Save</button>
+                            <button onClick={() => setEditingCommentId(null)} className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600 cursor-pointer">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap"
+                        dangerouslySetInnerHTML={{ __html: c.body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                          .replace(/(@\w+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>')
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                          .replace(/\[color:(#[0-9a-fA-F]{3,6}|\w+)\](.*?)\[\/color\]/g, '<span style="color:$1">$2</span>') }} />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1014,10 +1107,44 @@ export default function TaskDetailPanel({
                       }
                       if (e.key === 'Escape') setMentionOpen(false);
                     }}
-                    placeholder="Add a comment… (@mention)"
+                    placeholder="Add a comment… (@mention · **bold** · *italic* · [color:#e53935]colored[/color])"
                     rows={2}
                     className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 resize-none bg-white"
                   />
+                  {/* Formatting toolbar */}
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <span className="text-[10px] text-gray-300 mr-1">Format:</span>
+                    {[
+                      { label: 'B', title: 'Bold', wrap: '**', cls: 'font-bold' },
+                      { label: 'I', title: 'Italic', wrap: '*', cls: 'italic' },
+                    ].map(btn => (
+                      <button key={btn.label} title={btn.title} type="button"
+                        onClick={() => {
+                          const ta = commentRef.current;
+                          if (!ta) return;
+                          const { selectionStart: s, selectionEnd: e } = ta;
+                          const sel = newComment.slice(s, e) || 'text';
+                          const wrapped = `${btn.wrap}${sel}${btn.wrap}`;
+                          setNewComment(newComment.slice(0, s) + wrapped + newComment.slice(e));
+                        }}
+                        className={`w-6 h-6 text-[11px] text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded cursor-pointer ${btn.cls}`}>
+                        {btn.label}
+                      </button>
+                    ))}
+                    {['#e53935','#1565c0','#2e7d32','#f57c00','#6a1b9a','#111827'].map(col => (
+                      <button key={col} type="button" title={`Color ${col}`}
+                        onClick={() => {
+                          const ta = commentRef.current;
+                          if (!ta) return;
+                          const { selectionStart: s, selectionEnd: e } = ta;
+                          const sel = newComment.slice(s, e) || 'text';
+                          const wrapped = `[color:${col}]${sel}[/color]`;
+                          setNewComment(newComment.slice(0, s) + wrapped + newComment.slice(e));
+                        }}
+                        className="w-4 h-4 rounded-full cursor-pointer border border-white/50 hover:scale-110 transition-transform flex-shrink-0"
+                        style={{ background: col }} />
+                    ))}
+                  </div>
                   <button onClick={postComment} disabled={postingComment || !newComment.trim()}
                     className="absolute right-2 bottom-2 w-7 h-7 bg-[#FF6B35] disabled:opacity-30 rounded-lg flex items-center justify-center cursor-pointer">
                     <i className="ri-send-plane-fill text-white text-xs"></i>
