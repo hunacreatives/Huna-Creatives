@@ -98,11 +98,17 @@ function getDriveFileId(url: string | null | undefined) {
   return null;
 }
 
-function getAttachmentPreviewUrl(att: Attachment) {
+function getAttachmentThumbnailUrl(att: Attachment) {
+  const driveFileId = getDriveFileId(att.url);
+  if (!driveFileId) return null;
+  // Drive thumbnail API works cross-origin without auth issues
+  return `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w120`;
+}
+
+function getAttachmentDownloadUrl(att: Attachment) {
   const driveFileId = getDriveFileId(att.url);
   if (!driveFileId) return att.url;
-  if (att.mime_type?.startsWith('image/')) return `https://drive.google.com/uc?export=view&id=${driveFileId}`;
-  return att.url;
+  return `https://drive.google.com/uc?export=download&id=${driveFileId}`;
 }
 
 function getAttachmentExt(name: string | null | undefined) {
@@ -147,16 +153,7 @@ function fmtBytes(n: number | null) {
 }
 
 function renderAttachmentPreview(att: Attachment) {
-  if (isImageAttachment(att)) {
-    return (
-      <img
-        src={getAttachmentPreviewUrl(att)}
-        alt={att.name}
-        className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl"
-      />
-    );
-  }
-
+  // Always use iframe/embed — Google Drive blocks cross-origin <img> loads
   return (
     <iframe
       src={getDriveEmbedUrl(att)}
@@ -776,9 +773,9 @@ export default function TaskDetailPanel({
                   return (
                     <div key={att.id} className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl group">
                       <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {isImg
-                          ? <img src={getAttachmentPreviewUrl(att)} alt={att.name} className="w-full h-full object-cover" />
-                          : <i className="ri-file-line text-gray-500 text-sm"></i>}
+                        {isImg && getAttachmentThumbnailUrl(att)
+                          ? <img src={getAttachmentThumbnailUrl(att)!} alt={att.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+                          : <i className={`${isImg ? 'ri-image-line text-sky-500' : 'ri-file-line text-gray-500'} text-sm`}></i>}
                       </div>
                       <div className="flex-1 min-w-0">
                         {canPreview ? (
@@ -829,15 +826,25 @@ export default function TaskDetailPanel({
                 >
                   <i className="ri-close-line text-sm"></i>
                 </button>
-                <a
-                  href={previewAttachment.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black"
-                >
-                  <i className="ri-external-link-line text-xs"></i>
-                  Open in Drive
-                </a>
+                <div className="absolute bottom-2 right-2 flex items-center gap-2">
+                  <a
+                    href={getAttachmentDownloadUrl(previewAttachment)}
+                    download
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black"
+                  >
+                    <i className="ri-download-line text-xs"></i>
+                    Download
+                  </a>
+                  <a
+                    href={previewAttachment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black"
+                  >
+                    <i className="ri-external-link-line text-xs"></i>
+                    Open in Drive
+                  </a>
+                </div>
               </div>
             </div>
           )}
