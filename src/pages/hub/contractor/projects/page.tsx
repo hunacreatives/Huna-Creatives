@@ -1089,10 +1089,19 @@ export default function ContractorProjectsPage() {
             return { id: `retainer-${r.id}`, rowId: r.id as number, name: p?.project_name ?? p?.client_name ?? 'Retainer', type: 'retainer' as const, status: p?.status ?? 'ongoing', service: p?.service, monthly_rate: monthlyRate, months_paid: monthlyRate > 0 ? Math.round(totalPaid / monthlyRate) : 0 };
           });
 
-        const assignmentEntries = (assignData ?? []).map((a: any) => {
-          const c = Array.isArray(a.hub_clients) ? a.hub_clients[0] : a.hub_clients;
-          return { id: `assign-${a.id}`, clientId: c?.id as number, name: c?.client_name ?? 'Client', type: 'assignment' as const, status: c?.status ?? 'active', platform: c?.platform, role: a.role, notes: c?.notes };
-        });
+        const seenClientIds = new Set<number>();
+        const seenRetainerNames = new Set(retainerEntries.map(r => r.name.toLowerCase()));
+        const assignmentEntries = (assignData ?? [])
+          .map((a: any) => {
+            const c = Array.isArray(a.hub_clients) ? a.hub_clients[0] : a.hub_clients;
+            return { id: `assign-${a.id}`, clientId: c?.id as number, name: c?.client_name ?? 'Client', type: 'assignment' as const, status: c?.status ?? 'active', platform: c?.platform, role: a.role, notes: c?.notes };
+          })
+          .filter(e => {
+            if (e.clientId && seenClientIds.has(e.clientId)) return false;
+            if (e.clientId) seenClientIds.add(e.clientId);
+            if (seenRetainerNames.has(e.name.toLowerCase())) return false;
+            return true;
+          });
 
         setClientEntries([...retainerEntries, ...assignmentEntries]);
       } catch (err) {
