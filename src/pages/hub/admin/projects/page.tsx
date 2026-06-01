@@ -312,7 +312,7 @@ export default function AdminProjectsPage() {
         .eq('project_id', projectId)
         .order('created_at', { ascending: true }),
       supabase.from('hub_project_activity')
-        .select('*, hub_users(full_name, avatar_url)')
+        .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(20),

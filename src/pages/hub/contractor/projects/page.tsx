@@ -734,12 +734,14 @@ export default function ContractorProjectsPage() {
 
   const normalizeActivityItem = (row: any): ActivityItem => ({
     id: row.id,
-    action: row.action,
-    entity_title: row.entity_title,
-    entity_id: row.entity_id,
-    meta: row.meta,
+    action: row.action ?? '',
+    entity_title: row.entity_title ?? row.description ?? '',
+    entity_id: row.entity_id ?? null,
+    meta: row.meta ?? null,
     created_at: row.created_at,
-    hub_users: Array.isArray(row.hub_users) ? (row.hub_users[0] ?? null) : (row.hub_users ?? null),
+    hub_users: row.hub_users
+      ? (Array.isArray(row.hub_users) ? (row.hub_users[0] ?? null) : row.hub_users)
+      : (row.actor_name ? { full_name: row.actor_name, avatar_url: null } : null),
   });
 
   const cycleTask = async (task: ProjectTask) => {
@@ -880,7 +882,7 @@ export default function ContractorProjectsPage() {
     if (!projectId) { setActivityLog([]); return; }
     supabase
       .from('hub_project_activity')
-      .select('id, action, entity_title, entity_id, meta, created_at, hub_users(full_name, avatar_url)')
+      .select('id, actor_name, description, created_at')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -963,20 +965,25 @@ export default function ContractorProjectsPage() {
     meta?: Record<string, unknown>
   ) => {
     if (!hubUser || !workspaceRow?.hub_projects?.id) return;
+    const actionLabels: Record<string, string> = {
+      task_created: `created task "${entityTitle}"`,
+      task_updated: `updated task "${entityTitle}"`,
+      task_status_changed: `moved "${entityTitle}" to ${(meta?.to as string)?.replace('_',' ') ?? ''}`,
+      task_deleted: `deleted task "${entityTitle}"`,
+      comment_added: `commented on "${entityTitle}"`,
+      task_assigned: `assigned "${entityTitle}"`,
+      attachment_added: `added attachment to "${entityTitle}"`,
+    };
     const payload = {
       project_id: workspaceRow.hub_projects.id,
-      user_id: hubUser.id,
+      actor_id: hubUser.id,
       actor_name: hubUser.full_name ?? 'Team',
-      action,
-      entity_type: 'task',
-      entity_id: entityId ?? null,
-      entity_title: entityTitle,
-      meta: meta ?? null,
+      description: actionLabels[action] ?? `${action} "${entityTitle}"`,
     };
     const { data, error } = await supabase
       .from('hub_project_activity')
       .insert(payload)
-      .select('id, action, entity_title, entity_id, meta, created_at, hub_users(full_name, avatar_url)')
+      .select('id, actor_name, description, created_at')
       .single();
 
     if (error) {
