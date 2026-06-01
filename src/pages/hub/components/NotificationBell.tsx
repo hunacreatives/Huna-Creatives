@@ -441,6 +441,7 @@ export default function NotificationBell() {
       project_assigned:      { icon: 'ri-folder-add-line',        iconBg: 'bg-sky-50',     iconColor: 'text-sky-500' },
       payroll_approved:      { icon: 'ri-money-dollar-circle-line',iconBg: 'bg-emerald-50',iconColor: 'text-emerald-500' },
       announcement:          { icon: 'ri-megaphone-line',          iconBg: 'bg-orange-50',  iconColor: 'text-orange-500' },
+      attendance:            { icon: 'ri-time-line',               iconBg: 'bg-sky-50',     iconColor: 'text-sky-600' },
       default:               { icon: 'ri-notification-3-line',    iconBg: 'bg-gray-50',    iconColor: 'text-gray-400' },
     };
 
