@@ -786,7 +786,7 @@ export default function TaskDetailPanel({
                   e.preventDefault();
                   const file = img.getAsFile();
                   if (!file) return;
-                  const { uploadFileToDrive } = await import('@/lib/driveUpload');
+                  
                   const url = await uploadFileToDrive(file, 'task_description_img', { project_name: projectName });
                   if (url) setDesc(prev => prev + (prev ? '\n' : '') + url);
                 }}
