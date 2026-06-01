@@ -160,6 +160,12 @@ export default function AdminProjectsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('ongoing');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [pageView, setPageView] = useState<'projects' | 'tasks'>('projects');
+  const [allTasks, setAllTasks] = useState<any[]>([]);
+  const [allTasksLoading, setAllTasksLoading] = useState(false);
+  const [taskStatusFilter, setTaskStatusFilter] = useState('active');
+  const [taskGroupBy, setTaskGroupBy] = useState<'project' | 'assignee'>('project');
+  const [taskSearch, setTaskSearch] = useState('');
   const [projectTypeFilter, setProjectTypeFilter] = useState<'all' | 'client' | 'internal' | 'retainer'>('all');
   const [activeId, setActiveId] = useState<number | null>(() => {
     const w = searchParams.get('w');
@@ -346,7 +352,11 @@ export default function AdminProjectsPage() {
         projectName: activeProject?.project_name ?? 'General',
       });
     }
-    setTasks(prev => [...prev, data as ProjectTask]);
+    // Enrich with hub_users from known contractors so assignee shows immediately
+    const assigneeUser = newTaskAssignee
+      ? activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === newTaskAssignee)?.hub_users ?? null
+      : null;
+    setTasks(prev => [...prev, { ...data, hub_users: assigneeUser } as ProjectTask]);
     const assigneeName = newTaskAssignee
       ? (activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === newTaskAssignee)?.hub_users?.full_name ?? '')
       : '';
@@ -383,6 +393,20 @@ export default function AdminProjectsPage() {
     if (isDemo) return;
     await supabase.from('hub_project_tasks').delete().eq('id', task.id);
     setTasks(prev => prev.filter(t => t.id !== task.id));
+  };
+
+  const fetchAllTasks = async () => {
+    setAllTasksLoading(true);
+    const [tasksRes, projectsRes] = await Promise.all([
+      supabase.from('hub_project_tasks').select('id, project_id, title, status, priority, assigned_to, due_date').order('due_date', { ascending: true, nullsFirst: false }),
+      supabase.from('hub_projects').select('id, project_name, client_name, project_type'),
+    ]);
+    const projectMap: Record<number, any> = Object.fromEntries((projectsRes.data ?? []).map((p: any) => [p.id, p]));
+    const userIds = [...new Set((tasksRes.data ?? []).map((t: any) => t.assigned_to).filter(Boolean))];
+    const usersRes = userIds.length ? await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', userIds) : { data: [] };
+    const userMap: Record<string, any> = Object.fromEntries((usersRes.data ?? []).map((u: any) => [u.id, u]));
+    setAllTasks((tasksRes.data ?? []).map((t: any) => ({ ...t, project: projectMap[t.project_id] ?? null, assignee: t.assigned_to ? userMap[t.assigned_to] ?? null : null })));
+    setAllTasksLoading(false);
   };
 
   const fetchAll = async () => {
@@ -2013,6 +2037,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               <i className="ri-add-line text-sm"></i>
               <span className="hidden sm:inline">Add Client</span>
             </button>
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              <button onClick={() => setPageView('projects')} className={`px-3 py-2 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${pageView === 'projects' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}><i className="ri-folder-line text-sm"></i><span className="hidden sm:inline">Projects</span></button>
+              <button onClick={() => { setPageView('tasks'); fetchAllTasks(); }} className={`px-3 py-2 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${pageView === 'tasks' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}><i className="ri-task-line text-sm"></i><span className="hidden sm:inline">All Tasks</span></button>
+            </div>
             <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
               className="flex items-center gap-1.5 px-3 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
               <i className="ri-add-line text-sm"></i>
@@ -2020,7 +2048,96 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             </button>
           </div>
 
-          <div className="pt-1 pb-3">
+          {pageView === 'tasks' && (
+            <div className="space-y-4 pt-1 pb-3">
+              {/* ── Filters ── */}
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="relative flex-1 min-w-[160px]">
+                  <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                  <input value={taskSearch} onChange={e => setTaskSearch(e.target.value)} placeholder="Search tasks..."
+                    className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+                <select value={taskStatusFilter} onChange={e => setTaskStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none cursor-pointer">
+                  <option value="active">Active</option><option value="all">All</option><option value="overdue">Overdue</option>
+                  <option value="todo">To Do</option><option value="in_progress">In Progress</option><option value="done">Done</option>
+                </select>
+                <select value={taskGroupBy} onChange={e => setTaskGroupBy(e.target.value as 'project' | 'assignee')} className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none cursor-pointer">
+                  <option value="project">By Project</option><option value="assignee">By Assignee</option>
+                </select>
+              </div>
+              {allTasksLoading ? (
+                <div className="flex justify-center py-16"><i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i></div>
+              ) : (() => {
+                const tod = localToday();
+                const isOver = (t: any) => t.due_date && t.due_date < tod && t.status !== 'done';
+                const filt = allTasks.filter(t => {
+                  if (taskSearch && !t.title.toLowerCase().includes(taskSearch.toLowerCase()) && !t.project?.project_name?.toLowerCase().includes(taskSearch.toLowerCase())) return false;
+                  if (taskStatusFilter === 'active') return t.status !== 'done';
+                  if (taskStatusFilter === 'overdue') return isOver(t);
+                  if (taskStatusFilter !== 'all') return t.status === taskStatusFilter;
+                  return true;
+                });
+                const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+                  todo: { label: 'To Do', cls: 'bg-gray-100 text-gray-600' },
+                  in_progress: { label: 'In Progress', cls: 'bg-sky-100 text-sky-700' },
+                  in_review: { label: 'In Review', cls: 'bg-violet-100 text-violet-700' },
+                  blocked: { label: 'Blocked', cls: 'bg-rose-100 text-rose-700' },
+                  done: { label: 'Done', cls: 'bg-emerald-100 text-emerald-700' },
+                };
+                const groups: Record<string, any[]> = {};
+                for (const t of filt) {
+                  const key = taskGroupBy === 'project' ? (t.project?.project_name ?? 'Unknown') : (t.assignee?.full_name ?? 'Unassigned');
+                  (groups[key] ??= []).push(t);
+                }
+                return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([grp, gtasks]) => {
+                  const done = gtasks.filter(t => t.status === 'done').length;
+                  const pct = Math.round((done / gtasks.length) * 100);
+                  const overdue = gtasks.filter(t => isOver(t)).length;
+                  return (
+                    <div key={grp} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                      <div className="px-5 py-3 border-b border-gray-50 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-2 h-2 rounded-full bg-[#FF6B35] flex-shrink-0"></span>
+                          <h3 className="font-semibold text-sm text-gray-800 truncate">{grp}</h3>
+                          <span className="text-xs text-gray-400 flex-shrink-0">{gtasks.length}</span>
+                          {overdue > 0 && <span className="text-[10px] text-rose-500 font-medium flex-shrink-0">{overdue} overdue</span>}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} /></div>
+                          <span className="text-xs text-gray-400">{done}/{gtasks.length}</span>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {gtasks.map(t => {
+                          const over = isOver(t);
+                          const scfg = STATUS_LABEL[t.status] ?? STATUS_LABEL.todo;
+                          return (
+                            <div key={t.id} className={`flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50/60 ${over ? 'bg-rose-50/30' : ''}`}>
+                              <button onClick={async () => { const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); }} className="flex-shrink-0 cursor-pointer">
+                                <i className={`text-base ${t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-emerald-400'}`}></i>
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm truncate ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
+                                {taskGroupBy === 'assignee' && t.project && <p className="text-[11px] text-gray-400 truncate">{t.project.project_name}</p>}
+                              </div>
+                              <span className={`hidden sm:block text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${scfg.cls}`}>{scfg.label}</span>
+                              {t.due_date && <span className={`text-[11px] font-medium flex-shrink-0 ${over ? 'text-rose-500' : 'text-gray-400'}`}>{new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                              {t.assignee && taskGroupBy === 'project' && (
+                                t.assignee.avatar_url
+                                  ? <img src={t.assignee.avatar_url} alt={t.assignee.full_name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                  : <div className="w-6 h-6 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0 text-white text-[9px] font-bold">{t.assignee.full_name[0]}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+          <div className="pt-1 pb-3" style={{ display: pageView === 'tasks' ? 'none' : undefined }}>
             {loading ? (
               <div className="flex justify-center py-16"><i className="ri-loader-4-line animate-spin text-gray-300 text-2xl"></i></div>
             ) : filtered.length === 0 ? (
