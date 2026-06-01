@@ -408,6 +408,12 @@ export default function AdminPayrollPage() {
       : (await supabase.from('hub_payouts').select('id').eq('contractor_id', contractorId).eq('cutoff_start', selectedPeriod.start).single()).data;
     if (approvedPayout?.id) {
       supabase.functions.invoke('notify-contractor', { body: { payout_id: approvedPayout.id, type: 'hr_approved' } }).catch(() => {});
+      supabase.from('hub_notifications').insert({
+        user_id: contractorId, type: 'payroll_approved',
+        title: 'Payout approved',
+        body: `Your payout of ${fmt(finalPay)} for ${selectedPeriod.label} has been approved`,
+        link: '/hub/contractor/payouts', read: false,
+      }).catch(() => {});
     }
     await fetchWorkflow();
     setWorkflowLoading(false);
@@ -453,6 +459,12 @@ export default function AdminPayrollPage() {
     for (const np of newPayouts ?? []) {
       if (toApprove.some(r => r.contractor.id === np.contractor_id)) {
         supabase.functions.invoke('notify-contractor', { body: { payout_id: np.id, type: 'hr_approved' } }).catch(() => {});
+        supabase.from('hub_notifications').insert({
+          user_id: np.contractor_id, type: 'payroll_approved',
+          title: 'Payout approved',
+          body: `Your payout for ${selectedPeriod.label} has been approved`,
+          link: '/hub/contractor/payouts', read: false,
+        }).catch(() => {});
       }
     }
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'payout', entity_id: selectedPeriod.start, description: `Bulk approved ${toApprove.length} payouts for ${selectedPeriod.label}` });

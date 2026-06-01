@@ -741,6 +741,15 @@ export default function AdminProjectsPage() {
       supabase.functions.invoke('notify-project-assigned', {
         body: { project_id: activeId, contractor_id: contractorId },
       }).catch(() => {});
+      const proj = projects.find(p => p.id === activeId);
+      if (proj) {
+        supabase.from('hub_notifications').insert({
+          user_id: contractorId, type: 'project_assigned',
+          title: 'New project assigned',
+          body: `You've been added to "${proj.project_name}"`,
+          link: '/hub/contractor/projects', read: false,
+        }).catch(() => {});
+      }
     }
     fetchAll();
   };

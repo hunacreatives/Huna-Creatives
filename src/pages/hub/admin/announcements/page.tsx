@@ -92,6 +92,20 @@ export default function AnnouncementsPage() {
           supabase.functions.invoke('notify-announcement', {
             body: { title: form.title, body: form.body, priority: form.priority, category: form.category, poster_name: hubUser?.full_name, poster_avatar: hubUser?.avatar_url },
           }).catch(() => {});
+          // In-app notifications for all active contractors
+          supabase.from('hub_users').select('id').eq('status', 'active').eq('role', 'contractor').then(({ data }) => {
+            if (!data?.length) return;
+            supabase.from('hub_notifications').insert(
+              data.map(u => ({
+                user_id: u.id,
+                type: 'announcement',
+                title: form.priority === 'urgent' ? '🚨 ' + form.title : form.title,
+                body: form.body.slice(0, 100),
+                link: '/hub/contractor/announcements',
+                read: false,
+              }))
+            ).catch(() => {});
+          });
         }
       }
       if (error) { setSaveError(error.message); return; }

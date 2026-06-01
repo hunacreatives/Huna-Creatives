@@ -439,6 +439,8 @@ export default function NotificationBell() {
       timeoff_rejected:      { icon: 'ri-close-circle-line',      iconBg: 'bg-rose-50',    iconColor: 'text-rose-500' },
       payment_received:      { icon: 'ri-bank-card-line',         iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
       project_assigned:      { icon: 'ri-folder-add-line',        iconBg: 'bg-sky-50',     iconColor: 'text-sky-500' },
+      payroll_approved:      { icon: 'ri-money-dollar-circle-line',iconBg: 'bg-emerald-50',iconColor: 'text-emerald-500' },
+      announcement:          { icon: 'ri-megaphone-line',          iconBg: 'bg-orange-50',  iconColor: 'text-orange-500' },
       default:               { icon: 'ri-notification-3-line',    iconBg: 'bg-gray-50',    iconColor: 'text-gray-400' },
     };
 
