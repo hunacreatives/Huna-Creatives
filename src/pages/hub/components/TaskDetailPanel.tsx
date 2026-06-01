@@ -425,7 +425,13 @@ export default function TaskDetailPanel({
     if (data) {
       const norm = { ...data, hub_users: Array.isArray(data.hub_users) ? data.hub_users[0] : data.hub_users };
       setComments(prev => [...prev, norm]);
-      await logActivity(task.id, 'comment_added', `added a comment`);
+      await logActivity(task.id, 'comment_added', 'added a comment');
+      // Notify mentioned users
+      if (newComment.includes('@')) {
+        supabase.functions.invoke('notify-task-mention', {
+          body: { comment_id: data.id, task_id: task.id, author_id: currentUserId, body: newComment.trim(), project_id: task.project_id },
+        }).catch(() => {});
+      }
     }
     setNewComment('');
     setPosting(false);
