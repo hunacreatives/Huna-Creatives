@@ -1,3 +1,4 @@
+import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -155,11 +156,20 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
 
   const chipCls = (t: ProjectTask): string => {
     if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-100 text-rose-600';
+    if ((t as any).color) return '';
     return colorMap[t.id]?.chip ?? 'bg-indigo-100 text-indigo-700';
+  };
+
+  const chipStyleFn = (t: ProjectTask): React.CSSProperties | undefined => {
+    if ((t as any).color && !(t.due_date && t.due_date < today && t.status !== 'done')) {
+      return { background: (t as any).color, color: '#fff' };
+    }
+    return undefined;
   };
 
   const dotCls = (t: ProjectTask): string => {
     if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-400';
+    if ((t as any).color) return 'bg-white/70';
     return colorMap[t.id]?.dot ?? 'bg-indigo-400';
   };
 
@@ -237,7 +247,7 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
                   const isEnd = cellDate === t.due_date;
                   const hasRange = t.start_date && t.start_date !== t.due_date;
                   return (
-                    <div key={t.id} className={`flex items-center gap-1 py-0.5 text-[10px] font-medium truncate ${chipCls(t)} ${
+                    <div key={t.id} style={chipStyleFn(t)} className={`flex items-center gap-1 py-0.5 text-[10px] font-medium truncate ${chipCls(t)} ${
                       hasRange
                         ? `px-1.5 ${isStart ? 'rounded-l-md rounded-r-none' : isEnd ? 'rounded-r-md rounded-l-none' : 'rounded-none'}`
                         : 'px-1.5 rounded'
@@ -1490,10 +1500,7 @@ export default function ContractorProjectsPage() {
                 <span className="text-[10px] text-gray-500 font-medium">{assignee.full_name.split(' ')[0]}</span>
               </div>
             )}
-            <button onClick={e => { e.stopPropagation(); openEditTask(task); }}
-              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 cursor-pointer transition-all">
-              <i className="ri-pencil-line text-sm"></i>
-            </button>
+
             <button onClick={e => { e.stopPropagation(); if (window.confirm('Delete?')) deleteTask(task.id); }}
               disabled={deletingTaskId === task.id}
               className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
@@ -2691,6 +2698,7 @@ export default function ContractorProjectsPage() {
           due_date: editingTask.due_date,
           start_date: editingTask.start_date,
           checklist: editingTask.checklist,
+          color: (editingTask as any).color ?? null,
           hub_users: wsTeam.find(m => m.id === editingTask.assigned_to)
             ? { id: wsTeam.find(m => m.id === editingTask.assigned_to)!.id, full_name: wsTeam.find(m => m.id === editingTask.assigned_to)!.full_name, avatar_url: wsTeam.find(m => m.id === editingTask.assigned_to)!.avatar_url ?? null }
             : null,
@@ -2698,7 +2706,7 @@ export default function ContractorProjectsPage() {
         open={detailPanelOpen}
         onClose={() => { setDetailPanelOpen(false); setEditingTask(null); }}
         onSaved={(saved) => {
-          const mapped: ProjectTask = { ...saved, assigned_to: saved.assignee_id, start_date: saved.start_date ?? null, checklist: saved.checklist };
+          const mapped: ProjectTask = { ...saved, assigned_to: saved.assigned_to ?? saved.assignee_id, start_date: saved.start_date ?? null, checklist: saved.checklist, ...(saved.color !== undefined ? { color: saved.color } as any : {}) };
           setTasks(prev => prev.some(t => t.id === saved.id)
             ? prev.map(t => t.id === saved.id ? mapped : t)
             : [...prev, mapped]);

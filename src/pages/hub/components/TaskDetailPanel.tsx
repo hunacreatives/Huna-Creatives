@@ -585,7 +585,8 @@ export default function TaskDetailPanel({
                             setShowColorPicker(false);
                             if (task?.id) {
                               onSaved({ ...task, color: col }); // immediate UI update
-                              supabase.from('hub_project_tasks').update({ color: col }).eq('id', task.id).catch(() => {});
+                              supabase.from('hub_project_tasks').update({ color: col }).eq('id', task.id)
+                                .then(({ error }) => { if (error) setSaveError('Color save failed: ' + error.message); });
                             }
                           }}
                             className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-transform hover:scale-110 ${taskColor === col ? 'border-gray-800 scale-110' : 'border-transparent'}`}
@@ -597,7 +598,8 @@ export default function TaskDetailPanel({
                         setShowColorPicker(false);
                         if (task?.id) {
                           onSaved({ ...task, color: null });
-                          supabase.from('hub_project_tasks').update({ color: null }).eq('id', task.id).catch(() => {});
+                          supabase.from('hub_project_tasks').update({ color: null }).eq('id', task.id)
+                            .then(({ error }) => { if (error) setSaveError('Color save failed: ' + error.message); });
                         }
                       }}
                         className="text-[11px] text-gray-400 hover:text-gray-600 cursor-pointer w-full text-center">Reset to default</button>
