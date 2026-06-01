@@ -772,6 +772,7 @@ export default function ContractorProjectsPage() {
   const saveTask = async () => {
     if (!taskForm.title.trim() || !workspaceRow?.hub_projects?.id) return;
     setTaskSaving(true);
+    const existingColor = editingTask ? (tasks.find(t => t.id === editingTask.id) as any)?.color ?? null : null;
     const payload = {
       title: taskForm.title.trim(),
       description: taskForm.description.trim() || null,
@@ -780,9 +781,11 @@ export default function ContractorProjectsPage() {
       start_date: taskForm.start_date || null,
       due_date: taskForm.due_date || null,
       assigned_to: taskForm.assigned_to || null,
+      ...(existingColor ? { color: existingColor } : {}),
     };
     if (editingTask) {
-      await supabase.from('hub_project_tasks').update(payload).eq('id', editingTask.id);
+      const { error: updateErr } = await supabase.from('hub_project_tasks').update(payload).eq('id', editingTask.id);
+      if (updateErr) { console.error('Task update error:', updateErr); setTaskSaving(false); return; }
       setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...payload } : t));
       await logActivity('task_updated', taskForm.title.trim(), editingTask.id);
     } else {
@@ -2558,7 +2561,7 @@ export default function ContractorProjectsPage() {
                       <p className="text-xs text-gray-400 py-2">No comments yet. Be the first.</p>
                     )}
                     {taskComments.map(c => {
-                      const u = c.hub_users;
+                      const u = Array.isArray(c.hub_users) ? c.hub_users[0] : c.hub_users;
                       const isOwn = c.user_id === hubUser?.id;
                       const timeAgo = (() => {
                         const diff = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 1000);

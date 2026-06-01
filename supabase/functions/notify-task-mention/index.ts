@@ -25,31 +25,33 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const { comment_id, task_id, author_id, body, project_id } = await req.json();
+    const { comment_id, task_id, author_id, author_name, body, project_id } = await req.json();
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Extract @mentions (first name, case-insensitive)
+    // Extract @mentions (first name or last name, case-insensitive)
     const mentions = [...body.matchAll(/@(\w+)/g)].map(m => m[1].toLowerCase());
     if (!mentions.length) return new Response(JSON.stringify({ ok: true, skipped: true }), { headers: cors });
 
-    // Fetch all hub_users for this project to match mentions
-    const { data: contractors } = await supabase
+    // Fetch all hub_users directly for this project
+    const { data: pcRows } = await supabase
       .from('hub_project_contractors')
-      .select('hub_users(id, full_name, slack_id, email)')
+      .select('contractor_id')
       .eq('project_id', project_id);
 
-    const teamMembers = (contractors ?? [])
-      .map((c: any) => Array.isArray(c.hub_users) ? c.hub_users[0] : c.hub_users)
-      .filter(Boolean);
-
-    // Fetch author name
-    const { data: author } = await supabase
+    const contractorIds = (pcRows ?? []).map((r: any) => r.contractor_id);
+    const { data: usersData } = await supabase
       .from('hub_users')
-      .select('full_name')
-      .eq('id', author_id)
-      .single();
+      .select('id, full_name, slack_id, email')
+      .in('id', contractorIds);
 
-    const authorName = author?.full_name ?? 'Someone';
+    const teamMembers = usersData ?? [];
+
+    // Use passed author name or fall back to DB lookup
+    let authorName = author_name;
+    if (!authorName) {
+      const { data: author } = await supabase.from('hub_users').select('full_name').eq('id', author_id).single();
+      authorName = author?.full_name ?? 'Someone';
+    }
 
     // Fetch task title
     const { data: task } = await supabase
@@ -62,9 +64,10 @@ Deno.serve(async (req) => {
 
     // Notify each mentioned user
     for (const mention of mentions) {
-      const mentioned = teamMembers.find((m: any) =>
-        m.full_name?.split(' ')[0]?.toLowerCase() === mention
-      );
+      const mentioned = teamMembers.find((m: any) => {
+        const parts = (m.full_name ?? '').toLowerCase().split(' ');
+        return parts.some((p: string) => p === mention);
+      });
       if (!mentioned || mentioned.id === author_id) continue;
 
       // In-app notification

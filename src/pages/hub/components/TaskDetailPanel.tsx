@@ -429,7 +429,7 @@ export default function TaskDetailPanel({
       // Notify mentioned users
       if (newComment.includes('@')) {
         supabase.functions.invoke('notify-task-mention', {
-          body: { comment_id: data.id, task_id: task.id, author_id: currentUserId, body: newComment.trim(), project_id: task.project_id },
+          body: { comment_id: data.id, task_id: task.id, author_id: currentUserId, author_name: currentUserName, body: newComment.trim(), project_id: task.project_id },
         }).catch(() => {});
       }
     }
