@@ -1215,7 +1215,20 @@ export default function ContractorProjectsPage() {
   const wsToday = localToday();
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
   // wsTeam must be declared before wsFiltered — wsFiltered references wsTeam
-  const wsTeam = wsRow ? (teamMap[wsProject?.id ?? 0] ?? []) : [];
+  const [wsTeamDirect, setWsTeamDirect] = useState<TeamMember[]>([]);
+  useEffect(() => {
+    if (!wsProject?.id) { setWsTeamDirect([]); return; }
+    supabase.from('hub_project_contractors')
+      .select('contractor_id')
+      .eq('project_id', wsProject.id)
+      .then(async ({ data: pcRows }) => {
+        if (!pcRows?.length) return;
+        const ids = pcRows.map((r: any) => r.contractor_id);
+        const { data: users } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', ids);
+        setWsTeamDirect((users ?? []).map((u: any) => ({ id: u.id, full_name: u.full_name, avatar_url: u.avatar_url ?? null })));
+      });
+  }, [wsProject?.id]);
+  const wsTeam = wsTeamDirect.length > 0 ? wsTeamDirect : (wsRow ? (teamMap[wsProject?.id ?? 0] ?? []) : []);
   const wsFiltered = wsTasks.filter(t => {
     if (taskFilter !== 'all' && taskFilter !== 'overdue' && t.status !== taskFilter) return false;
     if (taskFilter === 'overdue' && !wsIsOverdue(t)) return false;
