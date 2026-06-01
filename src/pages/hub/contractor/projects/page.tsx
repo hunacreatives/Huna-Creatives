@@ -1902,7 +1902,7 @@ export default function ContractorProjectsPage() {
                 </div>
 
                 {/* Payout */}
-                {!wsIsInternal && (() => {
+                {!wsIsInternal && wsProject?.project_type !== 'retainer' && (() => {
                   const totalCosts = wsProject.hub_project_costs.reduce((s, x) => s + x.amount, 0);
                   const netProfit = wsProject.contract_price - totalCosts;
                   const isFixed = workspaceRow!.payout_type === 'fixed';
