@@ -966,6 +966,7 @@ export default function ContractorProjectsPage() {
     const payload = {
       project_id: workspaceRow.hub_projects.id,
       user_id: hubUser.id,
+      actor_name: hubUser.full_name ?? 'Team',
       action,
       entity_type: 'task',
       entity_id: entityId ?? null,

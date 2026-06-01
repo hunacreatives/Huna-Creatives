@@ -312,7 +312,7 @@ export default function AdminProjectsPage() {
         .eq('project_id', projectId)
         .order('created_at', { ascending: true }),
       supabase.from('hub_project_activity')
-        .select('*')
+        .select('*, hub_users(full_name, avatar_url)')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(20),
@@ -1838,7 +1838,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           return (
                             <div key={a.id} className="flex items-start gap-2.5">
                               <div className="w-6 h-6 rounded-full bg-indigo-50 border border-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <span className="text-indigo-500 font-bold text-[9px]">{(a.actor_name?.[0] ?? '?').toUpperCase()}</span>
+                                <span className="text-indigo-500 font-bold text-[9px]">{((a.actor_name || (a as any).hub_users?.full_name || '?')[0] ?? '?').toUpperCase()}</span>
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs text-gray-600 leading-snug truncate">{a.description}</p>
