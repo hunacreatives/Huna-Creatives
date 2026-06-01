@@ -1090,19 +1090,26 @@ export default function ContractorProjectsPage() {
           });
 
         const seenClientIds = new Set<number>();
+        const seenKeys = new Set<string>();
         const seenRetainerNames = new Set(retainerEntries.map(r => r.name.toLowerCase()));
         const assignmentEntries = (assignData ?? [])
           .map((a: any) => {
-            const c = Array.isArray(a.hub_clients) ? a.hub_clients[0] : a.hub_clients;
-            return { id: `assign-${a.id}`, clientId: c?.id as number, name: c?.client_name ?? 'Client', type: 'assignment' as const, status: c?.status ?? 'active', platform: c?.platform, role: a.role, notes: c?.notes };
+            const cl = Array.isArray(a.hub_clients) ? a.hub_clients[0] : a.hub_clients;
+            return { id: `assign-${a.id}`, clientId: cl?.id as number | undefined, name: cl?.client_name ?? '', type: 'assignment' as const, status: cl?.status ?? 'active', platform: cl?.platform, role: a.role, notes: cl?.notes };
           })
           .filter(e => {
-            if (e.clientId && seenClientIds.has(e.clientId)) return false;
-            if (e.clientId) seenClientIds.add(e.clientId);
+            if (!e.name) return false; // drop entries with no client data
+            if (e.clientId) {
+              if (seenClientIds.has(e.clientId)) return false;
+              seenClientIds.add(e.clientId);
+            } else {
+              const key = `${e.name.toLowerCase()}|${(e.role ?? '').toLowerCase()}`;
+              if (seenKeys.has(key)) return false;
+              seenKeys.add(key);
+            }
             if (seenRetainerNames.has(e.name.toLowerCase())) return false;
             return true;
           });
-
         setClientEntries([...retainerEntries, ...assignmentEntries]);
       } catch (err) {
         console.error('Projects load error:', err);
