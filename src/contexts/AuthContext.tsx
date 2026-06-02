@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [devViewAs, setDevViewAs] = useState<'owner' | 'admin' | 'contractor' | null>(null);
   const mountedRef = useRef(true);
-  const hubUserLoadedRef = useRef(false);
+  const profileRequestIdRef = useRef(0);
 
   const loadHubUser = async (userId: string): Promise<HubUser | null> => {
     try {
@@ -39,6 +39,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       return null;
     }
+  };
+
+  const hydrateSession = async (nextSession: Session | null) => {
+    if (!mountedRef.current) return;
+
+    setSession(nextSession);
+    const nextUser = nextSession?.user ?? null;
+    setAuthUser(nextUser);
+
+    if (!nextUser) {
+      setHubUser(null);
+      setLoading(false);
+      return;
+    }
+
+    const requestId = ++profileRequestIdRef.current;
+    const profile = await loadHubUser(nextUser.id);
+    if (!mountedRef.current || requestId !== profileRequestIdRef.current) return;
+
+    if (!profile) {
+      setHubUser(null);
+      setLoading(false);
+      await supabase.auth.signOut();
+      return;
+    }
+
+    setHubUser(profile);
+    setLoading(false);
   };
 
   const refreshHubUser = async () => {
@@ -56,18 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Initial session load — single source of truth for first render
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      if (!mountedRef.current) return;
-      setSession(s);
-      setAuthUser(s?.user ?? null);
-      if (s?.user) {
-        const profile = await loadHubUser(s.user.id);
-        if (mountedRef.current) {
-          setHubUser(profile);
-          hubUserLoadedRef.current = true;
-        }
-      }
+      await hydrateSession(s);
       clearTimeout(timeout);
-      if (mountedRef.current) setLoading(false);
     }).catch(() => {
       clearTimeout(timeout);
       if (mountedRef.current) setLoading(false);
@@ -76,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
       if (!mountedRef.current) return;
 
-      // Token refresh / user update — just update session, never clear hubUser
+      // Token refresh / user update — keep the profile already in memory
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         setSession(s);
         setAuthUser(s?.user ?? null);
@@ -88,22 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         setAuthUser(null);
         setHubUser(null);
-        hubUserLoadedRef.current = false;
         if (mountedRef.current) setLoading(false);
         return;
       }
 
-      // SIGNED_IN or INITIAL_SESSION — only load hub profile if not already loaded
-      setSession(s);
-      setAuthUser(s?.user ?? null);
-      if (s?.user && !hubUserLoadedRef.current) {
-        const profile = await loadHubUser(s.user.id);
-        if (mountedRef.current) {
-          setHubUser(profile);
-          hubUserLoadedRef.current = true;
-        }
-      }
-      if (mountedRef.current) setLoading(false);
+      // SIGNED_IN or INITIAL_SESSION
+      await hydrateSession(s);
     });
 
     return () => {
@@ -114,12 +122,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error && mountedRef.current) setLoading(false);
     return { error: error as Error | null };
   };
 
   const signOut = async () => {
-    hubUserLoadedRef.current = false;
     await supabase.auth.signOut();
   };
 
