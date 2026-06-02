@@ -57,7 +57,7 @@ export default function HubLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen min-h-dvh flex bg-[#0a0608]">
       <style>{`
         @keyframes logo-glow {
           0%, 100% { opacity: 0.6; filter: invert(1) opacity(0.6) drop-shadow(0 0 0px rgba(255,255,255,0)); }
@@ -154,7 +154,7 @@ export default function HubLoginPage() {
       `}</style>
 
       {/* ── Left panel — dark glass form ──────────────────────────────────── */}
-      <div className="flex-1 relative flex flex-col min-h-screen overflow-hidden"
+      <div className="flex-1 relative flex flex-col min-h-screen min-h-dvh overflow-hidden"
         style={{ background: '#0a0608' }}>
 
         {/* Subtle ambient behind form */}

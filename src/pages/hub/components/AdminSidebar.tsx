@@ -7,6 +7,7 @@ const navItems = [
   { to: '/hub/admin/contractors', label: 'Contractors', icon: 'ri-team-line' },
   { to: '/hub/admin/attendance', label: 'Attendance', icon: 'ri-time-line' },
   { to: '/hub/admin/requests', label: 'Requests', icon: 'ri-inbox-line' },
+  { to: '/hub/admin/applications', label: 'Applications', icon: 'ri-user-search-line' },
   { to: '/hub/admin/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
   { to: '/hub/admin/overtime', label: 'Overtime', icon: 'ri-timer-flash-line' },
   { to: '/hub/admin/performance', label: 'Performance', icon: 'ri-medal-line', devOnly: true },

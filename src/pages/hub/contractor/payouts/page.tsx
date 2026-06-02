@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { MONTHS, FULL_MONTHS, getPeriods, fmtTime, fmtDate, fmtPHP } from '@/lib/formatUtils';
+import { getPeriods, fmtTime, fmtDate, fmtPHP, localToday } from '@/lib/formatUtils';
+import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 interface DayRow {
   date: string;
@@ -18,33 +19,6 @@ interface RateEntry {
   payment_type: string;
   hourly_rate: number | null;
   monthly_rate: number | null;
-}
-
-const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-function countWorkingDays(startDate: string, endDate: string, workDays: string[] = []) {
-  const scheduled = workDays.length > 0
-    ? new Set(workDays.map(d => DAY_MAP[d]))
-    : new Set([1, 2, 3, 4, 5]);
-  let count = 0;
-  const end = new Date(`${endDate}T00:00:00`);
-  const cur = new Date(`${startDate}T00:00:00`);
-  while (cur <= end) {
-    if (scheduled.has(cur.getDay())) count++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
-}
-
-function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined) {
-  if (!startDate || !endDate || endDate < startDate) return 0;
-  return countWorkingDays(startDate, endDate, workDays || []) * 8;
-}
-
-function dateBefore(dateStr: string, days = 1) {
-  const d = new Date(`${dateStr}T00:00:00`);
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
 }
 
 function generatePayslipHTML(opts: {
@@ -286,7 +260,9 @@ export default function ContractorPayoutsPage() {
 
   const fetchDays = async () => {
     setLoading(true);
-    const [daysRes, payoutRes, rateRes] = await Promise.all([
+    const isCurrentPeriod = todayPHT >= selectedPeriod.start && todayPHT <= selectedPeriod.end;
+    const [slackRes, daysRes, payoutRes, rateRes] = await Promise.all([
+      isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
       supabase
         .from('hub_daily_hours')
         .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
@@ -308,7 +284,13 @@ export default function ContractorPayoutsPage() {
         .order('effective_date', { ascending: true }),
     ]);
     const payout = payoutRes.data ?? null;
-    setDays((daysRes.data as DayRow[]) ?? []);
+    const mergedDays = mergeLiveAttendanceIntoDailyHours(
+      (((daysRes.data as DayRow[]) ?? []) as any[]).map((d: any) => ({ ...d, user_id: hubUser!.id })),
+      (slackRes as any)?.data?.attendance || [],
+      [hubUser!.id],
+      todayPHT,
+    ).map(({ user_id: _userId, ...rest }) => rest as DayRow);
+    setDays(mergedDays);
     setRateHistory((rateRes.data as RateEntry[]) ?? []);
     setExistingPayout(payout);
 
@@ -360,45 +342,39 @@ export default function ContractorPayoutsPage() {
     const newHourly  = changeInPeriod.hourly_rate  || 0;
     displayMonthlyRate = newMonthly;
     displayHourlyRate  = newHourly;
-    const periodStart = new Date(selectedPeriod.start);
-    const periodEnd   = new Date(selectedPeriod.end);
-    const changeDate  = new Date(changeInPeriod.effective_date);
     if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
-      const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const today = localToday();
       const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-      const effectiveEnd = isCurrentPeriod
-        ? (today < selectedPeriod.end ? today : selectedPeriod.end)
-        : selectedPeriod.end;
-      const oldSegmentEnd = changeInPeriod.effective_date > selectedPeriod.start
-        ? dateBefore(changeInPeriod.effective_date)
-        : '';
-      const expectedOldHours = oldSegmentEnd
-        ? countScheduledHours(selectedPeriod.start, oldSegmentEnd, workDays)
-        : 0;
-      const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
-        ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, workDays)
-        : 0;
-      const totalExpectedHours = expectedOldHours + expectedNewHours;
-      let hrsAtOld = 0, hrsAtNew = 0;
+      let hrsAtOld = 0;
+      let hrsAtNew = 0;
       for (const d of days) {
         if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped;
-        else if (d.date <= effectiveEnd) hrsAtNew += d.hours_capped;
+        else hrsAtNew += d.hours_capped;
       }
-      const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
-      const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
-      basePay =
-        (expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0) +
-        (expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0);
+      const splitAccrual = computeSplitFixedAccrual({
+        periodStart: selectedPeriod.start,
+        periodEnd: selectedPeriod.end,
+        changeDate: changeInPeriod.effective_date,
+        workDays,
+        oldMonthlyRate: oldMonthly,
+        newMonthlyRate: newMonthly,
+        oldCappedHours: hrsAtOld,
+        newCappedHours: hrsAtNew,
+      });
+      const isStillAccruing = isCurrentPeriod
+        && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) > 0
+        && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) < splitAccrual.totalScheduledDays;
+      basePay = splitAccrual.accruedPay;
       const oldOT = oldHourly || oldMonthly / 176;
       const newOT = newHourly || newMonthly / 176;
       let otAtOld = 0, otAtNew = 0;
       for (const d of days) {
         if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
-        else if (d.date <= effectiveEnd) otAtNew += d.overtime_hours || 0;
+        else otAtNew += d.overtime_hours || 0;
       }
       overtimePay = otAtOld * oldOT + otAtNew * newOT;
       otRate = newOT;
-      proratedLabel = `${hrsAtOld.toFixed(1)}/${expectedOldHours || 0}h @ ₱${oldMonthly.toLocaleString()}/mo · ${hrsAtNew.toFixed(1)}/${expectedNewHours || 0}h @ ₱${newMonthly.toLocaleString()}/mo`;
+      proratedLabel = `${splitAccrual.oldEarnedDayUnits.toFixed(2)}/${splitAccrual.oldScheduledDays} earned days @ ₱${oldMonthly.toLocaleString()}/mo · ${splitAccrual.newEarnedDayUnits.toFixed(2)}/${splitAccrual.newScheduledDays} earned days @ ₱${newMonthly.toLocaleString()}/mo${isStillAccruing ? ' · accruing' : ''}`;
     } else {
       let hrsAtOld = 0, hrsAtNew = 0;
       for (const d of days) {
@@ -416,14 +392,21 @@ export default function ContractorPayoutsPage() {
     displayMonthlyRate = monthly;
     displayHourlyRate  = hourly;
     if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
-      const today = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const today = localToday();
       const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-      const effectiveEnd = isCurrentPeriod ? (today < selectedPeriod.end ? today : selectedPeriod.end) : selectedPeriod.end;
-      const expectedHours = countScheduledHours(selectedPeriod.start, effectiveEnd, workDays);
-      const accrualRatio = expectedHours > 0 ? Math.min(totalHoursBillable / expectedHours, 1) : 0;
-      basePay = (monthly / 2) * accrualRatio;
+      const fixedAccrual = computeFixedAccrual({
+        periodStart: selectedPeriod.start,
+        periodEnd: selectedPeriod.end,
+        monthlyRate: monthly,
+        workDays,
+        cappedHours: totalHoursBillable,
+      });
+      const isStillAccruing = isCurrentPeriod
+        && fixedAccrual.earnedDayUnits > 0
+        && fixedAccrual.earnedDayUnits < fixedAccrual.totalScheduledDays;
+      basePay = fixedAccrual.accruedPay;
       isProrated = true;
-      proratedLabel = `${totalHoursBillable.toFixed(1)}/${expectedHours}h scheduled${isCurrentPeriod ? ' · accruing' : ''}`;
+      proratedLabel = `${fixedAccrual.earnedDayUnits.toFixed(2)}/${fixedAccrual.totalScheduledDays} earned days${isStillAccruing ? ' · accruing' : ''}`;
       otRate = hourly || monthly / 176;
     } else {
       basePay = totalHoursBillable * hourly;
@@ -621,7 +604,7 @@ export default function ContractorPayoutsPage() {
                       {isProrated
                         ? `Prorated base (${proratedLabel})`
                         : paymentType !== 'hourly'
-                          ? `Fixed rate (${fmt(displayMonthlyRate)}/mo ÷ 2)`
+                          ? `Fixed base (${fmt(displayMonthlyRate)}/mo, earned from capped hours)`
                           : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${displayHourlyRate})`}
                     </span>
                     <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>

@@ -53,6 +53,7 @@ const HubAdminTasks = lazy(() => import('../pages/hub/admin/tasks/page'));
 const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page'));
 const HubAdminInvoiceLog = lazy(() => import('../pages/hub/admin/invoice-log/page'));
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
+const HubAdminApplications = lazy(() => import('../pages/hub/admin/applications/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
@@ -159,6 +160,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/documents', element: withAdminGate(<HubAdminDocuments />) },
   { path: '/hub/admin/invoice-log', element: withAdminGate(<HubAdminInvoiceLog />) },
   { path: '/hub/admin/questionnaires', element: withAdminGate(<HubAdminQuestionnaires />) },
+  { path: '/hub/admin/applications', element: withAdminGate(<HubAdminApplications />) },
   { path: '/hub/demo', element: <HubDemoPage /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },

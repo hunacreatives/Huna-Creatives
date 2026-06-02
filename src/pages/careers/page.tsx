@@ -13,65 +13,74 @@ interface JobListing {
   location: string;
   summary: string;
   whatYoullDo: string[];
-  lookingFor: string[];
-  niceToHave: string[];
-  workSetup: string[];
-  setsYouApart: string[];
-  growth: string[];
+  whatYouBring: string[];
+  whyJoinUs: string[];
 }
 
 const JOB_LISTINGS: JobListing[] = [
   {
     id: 'graphic-designer',
     title: 'Graphic Designer',
-    type: 'Freelance / Project-Based',
+    type: 'Full-Time',
+    shift: '11:00 PM - 7:00 AM (PH Time)',
+    startDate: 'ASAP',
+    location: 'Remote',
+    summary:
+      'We are looking for a full-time Graphic Designer with a minimalist, clean design approach and strong experience creating visuals for the food industry, including menus, flyers, and marketing materials.',
+    whatYoullDo: [
+      'Design graphics for menus, flyers, promotions, and digital content',
+      'Create clean, modern visuals aligned with brand guidelines',
+      'Support ongoing marketing and design needs',
+      'Collaborate with the team to produce high-quality ad creatives',
+      'Work full-time from 11:00 PM - 7:00 AM (PH Time)',
+    ],
+    whatYouBring: [
+      'Proven experience in the food industry (menus, flyers, etc.)',
+      'Strong eye for minimalist, clean, and modern design',
+      'Non-negotiable: Proficiency in Adobe Photoshop',
+      'Bonus: Experience with Adobe Illustrator',
+      'Ability to follow direction and work efficiently',
+      'Strong portfolio showcasing relevant design work',
+    ],
+    whyJoinUs: [
+      'Full-time position',
+      'Competitive salary based on experience',
+      'Opportunity to work with a growing creative team',
+      'Must be available to start ASAP',
+    ],
+  },
+  {
+    id: 'video-editor',
+    title: 'Video Editor',
+    type: 'Project-Based',
     shift: 'Flexible',
     startDate: 'ASAP',
-    location: 'Remote (Cebu-based preferred)',
+    location: 'Remote',
     summary:
-      'We\'re looking for a creative Graphic Designer to join the Huna Creatives team on a freelance basis. You\'ll work on brand identity, digital assets, social media graphics, and marketing collateral for our clients across various industries.',
+      'We are looking for a reliable, creative Video Editor for ongoing freelance projects, with a strong eye for pacing, polish, and brand-aligned content.',
     whatYoullDo: [
-      'Design brand identities, logos, and visual systems for clients',
-      'Create social media graphics, banners, and digital marketing assets',
-      'Produce print-ready files for marketing collateral (flyers, brochures, etc.)',
-      'Collaborate with our team to align visuals with client goals and brand guidelines',
-      'Revise designs based on client and team feedback',
+      'Edit video content for marketing, campaigns, and social media',
+      'Shape polished cuts that feel clear, engaging, and on-brand',
+      'Add text, music, transitions, and light motion support when needed',
+      'Deliver high-quality work on time and handle revisions smoothly',
     ],
-    lookingFor: [
-      'At least 1–2 years of graphic design experience (agency or freelance)',
-      'Strong portfolio showcasing branding, digital, and/or print work',
-      'Proficient in Adobe Creative Suite (Illustrator, Photoshop, InDesign)',
-      'Good communication and ability to meet deadlines',
-      'Eye for typography, color, and layout',
+    whatYouBring: [
+      'Strong working knowledge of Premiere Pro, Final Cut Pro, or DaVinci Resolve',
+      'A sharp sense of detail, rhythm, and storytelling',
+      'Ability to work independently and communicate clearly',
+      'A portfolio or reel that shows solid editing judgment',
     ],
-    niceToHave: [
-      'Experience with Figma or Canva Pro',
-      'Motion graphics or basic video editing skills',
-      'Familiarity with social media content formats',
-      'Experience working with local or international brands',
-    ],
-    workSetup: [
-      'Fully remote — work from anywhere',
-      'Flexible hours, output-based',
-      'Project-based engagement with potential for long-term collaboration',
-      'Communication via Slack and project management tools',
-    ],
-    setsYouApart: [
-      'You think beyond aesthetics — you design with purpose',
-      'You can handle multiple projects without dropping quality',
-      'You take feedback well and iterate fast',
-      'You bring ideas to the table, not just execution',
-    ],
-    growth: [
-      'Ongoing project work as we grow our client roster',
-      'Opportunity to become a core creative team member',
-      'Exposure to diverse industries and brand challenges',
-      'Direct collaboration with the creative director',
+    whyJoinUs: [
+      'Freelance, project-based setup',
+      'Consistent work for the right fit',
+      'Fast-moving creative projects with room to grow',
+      'Long-term collaboration potential',
     ],
   },
 ];
 
 const HAS_OPENINGS = JOB_LISTINGS.length > 0;
+const MAX_RESUME_SIZE_BYTES = 10 * 1024 * 1024;
 
 export default function CareersPage() {
   useSEO({
@@ -84,6 +93,7 @@ export default function CareersPage() {
   const [selectedJob, setSelectedJob] = useState<JobListing | null>(
     HAS_OPENINGS ? JOB_LISTINGS[0] : null
   );
+  const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', role: '', rate: '', message: '' });
 
   const [portfolioLink, setPortfolioLink] = useState('');
@@ -93,7 +103,8 @@ export default function CareersPage() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const portfolioRequired = !selectedJob || selectedJob.id === 'graphic-designer';
+  const activeJob = HAS_OPENINGS ? JOB_LISTINGS.find((job) => job.id === applyingJobId) ?? null : null;
+  const portfolioRequired = activeJob?.id === 'graphic-designer';
   const portfolioProvided = portfolioLink.trim().length > 0;
   const resumeProvided = resumeMode === 'upload' ? !!resumeFile : resumeLink.trim().length > 0;
   const canSubmit = resumeProvided && (portfolioProvided || !portfolioRequired) && formData.rate.trim().length > 0;
@@ -105,20 +116,32 @@ export default function CareersPage() {
     setResumeLink('');
   };
 
+  const resetApplicationState = () => {
+    resetForm();
+    setResumeMode('upload');
+    setStatus('idle');
+    setErrorMsg('');
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (formData.message.length > 500 || !canSubmit) return;
+    if ((HAS_OPENINGS && !activeJob) || formData.message.length > 500 || !canSubmit) return;
     setStatus('sending');
     setErrorMsg('');
 
     try {
-      const roleValue = HAS_OPENINGS && selectedJob ? selectedJob.title : formData.role;
+      const roleValue = HAS_OPENINGS && activeJob ? activeJob.title : formData.role;
 
       // Read resume file as base64 if uploaded
       let resume_base64: string | undefined;
       let resume_filename: string | undefined;
       let resume_mime: string | undefined;
       if (resumeMode === 'upload' && resumeFile) {
+        if (resumeFile.size > MAX_RESUME_SIZE_BYTES) {
+          setErrorMsg('Resume file is too large. Please upload a PDF under 10MB.');
+          setStatus('error');
+          return;
+        }
         const buffer = await resumeFile.arrayBuffer();
         const bytes = new Uint8Array(buffer);
         let binary = '';
@@ -128,11 +151,12 @@ export default function CareersPage() {
         resume_mime = resumeFile.type;
       }
 
-      const { error } = await supabase.functions.invoke('submit-careers', {
+      const invokePromise = supabase.functions.invoke('submit-careers', {
         body: {
           name: formData.name,
           email: formData.email,
           role: roleValue || undefined,
+          job_id: activeJob?.id || undefined,
           expected_rate: formData.rate,
           portfolio_link: portfolioLink.trim() || undefined,
           resume_link: resumeMode === 'link' ? resumeLink.trim() || undefined : undefined,
@@ -143,6 +167,12 @@ export default function CareersPage() {
         },
       });
 
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error('Submission timed out. Please try again.')), 25000);
+      });
+
+      const { error } = await Promise.race([invokePromise, timeoutPromise]);
+
       if (!error) {
         setStatus('success');
         resetForm();
@@ -150,8 +180,8 @@ export default function CareersPage() {
         setErrorMsg(error.message ?? 'Submission failed. Please try again.');
         setStatus('error');
       }
-    } catch {
-      setErrorMsg('Network error. Please check your connection and try again.');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Network error. Please check your connection and try again.');
       setStatus('error');
     }
   };
@@ -242,6 +272,82 @@ export default function CareersPage() {
     </div>
   );
 
+  const applicationFormJSX = (job: JobListing) => (
+    <div
+      className="mt-6 rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10"
+      style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 40px rgba(0,0,0,0.28)' }}
+    >
+      <div className="mb-6 md:mb-8">
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-orange-500/15 text-orange-400 border border-orange-500/20">
+            Applying for
+          </span>
+          <span className="text-white font-semibold text-sm">{job.title}</span>
+          <span className="text-white/25 text-xs">•</span>
+          <span className="text-white/45 text-xs">{job.type}</span>
+        </div>
+        <h2 className="font-display text-xl md:text-2xl font-bold text-white mb-2">
+          Submit Your {job.title} Application
+        </h2>
+        <p className="text-white/40 text-xs md:text-sm leading-relaxed">
+          {job.id === 'graphic-designer'
+            ? 'This application is specifically for the Graphic Designer role. Share your portfolio and resume so we can review your fit clearly.'
+            : 'This application is specifically for the Video Editor role. Share your resume, and include a reel or portfolio link if you have one.'}
+        </p>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+          <div>
+            <label htmlFor={`name-${job.id}`} className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">Full Name</label>
+            <input type="text" id={`name-${job.id}`} name="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-white placeholder-gray-500 text-xs" placeholder="Your full name" />
+          </div>
+          <div>
+            <label htmlFor={`email-${job.id}`} className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">Email</label>
+            <input type="email" id={`email-${job.id}`} name="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-white placeholder-gray-500 text-xs" placeholder="your@email.com" />
+          </div>
+        </div>
+        <div>
+          <label htmlFor={`rate-${job.id}`} className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">
+            Expected Service Rate <span className="text-orange-400/70 normal-case tracking-normal font-normal">*required</span>
+          </label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none">
+              <i className="ri-money-dollar-circle-line text-orange-400/60 text-sm" />
+            </div>
+            <input type="text" id={`rate-${job.id}`} name="rate" value={formData.rate} onChange={(e) => setFormData({ ...formData, rate: e.target.value })} required className="w-full pl-10 pr-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-white placeholder-gray-500 text-xs" placeholder="e.g. ₱500/hr, ₱25,000/mo, $5/hr..." />
+          </div>
+          <p className="text-[10px] text-white/25 mt-1.5">Enter your expected rate in any format you prefer</p>
+        </div>
+        {portfolioJSX(`portfolioLink-${job.id}`)}
+        {resumeJSX(`resumeFile-${job.id}`)}
+        <div>
+          <label htmlFor={`message-${job.id}`} className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">Why Are You a Great Fit?</label>
+          <textarea id={`message-${job.id}`} name="message" value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} required maxLength={500} rows={5} className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all resize-none text-white placeholder-gray-500 text-xs" placeholder="Tell us about your experience and why this role excites you..." />
+          <p className={`text-[11px] mt-2 text-right transition-colors ${formData.message.length > 480 ? 'text-red-400' : 'text-gray-500'}`}>{formData.message.length}/500</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button type="submit" disabled={status === 'sending' || formData.message.length > 500 || !canSubmit}
+            className="flex-1 px-8 py-4 rounded-xl text-xs font-semibold tracking-widest uppercase text-white transition-all hover:scale-[1.02] hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer"
+            style={{ background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)', boxShadow: '0 0 30px rgba(239,68,68,0.3)' }}>
+            {status === 'sending' ? 'Submitting...' : `Apply for ${job.title} →`}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setApplyingJobId(null);
+              resetApplicationState();
+            }}
+            className="px-5 py-4 rounded-xl text-xs font-semibold tracking-widest uppercase text-white/60 border border-white/10 hover:text-white hover:border-white/20 transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+        {status === 'success' && <div className="p-5 bg-green-900/30 border border-green-500/30 rounded-2xl text-green-400 text-sm font-medium text-center">✓ Application received! We&apos;ll be in touch soon.</div>}
+        {status === 'error' && <div className="p-5 bg-red-900/30 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium text-center">✗ {errorMsg || 'Something went wrong. Please try again or email us at contact@hunacreatives.com'}</div>}
+      </form>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] font-body">
       <Navigation />
@@ -285,103 +391,104 @@ export default function CareersPage() {
 
             <div className="space-y-3 mb-10">
               {JOB_LISTINGS.map((job) => (
-                <button key={job.id} type="button"
-                  onClick={() => { const next = selectedJob?.id === job.id ? null : job; setSelectedJob(next); setPortfolioLink(''); setResumeFile(null); setResumeLink(''); setStatus('idle'); }}
-                  className="w-full text-left cursor-pointer">
-                  <div className={`rounded-2xl p-6 md:p-8 border transition-all ${selectedJob?.id === job.id ? 'border-orange-500/40 bg-[#1a1208]' : 'border-white/8 bg-[#141414] hover:border-white/15'}`}>
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-                      <div className="w-12 h-12 flex items-center justify-center rounded-xl shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
-                        <i className={`text-xl text-orange-400 ${job.id === 'graphic-designer' ? 'ri-palette-line' : 'ri-task-line'}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                          <h2 className="font-display text-xl md:text-2xl font-bold text-white">{job.title}</h2>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-green-500/15 text-green-400 border border-green-500/20">Hiring</span>
+                <div key={job.id}>
+                  <div className={`rounded-2xl p-5 md:p-6 border transition-all ${selectedJob?.id === job.id ? 'border-orange-500/40 bg-[#1a1208]' : 'border-white/8 bg-[#141414] hover:border-white/15'}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const isClosing = selectedJob?.id === job.id;
+                        setSelectedJob(isClosing ? null : job);
+                        if (isClosing && applyingJobId === job.id) {
+                          setApplyingJobId(null);
+                          resetApplicationState();
+                        }
+                      }}
+                      className="w-full text-left cursor-pointer"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
+                        <div className="w-12 h-12 flex items-center justify-center rounded-xl shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
+                          <i className={`text-xl text-orange-400 ${job.id === 'graphic-designer' ? 'ri-palette-line' : 'ri-task-line'}`} />
                         </div>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                          <span className="text-white/40 text-xs flex items-center gap-1.5"><i className="ri-map-pin-line text-orange-400/70" />{job.location}</span>
-                          <span className="text-white/40 text-xs flex items-center gap-1.5"><i className="ri-time-line text-orange-400/70" />{job.type}</span>
-                          <span className="text-white/40 text-xs flex items-center gap-1.5"><i className="ri-calendar-line text-orange-400/70" />Starts {job.startDate}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                            <h2 className="font-display text-xl md:text-2xl font-bold text-white">{job.title}</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-green-500/15 text-green-400 border border-green-500/20">Hiring</span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            <span className="text-white/40 text-xs flex items-center gap-1.5"><i className="ri-map-pin-line text-orange-400/70" />{job.location}</span>
+                            <span className="text-white/40 text-xs flex items-center gap-1.5"><i className="ri-briefcase-line text-orange-400/70" />{job.type}</span>
+                            <span className="text-white/40 text-xs flex items-center gap-1.5"><i className="ri-time-line text-orange-400/70" />{job.shift}</span>
+                            <span className="text-white/40 text-xs flex items-center gap-1.5"><i className="ri-calendar-line text-orange-400/70" />Starts {job.startDate}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-orange-400 text-xs font-medium">{selectedJob?.id === job.id ? 'Hide details' : 'View details'}</span>
+                          <i className={`ri-arrow-down-s-line text-orange-400 transition-transform ${selectedJob?.id === job.id ? 'rotate-180' : ''}`} />
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-orange-400 text-xs font-medium">{selectedJob?.id === job.id ? 'Hide details' : 'View details'}</span>
-                        <i className={`ri-arrow-down-s-line text-orange-400 transition-transform ${selectedJob?.id === job.id ? 'rotate-180' : ''}`} />
-                      </div>
-                    </div>
+                    </button>
                     {selectedJob?.id === job.id && (
-                      <div className="mt-6 pt-6 border-t border-white/8 space-y-6">
-                        <p className="text-white/40 text-sm leading-relaxed">{job.summary}</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What You&apos;ll Do</h3><ul className="space-y-2">{job.whatYoullDo.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-arrow-right-s-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What We&apos;re Looking For</h3><ul className="space-y-2">{job.lookingFor.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-checkbox-circle-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Nice to Have</h3><ul className="space-y-2">{job.niceToHave.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-star-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Work Setup</h3><ul className="space-y-2">{job.workSetup.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-computer-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What Sets You Apart</h3><ul className="space-y-2">{job.setsYouApart.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-flashlight-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
-                          <div><h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Growth Opportunity</h3><ul className="space-y-2">{job.growth.map((item) => (<li key={item} className="flex items-start gap-2.5 text-white/40 text-xs leading-relaxed"><i className="ri-line-chart-line text-orange-400/60 mt-0.5 shrink-0" />{item}</li>))}</ul></div>
+                      <div className="mt-5 pt-5 border-t border-white/8 space-y-5">
+                        <p className="text-white/50 text-sm leading-relaxed max-w-3xl">{job.summary}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                          <div>
+                            <h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What You&apos;ll Do</h3>
+                            <ul className="space-y-2">
+                              {job.whatYoullDo.map((item) => (
+                                <li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed">
+                                  <i className="ri-arrow-right-s-line text-orange-400/60 mt-0.5 shrink-0" />
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">What You Bring</h3>
+                            <ul className="space-y-2">
+                              {job.whatYouBring.map((item) => (
+                                <li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed">
+                                  <i className="ri-checkbox-circle-line text-orange-400/60 mt-0.5 shrink-0" />
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <h3 className="text-[11px] font-semibold tracking-widest uppercase text-orange-400 mb-3">Why Join Us</h3>
+                            <ul className="space-y-2">
+                              {job.whyJoinUs.map((item) => (
+                                <li key={item} className="flex items-start gap-2.5 text-white/50 text-xs leading-relaxed">
+                                  <i className="ri-star-line text-orange-400/60 mt-0.5 shrink-0" />
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
+                        {applyingJobId !== job.id ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2">
+                            <p className="text-white/35 text-xs">
+                              This will open the application form for <span className="text-white/70">{job.title}</span> only.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setApplyingJobId(job.id);
+                                resetApplicationState();
+                              }}
+                              className="px-5 py-3 rounded-xl text-xs font-semibold tracking-widest uppercase text-white transition-all hover:scale-[1.02] cursor-pointer"
+                              style={{ background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)', boxShadow: '0 0 24px rgba(239,68,68,0.22)' }}
+                            >
+                              Apply for {job.title}
+                            </button>
+                          </div>
+                        ) : applicationFormJSX(job)}
                       </div>
                     )}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
-
-            {selectedJob && (
-              <div className="relative rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10 fade-up fade-up-3"
-                style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 8px 40px rgba(0,0,0,0.4)' }}>
-                <div className="mb-6 md:mb-8">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-orange-500/15 text-orange-400 border border-orange-500/20">Applying for</span>
-                    <span className="text-white font-semibold text-sm">{selectedJob.title}</span>
-                  </div>
-                  <h2 className="font-display text-xl md:text-2xl font-bold text-white mb-2">Submit Your Application</h2>
-                  <p className="text-white/40 text-xs md:text-sm leading-relaxed">
-                    {selectedJob.id === 'graphic-designer'
-                      ? 'Share your portfolio as a link and upload your resume as a PDF or share a link. We review every application personally.'
-                      : 'Upload your resume or share a link. Portfolio is optional but encouraged. We review every application personally.'}
-                  </p>
-                </div>
-                <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                    <div>
-                      <label htmlFor="name" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">Full Name</label>
-                      <input type="text" id="name" name="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-white placeholder-gray-500 text-xs" placeholder="Your full name" />
-                    </div>
-                    <div>
-                      <label htmlFor="email" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">Email</label>
-                      <input type="email" id="email" name="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-white placeholder-gray-500 text-xs" placeholder="your@email.com" />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="rate" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">
-                      Expected Service Rate <span className="text-orange-400/70 normal-case tracking-normal font-normal">*required</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center pointer-events-none">
-                        <i className="ri-money-dollar-circle-line text-orange-400/60 text-sm" />
-                      </div>
-                      <input type="text" id="rate" name="rate" value={formData.rate} onChange={(e) => setFormData({ ...formData, rate: e.target.value })} required className="w-full pl-10 pr-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-white placeholder-gray-500 text-xs" placeholder="e.g. ₱500/hr, ₱25,000/mo, $5/hr..." />
-                    </div>
-                    <p className="text-[10px] text-white/25 mt-1.5">Enter your expected rate in any format you prefer</p>
-                  </div>
-                  {portfolioJSX('portfolioLink')}
-                  {resumeJSX('resumeFile')}
-                  <div>
-                    <label htmlFor="message" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">Why Are You a Great Fit?</label>
-                    <textarea id="message" name="message" value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} required maxLength={500} rows={5} className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all resize-none text-white placeholder-gray-500 text-xs" placeholder="Tell us about your experience and why this role excites you..." />
-                    <p className={`text-[11px] mt-2 text-right transition-colors ${formData.message.length > 480 ? 'text-red-400' : 'text-gray-500'}`}>{formData.message.length}/500</p>
-                  </div>
-                  <button type="submit" disabled={status === 'sending' || formData.message.length > 500 || !canSubmit}
-                    className="w-full px-8 py-4 rounded-xl text-xs font-semibold tracking-widest uppercase text-white transition-all hover:scale-[1.02] hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer"
-                    style={{ background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)', boxShadow: '0 0 30px rgba(239,68,68,0.3)' }}>
-                    {status === 'sending' ? 'Submitting...' : `Apply for ${selectedJob.title} →`}
-                  </button>
-                  {status === 'success' && <div className="p-5 bg-green-900/30 border border-green-500/30 rounded-2xl text-green-400 text-sm font-medium text-center">✓ Application received! We&apos;ll be in touch soon.</div>}
-                  {status === 'error' && <div className="p-5 bg-red-900/30 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium text-center">✗ {errorMsg || 'Something went wrong. Please try again or email us at contact@hunacreatives.com'}</div>}
-                </form>
-              </div>
-            )}
           </div>
         </section>
       ) : (

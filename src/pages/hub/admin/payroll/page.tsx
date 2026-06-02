@@ -4,14 +4,16 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
-import { MONTHS, FULL_MONTHS, getPeriods, fmtCurrency as fmt, getNextPayrollCutoff, localToday } from '@/lib/formatUtils';
+import { FULL_MONTHS, getPeriods, fmtCurrency as fmt, getNextPayrollCutoff, localToday } from '@/lib/formatUtils';
 import { logAudit } from '@/lib/audit';
 import { getSetting, setSetting } from '@/lib/settings';
 import { DEMO_PAYOUTS, DEMO_CONTRACTORS } from '@/lib/demoData';
+import { computeFixedAccrual, computeSplitFixedAccrual, isAutoPayrollUser, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 interface Contractor {
   id: string;
   full_name: string;
+  role?: string | null;
   avatar_url: string | null;
   department: string | null;
   currency: string;
@@ -44,33 +46,6 @@ interface PayRow {
   accruing?: boolean;
   accrualDays?: number;
   accrualTotal?: number;
-}
-
-const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-function countWorkingDays(startDate: string, endDate: string, workDays: string[]): number {
-  const scheduled = workDays.length > 0
-    ? new Set(workDays.map(d => DAY_MAP[d]))
-    : new Set([1, 2, 3, 4, 5]);
-  let count = 0;
-  const end = new Date(endDate + 'T00:00:00');
-  const cur = new Date(startDate + 'T00:00:00');
-  while (cur <= end) {
-    if (scheduled.has(cur.getDay())) count++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
-}
-
-function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined): number {
-  if (!startDate || !endDate || endDate < startDate) return 0;
-  return countWorkingDays(startDate, endDate, workDays || []) * 8;
-}
-
-function dateBefore(dateStr: string, days = 1) {
-  const d = new Date(`${dateStr}T00:00:00`);
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
 }
 
 function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null }) {
@@ -189,6 +164,7 @@ export default function AdminPayrollPage() {
   const [payoutsMap, setPayoutsMap] = useState<Record<string, any>>({});
   const [batch, setBatch] = useState<any>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   // Disputes map: payout_id → dispute
@@ -218,6 +194,8 @@ export default function AdminPayrollPage() {
     { value: 'deduction', label: 'Deduction' },
     { value: 'other', label: 'Other' },
   ];
+
+  const isAutoPayrollContractor = (contractor: Contractor) => isAutoPayrollUser(contractor);
 
   const openEditRow = (r: PayRow) => {
     const override = rowOverrides[r.contractor.id];
@@ -376,6 +354,15 @@ export default function AdminPayrollPage() {
     }
   };
 
+  const refreshPayrollPage = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchPayroll(), fetchWorkflow()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const approvePayout = async (contractorId: string, computedPay: number) => {
     setWorkflowLoading(true);
     const row = rows.find(r => r.contractor.id === contractorId);
@@ -422,7 +409,7 @@ export default function AdminPayrollPage() {
   const approveAll = async () => {
     const toApprove = rows.filter(r => {
       const p = payoutsMap[r.contractor.id];
-      return !batch && (!p || p.status === 'pending' || p.status === 'submitted');
+      return !isAutoPayrollContractor(r.contractor) && !batch && (!p || p.status === 'pending' || p.status === 'submitted');
     });
     if (toApprove.length === 0) return;
     setWorkflowLoading(true);
@@ -476,7 +463,7 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(true);
     const approved = rows.filter(r => {
       const p = payoutsMap[r.contractor.id];
-      return p?.status === 'hr_approved';
+      return p?.status === 'hr_approved' || isAutoPayrollContractor(r.contractor);
     });
     const total = approved.reduce((s, r) => {
       const p = payoutsMap[r.contractor.id];
@@ -823,14 +810,11 @@ export default function AdminPayrollPage() {
     const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
 
     // Payroll reads from hub_daily_hours, so sync Slack punches first for the live cutoff.
-    if (isCurrentPeriod) {
-      await supabase.functions.invoke('slack-attendance');
-    }
-
-    const [contractorsRes, hoursRes] = await Promise.all([
+    const [slackRes, contractorsRes, hoursRes] = await Promise.all([
+      isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
       supabase
         .from('hub_users')
-        .select('id, full_name, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days')
+        .select('id, full_name, role, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days')
         .eq('status', 'active')
         .in('role', ['contractor', 'admin']),
       supabase
@@ -845,18 +829,26 @@ export default function AdminPayrollPage() {
       (!c.start_date || c.start_date <= selectedPeriod.end)
     );
 
+    const liveAttendance = (slackRes as any)?.data?.attendance || [];
+    const mergedHoursRows = mergeLiveAttendanceIntoDailyHours(
+      (hoursRes.data || []).map((h: any) => ({ ...h })),
+      liveAttendance,
+      eligibleContractors.map((c: any) => c.id),
+      today,
+    );
+
     // Per-user per-date hours map (for hourly proration)
     const hoursByDate: Record<string, Record<string, number>> = {};
     const overtimeByDate: Record<string, Record<string, number>> = {};
     const hoursMap: Record<string, { capped: number; raw: number; overtime: number; days: number }> = {};
-    for (const h of hoursRes.data || []) {
+    for (const h of mergedHoursRows) {
       if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, raw: 0, overtime: 0, days: 0 };
-      hoursMap[h.user_id].capped += h.hours_capped;
-      hoursMap[h.user_id].raw += h.hours_raw;
+      hoursMap[h.user_id].capped += h.hours_capped || 0;
+      hoursMap[h.user_id].raw += h.hours_raw || 0;
       hoursMap[h.user_id].overtime += h.overtime_hours || 0;
       hoursMap[h.user_id].days += 1;
       if (!hoursByDate[h.user_id]) hoursByDate[h.user_id] = {};
-      hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + h.hours_capped;
+      hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + (h.hours_capped || 0);
       if (h.overtime_hours) {
         if (!overtimeByDate[h.user_id]) overtimeByDate[h.user_id] = {};
         overtimeByDate[h.user_id][h.date] = (overtimeByDate[h.user_id][h.date] || 0) + h.overtime_hours;
@@ -901,6 +893,7 @@ export default function AdminPayrollPage() {
       let derivedHourlyRate = 0;
       let prorated = false;
       let proratedNote = '';
+      let accrualTotalOriginalCurrency: number | undefined;
 
       if (changeInPeriod) {
         prorated = true;
@@ -916,26 +909,10 @@ export default function AdminPayrollPage() {
         const newMonthly = changeInPeriod.monthly_rate || 0;
         const newHourly  = changeInPeriod.hourly_rate  || 0;
 
-        const periodStart = new Date(selectedPeriod.start);
-        const periodEnd   = new Date(selectedPeriod.end);
-        const changeDate  = new Date(changeInPeriod.effective_date);
-
         if (payType === 'fixed' || payType === 'fixed_flexible') {
-          const today = new Date().toISOString().slice(0, 10);
+          const today = localToday();
           const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-          const effectiveEnd = isCurrentPeriod
-            ? (today < selectedPeriod.end ? today : selectedPeriod.end)
-            : selectedPeriod.end;
-          const oldSegmentEnd = changeInPeriod.effective_date > selectedPeriod.start
-            ? dateBefore(changeInPeriod.effective_date)
-            : '';
-          const expectedOldHours = oldSegmentEnd
-            ? countScheduledHours(selectedPeriod.start, oldSegmentEnd, c.work_days)
-            : 0;
-          const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
-            ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, c.work_days)
-            : 0;
-          const totalExpectedHours = expectedOldHours + expectedNewHours;
+          const autoPayroll = isAutoPayrollContractor(c as Contractor);
           const datesMap = hoursByDate[c.id] || {};
           let hrsAtOld = 0;
           let hrsAtNew = 0;
@@ -943,10 +920,19 @@ export default function AdminPayrollPage() {
             if (date < changeInPeriod.effective_date) hrsAtOld += h;
             else hrsAtNew += h;
           }
-          const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
-          const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
-          const oldPay = expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0;
-          const newPay = expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0;
+          const splitAccrual = computeSplitFixedAccrual({
+            periodStart: selectedPeriod.start,
+            periodEnd: selectedPeriod.end,
+            changeDate: changeInPeriod.effective_date,
+            workDays: c.work_days,
+            oldMonthlyRate: oldMonthly,
+            newMonthlyRate: newMonthly,
+            oldCappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrsAtOld,
+            newCappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrsAtNew,
+          });
+          const isStillAccruing = !autoPayroll && isCurrentPeriod
+            && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) > 0
+            && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) < splitAccrual.totalScheduledDays;
 
           // Split OT by date so pre-raise OT uses old OT rate, post-raise uses new
           const oldHourlyForOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
@@ -960,8 +946,9 @@ export default function AdminPayrollPage() {
           }
           derivedHourlyRate = newHourlyForOT;
           overtimePay = otAtOld * oldHourlyForOT + otAtNew * newHourlyForOT;
-          pay = oldPay + newPay;
-          proratedNote = `${hrsAtOld.toFixed(1)}/${expectedOldHours || 0}h @ ₱${oldMonthly.toLocaleString()}/mo · ${hrsAtNew.toFixed(1)}/${expectedNewHours || 0}h @ ₱${newMonthly.toLocaleString()}/mo`;
+          pay = splitAccrual.accruedPay;
+          accrualTotalOriginalCurrency = splitAccrual.oldPortion + splitAccrual.newPortion;
+          proratedNote = `${splitAccrual.oldEarnedDayUnits.toFixed(2)}/${splitAccrual.oldScheduledDays} earned days @ ₱${oldMonthly.toLocaleString()}/mo · ${splitAccrual.newEarnedDayUnits.toFixed(2)}/${splitAccrual.newScheduledDays} earned days @ ₱${newMonthly.toLocaleString()}/mo${isStillAccruing ? ' · accruing' : ''}`;
         } else {
           // Hourly: split hours by date
           const datesMap = hoursByDate[c.id] || {};
@@ -990,14 +977,25 @@ export default function AdminPayrollPage() {
           pay = hrs.capped * derivedHourlyRate;
         } else {
           overtimePay = hrs.overtime * derivedHourlyRate;
-          const today = new Date().toISOString().slice(0, 10);
+          const today = localToday();
           const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
-          const effectiveEnd = isCurrentPeriod ? (today < selectedPeriod.end ? today : selectedPeriod.end) : selectedPeriod.end;
-          const expectedHours = countScheduledHours(selectedPeriod.start, effectiveEnd, c.work_days);
-          const accrualRatio = expectedHours > 0 ? Math.min(hrs.capped / expectedHours, 1) : 0;
-          pay = (monthly / 2) * accrualRatio;
+          const autoPayroll = isAutoPayrollContractor(c as Contractor);
+          const fixedAccrual = computeFixedAccrual({
+            periodStart: selectedPeriod.start,
+            periodEnd: selectedPeriod.end,
+            monthlyRate: monthly,
+            workDays: c.work_days,
+            cappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrs.capped,
+          });
+          const isStillAccruing = !autoPayroll && isCurrentPeriod
+            && fixedAccrual.earnedDayUnits > 0
+            && fixedAccrual.earnedDayUnits < fixedAccrual.totalScheduledDays;
+          pay = fixedAccrual.accruedPay;
           prorated = true;
-          proratedNote = `${hrs.capped.toFixed(1)}/${expectedHours}h scheduled${isCurrentPeriod ? ' · accruing' : ''}`;
+          accrualTotalOriginalCurrency = fixedAccrual.fullPeriodPay;
+          proratedNote = autoPayroll
+            ? `auto-included full cutoff`
+            : `${fixedAccrual.earnedDayUnits.toFixed(2)}/${fixedAccrual.totalScheduledDays} earned days${isStillAccruing ? ' · accruing' : ''}`;
         }
       }
 
@@ -1018,7 +1016,9 @@ export default function AdminPayrollPage() {
         prorated,
         proratedNote,
         accruing: isAccruing,
-        accrualTotal: isAccruing ? (isUSD ? ((c.monthly_rate ?? 0) / 2) * usdRate : (c.monthly_rate ?? 0) / 2) : undefined,
+        accrualTotal: isAccruing && accrualTotalOriginalCurrency !== undefined
+          ? (isUSD ? accrualTotalOriginalCurrency * usdRate : accrualTotalOriginalCurrency)
+          : undefined,
       };
     });
 
@@ -1278,11 +1278,12 @@ export default function AdminPayrollPage() {
                   ))}
                 </select>
                 <button
-                  onClick={() => fetchWorkflow()}
-                  title="Refresh submission statuses"
-                  className="bg-white/10 border border-white/10 text-white/60 hover:text-white hover:bg-white/20 text-xs rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer"
+                  onClick={refreshPayrollPage}
+                  disabled={refreshing || loading || workflowLoading}
+                  title="Refresh payroll data and submission statuses"
+                  className="bg-white/10 border border-white/10 text-white/60 hover:text-white hover:bg-white/20 text-xs rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <i className="ri-refresh-line"></i>
+                  <i className={`${refreshing ? 'ri-loader-4-line animate-spin' : 'ri-refresh-line'}`}></i>
                 </button>
               </div>
 
@@ -1399,7 +1400,7 @@ export default function AdminPayrollPage() {
           <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2">
             <i className="ri-information-line text-white/30 text-sm flex-shrink-0"></i>
             <p className="text-white/30 text-[11px]">
-              Hours from Slack · 8h daily cap · Fixed-rate contractors paid <strong className="text-white/40 font-medium">monthly ÷ 2</strong> regardless of hours
+              Hours from Slack · 8h daily cap · Fixed-rate contractors earn <strong className="text-white/40 font-medium">day equivalents from capped hours</strong>
             </p>
           </div>
         </div>
@@ -1488,6 +1489,7 @@ export default function AdminPayrollPage() {
                   {/* Action row */}
                   <div className="flex items-center justify-between pt-3 border-t border-gray-50">
                     {(() => {
+                      if (isAutoPayrollContractor(c)) return <span className="text-xs text-emerald-600 font-medium">Auto Included</span>;
                       if (!p || p.status === 'pending') return <span className="text-xs text-gray-400">Pending</span>;
                       const cfg = {
                         submitted:   { label: 'Submitted',   cls: 'bg-amber-100 text-amber-700' },
@@ -1515,13 +1517,14 @@ export default function AdminPayrollPage() {
                         </>
                       ) : (
                         <>
-                          {p && p.status !== 'pending' && (
+                          {!isAutoPayrollContractor(c) && p && p.status !== 'pending' && (
                             <button onClick={() => setConfirmCancelId(c.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer">
                               <i className="ri-arrow-go-back-line text-sm"></i>
                             </button>
                           )}
                           {(() => {
                             const batchApproved = batch?.status === 'owner_approved';
+                            if (isAutoPayrollContractor(c)) return null;
                             if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                             if (batchApproved && p?.status === 'hr_approved') return (
                               <button onClick={() => markPaid(c.id)} disabled={workflowLoading || batch?.status === 'closed'} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
@@ -1542,7 +1545,7 @@ export default function AdminPayrollPage() {
               <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-700">Total</span>
                 <div className="flex items-center gap-3">
-                  {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
+                  {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !isAutoPayrollContractor(r.contractor) && (!p || p.status === 'pending' || p.status === 'submitted'); }) && (
                     <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
                       Approve All
                     </button>
@@ -1717,6 +1720,7 @@ export default function AdminPayrollPage() {
                             ) : (
                               <>
                                 {(() => {
+                                  if (isAutoPayrollContractor(c)) return <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">Auto Included</span>;
                                   if (!p || p.status === 'pending') return <span className="text-xs text-gray-400 font-medium">Pending</span>;
                                   const cfg = {
                                     submitted:   { label: 'Submitted',   cls: 'bg-amber-100 text-amber-700' },
@@ -1737,6 +1741,7 @@ export default function AdminPayrollPage() {
                                 })()}
                                 {(() => {
                                   const batchApproved = batch?.status === 'owner_approved';
+                                  if (isAutoPayrollContractor(c)) return null;
                                   if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                                   if (batchApproved && p?.status === 'hr_approved') {
                                     return (
@@ -1756,7 +1761,7 @@ export default function AdminPayrollPage() {
                                   }
                                   return null;
                                 })()}
-                                {p && p.status !== 'pending' && (
+                                {!isAutoPayrollContractor(c) && p && p.status !== 'pending' && (
                                   <button onClick={() => setConfirmCancelId(c.id)} title="Undo"
                                     className="text-gray-200 hover:text-rose-400 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">
                                     <i className="ri-arrow-go-back-line text-sm"></i>
@@ -1778,7 +1783,7 @@ export default function AdminPayrollPage() {
                       <td className="px-5 py-3.5"></td>
                       <td className="px-5 py-3.5 font-bold text-gray-900">{fmt(displayTotalPay, 'PHP')}</td>
                       <td className="px-5 py-3.5 text-right">
-                        {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
+                        {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !isAutoPayrollContractor(r.contractor) && (!p || p.status === 'pending' || p.status === 'submitted'); }) && (
                           <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
                             Approve All
                           </button>
@@ -1795,7 +1800,7 @@ export default function AdminPayrollPage() {
 
         {/* Fund Transfer Workflow */}
         {!loading && (() => {
-          const approvedCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'hr_approved').length;
+          const approvedCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'hr_approved' || isAutoPayrollContractor(r.contractor)).length;
           const paidCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'paid').length;
           const isClosed = batch?.status === 'closed';
 

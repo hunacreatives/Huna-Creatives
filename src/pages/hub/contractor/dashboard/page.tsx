@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
@@ -7,24 +7,9 @@ import { getPeriods } from '@/lib/formatUtils';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF } from '@/lib/demoData';
+import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 const REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
-const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined) {
-  if (!startDate || !endDate || endDate < startDate) return 0;
-  const scheduled = workDays && workDays.length > 0
-    ? new Set(workDays.map(d => DAY_MAP[d]))
-    : new Set([1, 2, 3, 4, 5]);
-  let count = 0;
-  const end = new Date(`${endDate}T00:00:00`);
-  const cur = new Date(`${startDate}T00:00:00`);
-  while (cur <= end) {
-    if (scheduled.has(cur.getDay())) count++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count * 8;
-}
 
 interface Reaction { emoji: string; user_id: string; }
 interface Comment { id: string; body: string; user_id: string; created_at: string; hub_users: { full_name: string; avatar_url: string | null } | null; }
@@ -389,7 +374,12 @@ export default function ContractorDashboard() {
         .maybeSingle(),
     ]);
 
-    const days = attResult.data ?? [];
+    const days = mergeLiveAttendanceIntoDailyHours(
+      ((attResult.data ?? []) as any[]).map((d: any) => ({ ...d, user_id: user.id })),
+      (slackResult.data as any)?.attendance || [],
+      [user.id],
+      today,
+    ).map(({ user_id: _userId, ...rest }) => rest);
     const totalHours = days.reduce((s: number, r: any) => s + (r.hours_capped || 0), 0);
     const totalOT    = days.reduce((s: number, r: any) => s + (r.overtime_hours || 0), 0);
     setHoursThisCutoff(parseFloat(totalHours.toFixed(2)));
@@ -409,29 +399,22 @@ export default function ContractorDashboard() {
       const newMonthly = changeInPeriod.monthly_rate || 0;
       const newHourly  = changeInPeriod.hourly_rate  || 0;
       if (isFixed) {
-        const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        const isCurrentPeriod = todayStr >= periodStartStr && todayStr <= periodEndStr;
-        const effectiveEnd = isCurrentPeriod ? (todayStr < periodEndStr ? todayStr : periodEndStr) : periodEndStr;
-        const oldSegmentEnd = changeInPeriod.effective_date > periodStartStr
-          ? new Date(new Date(`${changeInPeriod.effective_date}T00:00:00`).getTime() - 86400000).toISOString().slice(0, 10)
-          : '';
-        const expectedOldHours = oldSegmentEnd
-          ? countScheduledHours(periodStartStr, oldSegmentEnd, (user as any)?.work_days || [])
-          : 0;
-        const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
-          ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, (user as any)?.work_days || [])
-          : 0;
-        const totalExpectedHours = expectedOldHours + expectedNewHours;
-        let hrsAtOld = 0, hrsAtNew = 0;
+        let hrsAtOld = 0;
+        let hrsAtNew = 0;
         for (const d of days as any[]) {
           if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped || 0;
-          else if (d.date <= effectiveEnd) hrsAtNew += d.hours_capped || 0;
+          else hrsAtNew += d.hours_capped || 0;
         }
-        const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
-        const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
-        const base =
-          (expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0) +
-          (expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0);
+        const base = computeSplitFixedAccrual({
+          periodStart: periodStartStr,
+          periodEnd: periodEndStr,
+          changeDate: changeInPeriod.effective_date,
+          workDays: (user as any)?.work_days || [],
+          oldMonthlyRate: oldMonthly,
+          newMonthlyRate: newMonthly,
+          oldCappedHours: hrsAtOld,
+          newCappedHours: hrsAtNew,
+        }).accruedPay;
         const oldOT = oldHourly || oldMonthly / 176;
         const newOT = newHourly || newMonthly / 176;
         let otAtOld = 0, otAtNew = 0;
@@ -447,12 +430,13 @@ export default function ContractorDashboard() {
       const monthly = rateAtStart?.monthly_rate ?? currentMonthly;
       const hourly  = rateAtStart?.hourly_rate  ?? currentHourly;
       if (isFixed) {
-        const todayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        const isCurrentPeriod = todayStr >= periodStartStr && todayStr <= periodEndStr;
-        const effectiveEnd = isCurrentPeriod ? (todayStr < periodEndStr ? todayStr : periodEndStr) : periodEndStr;
-        const expectedHours = countScheduledHours(periodStartStr, effectiveEnd, (user as any)?.work_days || []);
-        const accrualRatio = expectedHours > 0 ? Math.min(totalHours / expectedHours, 1) : 0;
-        estimated = (monthly / 2) * accrualRatio + totalOT * (hourly || monthly / 176);
+        estimated = computeFixedAccrual({
+          periodStart: periodStartStr,
+          periodEnd: periodEndStr,
+          monthlyRate: monthly,
+          workDays: (user as any)?.work_days || [],
+          cappedHours: totalHours,
+        }).accruedPay + totalOT * (hourly || monthly / 176);
       } else {
         estimated = totalHours * hourly + totalOT * hourly;
       }

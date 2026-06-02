@@ -4,9 +4,10 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubUser, HubAttendance, HubTimeOff, HubRequest, HubClient, HubAsset } from '@/lib/types';
 import EditContractorModal from './EditContractorModal';
-import { getPeriods, fmtTime, fmtDate } from '@/lib/formatUtils';
+import { getPeriods, fmtTime, fmtDate, localToday } from '@/lib/formatUtils';
 import { logAudit } from '@/lib/audit';
 import { useAuth } from '@/contexts/AuthContext';
+import { computeFixedAccrual, computeSplitFixedAccrual, isAutoPayrollUser, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 interface DayRow {
   date: string;
@@ -243,7 +244,10 @@ export default function ContractorDetailPage() {
 
   const fetchPayslip = async () => {
     setPayslipLoading(true);
-    const [daysRes, payoutRes] = await Promise.all([
+    const today = localToday();
+    const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+    const [slackRes, daysRes, payoutRes] = await Promise.all([
+      isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
       supabase.from('hub_daily_hours')
         .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
         .eq('user_id', id!)
@@ -256,7 +260,13 @@ export default function ContractorDetailPage() {
         .eq('cutoff_start', selectedPeriod.start)
         .maybeSingle(),
     ]);
-    setPayslipDays((daysRes.data as DayRow[]) ?? []);
+    const mergedDays = mergeLiveAttendanceIntoDailyHours(
+      (((daysRes.data as DayRow[]) ?? []) as any[]).map((d: any) => ({ ...d, user_id: id! })),
+      (slackRes as any)?.data?.attendance || [],
+      [id!],
+      today,
+    ).map(({ user_id: _userId, ...rest }) => rest as DayRow);
+    setPayslipDays(mergedDays);
     setPayslipPayout(payoutRes.data ?? null);
     setPayslipLoading(false);
   };
@@ -746,14 +756,30 @@ export default function ContractorDetailPage() {
             const newHourly  = changeInPeriod.hourly_rate  || 0;
             displayMonthlyRate = newMonthly;
             displayHourlyRate  = newHourly;
-            const periodStart = new Date(selectedPeriod.start);
-            const periodEnd   = new Date(selectedPeriod.end);
-            const changeDate  = new Date(changeInPeriod.effective_date);
-            if (paymentType === 'fixed') {
-              const totalDays = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
-              const daysAtOld = Math.max(0, Math.round((changeDate.getTime() - periodStart.getTime()) / 86400000));
-              const daysAtNew = totalDays - daysAtOld;
-              basePay = (oldMonthly / 2 / totalDays * daysAtOld) + (newMonthly / 2 / totalDays * daysAtNew);
+            if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
+              const today = localToday();
+              const autoPayroll = isAutoPayrollUser(contractor as any);
+              const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+              let hrsAtOld = 0;
+              let hrsAtNew = 0;
+              for (const d of payslipDays) {
+                if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped;
+                else hrsAtNew += d.hours_capped;
+              }
+              const splitAccrual = computeSplitFixedAccrual({
+                periodStart: selectedPeriod.start,
+                periodEnd: selectedPeriod.end,
+                changeDate: changeInPeriod.effective_date,
+                workDays: (contractor as any)?.work_days || [],
+                oldMonthlyRate: oldMonthly,
+                newMonthlyRate: newMonthly,
+                oldCappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrsAtOld,
+                newCappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrsAtNew,
+              });
+              const isStillAccruing = !autoPayroll && isCurrentPeriod
+                && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) > 0
+                && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) < splitAccrual.totalScheduledDays;
+              basePay = splitAccrual.accruedPay;
               const oldOT = oldHourly || oldMonthly / 176;
               const newOT = newHourly || newMonthly / 176;
               let otAtOld = 0, otAtNew = 0;
@@ -763,7 +789,9 @@ export default function ContractorDetailPage() {
               }
               overtimePay = otAtOld * oldOT + otAtNew * newOT;
               otRate = newOT;
-              proratedLabel = `${daysAtOld}d @ ₱${oldMonthly.toLocaleString()}/mo · ${daysAtNew}d @ ₱${newMonthly.toLocaleString()}/mo`;
+              proratedLabel = autoPayroll
+                ? 'auto-included full cutoff'
+                : `${splitAccrual.oldEarnedDayUnits.toFixed(2)}/${splitAccrual.oldScheduledDays} earned days @ ₱${oldMonthly.toLocaleString()}/mo · ${splitAccrual.newEarnedDayUnits.toFixed(2)}/${splitAccrual.newScheduledDays} earned days @ ₱${newMonthly.toLocaleString()}/mo${isStillAccruing ? ' · accruing' : ''}`;
             } else {
               let hrsAtOld = 0, hrsAtNew = 0;
               for (const d of payslipDays) {
@@ -780,8 +808,25 @@ export default function ContractorDetailPage() {
             const hourly  = eff?.hourly_rate  ?? currentHourlyRate;
             displayMonthlyRate = monthly;
             displayHourlyRate  = hourly;
-            if (paymentType === 'fixed') {
-              basePay = monthly / 2;
+            if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
+              const today = localToday();
+              const autoPayroll = isAutoPayrollUser(contractor as any);
+              const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+              const fixedAccrual = computeFixedAccrual({
+                periodStart: selectedPeriod.start,
+                periodEnd: selectedPeriod.end,
+                monthlyRate: monthly,
+                workDays: (contractor as any)?.work_days || [],
+                cappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : totalHoursBillable,
+              });
+              const isStillAccruing = !autoPayroll && isCurrentPeriod
+                && fixedAccrual.earnedDayUnits > 0
+                && fixedAccrual.earnedDayUnits < fixedAccrual.totalScheduledDays;
+              basePay = fixedAccrual.accruedPay;
+              isProrated = true;
+              proratedLabel = autoPayroll
+                ? 'auto-included full cutoff'
+                : `${fixedAccrual.earnedDayUnits.toFixed(2)}/${fixedAccrual.totalScheduledDays} earned days${isStillAccruing ? ' · accruing' : ''}`;
               otRate = hourly || monthly / 176;
             } else {
               basePay = totalHoursBillable * hourly;
@@ -841,7 +886,7 @@ export default function ContractorDetailPage() {
                       <div>
                         <p className="text-xs text-gray-400 mb-0.5">Rate</p>
                         <p className="text-sm font-semibold text-gray-900">
-                          {isProrated ? 'Prorated' : paymentType === 'fixed' ? `₱${displayMonthlyRate.toLocaleString()}/mo` : `${isUSD ? '$' : '₱'}${displayHourlyRate}/hr`}
+                          {isProrated ? 'Prorated' : paymentType === 'fixed' || paymentType === 'fixed_flexible' ? `₱${displayMonthlyRate.toLocaleString()}/mo` : `${isUSD ? '$' : '₱'}${displayHourlyRate}/hr`}
                         </p>
                         <p className="text-xs text-gray-400">{isProrated ? proratedLabel : paymentType}</p>
                       </div>
@@ -898,8 +943,8 @@ export default function ContractorDetailPage() {
                           <span className="text-sm text-gray-500">
                             {isProrated
                               ? `Prorated base (${proratedLabel})`
-                              : paymentType === 'fixed'
-                                ? `Fixed rate (${fmt(displayMonthlyRate)}/mo ÷ 2)`
+                              : paymentType === 'fixed' || paymentType === 'fixed_flexible'
+                                ? `Fixed base (${fmt(displayMonthlyRate)}/mo, earned from capped hours)`
                                 : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${displayHourlyRate})`}
                           </span>
                           <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>

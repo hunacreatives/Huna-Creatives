@@ -111,6 +111,12 @@ async function getFolderForType(type: string, meta: Record<string, string>, acce
     return FOLDERS.contractors_agreements;
   }
 
+  if (type === 'careers_resume') {
+    // Sentro Root / Careers / {year}
+    const careersFolder = await createOrGetFolder('Careers', SENTRO_ROOT, accessToken);
+    return createOrGetFolder(year, careersFolder, accessToken);
+  }
+
   throw new Error(`Unknown upload type: ${type}`);
 }
 

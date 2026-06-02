@@ -9,6 +9,7 @@ import { DemoProvider } from "./contexts/DemoContext";
 
 // Pages that use a light/white background
 const LIGHT_BG_ROUTES = ['/about', '/hub'];
+const DARK_HUB_ROUTES = ['/hub/login'];
 // Routes where navigation should feel instant (no fade animation)
 const NO_TRANSITION_ROUTES = ['/hub'];
 
@@ -18,8 +19,9 @@ function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Sync html + body background with the page so overscroll never flickers
+    const isDarkHubRoute = DARK_HUB_ROUTES.some((r) => location.pathname.startsWith(r));
     const isLight = LIGHT_BG_ROUTES.some((r) => location.pathname.startsWith(r));
-    const bg = isLight ? '#ffffff' : '#0a0a0a';
+    const bg = isDarkHubRoute ? '#0a0608' : isLight ? '#ffffff' : '#0a0a0a';
     document.documentElement.style.background = bg;
     document.body.style.background = bg;
   }, [location.pathname]);

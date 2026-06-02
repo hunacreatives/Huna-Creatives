@@ -8,6 +8,7 @@ import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { getSetting } from '@/lib/settings';
 import { getPeriods } from '@/lib/formatUtils';
 import { DEMO_ATTENDANCE, DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_INVOICES, DEMO_DASHBOARD } from '@/lib/demoData';
+import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -45,33 +46,6 @@ interface BirthdayPerson {
   birthday: string;
   daysUntil: number;
   isToday: boolean;
-}
-
-const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-function countWorkingDays(startDate: string, endDate: string, workDays: string[]): number {
-  const scheduled = workDays.length > 0
-    ? new Set(workDays.map(d => DAY_MAP[d]))
-    : new Set([1, 2, 3, 4, 5]);
-  let count = 0;
-  const end = new Date(endDate + 'T00:00:00');
-  const cur = new Date(startDate + 'T00:00:00');
-  while (cur <= end) {
-    if (scheduled.has(cur.getDay())) count++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
-}
-
-function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined): number {
-  if (!startDate || !endDate || endDate < startDate) return 0;
-  return countWorkingDays(startDate, endDate, workDays || []) * 8;
-}
-
-function dateBefore(dateStr: string, days = 1) {
-  const d = new Date(`${dateStr}T00:00:00`);
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
 }
 
 function getBirthdayAlerts(contractors: { full_name: string; avatar_url?: string; birthday?: string }[]): BirthdayPerson[] {
@@ -241,24 +215,31 @@ export default function AdminDashboardPage() {
         setAttendance(slackResult.data.attendance);
       }
 
-      let hrs = 0;
-      for (const h of (hoursResult.data as any[]) || []) hrs += h.hours_capped;
-
       const eligibleContractors = ((contractorsResult.data as any[]) || []).filter((c: any) =>
         c.payment_type !== 'project_based' &&
         (!c.start_date || c.start_date <= cutoffEnd)
       );
+      const mergedHoursRows = mergeLiveAttendanceIntoDailyHours(
+        ((hoursResult.data as any[]) || []).map((h: any) => ({ ...h })),
+        (slackResult.data as any)?.attendance || [],
+        eligibleContractors.map((c: any) => c.id),
+        today,
+      );
+
+      let hrs = 0;
+      for (const h of mergedHoursRows) hrs += h.hours_capped || 0;
+
       const hoursMap: Record<string, { capped: number; raw: number; overtime: number; days: number }> = {};
       const hoursByDate: Record<string, Record<string, number>> = {};
       const overtimeByDate: Record<string, Record<string, number>> = {};
-      for (const h of (hoursResult.data as any[]) || []) {
+      for (const h of mergedHoursRows) {
         if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, raw: 0, overtime: 0, days: 0 };
-        hoursMap[h.user_id].capped += h.hours_capped;
-        hoursMap[h.user_id].raw += h.hours_raw;
+        hoursMap[h.user_id].capped += h.hours_capped || 0;
+        hoursMap[h.user_id].raw += h.hours_raw || 0;
         hoursMap[h.user_id].overtime += h.overtime_hours || 0;
         hoursMap[h.user_id].days += 1;
         if (!hoursByDate[h.user_id]) hoursByDate[h.user_id] = {};
-        hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + h.hours_capped;
+        hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + (h.hours_capped || 0);
         if (h.overtime_hours) {
           if (!overtimeByDate[h.user_id]) overtimeByDate[h.user_id] = {};
           overtimeByDate[h.user_id][h.date] = (overtimeByDate[h.user_id][h.date] || 0) + h.overtime_hours;
@@ -300,39 +281,24 @@ export default function AdminDashboardPage() {
           const oldHourly  = beforeChange ? (beforeChange.hourly_rate  || 0) : (c.hourly_rate  || 0);
           const newMonthly = changeInPeriod.monthly_rate || 0;
           const newHourly  = changeInPeriod.hourly_rate  || 0;
-          const pStart = new Date(cutoffStart + 'T00:00:00');
-          const pEnd   = new Date(cutoffEnd   + 'T00:00:00');
-          const chDate = new Date(changeInPeriod.effective_date + 'T00:00:00');
-          const totalD   = Math.round((pEnd.getTime() - pStart.getTime()) / 86400000) + 1;
-          const daysAtOld = Math.max(0, Math.round((chDate.getTime() - pStart.getTime()) / 86400000));
-          const daysAtNew = totalD - daysAtOld;
           if (payType === 'fixed' || payType === 'fixed_flexible') {
-            const currentDate = new Date().toISOString().slice(0, 10);
-            const isCurrentPeriod = currentDate >= cutoffStart && currentDate <= cutoffEnd;
-            const effectiveEnd = isCurrentPeriod
-              ? (currentDate < cutoffEnd ? currentDate : cutoffEnd)
-              : cutoffEnd;
-            const oldSegmentEnd = changeInPeriod.effective_date > cutoffStart
-              ? dateBefore(changeInPeriod.effective_date)
-              : '';
-            const expectedOldHours = oldSegmentEnd
-              ? countScheduledHours(cutoffStart, oldSegmentEnd, c.work_days)
-              : 0;
-            const expectedNewHours = changeInPeriod.effective_date <= effectiveEnd
-              ? countScheduledHours(changeInPeriod.effective_date, effectiveEnd, c.work_days)
-              : 0;
-            const totalExpectedHours = expectedOldHours + expectedNewHours;
-            const oldPortion = totalExpectedHours > 0 ? (oldMonthly / 2) * (expectedOldHours / totalExpectedHours) : 0;
-            const newPortion = totalExpectedHours > 0 ? (newMonthly / 2) * (expectedNewHours / totalExpectedHours) : 0;
             const datesMap = hoursByDate[c.id] || {};
-            let hrsAtOld = 0, hrsAtNew = 0;
+            let hrsAtOld = 0;
+            let hrsAtNew = 0;
             for (const [date, hv] of Object.entries(datesMap)) {
               if (date < changeInPeriod.effective_date) hrsAtOld += hv as number;
-              else if (date <= effectiveEnd) hrsAtNew += hv as number;
+              else hrsAtNew += hv as number;
             }
-            const basePay =
-              (expectedOldHours > 0 ? oldPortion * Math.min(hrsAtOld / expectedOldHours, 1) : 0) +
-              (expectedNewHours > 0 ? newPortion * Math.min(hrsAtNew / expectedNewHours, 1) : 0);
+            const basePay = computeSplitFixedAccrual({
+              periodStart: cutoffStart,
+              periodEnd: cutoffEnd,
+              changeDate: changeInPeriod.effective_date,
+              workDays: c.work_days,
+              oldMonthlyRate: oldMonthly,
+              newMonthlyRate: newMonthly,
+              oldCappedHours: hrsAtOld,
+              newCappedHours: hrsAtNew,
+            }).accruedPay;
             const oldOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
             const newOT = changeInPeriod.hourly_rate || newMonthly / 176;
             const otDates = overtimeByDate[c.id] || {};
@@ -361,12 +327,13 @@ export default function AdminDashboardPage() {
           if (payType === 'hourly') {
             pay = h.capped * derivedHourlyRate;
           } else {
-            const currentDate = new Date().toISOString().slice(0, 10);
-            const isCurrentPeriod = currentDate >= cutoffStart && currentDate <= cutoffEnd;
-            const effectiveEnd = isCurrentPeriod ? (currentDate < cutoffEnd ? currentDate : cutoffEnd) : cutoffEnd;
-            const expectedHours = countScheduledHours(cutoffStart, effectiveEnd, c.work_days);
-            const accrualRatio = expectedHours > 0 ? Math.min(h.capped / expectedHours, 1) : 0;
-            pay = (monthly / 2) * accrualRatio;
+            pay = computeFixedAccrual({
+              periodStart: cutoffStart,
+              periodEnd: cutoffEnd,
+              monthlyRate: monthly,
+              workDays: c.work_days,
+              cappedHours: h.capped,
+            }).accruedPay;
           }
         }
         const inPHP = c.currency === 'USD' ? pay * usdRate : pay;

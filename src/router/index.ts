@@ -39,6 +39,7 @@ export function AppRoutes() {
     import('../pages/hub/admin/sop/page');
     import('../pages/hub/admin/performance/page');
     import('../pages/hub/admin/invoice-log/page');
+    import('../pages/hub/admin/applications/page');
     import('../pages/hub/contractor/dashboard/page');
     import('../pages/hub/contractor/payouts/page');
     import('../pages/hub/contractor/attendance/page');
