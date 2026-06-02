@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
 import { supabase } from '@/lib/supabase';
+import { createHubNotifications } from '@/lib/hubNotifications';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
@@ -899,12 +900,12 @@ export default function AdminProjectsPage() {
       }).catch(() => {});
       const proj = projects.find(p => p.id === activeId);
       if (proj) {
-        supabase.from('hub_notifications').insert({
+        createHubNotifications([{
           user_id: contractorId, type: 'project_assigned',
           title: 'New project assigned',
           body: `You've been added to "${proj.project_name}"`,
           link: '/hub/contractor/projects', read: false,
-        }).catch(() => {});
+        }]).catch(() => {});
       }
     }
     fetchAll();

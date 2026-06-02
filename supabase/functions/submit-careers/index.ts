@@ -137,6 +137,24 @@ async function notifyAdmins(
       link: '/hub/admin/applications',
     })),
   );
+
+  await Promise.allSettled(
+    admins.map((admin: { id: string }) =>
+      fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: admin.id,
+          title: 'New job application',
+          body: `${applicantName} applied for ${role}.`,
+          url: 'https://www.hunacreatives.com/hub/admin/applications',
+        }),
+      })
+    )
+  );
 }
 
 Deno.serve(async (req) => {
