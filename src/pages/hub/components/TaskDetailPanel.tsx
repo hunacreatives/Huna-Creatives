@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
+import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeChecklistItems, normalizeTaskAssigneePayload, sameAssigneeIds } from '@/lib/taskAssignments';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,7 @@ export interface TaskDetailTask {
   priority: 'low' | 'medium' | 'high';
   assignee_id?: string | null;
   assigned_to?: string | null;
+  assignee_ids?: string[] | null;
   due_date: string | null;
   start_date: string | null;
   checklist?: ChecklistItem[] | null;
@@ -27,6 +29,7 @@ export interface ChecklistItem {
   text: string;
   done: boolean;
   detail?: string;
+  assignee_id?: string | null;
 }
 
 interface Comment {
@@ -211,7 +214,7 @@ export default function TaskDetailPanel({
   const [description, setDesc]      = useState('');
   const [status, setStatus]         = useState<TaskDetailTask['status']>('todo');
   const [priority, setPriority]     = useState<TaskDetailTask['priority']>('medium');
-  const [assigneeId, setAssigneeId] = useState<string>('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [dueDate, setDueDate]       = useState('');
   const [startDate, setStartDate]   = useState('');
   const [checklist, setChecklist]   = useState<ChecklistItem[]>([]);
@@ -255,13 +258,13 @@ export default function TaskDetailPanel({
     description: normalizeRichText(descRef.current?.innerHTML ?? description),
     status,
     priority,
-    assigned_to: assigneeId || null,
+    ...normalizeTaskAssigneePayload(assigneeIds),
     due_date: dueDate || null,
     start_date: startDate || null,
-    checklist,
+    checklist: normalizeChecklistItems(checklist),
     color: taskColor || null,
     meta: customFields.length ? { custom_fields: customFields } : null,
-  }), [title, description, status, priority, assigneeId, dueDate, startDate, checklist, taskColor, customFields]);
+  }), [title, description, status, priority, assigneeIds, dueDate, startDate, checklist, taskColor, customFields]);
 
   const initialDraft = task
     ? {
@@ -269,10 +272,10 @@ export default function TaskDetailPanel({
         description: normalizeRichText(task.description),
         status: task.status,
         priority: task.priority,
-        assigned_to: task.assigned_to ?? task.assignee_id ?? null,
+        ...normalizeTaskAssigneePayload(getTaskAssigneeIds(task)),
         due_date: task.due_date ?? null,
         start_date: task.start_date ?? null,
-        checklist: task.checklist ?? [],
+        checklist: normalizeChecklistItems(task.checklist),
         color: task.color ?? null,
         meta: (task as any).meta?.custom_fields?.length ? { custom_fields: (task as any).meta.custom_fields } : null,
       }
@@ -282,6 +285,7 @@ export default function TaskDetailPanel({
         status: 'todo' as TaskDetailTask['status'],
         priority: 'medium' as TaskDetailTask['priority'],
         assigned_to: null,
+        assignee_ids: null,
         due_date: null,
         start_date: null,
         checklist: [],
@@ -301,10 +305,10 @@ export default function TaskDetailPanel({
       setTimeout(() => { if (descRef.current) descRef.current.innerHTML = task.description ?? ''; }, 0);
       setStatus(task.status);
       setPriority(task.priority);
-      setAssigneeId(task.assigned_to ?? task.assignee_id ?? '');
+      setAssigneeIds(getTaskAssigneeIds(task));
       setDueDate(task.due_date ?? '');
       setStartDate(task.start_date ?? '');
-      setChecklist(task.checklist ?? []);
+      setChecklist(normalizeChecklistItems(task.checklist));
       setTaskColor(task.color ?? '');
       setCustomFields((task as any).meta?.custom_fields ?? []);
       setShowAddField(false);
@@ -316,7 +320,7 @@ export default function TaskDetailPanel({
       fetchTaskData(task.id);
     } else {
       setTitle(''); setDesc(''); setStatus('todo'); setPriority('medium');
-      setAssigneeId(''); setDueDate(''); setStartDate(''); setChecklist([]);
+      setAssigneeIds([]); setDueDate(''); setStartDate(''); setChecklist([]);
       setComments([]); setAttachments([]); setActivity([]); setWatchers([]);
       setPendingAttachment(null);
       setEditing(true);
@@ -357,7 +361,7 @@ export default function TaskDetailPanel({
   const fetchTaskData = useCallback(async (taskId: number) => {
     const [taskRes, commRes, attRes, actRes, watchRes] = await Promise.all([
       supabase.from('hub_project_tasks')
-        .select('title, description, status, priority, assigned_to, due_date, start_date, checklist, color, meta')
+        .select('title, description, status, priority, assigned_to, assignee_ids, due_date, start_date, checklist, color, meta')
         .eq('id', taskId)
         .single(),
       supabase.from('hub_project_task_comments')
@@ -377,10 +381,10 @@ export default function TaskDetailPanel({
       if (descRef.current) descRef.current.innerHTML = taskRes.data.description ?? '';
       setStatus(taskRes.data.status);
       setPriority(taskRes.data.priority);
-      setAssigneeId(taskRes.data.assigned_to ?? '');
+      setAssigneeIds(getTaskAssigneeIds(taskRes.data));
       setDueDate(taskRes.data.due_date ?? '');
       setStartDate(taskRes.data.start_date ?? '');
-      setChecklist(taskRes.data.checklist ?? []);
+      setChecklist(normalizeChecklistItems(taskRes.data.checklist));
       setTaskColor(taskRes.data.color ?? '');
       setCustomFields((taskRes.data as any).meta?.custom_fields ?? []);
     }
@@ -414,7 +418,8 @@ export default function TaskDetailPanel({
     try {
       const payload = taskDraft();
 
-      const assigneeMember = teamMembers.find(m => m.id === assigneeId) ?? null;
+      const nextAssigneeIds = getTaskAssigneeIds(payload);
+      const assigneeMember = teamMembers.find(m => m.id === (nextAssigneeIds[0] ?? '')) ?? null;
       const hub_users = assigneeMember
         ? { id: assigneeMember.id, full_name: assigneeMember.full_name, avatar_url: assigneeMember.avatar_url ?? null }
         : null;
@@ -440,6 +445,18 @@ export default function TaskDetailPanel({
         await logActivity(data.id, 'created', `created this task`);
         setPendingAttachment(null);
         onSaved({ ...data, hub_users } as TaskDetailTask);
+        if (nextAssigneeIds.length > 0) {
+          supabase.functions.invoke('notify-task-assigned', {
+            body: {
+              task_id: data.id,
+              task_title: title,
+              project_id: data.project_id,
+              project_name: projectName,
+              assigned_to_ids: nextAssigneeIds,
+              assigned_by_name: currentUserName,
+            },
+          }).catch(() => {});
+        }
         onClose();
       } else {
         const prev = task!;
@@ -454,23 +471,28 @@ export default function TaskDetailPanel({
         // Log meaningful changes
         if (prev.status !== status)
           await logActivity(prev.id, 'status_change', `changed status from ${prev.status.replace('_', ' ')} to ${status.replace('_', ' ')}`);
-        if ((prev.assigned_to ?? prev.assignee_id) !== (assigneeId || null) && assigneeId) {
-          const assignee = teamMembers.find(m => m.id === assigneeId);
-          await logActivity(prev.id, 'assigned', assignee ? `assigned to ${assignee.full_name}` : 'unassigned');
-          // Notify the newly assigned contractor
-          supabase.functions.invoke('notify-task-assigned', {
-            body: {
-              task_id: prev.id,
-              task_title: title,
-              project_id: prev.project_id,
-              project_name: '',
-              assigned_to_id: assigneeId,
-              assigned_by_name: 'Admin',
-            },
-          }).catch(() => {});
+        const previousAssigneeIds = getTaskAssigneeIds(prev);
+        if (!sameAssigneeIds(previousAssigneeIds, nextAssigneeIds)) {
+          const assigneeNames = nextAssigneeIds
+            .map(id => teamMembers.find(m => m.id === id)?.full_name)
+            .filter(Boolean);
+          await logActivity(prev.id, 'assigned', assigneeNames.length > 0 ? `assigned to ${assigneeNames.join(', ')}` : 'unassigned');
+          const addedAssigneeIds = nextAssigneeIds.filter(id => !previousAssigneeIds.includes(id));
+          if (addedAssigneeIds.length > 0) {
+            supabase.functions.invoke('notify-task-assigned', {
+              body: {
+                task_id: prev.id,
+                task_title: title,
+                project_id: prev.project_id,
+                project_name: projectName,
+                assigned_to_ids: addedAssigneeIds,
+                assigned_by_name: currentUserName,
+              },
+            }).catch(() => {});
+          }
         }
 
-        setChecklist(data.checklist ?? []);
+        setChecklist(normalizeChecklistItems(data.checklist));
         onSaved({ ...data, hub_users } as TaskDetailTask);
         if (closeAfterSave) onClose();
         else setEditing(false);
@@ -500,7 +522,7 @@ export default function TaskDetailPanel({
   const addCheckItem = async () => {
     if (!newCheckItem.trim()) return;
     const previous = checklist;
-    const updated = [...checklist, { id: nanoid(), text: newCheckItem.trim(), done: false }];
+    const updated = [...checklist, { id: nanoid(), text: newCheckItem.trim(), done: false, assignee_id: null }];
     setChecklist(updated);
     setNewCheckItem('');
     if (!task) return;
@@ -530,7 +552,7 @@ export default function TaskDetailPanel({
     if (!task) return;
     const { data, error } = await supabase
       .from('hub_project_tasks')
-      .update({ checklist: updated })
+      .update({ checklist: normalizeChecklistItems(updated) })
       .eq('id', task.id)
       .select('*')
       .single();
@@ -701,7 +723,9 @@ export default function TaskDetailPanel({
   const checkDone = checklist.filter(i => i.done).length;
   const checkPct  = checklist.length > 0 ? Math.round((checkDone / checklist.length) * 100) : 0;
 
-  const assignee = teamMembers.find(m => m.id === assigneeId);
+  const selectedAssignees = assigneeIds
+    .map((id) => teamMembers.find((member) => member.id === id))
+    .filter(Boolean) as TeamMember[];
   const sc = STATUS_CFG[status] ?? STATUS_CFG.todo;
   const pc = PRIORITY_CFG[priority] ?? PRIORITY_CFG.medium;
 
@@ -843,24 +867,44 @@ export default function TaskDetailPanel({
 
               {/* Assignee */}
               <div>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Assignee</p>
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Assignees</p>
                 {editing ? (
-                  <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white">
-                    <option value="">Unassigned</option>
-                    {teamMembers.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
-                  </select>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    {assignee ? (
-                      <>
-                        <Avatar name={assignee.full_name} url={assignee.avatar_url} size={6} />
-                        <span className="text-xs font-medium text-gray-700">{assignee.full_name.split(' ')[0]}</span>
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-400">Unassigned</span>
-                    )}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setAssigneeIds([])}
+                      className={`px-2.5 py-1 text-xs rounded-full border transition-all cursor-pointer ${assigneeIds.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-400'}`}
+                    >
+                      Unassigned
+                    </button>
+                    {teamMembers.map((member) => {
+                      const selected = assigneeIds.includes(member.id);
+                      return (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onClick={() => setAssigneeIds((prev) => selected ? prev.filter((id) => id !== member.id) : [...prev, member.id])}
+                          className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full border transition-all cursor-pointer ${selected ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}
+                        >
+                          <Avatar name={member.full_name} url={member.avatar_url} size={4} />
+                          <span className={`text-xs font-medium ${selected ? 'text-indigo-700' : 'text-gray-600'}`}>{member.full_name.split(' ')[0]}</span>
+                        </button>
+                      );
+                    })}
                   </div>
+                ) : (
+                  selectedAssignees.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {selectedAssignees.map((member) => (
+                        <div key={member.id} className="flex items-center gap-1.5 rounded-full bg-gray-50 px-2 py-1">
+                          <Avatar name={member.full_name} url={member.avatar_url} size={5} />
+                          <span className="text-xs font-medium text-gray-700">{member.full_name.split(' ')[0]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">Unassigned</span>
+                  )
                 )}
               </div>
 
@@ -1077,6 +1121,18 @@ export default function TaskDetailPanel({
                           <i className={`text-base ${item.done ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-gray-400'}`}></i>
                         </button>
                         <span className={`flex-1 text-sm ${item.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.text}</span>
+                        {item.assignee_id && (
+                          <div className="flex items-center gap-1 rounded-full bg-indigo-50 px-1.5 py-1">
+                            <Avatar
+                              name={teamMembers.find((member) => member.id === item.assignee_id)?.full_name ?? '?'}
+                              url={teamMembers.find((member) => member.id === item.assignee_id)?.avatar_url}
+                              size={4}
+                            />
+                            <span className="text-[10px] font-medium text-indigo-700">
+                              {(teamMembers.find((member) => member.id === item.assignee_id)?.full_name ?? '').split(' ')[0] || 'Assigned'}
+                            </span>
+                          </div>
+                        )}
                         {(editing || canEdit) && (
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                             <button onClick={() => setExpandedCheckItems(prev => { const n = new Set(prev); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n; })}
@@ -1092,6 +1148,24 @@ export default function TaskDetailPanel({
                       </div>
                       {expandedCheckItems.has(item.id) && (
                         <div className="ml-7 mt-1">
+                          <select
+                            value={item.assignee_id ?? ''}
+                            onChange={async (e) => {
+                              const updated = checklist.map((checkItem) => checkItem.id === item.id ? { ...checkItem, assignee_id: e.target.value || null } : checkItem);
+                              setChecklist(updated);
+                              try {
+                                await saveChecklist(updated);
+                              } catch {
+                                setChecklist(checklist);
+                              }
+                            }}
+                            className="mb-2 w-full text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30"
+                          >
+                            <option value="">No contractor assigned</option>
+                            {teamMembers.map((member) => (
+                              <option key={member.id} value={member.id}>{member.full_name}</option>
+                            ))}
+                          </select>
                           <textarea
                             value={item.detail ?? ''}
                             onChange={async e => {

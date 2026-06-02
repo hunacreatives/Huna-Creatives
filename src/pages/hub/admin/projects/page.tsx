@@ -14,6 +14,7 @@ import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/Tas
 import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
+import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeTaskAssigneePayload } from '@/lib/taskAssignments';
 
 // ── SVG progress ring ──────────────────────────────────────────────────────
 function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
@@ -117,6 +118,7 @@ interface ProjectTask {
   status: 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done';
   priority: 'low' | 'medium' | 'high';
   assigned_to: string | null;
+  assignee_ids?: string[] | null;
   due_date: string | null;
   start_date: string | null;
   created_at: string;
@@ -280,7 +282,7 @@ export default function AdminProjectsPage() {
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
   const [boardDragOver, setBoardDragOver] = useState<ProjectTask['status'] | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [newTaskAssigneeIds, setNewTaskAssigneeIds] = useState<string[]>([]);
   const [newTaskDue, setNewTaskDue] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [newTaskAttachment, setNewTaskAttachment] = useState<File | null>(null);
@@ -452,12 +454,13 @@ export default function AdminProjectsPage() {
   const createTask = async () => {
     if (!activeId || !newTaskTitle.trim()) return;
     setTaskSaving(true);
+    const taskAssigneePayload = normalizeTaskAssigneePayload(newTaskAssigneeIds);
     const { data, error } = await supabase.from('hub_project_tasks').insert({
       project_id: activeId,
       title: newTaskTitle.trim(),
       status: 'todo',
       priority: newTaskPriority,
-      assigned_to: newTaskAssignee || null,
+      ...taskAssigneePayload,
       due_date: newTaskDue || null,
     }).select('*').single();
     setTaskSaving(false);
@@ -471,27 +474,27 @@ export default function AdminProjectsPage() {
       });
     }
     // Enrich with hub_users from known contractors so assignee shows immediately
-    const assigneeUser = newTaskAssignee
-      ? activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === newTaskAssignee)?.hub_users ?? null
+    const assigneeUser = taskAssigneePayload.assigned_to
+      ? activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === taskAssigneePayload.assigned_to)?.hub_users ?? null
       : null;
     setTasks(prev => [...prev, { ...data, hub_users: assigneeUser } as ProjectTask]);
-    const assigneeName = newTaskAssignee
-      ? (activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === newTaskAssignee)?.hub_users?.full_name ?? '')
-      : '';
-    await logActivity(activeId, `${hubUser?.full_name ?? 'Admin'} created task "${newTaskTitle.trim()}"${assigneeName ? ` — assigned to ${assigneeName}` : ''}`);
-    if (newTaskAssignee && data) {
+    const assigneeNames = newTaskAssigneeIds
+      .map((assigneeId) => activeProject?.hub_project_contractors.find((pc) => pc.hub_users?.id === assigneeId)?.hub_users?.full_name ?? '')
+      .filter(Boolean);
+    await logActivity(activeId, `${hubUser?.full_name ?? 'Admin'} created task "${newTaskTitle.trim()}"${assigneeNames.length ? ` — assigned to ${assigneeNames.join(', ')}` : ''}`);
+    if (newTaskAssigneeIds.length > 0 && data) {
       supabase.functions.invoke('notify-task-assigned', {
         body: {
           task_id: data.id,
           task_title: newTaskTitle.trim(),
           project_id: activeId,
           project_name: activeProject?.project_name ?? '',
-          assigned_to_id: newTaskAssignee,
+          assigned_to_ids: newTaskAssigneeIds,
           assigned_by_name: hubUser?.full_name ?? 'Admin',
         },
       }).catch(() => {});
     }
-    setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue(''); setNewTaskPriority('medium'); setNewTaskAttachment(null); setShowTaskForm(false);
+    setNewTaskTitle(''); setNewTaskAssigneeIds([]); setNewTaskDue(''); setNewTaskPriority('medium'); setNewTaskAttachment(null); setShowTaskForm(false);
     if (newTaskAttachmentRef.current) newTaskAttachmentRef.current.value = '';
     fetchTasks(activeId);
   };
@@ -519,14 +522,19 @@ export default function AdminProjectsPage() {
   const fetchAllTasks = async () => {
     setAllTasksLoading(true);
     const [tasksRes, projectsRes] = await Promise.all([
-      supabase.from('hub_project_tasks').select('id, project_id, title, status, priority, assigned_to, due_date').order('due_date', { ascending: true, nullsFirst: false }),
+      supabase.from('hub_project_tasks').select('id, project_id, title, status, priority, assigned_to, assignee_ids, due_date').order('due_date', { ascending: true, nullsFirst: false }),
       supabase.from('hub_projects').select('id, project_name, client_name, project_type'),
     ]);
     const projectMap: Record<number, any> = Object.fromEntries((projectsRes.data ?? []).map((p: any) => [p.id, p]));
-    const userIds = [...new Set((tasksRes.data ?? []).map((t: any) => t.assigned_to).filter(Boolean))];
+    const userIds = [...new Set((tasksRes.data ?? []).flatMap((t: any) => getTaskAssigneeIds(t)).filter(Boolean))];
     const usersRes = userIds.length ? await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', userIds) : { data: [] };
     const userMap: Record<string, any> = Object.fromEntries((usersRes.data ?? []).map((u: any) => [u.id, u]));
-    setAllTasks((tasksRes.data ?? []).map((t: any) => ({ ...t, project: projectMap[t.project_id] ?? null, assignee: t.assigned_to ? userMap[t.assigned_to] ?? null : null })));
+    setAllTasks((tasksRes.data ?? []).map((t: any) => ({
+      ...t,
+      project: projectMap[t.project_id] ?? null,
+      assignee: getPrimaryTaskAssigneeId(t) ? userMap[getPrimaryTaskAssigneeId(t)!] ?? null : null,
+      assignees: getTaskAssigneeIds(t).map((id) => userMap[id]).filter(Boolean),
+    })));
     setAllTasksLoading(false);
   };
 
@@ -1445,6 +1453,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   const wsDoneCt = tasks.filter(t => t.status === 'done').length;
   const wsPct = tasks.length > 0 ? Math.round((wsDoneCt / tasks.length) * 100) : 0;
   const wsTaskTeam = activeProject ? activeProject.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean) : [];
+  const getWorkspaceTaskAssignees = (task: ProjectTask) =>
+    getTaskAssigneeIds(task)
+      .map((assigneeId) => wsTaskTeam.find((member) => member?.id === assigneeId))
+      .filter(Boolean);
   const wsStatusCycle: Record<string, { icon: string; cls: string }> = {
     todo:        { icon: 'ri-checkbox-blank-circle-line',  cls: 'text-gray-300 hover:text-gray-500' },
     in_progress: { icon: 'ri-loader-2-line',               cls: 'text-sky-400 hover:text-sky-600' },
@@ -1501,7 +1513,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
   const BoardCard = (task: ProjectTask) => {
     const overdue = !!wsIsOverdue(task);
-    const assignee = wsTaskTeam.find((member) => member?.id === task.assigned_to);
+    const assignees = getWorkspaceTaskAssignees(task);
     const commentCount = commentCounts[task.id] ?? 0;
     const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
     const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
@@ -1541,12 +1553,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <i className="ri-chat-3-fill text-[11px]"></i>{commentCount}
               </span>
             )}
-            {assignee && (
-              <div className="flex items-center gap-1">
-                {assignee.avatar_url
-                  ? <img src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
-                  : <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
-                }
+            {assignees.length > 0 && (
+              <div className="flex items-center -space-x-1">
+                {assignees.slice(0, 3).map((assignee: any) => (
+                  assignee.avatar_url
+                    ? <img key={assignee.id} src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full border border-white object-cover object-top" />
+                    : <div key={assignee.id} className="w-5 h-5 rounded-full border border-white bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                ))}
+                {assignees.length > 3 && <span className="ml-1 text-[10px] text-gray-400 font-medium">+{assignees.length - 3}</span>}
               </div>
             )}
           </div>
@@ -1581,7 +1595,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           priority: t.priority,
           due_date: t.due_date,
           start_date: t.start_date ?? null,
-          assigned_to: t.assigned_to,
+          assigned_to: getPrimaryTaskAssigneeId(t),
+          assignee_ids: getTaskAssigneeIds(t),
           color: (t as any).color ?? null,
         }));
 
@@ -1853,12 +1868,31 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           onChange={(e) => setNewTaskAttachment(e.target.files?.[0] ?? null)}
                         />
                       </div>
-                      <div className="flex gap-2">
-                        <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)}
-                          className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">
-                          <option value="">Unassigned</option>
-                          {wsTaskTeam.map(u => u && <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                        </select>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setNewTaskAssigneeIds([])}
+                            className={`px-2.5 py-1 text-xs rounded-full border transition-all cursor-pointer ${newTaskAssigneeIds.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-400'}`}
+                          >
+                            Unassigned
+                          </button>
+                          {wsTaskTeam.map((member) => member && (
+                            <button
+                              key={member.id}
+                              type="button"
+                              onClick={() => setNewTaskAssigneeIds((prev) => prev.includes(member.id) ? prev.filter((id) => id !== member.id) : [...prev, member.id])}
+                              className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full border transition-all cursor-pointer ${newTaskAssigneeIds.includes(member.id) ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}
+                            >
+                              {member.avatar_url
+                                ? <img src={member.avatar_url} alt={member.full_name} className="w-4 h-4 rounded-full object-cover object-top" />
+                                : <div className="w-4 h-4 rounded-full bg-indigo-100 flex items-center justify-center text-[8px] font-bold text-indigo-600">{member.full_name[0]}</div>
+                              }
+                              <span className={`text-xs font-medium ${newTaskAssigneeIds.includes(member.id) ? 'text-indigo-700' : 'text-gray-600'}`}>{member.full_name.split(' ')[0]}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
                         <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)}
                           className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
                         <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
@@ -1871,6 +1905,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           className="px-4 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 cursor-pointer disabled:opacity-40 whitespace-nowrap">
                           {taskSaving ? '...' : 'Add'}
                         </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1941,7 +1976,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         const overdue = wsIsOverdue(task);
                         const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
                         const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
-                        const assignee = wsTaskTeam.find(m => m?.id === task.assigned_to);
+                        const assignees = getWorkspaceTaskAssignees(task);
                         const commentCount = commentCounts[task.id] ?? 0;
                         const daysLeft = task.due_date
                           ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
@@ -1981,13 +2016,18 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     <i className="ri-chat-3-fill text-[11px]"></i>{commentCount}
                                   </span>
                                 )}
-                                {assignee && (
+                                {assignees.length > 0 && (
                                   <div className="flex items-center gap-1">
-                                    {assignee.avatar_url
-                                      ? <img src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
-                                      : <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
-                                    }
-                                    <span className="text-[10px] text-gray-500 font-medium">{assignee.full_name.split(' ')[0]}</span>
+                                    <div className="flex -space-x-1">
+                                      {assignees.slice(0, 3).map((assignee: any) => (
+                                        assignee.avatar_url
+                                          ? <img key={assignee.id} src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full border border-white object-cover object-top" />
+                                          : <div key={assignee.id} className="w-5 h-5 rounded-full border border-white bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                                      ))}
+                                    </div>
+                                    <span className="text-[10px] text-gray-500 font-medium">
+                                      {assignees.length === 1 ? assignees[0].full_name.split(' ')[0] : `${assignees.length} assignees`}
+                                    </span>
                                   </div>
                                 )}
                               </div>
@@ -2037,7 +2077,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     const overdue = wsIsOverdue(task);
                                     const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
                                     const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
-                                    const assignee = wsTaskTeam.find(m => m?.id === task.assigned_to);
+                                    const assignees = getWorkspaceTaskAssignees(task);
                                     const commentCount = commentCounts[task.id] ?? 0;
                                     const tDaysLeft = task.due_date
                                       ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
@@ -2077,13 +2117,18 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                                 <i className="ri-chat-3-fill text-[11px]"></i>{commentCount}
                                               </span>
                                             )}
-                                            {assignee && (
+                                            {assignees.length > 0 && (
                                               <div className="flex items-center gap-1">
-                                                {assignee.avatar_url
-                                                  ? <img src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
-                                                  : <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
-                                                }
-                                                <span className="text-[10px] text-gray-500 font-medium">{assignee.full_name.split(' ')[0]}</span>
+                                                <div className="flex -space-x-1">
+                                                  {assignees.slice(0, 3).map((assignee: any) => (
+                                                    assignee.avatar_url
+                                                      ? <img key={assignee.id} src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full border border-white object-cover object-top" />
+                                                      : <div key={assignee.id} className="w-5 h-5 rounded-full border border-white bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                                                  ))}
+                                                </div>
+                                                <span className="text-[10px] text-gray-500 font-medium">
+                                                  {assignees.length === 1 ? assignees[0].full_name.split(' ')[0] : `${assignees.length} assignees`}
+                                                </span>
                                               </div>
                                             )}
                                           </div>

@@ -10,6 +10,7 @@ import TaskDetailPanel from '@/pages/hub/components/TaskDetailPanel';
 import { localToday } from '@/lib/formatUtils';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
+import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeTaskAssigneePayload } from '@/lib/taskAssignments';
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -73,7 +74,8 @@ interface ProjectTask {
   due_date: string | null;
   start_date: string | null;
   assigned_to: string | null;
-  checklist?: { id: string; text: string; done: boolean }[] | null;
+  assignee_ids?: string[] | null;
+  checklist?: { id: string; text: string; done: boolean; detail?: string; assignee_id?: string | null }[] | null;
 }
 
 const emptyTaskForm = () => ({
@@ -322,16 +324,18 @@ function TaskRow({ task, projectName, team }: { task: ProjectTask; projectName?:
     task.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' :
     task.status === 'in_progress' ? 'ri-loader-2-line text-blue-400' :
     'ri-checkbox-blank-circle-line text-gray-300';
-  const assignee = team?.find(m => m.id === task.assigned_to);
+  const assignees = getTaskAssigneeIds(task)
+    .map((assigneeId) => team?.find((member) => member.id === assigneeId))
+    .filter(Boolean);
 
   return (
     <div className="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-white/60 transition-colors">
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${priorityCls}`}></span>
       <div className="flex-1 min-w-0">
         <p className={`text-sm font-medium truncate ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
-        {(projectName || assignee) && (
+        {(projectName || assignees.length > 0) && (
           <p className="text-[11px] text-gray-400 truncate">
-            {projectName}{assignee ? (projectName ? ` · ${assignee.full_name}` : assignee.full_name) : ''}
+            {projectName}{assignees.length > 0 ? (projectName ? ` · ${assignees.map((assignee: any) => assignee.full_name).join(', ')}` : assignees.map((assignee: any) => assignee.full_name).join(', ')) : ''}
           </p>
         )}
       </div>
@@ -814,6 +818,7 @@ export default function ContractorProjectsPage() {
     if (!taskForm.title.trim() || !workspaceRow?.hub_projects?.id) return;
     setTaskSaving(true);
     const existingColor = editingTask ? (tasks.find(t => t.id === editingTask.id) as any)?.color ?? null : null;
+    const taskAssigneePayload = normalizeTaskAssigneePayload(taskForm.assigned_to ? [taskForm.assigned_to] : []);
     const payload = {
       title: taskForm.title.trim(),
       description: taskForm.description.trim() || null,
@@ -821,7 +826,7 @@ export default function ContractorProjectsPage() {
       priority: taskForm.priority,
       start_date: taskForm.start_date || null,
       due_date: taskForm.due_date || null,
-      assigned_to: taskForm.assigned_to || null,
+      ...taskAssigneePayload,
       ...(existingColor ? { color: existingColor } : {}),
     };
     if (editingTask) {
@@ -1163,7 +1168,7 @@ export default function ContractorProjectsPage() {
 
         // 3. tasks + team
         const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
-          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, color, meta').in('project_id', projectIds),
+          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta').in('project_id', projectIds),
           supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', projectIds),
         ]);
         setTasks((taskData as ProjectTask[]) ?? []);
@@ -1248,7 +1253,7 @@ export default function ContractorProjectsPage() {
   const today = localToday();
   const firstName = hubUser?.full_name?.split(' ')[0] ?? '';
 
-  const myTasks = tasks.filter(t => t.assigned_to === hubUser?.id);
+  const myTasks = tasks.filter(t => getTaskAssigneeIds(t).includes(hubUser?.id ?? ''));
   const doneTasks = myTasks.filter(t => t.status === 'done');
   const inProgressTasks = myTasks.filter(t => t.status === 'in_progress');
   const todoTasks = myTasks.filter(t => t.status === 'todo');
@@ -1337,15 +1342,19 @@ export default function ContractorProjectsPage() {
       });
   }, [wsProject?.id]);
   const wsTeam = wsTeamDirect.length > 0 ? wsTeamDirect : (wsRow ? (teamMap[wsProject?.id ?? 0] ?? []) : []);
+  const getWorkspaceTaskAssignees = (task: ProjectTask) =>
+    getTaskAssigneeIds(task)
+      .map((assigneeId) => wsTeam.find((member) => member.id === assigneeId))
+      .filter(Boolean);
   const wsFiltered = wsTasks.filter(t => {
     if (taskFilter !== 'all' && taskFilter !== 'overdue' && t.status !== taskFilter) return false;
     if (taskFilter === 'overdue' && !wsIsOverdue(t)) return false;
     if (taskSearch) {
       const q = taskSearch.toLowerCase();
-      const assignee = wsTeam.find(m => m.id === t.assigned_to);
+      const assigneeNames = getWorkspaceTaskAssignees(t).map((member: any) => member.full_name).join(' ');
       return t.title.toLowerCase().includes(q)
         || (t.description ?? '').toLowerCase().includes(q)
-        || (assignee?.full_name ?? '').toLowerCase().includes(q);
+        || assigneeNames.toLowerCase().includes(q);
     }
     return true;
   });
@@ -1555,7 +1564,7 @@ export default function ContractorProjectsPage() {
     const overdue = !!wsIsOverdue(task);
     const si = wsStatusIcon[task.status];
     const color = taskColorMap[task.id] ?? TASK_PALETTE[0];
-    const assignee = wsTeam.find(m => m.id === task.assigned_to);
+    const assignees = getWorkspaceTaskAssignees(task);
     const commentCount = taskCommentCounts[task.id] ?? 0;
     const daysLeft = task.due_date
       ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
@@ -1598,13 +1607,16 @@ export default function ContractorProjectsPage() {
                 <i className="ri-chat-3-fill text-[11px]"></i>{commentCount}
               </span>
             )}
-            {assignee && (
+            {assignees.length > 0 && (
               <div className="flex items-center gap-1">
-                {assignee.avatar_url
-                  ? <img src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
-                  : <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
-                }
-                <span className="text-[10px] text-gray-500 font-medium">{assignee.full_name.split(' ')[0]}</span>
+                <div className="flex -space-x-1">
+                  {assignees.slice(0, 3).map((assignee: any) => (
+                    assignee.avatar_url
+                      ? <img key={assignee.id} src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full border border-white object-cover object-top" />
+                      : <div key={assignee.id} className="w-5 h-5 rounded-full border border-white bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                  ))}
+                </div>
+                <span className="text-[10px] text-gray-500 font-medium">{assignees.length === 1 ? assignees[0].full_name.split(' ')[0] : `${assignees.length} assignees`}</span>
               </div>
             )}
 
@@ -1622,16 +1634,16 @@ export default function ContractorProjectsPage() {
   const boardTasks = wsTasks.filter((task) => {
     if (!taskSearch) return true;
     const q = taskSearch.toLowerCase();
-    const assignee = wsTeam.find((member) => member.id === task.assigned_to);
+    const assigneeNames = getWorkspaceTaskAssignees(task).map((member: any) => member.full_name).join(' ');
     return task.title.toLowerCase().includes(q)
       || (task.description ?? '').toLowerCase().includes(q)
-      || (assignee?.full_name ?? '').toLowerCase().includes(q);
+      || assigneeNames.toLowerCase().includes(q);
   });
 
   const BoardCard = (task: ProjectTask) => {
     const overdue = !!wsIsOverdue(task);
     const color = taskColorMap[task.id] ?? TASK_PALETTE[0];
-    const assignee = wsTeam.find((member) => member.id === task.assigned_to);
+    const assignees = getWorkspaceTaskAssignees(task);
     const commentCount = taskCommentCounts[task.id] ?? 0;
     const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
     return (
@@ -1670,12 +1682,14 @@ export default function ContractorProjectsPage() {
                 <i className="ri-chat-3-fill text-[11px]"></i>{commentCount}
               </span>
             )}
-            {assignee && (
-              <div className="flex items-center gap-1">
-                {assignee.avatar_url
-                  ? <img src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
-                  : <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
-                }
+            {assignees.length > 0 && (
+              <div className="flex items-center -space-x-1">
+                {assignees.slice(0, 3).map((assignee: any) => (
+                  assignee.avatar_url
+                    ? <img key={assignee.id} src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full border border-white object-cover object-top" />
+                    : <div key={assignee.id} className="w-5 h-5 rounded-full border border-white bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                ))}
+                {assignees.length > 3 && <span className="ml-1 text-[10px] text-gray-400 font-medium">+{assignees.length - 3}</span>}
               </div>
             )}
           </div>
@@ -3017,20 +3031,28 @@ export default function ContractorProjectsPage() {
           description: editingTask.description,
           status: editingTask.status,
           priority: editingTask.priority,
-          assignee_id: editingTask.assigned_to,
+          assignee_id: getPrimaryTaskAssigneeId(editingTask),
+          assignee_ids: getTaskAssigneeIds(editingTask),
           due_date: editingTask.due_date,
           start_date: editingTask.start_date,
           checklist: editingTask.checklist,
           color: (editingTask as any).color ?? null,
           meta: (editingTask as any).meta ?? null,
-          hub_users: wsTeam.find(m => m.id === editingTask.assigned_to)
-            ? { id: wsTeam.find(m => m.id === editingTask.assigned_to)!.id, full_name: wsTeam.find(m => m.id === editingTask.assigned_to)!.full_name, avatar_url: wsTeam.find(m => m.id === editingTask.assigned_to)!.avatar_url ?? null }
+          hub_users: wsTeam.find(m => m.id === getPrimaryTaskAssigneeId(editingTask))
+            ? { id: wsTeam.find(m => m.id === getPrimaryTaskAssigneeId(editingTask))!.id, full_name: wsTeam.find(m => m.id === getPrimaryTaskAssigneeId(editingTask))!.full_name, avatar_url: wsTeam.find(m => m.id === getPrimaryTaskAssigneeId(editingTask))!.avatar_url ?? null }
             : null,
         } : null}
         open={detailPanelOpen}
         onClose={() => { setDetailPanelOpen(false); setEditingTask(null); }}
         onSaved={(saved) => {
-          const mapped: ProjectTask = { ...saved, assigned_to: saved.assigned_to ?? saved.assignee_id, start_date: saved.start_date ?? null, checklist: saved.checklist, ...(saved.color !== undefined ? { color: saved.color } as any : {}) };
+          const mapped: ProjectTask = {
+            ...saved,
+            assigned_to: getPrimaryTaskAssigneeId(saved),
+            assignee_ids: getTaskAssigneeIds(saved),
+            start_date: saved.start_date ?? null,
+            checklist: saved.checklist,
+            ...(saved.color !== undefined ? { color: saved.color } as any : {}),
+          };
           setTasks(prev => prev.some(t => t.id === saved.id)
             ? prev.map(t => t.id === saved.id ? mapped : t)
             : [...prev, mapped]);
