@@ -24,6 +24,28 @@ type DailyHoursRow = {
   user_id?: string | null;
 };
 
+type LiveAttendanceRow = {
+  hub_user_id: string | null;
+  hours_today?: number | null;
+  overtime_today?: number | null;
+  shift_date?: string | null;
+  last_punch?: string | null;
+  punches?: Array<{ status?: string | null; time?: string | null }> | null;
+};
+
+function toAsiaManilaDate(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+}
+
+function inferAttendanceDate(item: LiveAttendanceRow, targetDate: string) {
+  if (item.shift_date) return item.shift_date;
+  const firstOn = item.punches?.find((p) => p.status === 'on' && p.time)?.time;
+  return toAsiaManilaDate(firstOn) || toAsiaManilaDate(item.last_punch) || targetDate;
+}
+
 export function consolidateDailyHoursByUserDate<T extends DailyHoursRow>(rows: T[]) {
   const merged = new Map<string, T>();
 
@@ -57,7 +79,7 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
   user_id?: string;
 }>(
   rows: T[],
-  attendance: Array<{ hub_user_id: string | null; hours_today?: number | null; overtime_today?: number | null; shift_date?: string | null }> | null | undefined,
+  attendance: LiveAttendanceRow[] | null | undefined,
   userIds?: string[],
   targetDate = localToday(),
 ) {
@@ -77,7 +99,7 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
     const liveOt = Number(item.overtime_today || 0);
     if (liveHours <= 0 && liveOt <= 0) continue;
 
-    const attendanceDate = item.shift_date || targetDate;
+    const attendanceDate = inferAttendanceDate(item, targetDate);
     const key = `${userId}::${attendanceDate}`;
     const existing = merged.get(key);
     merged.set(key, {
