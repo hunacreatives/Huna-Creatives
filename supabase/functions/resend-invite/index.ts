@@ -4,6 +4,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'onboarding@hunacreatives.com';
+const HUB_SIGNUP_URL = 'https://www.hunacreatives.com/hub/signup?invite=1';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
     ({ data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: 'invite',
       email: email.toLowerCase(),
-      options: { redirectTo: 'https://www.hunacreatives.com/hub/signup' },
+      options: { redirectTo: HUB_SIGNUP_URL },
     }));
 
     // If user already exists in auth, fall back to a recovery (password reset) link

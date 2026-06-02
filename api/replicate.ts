@@ -9,16 +9,29 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+function applyCors(res: VercelResponse) {
+  Object.entries(CORS).forEach(([key, value]) => {
+    res.setHeader(key, value);
+  });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Preflight
   if (req.method === 'OPTIONS') {
-    return res.status(200).set(CORS).end();
+    applyCors(res);
+    return res.status(200).end();
   }
 
-  if (!API_KEY) return res.status(500).set(CORS).json({ error: 'REPLICATE_API_KEY not set in Vercel environment variables' });
+  if (!API_KEY) {
+    applyCors(res);
+    return res.status(500).json({ error: 'REPLICATE_API_KEY not set in Vercel environment variables' });
+  }
 
   const { path } = req.query;
-  if (!path) return res.status(400).set(CORS).json({ error: 'Missing path' });
+  if (!path) {
+    applyCors(res);
+    return res.status(400).json({ error: 'Missing path' });
+  }
 
   const upstreamPath = Array.isArray(path) ? path.join('/') : path;
   const url = `${REPLICATE_API}/${upstreamPath}`;
@@ -34,8 +47,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const data = await upstream.json();
-    return res.status(upstream.status).set(CORS).json(data);
+    applyCors(res);
+    return res.status(upstream.status).json(data);
   } catch (err) {
-    return res.status(500).set(CORS).json({ error: String(err) });
+    applyCors(res);
+    return res.status(500).json({ error: String(err) });
   }
 }

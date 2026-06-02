@@ -50,7 +50,7 @@ function App() {
         <DemoProvider>
           <AuthProvider>
             <PageTransitionWrapper>
-              <Suspense fallback={null}>
+              <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0a0a0a' }} />}>
                 <AppRoutes />
               </Suspense>
             </PageTransitionWrapper>

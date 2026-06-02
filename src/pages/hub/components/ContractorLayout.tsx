@@ -8,6 +8,7 @@ import ContractorSidebar from './ContractorSidebar';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import PushNotificationPrompt from './PushNotificationPrompt';
 
 const QUICK_ACTIONS = [
   { label: 'Submit Payslip', icon: 'ri-send-plane-line', path: '/hub/contractor/payouts', iconCls: 'bg-orange-50 text-[#FF6B35]' },
@@ -41,7 +42,7 @@ export default function ContractorLayout({ children, title, titleContent, action
   const { hubUser } = useHubAuth();
   const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
   const navigate = useNavigate();
-  usePushNotifications();
+  const pushNotifications = usePushNotifications();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('contractor_sidebar_collapsed') === 'true');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
@@ -359,6 +360,15 @@ export default function ContractorLayout({ children, title, titleContent, action
               </button>
             </div>
           </header>
+
+          <PushNotificationPrompt
+            supported={pushNotifications.supported}
+            canPrompt={pushNotifications.canPrompt}
+            needsSettings={pushNotifications.needsSettings}
+            subscribing={pushNotifications.subscribing}
+            error={pushNotifications.error}
+            onEnable={pushNotifications.enableNotifications}
+          />
 
           {/* Page content */}
           <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-transparent" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px) + 5rem)' }}>

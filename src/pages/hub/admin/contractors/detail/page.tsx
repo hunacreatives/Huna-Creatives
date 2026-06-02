@@ -29,6 +29,7 @@ export default function ContractorDetailPage() {
   const [clients, setClients] = useState<HubClient[]>([]);
   const [assets, setAssets] = useState<HubAsset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showEdit, setShowEdit] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'requests' | 'assets' | 'payslip' | 'contracts'>('overview');
   const [contracts, setContracts] = useState<any[]>([]);
@@ -84,38 +85,66 @@ export default function ContractorDetailPage() {
     if (!id) return;
     const { data } = await supabase
       .from('hub_rate_history')
-      .select('id, effective_date, payment_type, hourly_rate, monthly_rate, note, created_at')
+      .select('id, effective_date, payment_type, hourly_rate, monthly_rate, currency, note, created_at')
       .eq('contractor_id', id)
       .order('effective_date', { ascending: false });
     setRateHistory(data || []);
   };
 
   const fetch = async () => {
-    if (!id) return;
-    const [u, att, to, req, cl, ast] = await Promise.all([
-      supabase.from('hub_users').select('*').eq('id', id).maybeSingle(),
-      supabase.from('hub_attendance').select('*').eq('contractor_id', id).order('date', { ascending: false }).limit(10),
-      supabase.from('hub_time_off').select('*').eq('contractor_id', id).order('created_at', { ascending: false }),
-      supabase.from('hub_requests').select('*').eq('contractor_id', id).order('created_at', { ascending: false }),
-      supabase.from('hub_clients').select('*').eq('contractor_id', id),
-      supabase.from('hub_assets').select('*').eq('contractor_id', id),
-    ]);
-    const user = u.data as HubUser ?? null;
-    setContractor(user);
-    if (user) {
-      setScheduleForm({
-        shift_start: user.shift_start || '',
-        shift_end: user.shift_end || '',
-        work_days: user.work_days || [],
-      });
+    if (!id) {
+      setLoading(false);
+      setLoadError('Missing contractor ID.');
+      return;
     }
-    setAttendance((att.data as HubAttendance[]) ?? []);
+    setLoadError('');
+    setLoading(true);
+    try {
+      const [u, att, to, req, assignmentsRes, ast] = await Promise.all([
+        supabase.from('hub_users').select('*').eq('id', id).maybeSingle(),
+        supabase.from('hub_attendance').select('*').eq('contractor_id', id).order('date', { ascending: false }).limit(10),
+        supabase.from('hub_time_off').select('*').eq('contractor_id', id).order('created_at', { ascending: false }),
+        supabase.from('hub_requests').select('*').eq('contractor_id', id).order('created_at', { ascending: false }),
+        supabase.from('hub_client_assignments')
+          .select('role, hub_clients(*)')
+          .eq('contractor_id', id),
+        supabase.from('hub_assets').select('*').eq('contractor_id', id),
+      ]);
 
-    setTimeOff((to.data as HubTimeOff[]) ?? []);
-    setRequests((req.data as HubRequest[]) ?? []);
-    setClients((cl.data as HubClient[]) ?? []);
-    setAssets((ast.data as HubAsset[]) ?? []);
-    setLoading(false);
+      const user = (u.data as HubUser) ?? null;
+      setContractor(user);
+      if (user) {
+        setScheduleForm({
+          shift_start: user.shift_start || '',
+          shift_end: user.shift_end || '',
+          work_days: user.work_days || [],
+        });
+      }
+
+      const assignmentRows = ((assignmentsRes.data ?? []) as any[]);
+      const mappedClients = assignmentRows
+        .map((row) => {
+          const client = Array.isArray(row.hub_clients) ? row.hub_clients[0] : row.hub_clients;
+          return client ? { ...client, role: row.role ?? client.role ?? null } : null;
+        })
+        .filter(Boolean) as HubClient[];
+
+      setAttendance((att.data as HubAttendance[]) ?? []);
+      setTimeOff((to.data as HubTimeOff[]) ?? []);
+      setRequests((req.data as HubRequest[]) ?? []);
+      setClients(mappedClients);
+      setAssets((ast.data as HubAsset[]) ?? []);
+
+      const firstError = u.error || att.error || to.error || req.error || assignmentsRes.error || ast.error;
+      if (firstError) {
+        setLoadError(firstError.message);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load contractor details.';
+      setLoadError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const saveSchedule = async () => {
@@ -300,7 +329,7 @@ export default function ContractorDetailPage() {
   if (!contractor) {
     return (
       <AdminLayout title="Not Found">
-        <p className="text-gray-500">Contractor not found.</p>
+        <p className="text-gray-500">{loadError || 'Contractor not found.'}</p>
       </AdminLayout>
     );
   }
@@ -328,6 +357,11 @@ export default function ContractorDetailPage() {
       }
     >
       <div className="space-y-5">
+        {loadError && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {loadError}
+          </div>
+        )}
         {/* Profile header */}
         <div className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col sm:flex-row gap-5 items-start">
           <div className="relative flex-shrink-0">

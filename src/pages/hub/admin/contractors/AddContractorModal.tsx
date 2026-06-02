@@ -32,6 +32,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
   const [done, setDone] = useState(false);
 
   const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
+  const currencySymbol = form.currency === 'USD' ? '$' : '₱';
 
   const toggleDay = (d: string) =>
     set('work_days', form.work_days.includes(d) ? form.work_days.filter(x => x !== d) : [...form.work_days, d]);
@@ -197,19 +198,28 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1 col-span-2 sm:col-span-1">
+                    <label className="text-xs font-medium text-gray-700">Currency</label>
+                    <select value={form.currency} onChange={e => set('currency', e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]">
+                      {['PHP', 'USD', 'EUR', 'GBP', 'AUD', 'CAD'].map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
                   {(form.payment_type === 'fixed' || form.payment_type === 'fixed_flexible') && (
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-700">Monthly Rate (PHP) *</label>
+                      <label className="text-xs font-medium text-gray-700">Monthly Rate ({form.currency}) *</label>
                       <input type="number" value={form.monthly_rate} onChange={e => set('monthly_rate', e.target.value)}
-                        placeholder="0.00"
+                        placeholder={`${currencySymbol}0.00`}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                     </div>
                   )}
                   {(form.payment_type === 'hourly' || form.payment_type === 'fixed_flexible') && (
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-gray-700">Hourly Rate (PHP) *</label>
+                      <label className="text-xs font-medium text-gray-700">Hourly Rate ({form.currency}) *</label>
                       <input type="number" value={form.hourly_rate} onChange={e => set('hourly_rate', e.target.value)}
-                        placeholder="0.00"
+                        placeholder={`${currencySymbol}0.00`}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                     </div>
                   )}

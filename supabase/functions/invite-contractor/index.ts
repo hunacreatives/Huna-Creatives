@@ -6,6 +6,7 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const ADMIN_SLACK_IDS = ['U091BL9PQ77', 'U0838LWSY4E'];
 const FROM_EMAIL = 'onboarding@hunacreatives.com';
+const HUB_SIGNUP_URL = 'https://www.hunacreatives.com/hub/signup?invite=1';
 
 async function slackDm(userId: string, text: string) {
   if (!SLACK_BOT_TOKEN) return;
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
     const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
       type: 'invite',
       email: email.toLowerCase(),
-      options: { redirectTo: 'https://www.hunacreatives.com/hub/signup' },
+      options: { redirectTo: HUB_SIGNUP_URL },
     });
 
     if (linkErr || !linkData?.user) {

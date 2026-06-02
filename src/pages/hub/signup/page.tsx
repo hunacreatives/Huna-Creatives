@@ -1,10 +1,11 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { getHubHomePath } from '@/lib/hubAuth';
 
 export default function HubSignupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -13,35 +14,60 @@ export default function HubSignupPage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Only allow this page when arriving from a Supabase invite email.
-    // The invite link contains #type=invite in the hash — read it before Supabase clears it.
-    const hash = window.location.hash;
-    const isInvite = hash.includes('type=invite') || hash.includes('type=recovery');
+    let cancelled = false;
 
-    if (!isInvite) {
-      // Not from an invite link — redirect based on session state
-      supabase.auth.getSession().then(async ({ data }) => {
-        if (data.session) {
-          const { data: hubUser } = await supabase.from('hub_users').select('role').eq('id', data.session.user.id).maybeSingle();
-          navigate(getHubHomePath(hubUser?.role), { replace: true });
-        } else {
-          navigate('/hub/login', { replace: true });
+    const bootstrapInvite = async () => {
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const type = searchParams.get('type') ?? hash.get('type');
+      const tokenHash = searchParams.get('token_hash') ?? hash.get('token_hash');
+      const code = searchParams.get('code');
+      const explicitInvite = searchParams.get('invite') === '1';
+      const isInviteFlow = explicitInvite || type === 'invite' || type === 'recovery' || Boolean(tokenHash) || Boolean(code);
+
+      try {
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else if (tokenHash && type) {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as 'invite' | 'recovery' | 'email' });
+          if (error) throw error;
         }
-      });
-      return;
-    }
 
-    // Wait for Supabase to exchange the token from the hash
-    const timer = setTimeout(async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        navigate('/hub/login', { replace: true });
-      } else {
-        setReady(true);
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (data.session) {
+          setReady(true);
+          return;
+        }
+
+        if (!isInviteFlow) {
+          navigate('/hub/login', { replace: true });
+          return;
+        }
+
+        const retryTimer = window.setTimeout(async () => {
+          const { data: retryData } = await supabase.auth.getSession();
+          if (cancelled) return;
+          if (retryData.session) setReady(true);
+          else navigate('/hub/login', { replace: true });
+        }, 1000);
+
+        return () => window.clearTimeout(retryTimer);
+      } catch {
+        if (!cancelled) navigate('/hub/login', { replace: true });
       }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [navigate]);
+    };
+
+    const cleanupPromise = bootstrapInvite();
+
+    return () => {
+      cancelled = true;
+      Promise.resolve(cleanupPromise).then((cleanup) => {
+        if (typeof cleanup === 'function') cleanup();
+      });
+    };
+  }, [navigate, searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

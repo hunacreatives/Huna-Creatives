@@ -182,6 +182,12 @@ function nanoid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function normalizeRichText(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed || trimmed === '<br>') return null;
+  return trimmed;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function TaskDetailPanel({
@@ -243,6 +249,47 @@ export default function TaskDetailPanel({
   const commentRef = useRef<HTMLDivElement>(null);
   const descRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const taskDraft = useCallback(() => ({
+    title: title.trim(),
+    description: normalizeRichText(descRef.current?.innerHTML ?? description),
+    status,
+    priority,
+    assigned_to: assigneeId || null,
+    due_date: dueDate || null,
+    start_date: startDate || null,
+    checklist,
+    color: taskColor || null,
+    meta: customFields.length ? { custom_fields: customFields } : null,
+  }), [title, description, status, priority, assigneeId, dueDate, startDate, checklist, taskColor, customFields]);
+
+  const initialDraft = task
+    ? {
+        title: task.title.trim(),
+        description: normalizeRichText(task.description),
+        status: task.status,
+        priority: task.priority,
+        assigned_to: task.assigned_to ?? task.assignee_id ?? null,
+        due_date: task.due_date ?? null,
+        start_date: task.start_date ?? null,
+        checklist: task.checklist ?? [],
+        color: task.color ?? null,
+        meta: (task as any).meta?.custom_fields?.length ? { custom_fields: (task as any).meta.custom_fields } : null,
+      }
+    : {
+        title: '',
+        description: null,
+        status: 'todo' as TaskDetailTask['status'],
+        priority: 'medium' as TaskDetailTask['priority'],
+        assigned_to: null,
+        due_date: null,
+        start_date: null,
+        checklist: [],
+        color: null,
+        meta: null,
+      };
+
+  const hasUnsavedChanges = JSON.stringify(taskDraft()) !== JSON.stringify(initialDraft);
 
   // Populate form when task changes
   useEffect(() => {
@@ -308,7 +355,11 @@ export default function TaskDetailPanel({
   }, [focusDescriptionEditor, syncDescriptionEditor]);
 
   const fetchTaskData = useCallback(async (taskId: number) => {
-    const [commRes, attRes, actRes, watchRes] = await Promise.all([
+    const [taskRes, commRes, attRes, actRes, watchRes] = await Promise.all([
+      supabase.from('hub_project_tasks')
+        .select('title, description, status, priority, assigned_to, due_date, start_date, checklist, color, meta')
+        .eq('id', taskId)
+        .single(),
       supabase.from('hub_project_task_comments')
         .select('id, user_id, body, created_at')
         .eq('task_id', taskId).order('created_at', { ascending: true }),
@@ -320,6 +371,19 @@ export default function TaskDetailPanel({
       supabase.from('hub_project_task_watchers')
         .select('user_id').eq('task_id', taskId),
     ]);
+    if (taskRes.data) {
+      setTitle(taskRes.data.title);
+      setDesc(taskRes.data.description ?? '');
+      if (descRef.current) descRef.current.innerHTML = taskRes.data.description ?? '';
+      setStatus(taskRes.data.status);
+      setPriority(taskRes.data.priority);
+      setAssigneeId(taskRes.data.assigned_to ?? '');
+      setDueDate(taskRes.data.due_date ?? '');
+      setStartDate(taskRes.data.start_date ?? '');
+      setChecklist(taskRes.data.checklist ?? []);
+      setTaskColor(taskRes.data.color ?? '');
+      setCustomFields((taskRes.data as any).meta?.custom_fields ?? []);
+    }
     if (commRes.data) {
       const userIds = [...new Set(commRes.data.map((c: any) => c.user_id).filter(Boolean))];
       const userMap: Record<string, { full_name: string; avatar_url: string | null }> = {};
@@ -343,23 +407,12 @@ export default function TaskDetailPanel({
 
   // ── Save ───────────────────────────────────────────────────────────────────
 
-  const handleSave = async () => {
+  const handleSave = async ({ closeAfterSave = false }: { closeAfterSave?: boolean } = {}) => {
     if (!title.trim()) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const payload = {
-        title: title.trim(),
-        description: (descRef.current?.innerHTML?.trim() || description.trim()) || null,
-        status,
-        priority,
-        assigned_to: assigneeId || null,
-        due_date: dueDate || null,
-        start_date: startDate || null,
-        checklist,
-        color: taskColor || null,
-        meta: customFields.length ? { custom_fields: customFields } : null,
-      };
+      const payload = taskDraft();
 
       const assigneeMember = teamMembers.find(m => m.id === assigneeId) ?? null;
       const hub_users = assigneeMember
@@ -418,8 +471,9 @@ export default function TaskDetailPanel({
         }
 
         setChecklist(data.checklist ?? []);
-        setEditing(false);
         onSaved({ ...data, hub_users } as TaskDetailTask);
+        if (closeAfterSave) onClose();
+        else setEditing(false);
         fetchTaskData(prev.id);
       }
     } catch (err: unknown) {
@@ -443,27 +497,68 @@ export default function TaskDetailPanel({
 
   // ── Checklist ──────────────────────────────────────────────────────────────
 
-  const addCheckItem = () => {
+  const addCheckItem = async () => {
     if (!newCheckItem.trim()) return;
-    setChecklist(prev => [...prev, { id: nanoid(), text: newCheckItem.trim(), done: false }]);
+    const previous = checklist;
+    const updated = [...checklist, { id: nanoid(), text: newCheckItem.trim(), done: false }];
+    setChecklist(updated);
     setNewCheckItem('');
+    if (!task) return;
+    try {
+      await saveChecklist(updated);
+    } catch {
+      setChecklist(previous);
+    }
   };
 
   const toggleCheckItem = (id: string) =>
     setChecklist(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i));
 
-  const removeCheckItem = (id: string) =>
-    setChecklist(prev => prev.filter(i => i.id !== id));
+  const removeCheckItem = async (id: string) => {
+    const previous = checklist;
+    const updated = checklist.filter(i => i.id !== id);
+    setChecklist(updated);
+    if (!task) return;
+    try {
+      await saveChecklist(updated);
+    } catch {
+      setChecklist(previous);
+    }
+  };
 
   const saveChecklist = async (updated: ChecklistItem[]) => {
     if (!task) return;
-    await supabase.from('hub_project_tasks').update({ checklist: updated }).eq('id', task.id);
+    const { data, error } = await supabase
+      .from('hub_project_tasks')
+      .update({ checklist: updated })
+      .eq('id', task.id)
+      .select('*')
+      .single();
+    if (error) {
+      setSaveError(error.message);
+      throw error;
+    }
+    onSaved({ ...task, ...data } as TaskDetailTask);
   };
 
-  const handleToggleCheck = (id: string) => {
+  const handleToggleCheck = async (id: string) => {
     const updated = checklist.map(i => i.id === id ? { ...i, done: !i.done } : i);
     setChecklist(updated);
-    if (task) saveChecklist(updated);
+    if (!task) return;
+    try {
+      await saveChecklist(updated);
+    } catch {
+      setChecklist(checklist);
+    }
+  };
+
+  const requestClose = async () => {
+    if (saving) return;
+    if (canEdit && hasUnsavedChanges) {
+      await handleSave({ closeAfterSave: true });
+      return;
+    }
+    onClose();
   };
 
   // ── Comments ───────────────────────────────────────────────────────────────
@@ -615,9 +710,9 @@ export default function TaskDetailPanel({
   return createPortal(
     <>
       {/* Backdrop */}
-      <div
+        <div
         className="fixed inset-0 bg-black/40 z-40 transition-opacity"
-        onClick={onClose}
+        onClick={() => { void requestClose(); }}
       />
 
       {/* Panel */}
@@ -700,7 +795,7 @@ export default function TaskDetailPanel({
                   <i className="ri-edit-line text-sm"></i>
                 </button>
               )}
-              <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer">
+              <button onClick={() => { void requestClose(); }} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer">
                 <i className="ri-close-line text-base"></i>
               </button>
             </div>
@@ -999,10 +1094,14 @@ export default function TaskDetailPanel({
                         <div className="ml-7 mt-1">
                           <textarea
                             value={item.detail ?? ''}
-                            onChange={e => {
+                            onChange={async e => {
                               const updated = checklist.map(i => i.id === item.id ? { ...i, detail: e.target.value } : i);
                               setChecklist(updated);
-                              saveChecklist(updated);
+                              try {
+                                await saveChecklist(updated);
+                              } catch {
+                                setChecklist(checklist);
+                              }
                             }}
                             placeholder="Add details..."
                             rows={2}
@@ -1386,7 +1485,7 @@ export default function TaskDetailPanel({
         </div>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
-        {(editing || isNew) && (
+        {(editing || isNew || hasUnsavedChanges) && (
           <div className="border-t border-gray-100 px-5 py-4 flex items-center gap-3 bg-white flex-shrink-0">
             {!isNew && !confirmDelete && (
               <button onClick={() => setConfirmDelete(true)}
