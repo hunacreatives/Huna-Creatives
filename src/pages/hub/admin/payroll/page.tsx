@@ -4,7 +4,7 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
-import { MONTHS, FULL_MONTHS, getPeriods, fmtCurrency as fmt, getNextPayrollCutoff } from '@/lib/formatUtils';
+import { MONTHS, FULL_MONTHS, getPeriods, fmtCurrency as fmt, getNextPayrollCutoff, localToday } from '@/lib/formatUtils';
 import { logAudit } from '@/lib/audit';
 import { getSetting, setSetting } from '@/lib/settings';
 import { DEMO_PAYOUTS, DEMO_CONTRACTORS } from '@/lib/demoData';
@@ -819,6 +819,13 @@ export default function AdminPayrollPage() {
   const fetchPayroll = async () => {
     setLoading(true);
     try {
+    const today = localToday();
+    const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+
+    // Payroll reads from hub_daily_hours, so sync Slack punches first for the live cutoff.
+    if (isCurrentPeriod) {
+      await supabase.functions.invoke('slack-attendance');
+    }
 
     const [contractorsRes, hoursRes] = await Promise.all([
       supabase

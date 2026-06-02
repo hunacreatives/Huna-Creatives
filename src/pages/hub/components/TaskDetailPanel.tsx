@@ -68,6 +68,7 @@ interface Props {
   onClose: () => void;
   onSaved: (task: TaskDetailTask) => void;
   onDeleted: (taskId: number) => void;
+  onActivityChange?: () => void;
   projectId: number;
   projectName?: string;
   teamMembers: TeamMember[];
@@ -189,6 +190,7 @@ export default function TaskDetailPanel({
   onClose,
   onSaved,
   onDeleted,
+  onActivityChange,
   projectId,
   projectName = 'General',
   teamMembers,
@@ -274,6 +276,37 @@ export default function TaskDetailPanel({
     }
   }, [task?.id, open]);
 
+  useEffect(() => {
+    if (!open || !editing || !descRef.current) return;
+    descRef.current.innerHTML = description || '';
+  }, [editing, open, task?.id]);
+
+  const resetDescriptionEditor = useCallback(() => {
+    const originalDescription = task?.description ?? '';
+    setDesc(originalDescription);
+    if (descRef.current) descRef.current.innerHTML = originalDescription;
+  }, [task?.description]);
+
+  const focusDescriptionEditor = useCallback(() => {
+    descRef.current?.focus();
+  }, []);
+
+  const syncDescriptionEditor = useCallback(() => {
+    setDesc(descRef.current?.innerHTML ?? '');
+  }, []);
+
+  const applyDescriptionCommand = useCallback((command: string, value?: string) => {
+    focusDescriptionEditor();
+    document.execCommand(command, false, value);
+    syncDescriptionEditor();
+  }, [focusDescriptionEditor, syncDescriptionEditor]);
+
+  const applyDescriptionBlock = useCallback((block: 'p' | 'h2' | 'h3') => {
+    focusDescriptionEditor();
+    document.execCommand('formatBlock', false, block);
+    syncDescriptionEditor();
+  }, [focusDescriptionEditor, syncDescriptionEditor]);
+
   const fetchTaskData = useCallback(async (taskId: number) => {
     const [commRes, attRes, actRes, watchRes] = await Promise.all([
       supabase.from('hub_project_task_comments')
@@ -305,7 +338,8 @@ export default function TaskDetailPanel({
     await supabase.from('hub_project_task_activity').insert({
       task_id: taskId, actor_id: currentUserId, actor_name: currentUserName, type, description,
     });
-  }, [currentUserId, currentUserName]);
+    onActivityChange?.();
+  }, [currentUserId, currentUserName, onActivityChange]);
 
   // ── Save ───────────────────────────────────────────────────────────────────
 
@@ -658,7 +692,10 @@ export default function TaskDetailPanel({
               )}
               {canEdit && !isNew && (
                 <button
-                  onClick={() => setEditing(e => !e)}
+                  onClick={() => {
+                    if (editing) resetDescriptionEditor();
+                    setEditing(e => !e);
+                  }}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${editing ? 'bg-[#FF6B35] text-white' : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'}`}>
                   <i className="ri-edit-line text-sm"></i>
                 </button>
@@ -780,60 +817,141 @@ export default function TaskDetailPanel({
           <div className="p-5 border-b border-gray-100">
             <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Description</p>
             {editing ? (
-              <div
-                ref={descRef}
-                contentEditable
-                suppressContentEditableWarning
-                onInput={e => setDesc((e.target as HTMLDivElement).innerHTML)}
-                onPaste={async (e) => {
-                  const items = Array.from(e.clipboardData?.items ?? []);
-                  const imgItem = items.find(i => i.type.startsWith('image/'));
-                  if (imgItem) {
-                    e.preventDefault();
-                    const file = imgItem.getAsFile();
-                    if (!file) return;
-                    // Insert loading placeholder image
-                    const loadingImg = document.createElement('img');
-                    loadingImg.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="%23f3f4f6" rx="6"/><text x="50%" y="55%" text-anchor="middle" fill="%239ca3af" font-size="11" font-family="sans-serif">Uploading...</text></svg>';
-                    loadingImg.style.borderRadius = '6px';
-                    const sel = window.getSelection();
-                    if (sel?.rangeCount) sel.getRangeAt(0).insertNode(loadingImg);
-                    try {
-                      const ext = file.type.split('/')[1] || 'png';
-                      const path = `task-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-                      const { error } = await supabase.storage.from('task-attachments').upload(path, file, { contentType: file.type });
-                      if (error) throw error;
-                      const { data } = supabase.storage.from('task-attachments').getPublicUrl(path);
-                      loadingImg.src = data.publicUrl;
-                      loadingImg.style.maxWidth = '100%';
-                      loadingImg.style.borderRadius = '8px';
-                      loadingImg.style.border = '1px solid #f3f4f6';
-                      loadingImg.style.cursor = 'pointer';
-                      loadingImg.onclick = () => window.open(data.publicUrl, '_blank');
-                    } catch {
-                      loadingImg.remove();
-                    }
-                    setDesc(descRef.current?.innerHTML ?? '');
-                    return;
-                  }
-                  // HTML img fallback (Monday.com etc.)
-                  const htmlItem = items.find(i => i.type === 'text/html');
-                  if (htmlItem) {
-                    htmlItem.getAsString((html) => {
-                      const srcMatch = html.match(/src=["']([^"']+)["']/);
-                      if (srcMatch?.[1]?.startsWith('http')) {
-                        e.preventDefault();
-                        document.execCommand('insertHTML', false, `<img src="${srcMatch[1]}" style="max-width:100%;border-radius:8px;border:1px solid #f3f4f6;cursor:pointer;" onclick="window.open(this.src,'_blank')" />`);
-                        setDesc(descRef.current?.innerHTML ?? '');
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-2 py-2">
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('bold'); }}
+                    className="px-2.5 py-1 text-xs font-semibold text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('italic'); }}
+                    className="px-2.5 py-1 text-xs italic text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('underline'); }}
+                    className="px-2.5 py-1 text-xs underline text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    U
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('insertUnorderedList'); }}
+                    className="px-2.5 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    List
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontName', 'Georgia'); }}
+                    className="px-2.5 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    Serif
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontName', 'Arial'); }}
+                    className="px-2.5 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    Sans
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontSize', '2'); }}
+                    className="px-2 py-1 text-[11px] text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    Small
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionBlock('p'); }}
+                    className="px-2 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    Normal
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontSize', '5'); }}
+                    className="px-2 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    Large
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionBlock('h2'); }}
+                    className="px-2 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
+                  >
+                    Title
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('removeFormat'); }}
+                    className="ml-auto px-2.5 py-1 text-xs text-gray-500 rounded-lg hover:text-gray-700 cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div
+                  ref={descRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={e => setDesc((e.target as HTMLDivElement).innerHTML)}
+                  onPaste={async (e) => {
+                    const items = Array.from(e.clipboardData?.items ?? []);
+                    const imgItem = items.find(i => i.type.startsWith('image/'));
+                    if (imgItem) {
+                      e.preventDefault();
+                      const file = imgItem.getAsFile();
+                      if (!file) return;
+                      // Insert loading placeholder image
+                      const loadingImg = document.createElement('img');
+                      loadingImg.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="%23f3f4f6" rx="6"/><text x="50%" y="55%" text-anchor="middle" fill="%239ca3af" font-size="11" font-family="sans-serif">Uploading...</text></svg>';
+                      loadingImg.style.borderRadius = '6px';
+                      const sel = window.getSelection();
+                      if (sel?.rangeCount) sel.getRangeAt(0).insertNode(loadingImg);
+                      try {
+                        const ext = file.type.split('/')[1] || 'png';
+                        const path = `task-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                        const { error } = await supabase.storage.from('task-attachments').upload(path, file, { contentType: file.type });
+                        if (error) throw error;
+                        const { data } = supabase.storage.from('task-attachments').getPublicUrl(path);
+                        loadingImg.src = data.publicUrl;
+                        loadingImg.style.maxWidth = '100%';
+                        loadingImg.style.borderRadius = '8px';
+                        loadingImg.style.border = '1px solid #f3f4f6';
+                        loadingImg.style.cursor = 'pointer';
+                        loadingImg.onclick = () => window.open(data.publicUrl, '_blank');
+                      } catch {
+                        loadingImg.remove();
                       }
-                    });
-                  }
-                }}
-                data-placeholder="Add a description… (paste images directly)"
-                className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[80px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
-              />
+                      setDesc(descRef.current?.innerHTML ?? '');
+                      return;
+                    }
+                    // HTML img fallback (Monday.com etc.)
+                    const htmlItem = items.find(i => i.type === 'text/html');
+                    if (htmlItem) {
+                      htmlItem.getAsString((html) => {
+                        const srcMatch = html.match(/src=["']([^"']+)["']/);
+                        if (srcMatch?.[1]?.startsWith('http')) {
+                          e.preventDefault();
+                          document.execCommand('insertHTML', false, `<img src="${srcMatch[1]}" style="max-width:100%;border-radius:8px;border:1px solid #f3f4f6;cursor:pointer;" onclick="window.open(this.src,'_blank')" />`);
+                          setDesc(descRef.current?.innerHTML ?? '');
+                        }
+                      });
+                    }
+                  }}
+                  data-placeholder="Add a description… (paste images directly)"
+                  className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[120px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                />
+              </div>
             ) : (
-              <div className="text-sm text-gray-600 leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-gray-100 [&_img]:my-1">
+              <div className="text-sm text-gray-600 leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-gray-100 [&_img]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1">
                 {description
                   ? <div dangerouslySetInnerHTML={{ __html: description.replace(/\n/g, '<br/>') }} />
                   : <span className="text-gray-400 italic">No description</span>}
@@ -1297,7 +1415,10 @@ export default function TaskDetailPanel({
                 )}
                 <div className="flex gap-2">
                   {!isNew && (
-                    <button onClick={() => setEditing(false)}
+                    <button onClick={() => {
+                      resetDescriptionEditor();
+                      setEditing(false);
+                    }}
                       className="px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 transition-colors cursor-pointer">
                       Cancel
                     </button>

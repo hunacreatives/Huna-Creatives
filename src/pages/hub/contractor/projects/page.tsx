@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
@@ -9,8 +9,26 @@ import { DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS, DEMO_CONTRACTOR_TEAM }
 import TaskDetailPanel from '@/pages/hub/components/TaskDetailPanel';
 import { localToday } from '@/lib/formatUtils';
 import { createTaskAttachment } from '@/lib/taskAttachments';
+import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function normalizeTaskActivityAction(type: string) {
+  switch (type) {
+    case 'created':
+      return 'task_created';
+    case 'status_change':
+      return 'task_status_changed';
+    case 'assigned':
+      return 'task_assigned';
+    case 'comment_added':
+      return 'comment_added';
+    case 'attachment_added':
+      return 'attachment_added';
+    default:
+      return type;
+  }
+}
 
 interface ContractorPayout { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null; }
 
@@ -699,7 +717,8 @@ export default function ContractorProjectsPage() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [workspaceRow, setWorkspaceRow] = useState<ProjectRow | null>(null);
   const [clientWorkspace, setClientWorkspace] = useState<typeof clientEntries[0] | null>(null);
-  const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'overdue'>('all');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done' | 'overdue'>('all');
+  const [taskView, setTaskView] = useState<'list' | 'board'>('list');
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
@@ -731,6 +750,8 @@ export default function ContractorProjectsPage() {
     hub_users: { full_name: string; avatar_url: string | null } | null;
   };
   const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
+  const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+  const [boardDragOver, setBoardDragOver] = useState<ProjectTask['status'] | null>(null);
 
   const normalizeActivityItem = (row: any): ActivityItem => ({
     id: row.id,
@@ -744,14 +765,22 @@ export default function ContractorProjectsPage() {
       : (row.actor_name ? { full_name: row.actor_name, avatar_url: null } : null),
   });
 
-  const cycleTask = async (task: ProjectTask) => {
-    const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
-    const newStatus = next[task.status];
+  const updateTaskStatus = async (task: ProjectTask, newStatus: ProjectTask['status']) => {
+    if (task.status === newStatus) return;
     // In demo mode just update local state
-    if (isDemo) { setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t)); return; }
+    if (isDemo) {
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+      return;
+    }
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
     await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', task.id);
     await logActivity('task_status_changed', task.title, task.id, { from: task.status, to: newStatus });
+  };
+
+  const cycleTask = async (task: ProjectTask) => {
+    const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
+    const newStatus = next[task.status];
+    await updateTaskStatus(task, newStatus);
   };
 
   const openAddTask = () => {
@@ -891,18 +920,55 @@ export default function ContractorProjectsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [workspaceRow?.hub_projects?.id, isDemo]);
 
-  // Fetch activity log when workspace opens
-  useEffect(() => {
+  const refreshWorkspaceActivity = useCallback(async () => {
     const projectId = workspaceRow?.hub_projects?.id;
     if (!projectId) { setActivityLog([]); return; }
-    supabase
+    const projectTaskIds = tasks.filter((task) => task.project_id === projectId).map((task) => task.id);
+    const { data: projectActivityRows } = await supabase
       .from('hub_project_activity')
       .select('id, actor_name, description, created_at')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
-      .limit(20)
-      .then(({ data }) => setActivityLog(((data ?? []) as any[]).map(normalizeActivityItem)));
-  }, [workspaceRow?.hub_projects?.id]);
+      .limit(20);
+
+    const taskTitleMap = Object.fromEntries(
+      tasks.filter((task) => task.project_id === projectId).map((task) => [task.id, task.title])
+    );
+
+    if (!projectTaskIds.length) {
+      setActivityLog(((projectActivityRows ?? []) as any[]).map(normalizeActivityItem));
+      return;
+    }
+
+    const { data: taskActivityRows } = await supabase
+      .from('hub_project_task_activity')
+      .select('id, task_id, actor_name, type, description, created_at')
+      .in('task_id', projectTaskIds)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const mergedRows = [
+      ...((projectActivityRows ?? []) as any[]),
+      ...((taskActivityRows ?? []).map((row: any) => ({
+        id: Number(`9${row.id}`),
+        action: normalizeTaskActivityAction(row.type),
+        entity_title: taskTitleMap[row.task_id] ?? '',
+        entity_id: row.task_id ?? null,
+        meta: row.type === 'status_change' ? { to: row.description.split(' to ').pop()?.replace(/ /g, '_') } : null,
+        created_at: row.created_at,
+        hub_users: row.actor_name ? { full_name: row.actor_name, avatar_url: null } : null,
+      })) as any[]),
+    ]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 20);
+
+    setActivityLog(mergedRows.map(normalizeActivityItem));
+  }, [workspaceRow?.hub_projects?.id, tasks]);
+
+  // Fetch activity log when workspace opens
+  useEffect(() => {
+    refreshWorkspaceActivity();
+  }, [refreshWorkspaceActivity]);
 
   // Load comments when editing task changes
   useEffect(() => {
@@ -1288,8 +1354,17 @@ export default function ContractorProjectsPage() {
   const wsStatusIcon: Record<string, { icon: string; cls: string }> = {
     todo: { icon: 'ri-checkbox-blank-circle-line', cls: 'text-gray-300 hover:text-gray-500' },
     in_progress: { icon: 'ri-loader-2-line', cls: 'text-sky-400 hover:text-sky-600' },
+    in_review: { icon: 'ri-eye-line', cls: 'text-purple-400 hover:text-purple-600' },
+    blocked: { icon: 'ri-indeterminate-circle-line', cls: 'text-rose-400 hover:text-rose-600' },
     done: { icon: 'ri-checkbox-circle-fill', cls: 'text-emerald-500' },
   };
+  const BOARD_COLUMNS: { key: ProjectTask['status']; label: string; icon: string; chip: string; empty: string }[] = [
+    { key: 'todo', label: 'To Do', icon: 'ri-checkbox-blank-circle-line', chip: 'bg-gray-100 text-gray-600', empty: 'Nothing queued' },
+    { key: 'in_progress', label: 'In Progress', icon: 'ri-loader-2-line', chip: 'bg-sky-100 text-sky-700', empty: 'Nothing in motion' },
+    { key: 'in_review', label: 'In Review', icon: 'ri-eye-line', chip: 'bg-purple-100 text-purple-700', empty: 'Nothing to review' },
+    { key: 'blocked', label: 'Blocked', icon: 'ri-indeterminate-circle-line', chip: 'bg-rose-100 text-rose-700', empty: 'No blocked work' },
+    { key: 'done', label: 'Done', icon: 'ri-checkbox-circle-fill', chip: 'bg-emerald-100 text-emerald-700', empty: 'Nothing completed yet' },
+  ];
 
   const WS_SECTIONS = wsProject ? [
     { label: 'Timeline', description: `${wsProject.project_name} · Gantt chart`, icon: 'ri-bar-chart-grouped-line', id: 'ws-timeline', iconCls: 'bg-indigo-50 text-indigo-500', keywords: ['timeline', 'gantt', 'schedule', 'chart', 'dates', 'calendar', 'deadline'] },
@@ -1304,6 +1379,8 @@ export default function ContractorProjectsPage() {
   const WS_FILTERS = [
     { label: 'Overdue Tasks', filter: 'overdue' as const, icon: 'ri-alarm-warning-line', cls: 'bg-rose-50 text-rose-500', count: wsTasks.filter(t => !!wsIsOverdue(t)).length, keywords: ['overdue', 'late', 'past due', 'missed'] },
     { label: 'Active Tasks', filter: 'in_progress' as const, icon: 'ri-loader-2-line', cls: 'bg-sky-50 text-sky-500', count: wsTasks.filter(t => t.status === 'in_progress').length, keywords: ['active', 'in progress', 'working', 'ongoing'] },
+    { label: 'In Review', filter: 'in_review' as const, icon: 'ri-eye-line', cls: 'bg-purple-50 text-purple-500', count: wsTasks.filter(t => t.status === 'in_review').length, keywords: ['review', 'approval', 'checking', 'qa'] },
+    { label: 'Blocked Tasks', filter: 'blocked' as const, icon: 'ri-indeterminate-circle-line', cls: 'bg-rose-50 text-rose-500', count: wsTasks.filter(t => t.status === 'blocked').length, keywords: ['blocked', 'stuck', 'waiting', 'issue'] },
     { label: 'To Do', filter: 'todo' as const, icon: 'ri-checkbox-blank-circle-line', cls: 'bg-gray-100 text-gray-500', count: wsTasks.filter(t => t.status === 'todo').length, keywords: ['todo', 'not started', 'pending', 'backlog', 'queued'] },
     { label: 'Completed Tasks', filter: 'done' as const, icon: 'ri-checkbox-circle-fill', cls: 'bg-emerald-50 text-emerald-500', count: wsTasks.filter(t => t.status === 'done').length, keywords: ['done', 'completed', 'finished', 'complete', 'closed'] },
   ];
@@ -1495,7 +1572,7 @@ export default function ContractorProjectsPage() {
           </button>
           <div className="flex-1 min-w-0">
             <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
-            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{task.description}</p>}
+            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
           </div>
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
         </div>
@@ -1539,6 +1616,71 @@ export default function ContractorProjectsPage() {
           </div>
         </div>
       </div>
+    );
+  };
+
+  const boardTasks = wsTasks.filter((task) => {
+    if (!taskSearch) return true;
+    const q = taskSearch.toLowerCase();
+    const assignee = wsTeam.find((member) => member.id === task.assigned_to);
+    return task.title.toLowerCase().includes(q)
+      || (task.description ?? '').toLowerCase().includes(q)
+      || (assignee?.full_name ?? '').toLowerCase().includes(q);
+  });
+
+  const BoardCard = (task: ProjectTask) => {
+    const overdue = !!wsIsOverdue(task);
+    const color = taskColorMap[task.id] ?? TASK_PALETTE[0];
+    const assignee = wsTeam.find((member) => member.id === task.assigned_to);
+    const commentCount = taskCommentCounts[task.id] ?? 0;
+    const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
+    return (
+      <button
+        key={task.id}
+        type="button"
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/task-id', String(task.id));
+          setDraggedTaskId(task.id);
+        }}
+        onDragEnd={() => { setDraggedTaskId(null); setBoardDragOver(null); }}
+        onClick={() => openViewTask(task)}
+        className={`w-full text-left rounded-2xl border border-gray-100 border-l-4 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md cursor-pointer ${(task as any).color ? '' : color.border} ${draggedTaskId === task.id ? 'opacity-60' : ''}`}
+        style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}
+      >
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2">
+              <p className={`flex-1 text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
+            </div>
+            {task.description && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{getTaskDescriptionPreview(task.description)}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
+          {task.due_date && (
+            <span className={`text-[10px] font-medium ${overdue ? 'text-rose-600' : 'text-gray-500'}`}>
+              {overdue ? 'Overdue' : new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-1.5">
+            {commentCount > 0 && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-semibold">
+                <i className="ri-chat-3-fill text-[11px]"></i>{commentCount}
+              </span>
+            )}
+            {assignee && (
+              <div className="flex items-center gap-1">
+                {assignee.avatar_url
+                  ? <img src={assignee.avatar_url} alt={assignee.full_name} className="w-5 h-5 rounded-full object-cover object-top" />
+                  : <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
+                }
+              </div>
+            )}
+          </div>
+        </div>
+      </button>
     );
   };
 
@@ -1768,7 +1910,7 @@ export default function ContractorProjectsPage() {
 
             <div className="flex gap-6">
               {/* Task list */}
-              <div id="ws-tasks" className={`flex-1 min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${wsFocusSection && wsFocusSection !== 'ws-tasks' ? 'hidden' : ''}`}>
+              <div id="ws-tasks" className={`min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${taskView === 'board' ? 'flex-[1_1_100%]' : 'flex-1'} ${wsFocusSection && wsFocusSection !== 'ws-tasks' ? 'hidden' : ''}`}>
                 <div className="px-5 py-4 border-b border-gray-50 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3">
@@ -1782,18 +1924,38 @@ export default function ContractorProjectsPage() {
                         </div>
                       )}
                     </div>
-                    <button onClick={openAddTask}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
-                      <i className="ri-add-line"></i> Add Task
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="hidden lg:flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setTaskView('list')}
+                          className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors cursor-pointer ${taskView === 'list' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          List
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setTaskView('board'); setTaskFilter('all'); }}
+                          className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors cursor-pointer ${taskView === 'board' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          Board
+                        </button>
+                      </div>
+                      <button onClick={openAddTask}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
+                        <i className="ri-add-line"></i> Add Task
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-1 flex-wrap">
-                    {(['all', 'todo', 'in_progress', 'done', 'overdue'] as const).map(f => {
-                      const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'Active', done: 'Done', overdue: 'Overdue' };
+                  <div className={`flex gap-1 flex-wrap ${taskView === 'board' ? 'lg:hidden' : ''}`}>
+                    {(['all', 'todo', 'in_progress', 'in_review', 'blocked', 'done', 'overdue'] as const).map(f => {
+                      const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'Active', in_review: 'Review', blocked: 'Blocked', done: 'Done', overdue: 'Overdue' };
                       const counts: Record<string, number> = {
                         all: wsTasks.length,
                         todo: wsTasks.filter(t => t.status === 'todo').length,
                         in_progress: wsTasks.filter(t => t.status === 'in_progress').length,
+                        in_review: wsTasks.filter(t => t.status === 'in_review').length,
+                        blocked: wsTasks.filter(t => t.status === 'blocked').length,
                         done: wsTasks.filter(t => t.status === 'done').length,
                         overdue: wsTasks.filter(t => !!wsIsOverdue(t)).length,
                       };
@@ -1819,6 +1981,51 @@ export default function ContractorProjectsPage() {
                   <div className="py-10 text-center">
                     <p className="text-sm text-gray-400">No tasks in this filter</p>
                   </div>
+                ) : taskView === 'board' ? (
+                  <div className="hidden lg:flex p-4 overflow-x-auto overflow-y-hidden min-h-[calc(100vh-19rem)]">
+                    <div className="grid grid-cols-5 gap-4 min-w-[1120px] w-full min-h-full">
+                      {BOARD_COLUMNS.map((column) => {
+                        const columnTasks = boardTasks.filter((task) => task.status === column.key);
+                        return (
+                          <div
+                            key={column.key}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setBoardDragOver(column.key);
+                            }}
+                            onDragLeave={() => setBoardDragOver((current) => current === column.key ? null : current)}
+                            onDrop={async (e) => {
+                              e.preventDefault();
+                              const taskId = Number(e.dataTransfer.getData('text/task-id') || draggedTaskId);
+                              const droppedTask = wsTasks.find((task) => task.id === taskId);
+                              setBoardDragOver(null);
+                              setDraggedTaskId(null);
+                              if (!droppedTask) return;
+                              await updateTaskStatus(droppedTask, column.key);
+                            }}
+                            className={`rounded-3xl border p-3 transition-colors min-h-full flex flex-col ${boardDragOver === column.key ? 'border-[#FF6B35] bg-orange-50/40' : 'border-gray-100 bg-gray-50/60'}`}
+                          >
+                            <div className="flex items-center gap-2 px-1 pb-3">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${column.chip}`}>
+                                <i className={`${column.icon} text-[11px]`}></i>
+                                {column.label}
+                              </span>
+                              <span className="text-[11px] text-gray-400 font-medium">{columnTasks.length}</span>
+                            </div>
+                            <div className="space-y-3 min-h-[240px] flex-1 overflow-y-auto pr-1">
+                              {columnTasks.length === 0 ? (
+                                <div className="rounded-2xl border border-dashed border-gray-200 bg-white/70 px-4 py-6 text-center">
+                                  <p className="text-xs text-gray-400">{column.empty}</p>
+                                </div>
+                              ) : (
+                                columnTasks.map((task) => <div key={task.id}>{BoardCard(task)}</div>)
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ) : taskFilter !== 'all' ? (
                   <div className="p-3 space-y-2">
                     {wsFiltered.map(task => <div key={task.id}>{TaskCard(task)}</div>)}
@@ -1831,13 +2038,17 @@ export default function ContractorProjectsPage() {
 
                       const overdueTasks  = wsFiltered.filter(t => !!wsIsOverdue(t));
                       const inProgTasks   = wsFiltered.filter(t => t.status === 'in_progress' && !wsIsOverdue(t));
+                      const reviewTasks   = wsFiltered.filter(t => t.status === 'in_review' && !wsIsOverdue(t));
+                      const blockedTasks  = wsFiltered.filter(t => t.status === 'blocked' && !wsIsOverdue(t));
                       const todoTasks     = wsFiltered.filter(t => t.status === 'todo' && !wsIsOverdue(t));
                       const doneTasks     = wsFiltered.filter(t => t.status === 'done');
 
-                      type GroupKey = 'overdue' | 'in_progress' | 'todo' | 'done';
+                      type GroupKey = 'overdue' | 'in_progress' | 'in_review' | 'blocked' | 'todo' | 'done';
                       const groups = [
                         { key: 'overdue',     label: 'Overdue',     icon: 'ri-alarm-warning-line', headerCls: 'bg-rose-50/60',  iconCls: 'text-rose-500',    labelCls: 'text-rose-700',    badgeCls: 'bg-rose-100 text-rose-600',    chevronCls: 'text-rose-300',    tasks: overdueTasks },
                         { key: 'in_progress', label: 'In Progress', icon: 'ri-loader-2-line',       headerCls: 'bg-sky-50/50',   iconCls: 'text-sky-500',     labelCls: 'text-sky-700',     badgeCls: 'bg-sky-100 text-sky-600',      chevronCls: 'text-sky-400',     tasks: inProgTasks  },
+                        { key: 'in_review',   label: 'In Review',   icon: 'ri-eye-line',            headerCls: 'bg-purple-50/50',iconCls: 'text-purple-500',  labelCls: 'text-purple-700',  badgeCls: 'bg-purple-100 text-purple-600', chevronCls: 'text-purple-300', tasks: reviewTasks },
+                        { key: 'blocked',     label: 'Blocked',     icon: 'ri-indeterminate-circle-line', headerCls: 'bg-rose-50/40', iconCls: 'text-rose-500', labelCls: 'text-rose-700', badgeCls: 'bg-rose-100 text-rose-600', chevronCls: 'text-rose-300', tasks: blockedTasks },
                         { key: 'todo',        label: 'To Do',       icon: 'ri-checkbox-blank-circle-line', headerCls: 'bg-gray-50/60', iconCls: 'text-gray-400', labelCls: 'text-gray-600', badgeCls: 'bg-gray-100 text-gray-500',  chevronCls: 'text-gray-300',    tasks: todoTasks    },
                         { key: 'done',        label: 'Done',        icon: 'ri-checkbox-circle-fill', headerCls: 'bg-emerald-50/40', iconCls: 'text-emerald-500', labelCls: 'text-emerald-700', badgeCls: 'bg-emerald-100 text-emerald-600', chevronCls: 'text-emerald-300', tasks: doneTasks },
                       ] satisfies { key: GroupKey; label: string; icon: string; headerCls: string; iconCls: string; labelCls: string; badgeCls: string; chevronCls: string; tasks: ProjectTask[] }[];
@@ -1871,7 +2082,7 @@ export default function ContractorProjectsPage() {
               </div>
 
               {/* Right: project info */}
-              <div id="ws-sidebar" className={`flex-col gap-4 w-64 flex-shrink-0 ${wsFocusSection && wsFocusSection !== 'ws-sidebar' ? 'hidden' : 'hidden lg:flex'}`}>
+                <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'hidden lg:flex'} flex-col gap-4 w-64 flex-shrink-0 ${wsFocusSection && wsFocusSection !== 'ws-sidebar' ? 'hidden' : ''}`}>
                 {/* Dates + notes card */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                   {(wsProject.start_date || wsProject.deadline) && (
@@ -1897,9 +2108,6 @@ export default function ContractorProjectsPage() {
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium mb-1.5">Notes</p>
                       <p className="text-xs text-gray-500 leading-relaxed">{wsProject.notes}</p>
                     </div>
-                  )}
-                  {!wsProject.start_date && !wsProject.deadline && !wsProject.notes && (
-                    <p className="text-xs text-gray-300 text-center py-2">No dates set</p>
                   )}
                 </div>
 
@@ -2108,12 +2316,20 @@ export default function ContractorProjectsPage() {
 
             {/* ── My Clients section ── */}
             {clientEntries.length > 0 && (
-              <div className="-mx-4 md:-mx-6 px-4 md:px-6 pt-5 pb-6 mt-2 space-y-3"
-                style={{ background: 'rgba(30,40,70,0.06)', borderTop: '1px solid rgba(30,40,70,0.10)' }}>
+              <div className="pt-6 mt-3 space-y-3 border-t border-gray-200/80">
                 {/* Header */}
-                <div className="flex items-center gap-2">
-                  <i className="ri-building-line text-[#FF6B35] text-sm"></i>
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">My Clients <span className="text-gray-400 font-normal">({clientEntries.length})</span></p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <i className="ri-building-line text-[#FF6B35] text-sm"></i>
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest">My Clients <span className="text-gray-400 font-normal">({clientEntries.length})</span></p>
+                    </div>
+                    <p className="text-sm text-gray-400 mt-1">Ongoing retainer and direct client relationships separate from project-based delivery work above.</p>
+                  </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 text-[#FF6B35] text-[11px] font-semibold whitespace-nowrap">
+                    <i className="ri-repeat-line text-[11px]"></i>
+                    Ongoing Clients
+                  </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {clientEntries.map(c => (
@@ -2127,21 +2343,98 @@ export default function ContractorProjectsPage() {
                     }}
                       className="w-full text-left rounded-3xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
                       style={(() => { const pal = getCardPalette(c.service ?? null); return { background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 2px 20px rgba(0,0,0,0.12)' }; })()}>
-                      <div className="p-3.5 space-y-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{c.service}</span>}
-                            <p className="font-bold text-white text-sm leading-tight truncate">{c.name}</p>
-                            {(c.role || c.platform) && <p className="text-xs text-white/70 mt-0.5 truncate">{c.role ?? c.platform}</p>}
+                      {(() => {
+                        const linkedRow = c.type === 'retainer' && c.rowId ? rows.find(r => r.id === c.rowId) : null;
+                        const linkedProjectId = linkedRow?.hub_projects?.id ?? null;
+                        const linkedTasks = linkedProjectId ? tasks.filter(t => t.project_id === linkedProjectId) : [];
+                        const activeTaskCount = linkedTasks.filter(t => t.status === 'in_progress').length;
+                        const reviewTaskCount = linkedTasks.filter(t => t.status === 'in_review').length;
+                        const overdueTaskCount = linkedTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done').length;
+                        const doneTaskCount = linkedTasks.filter(t => t.status === 'done').length;
+                        const teamMembers = linkedProjectId ? (teamMap[linkedProjectId] ?? []) : [];
+                        const infoLine = c.type === 'retainer'
+                          ? linkedProjectId
+                            ? `${linkedTasks.length} task${linkedTasks.length !== 1 ? 's' : ''} in workspace`
+                            : 'Retainer workspace'
+                          : c.role ?? c.platform ?? 'Client relationship';
+
+                        return (
+                          <div className="p-3.5 min-h-[152px] flex flex-col justify-between">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                {c.service && <span className="inline-block text-[10px] font-semibold tracking-widest uppercase mb-1 text-white/70">{c.service}</span>}
+                                <p className="font-bold text-white text-sm leading-tight truncate">{c.name}</p>
+                                <p className="text-xs text-white/70 mt-0.5 truncate">{infoLine}</p>
+                              </div>
+                              <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 bg-white/20 text-white">
+                                {c.type === 'retainer' ? 'Retainer' : 'Client'}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2.5 pt-3 border-t border-white/20">
+                              {linkedProjectId ? (
+                                <>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/15 text-white/90">
+                                      {activeTaskCount} active
+                                    </span>
+                                    {reviewTaskCount > 0 && (
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/15 text-white/90">
+                                        {reviewTaskCount} in review
+                                      </span>
+                                    )}
+                                    {overdueTaskCount > 0 ? (
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-rose-100/20 text-white">
+                                        {overdueTaskCount} overdue
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/15 text-white/90">
+                                        {doneTaskCount} done
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {teamMembers.length > 0 ? (
+                                        <>
+                                          <div className="flex -space-x-1.5">
+                                            {teamMembers.slice(0, 3).map((member) => (
+                                              member.avatar_url ? (
+                                                <img key={member.id} src={member.avatar_url} alt={member.full_name} className="w-6 h-6 rounded-full border border-white/40 object-cover object-top" />
+                                              ) : (
+                                                <div key={member.id} className="w-6 h-6 rounded-full border border-white/40 bg-white/20 flex items-center justify-center text-[9px] font-bold text-white">
+                                                  {member.full_name[0]}
+                                                </div>
+                                              )
+                                            ))}
+                                          </div>
+                                          <span className="text-[10px] text-white/80 truncate">
+                                            {teamMembers.length} teammate{teamMembers.length !== 1 ? 's' : ''}
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <span className="text-[10px] text-white/75">No team assigned yet</span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-white/80 whitespace-nowrap">
+                                      {linkedTasks.length > 0 ? `${linkedTasks.length} tasks` : 'Open workspace'}
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-white/15 text-white/90">
+                                    {(c.status === 'active' ? 'Active' : c.status).replace(/^./, (letter) => letter.toUpperCase())}
+                                  </span>
+                                  <span className="text-[10px] text-white/75 truncate text-right">
+                                    {c.notes || c.platform || c.role || 'Open client workspace'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 bg-white/20 text-white">
-                            {c.type === 'retainer' ? 'Retainer' : 'International'}
-                          </span>
-                        </div>
-                        {c.notes ? (
-                          <p className="text-[10px] text-white/60 italic pt-1 border-t border-white/20 truncate">{c.notes}</p>
-                        ) : null}
-                      </div>
+                        );
+                      })()}
                     </button>
                   ))}
                 </div>
@@ -2742,8 +3035,15 @@ export default function ContractorProjectsPage() {
             ? prev.map(t => t.id === saved.id ? mapped : t)
             : [...prev, mapped]);
           setEditingTask(mapped);
+          refreshWorkspaceActivity();
         }}
-        onDeleted={(id) => { setTasks(prev => prev.filter(t => t.id !== id)); setDetailPanelOpen(false); setEditingTask(null); }}
+        onDeleted={(id) => {
+          setTasks(prev => prev.filter(t => t.id !== id));
+          setDetailPanelOpen(false);
+          setEditingTask(null);
+          refreshWorkspaceActivity();
+        }}
+        onActivityChange={refreshWorkspaceActivity}
         projectId={wsProject?.id ?? 0}
         projectName={wsProject?.project_name ?? 'General'}
         teamMembers={wsTeam}
