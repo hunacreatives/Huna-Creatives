@@ -332,139 +332,155 @@ export default function ContractorDashboard() {
 
     const periodStartStr = cutoffStartStr;
     const periodEndStr   = cutoffEndStr;
-
-    // Fetch active projects
-    supabase
-      .from('hub_project_contractors')
-      .select('hub_projects(id, project_name, client_name, service, status, deadline)')
-      .eq('contractor_id', user.id)
-      .then(async ({ data }) => {
-        const projects = ((data ?? []) as any[])
-          .map((r: any) => Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects)
-          .filter((p: any) => p && p.status === 'ongoing');
-        if (projects.length === 0) { setActiveProjects([]); return; }
-        const projectIds = projects.map((p: any) => p.id);
-        const { data: tasks } = await supabase.from('hub_project_tasks').select('project_id, status').in('project_id', projectIds);
-        setActiveProjects(projects.map((p: any) => {
-          const pts = (tasks ?? []).filter((t: any) => t.project_id === p.id);
-          return { id: p.id, project_name: p.project_name, client_name: p.client_name, service: p.service, status: p.status, deadline: p.deadline, tasksDone: pts.filter((t: any) => t.status === 'done').length, tasksTotal: pts.length };
-        }));
-      });
-
-    const [attResult, annResult, reqResult, toResult, slackResult, rateRes, payoutRes] = await Promise.all([
+    try {
+      // Fetch active projects
       supabase
-        .from('hub_daily_hours')
-        .select('hours_capped, overtime_hours, date')
-        .eq('user_id', user.id)
-        .gte('date', periodStartStr)
-        .lte('date', periodEndStr),
-      supabase.from('hub_announcements').select('*, hub_users(full_name, avatar_url)').eq('published', true).order('created_at', { ascending: false }).limit(10),
-      supabase.from('hub_requests').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
-      supabase.from('hub_time_off').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
-      supabase.functions.invoke('slack-attendance'),
-      supabase.from('hub_rate_history')
-        .select('effective_date, payment_type, hourly_rate, monthly_rate')
+        .from('hub_project_contractors')
+        .select('hub_projects(id, project_name, client_name, service, status, deadline)')
         .eq('contractor_id', user.id)
-        .lte('effective_date', periodEndStr)
-        .order('effective_date', { ascending: true }),
-      supabase.from('hub_payouts')
-        .select('status')
-        .eq('contractor_id', user.id)
-        .eq('cutoff_start', periodStartStr)
-        .maybeSingle(),
-    ]);
+        .then(async ({ data }) => {
+          const projects = ((data ?? []) as any[])
+            .map((r: any) => Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects)
+            .filter((p: any) => p && p.status === 'ongoing');
+          if (projects.length === 0) { setActiveProjects([]); return; }
+          const projectIds = projects.map((p: any) => p.id);
+          const { data: tasks } = await supabase.from('hub_project_tasks').select('project_id, status').in('project_id', projectIds);
+          setActiveProjects(projects.map((p: any) => {
+            const pts = (tasks ?? []).filter((t: any) => t.project_id === p.id);
+            return { id: p.id, project_name: p.project_name, client_name: p.client_name, service: p.service, status: p.status, deadline: p.deadline, tasksDone: pts.filter((t: any) => t.status === 'done').length, tasksTotal: pts.length };
+          }));
+        })
+        .catch(() => setActiveProjects([]));
 
-    const days = mergeLiveAttendanceIntoDailyHours(
-      ((attResult.data ?? []) as any[]).map((d: any) => ({ ...d, user_id: user.id })),
-      (slackResult.data as any)?.attendance || [],
-      [user.id],
-      today,
-    ).map(({ user_id: _userId, ...rest }) => rest);
-    const totalHours = days.reduce((s: number, r: any) => s + (r.hours_capped || 0), 0);
-    const totalOT    = days.reduce((s: number, r: any) => s + (r.overtime_hours || 0), 0);
-    setHoursThisCutoff(parseFloat(totalHours.toFixed(2)));
+      const [attResult, annResult, reqResult, toResult, slackResult, rateRes, payoutRes] = await Promise.all([
+        supabase
+          .from('hub_daily_hours')
+          .select('hours_capped, overtime_hours, date')
+          .eq('user_id', user.id)
+          .gte('date', periodStartStr)
+          .lte('date', periodEndStr),
+        supabase.from('hub_announcements').select('*, hub_users(full_name, avatar_url)').eq('published', true).order('created_at', { ascending: false }).limit(10),
+        supabase.from('hub_requests').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
+        supabase.from('hub_time_off').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false }).limit(3),
+        supabase.functions.invoke('slack-attendance'),
+        supabase.from('hub_rate_history')
+          .select('effective_date, payment_type, hourly_rate, monthly_rate')
+          .eq('contractor_id', user.id)
+          .lte('effective_date', periodEndStr)
+          .order('effective_date', { ascending: true }),
+        supabase.from('hub_payouts')
+          .select('status')
+          .eq('contractor_id', user.id)
+          .eq('cutoff_start', periodStartStr)
+          .maybeSingle(),
+      ]);
 
-    // Prorated pay using rate history (same logic as payroll page)
-    const currentMonthly = (user as any).monthly_rate || 0;
-    const currentHourly  = (user as any).hourly_rate  || 0;
-    const history: any[] = rateRes.data ?? [];
-    const changeInPeriod = history.find(r => r.effective_date >= periodStartStr && r.effective_date <= periodEndStr);
-    const rateAtStart = [...history].filter(r => r.effective_date < periodStartStr).pop() || null;
+      const days = mergeLiveAttendanceIntoDailyHours(
+        ((attResult.data ?? []) as any[]).map((d: any) => ({ ...d, user_id: user.id })),
+        (slackResult.data as any)?.attendance || [],
+        [user.id],
+        today,
+      ).map(({ user_id: _userId, ...rest }) => rest);
+      const totalHours = days.reduce((s: number, r: any) => s + (r.hours_capped || 0), 0);
+      const totalOT    = days.reduce((s: number, r: any) => s + (r.overtime_hours || 0), 0);
+      setHoursThisCutoff(parseFloat(totalHours.toFixed(2)));
 
-    let estimated = 0;
-    if (changeInPeriod) {
-      const before = [...history].filter(r => r.effective_date < changeInPeriod.effective_date).pop();
-      const oldMonthly = before?.monthly_rate ?? currentMonthly;
-      const oldHourly  = before?.hourly_rate  ?? currentHourly;
-      const newMonthly = changeInPeriod.monthly_rate || 0;
-      const newHourly  = changeInPeriod.hourly_rate  || 0;
-      if (isFixed) {
-        let hrsAtOld = 0;
-        let hrsAtNew = 0;
-        for (const d of days as any[]) {
-          if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped || 0;
-          else hrsAtNew += d.hours_capped || 0;
+      const currentMonthly = (user as any).monthly_rate || 0;
+      const currentHourly  = (user as any).hourly_rate  || 0;
+      const history: any[] = rateRes.data ?? [];
+      const changeInPeriod = history.find(r => r.effective_date >= periodStartStr && r.effective_date <= periodEndStr);
+      const rateAtStart = [...history].filter(r => r.effective_date < periodStartStr).pop() || null;
+
+      let estimated = 0;
+      if (changeInPeriod) {
+        const before = [...history].filter(r => r.effective_date < changeInPeriod.effective_date).pop();
+        const oldMonthly = before?.monthly_rate ?? currentMonthly;
+        const oldHourly  = before?.hourly_rate  ?? currentHourly;
+        const newMonthly = changeInPeriod.monthly_rate || 0;
+        const newHourly  = changeInPeriod.hourly_rate  || 0;
+        if (isFixed) {
+          let hrsAtOld = 0;
+          let hrsAtNew = 0;
+          for (const d of days as any[]) {
+            if (d.date < changeInPeriod.effective_date) hrsAtOld += d.hours_capped || 0;
+            else hrsAtNew += d.hours_capped || 0;
+          }
+          const base = computeSplitFixedAccrual({
+            periodStart: periodStartStr,
+            periodEnd: periodEndStr,
+            changeDate: changeInPeriod.effective_date,
+            workDays: (user as any)?.work_days || [],
+            oldMonthlyRate: oldMonthly,
+            newMonthlyRate: newMonthly,
+            oldCappedHours: hrsAtOld,
+            newCappedHours: hrsAtNew,
+          }).accruedPay;
+          const oldOT = oldHourly || oldMonthly / 176;
+          const newOT = newHourly || newMonthly / 176;
+          let otAtOld = 0;
+          let otAtNew = 0;
+          for (const d of days as any[]) {
+            if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
+            else otAtNew += d.overtime_hours || 0;
+          }
+          estimated = base + otAtOld * oldOT + otAtNew * newOT;
+        } else {
+          estimated = totalHours * newHourly + totalOT * newHourly;
         }
-        const base = computeSplitFixedAccrual({
-          periodStart: periodStartStr,
-          periodEnd: periodEndStr,
-          changeDate: changeInPeriod.effective_date,
-          workDays: (user as any)?.work_days || [],
-          oldMonthlyRate: oldMonthly,
-          newMonthlyRate: newMonthly,
-          oldCappedHours: hrsAtOld,
-          newCappedHours: hrsAtNew,
-        }).accruedPay;
-        const oldOT = oldHourly || oldMonthly / 176;
-        const newOT = newHourly || newMonthly / 176;
-        let otAtOld = 0, otAtNew = 0;
-        for (const d of days as any[]) {
-          if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
-          else if (d.date <= effectiveEnd) otAtNew += d.overtime_hours || 0;
+      } else {
+        const monthly = rateAtStart?.monthly_rate ?? currentMonthly;
+        const hourly  = rateAtStart?.hourly_rate  ?? currentHourly;
+        if (isFixed) {
+          estimated = computeFixedAccrual({
+            periodStart: periodStartStr,
+            periodEnd: periodEndStr,
+            monthlyRate: monthly,
+            workDays: (user as any)?.work_days || [],
+            cappedHours: totalHours,
+          }).accruedPay + totalOT * (hourly || monthly / 176);
+        } else {
+          estimated = totalHours * hourly + totalOT * hourly;
         }
-        estimated = base + otAtOld * oldOT + otAtNew * newOT;
-      } else {
-        estimated = totalHours * newHourly + totalOT * newHourly;
       }
-    } else {
-      const monthly = rateAtStart?.monthly_rate ?? currentMonthly;
-      const hourly  = rateAtStart?.hourly_rate  ?? currentHourly;
-      if (isFixed) {
-        estimated = computeFixedAccrual({
-          periodStart: periodStartStr,
-          periodEnd: periodEndStr,
-          monthlyRate: monthly,
-          workDays: (user as any)?.work_days || [],
-          cappedHours: totalHours,
-        }).accruedPay + totalOT * (hourly || monthly / 176);
+      setEstimatedPayout(parseFloat(estimated.toFixed(2)));
+
+      if (!slackResult.error && slackResult.data?.attendance) {
+        const all: any[] = slackResult.data.attendance;
+        const mine = all.find((r: any) => r.email === user.email || r.hub_user_id === user.id);
+        setSlackStatus(mine?.status ?? 'absent');
+        setTeamStatus(
+          all
+            .filter((r: any) => r.hub_user_id !== user.id && r.email !== user.email)
+            .map((r: any) => ({
+              full_name: r.full_name,
+              avatar_url: r.avatar_url,
+              status: r.status,
+              hours_today: r.hours_today || 0,
+            }))
+        );
       } else {
-        estimated = totalHours * hourly + totalOT * hourly;
+        setSlackStatus('absent');
+        setTeamStatus([]);
       }
-    }
-    setEstimatedPayout(parseFloat(estimated.toFixed(2)));
 
-    if (!slackResult.error && slackResult.data?.attendance) {
-      const all: any[] = slackResult.data.attendance;
-      const mine = all.find((r: any) => r.email === user.email || r.hub_user_id === user.id);
-      setSlackStatus(mine?.status ?? 'absent');
-      // Team = everyone else
-      setTeamStatus(
-        all
-          .filter((r: any) => r.hub_user_id !== user.id && r.email !== user.email)
-          .map((r: any) => ({
-            full_name: r.full_name,
-            avatar_url: r.avatar_url,
-            status: r.status,
-            hours_today: r.hours_today || 0,
-          }))
-      );
+      setAnnouncements((annResult.data as HubAnnouncement[]) ?? []);
+      setRequests((reqResult.data as HubRequest[]) ?? []);
+      setTimeOffs((toResult.data as HubTimeOff[]) ?? []);
+      setPayoutStatus(payoutRes.data?.status ?? null);
+    } catch (error) {
+      console.error('Contractor dashboard load failed:', error);
+      setActiveProjects([]);
+      setAnnouncements([]);
+      setRequests([]);
+      setTimeOffs([]);
+      setTeamStatus([]);
+      setSlackStatus('absent');
+      setPayoutStatus(null);
+      setHoursThisCutoff(0);
+      setEstimatedPayout(0);
+    } finally {
+      setLoading(false);
     }
-
-    setAnnouncements((annResult.data as HubAnnouncement[]) ?? []);
-    setRequests((reqResult.data as HubRequest[]) ?? []);
-    setTimeOffs((toResult.data as HubTimeOff[]) ?? []);
-    setPayoutStatus(payoutRes.data?.status ?? null);
-    setLoading(false);
   };
 
   useEffect(() => { fetchData(); }, [user, isDemo]);

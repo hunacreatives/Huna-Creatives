@@ -239,13 +239,14 @@ export default function ContractorPayoutsPage() {
   const periods = startDate
     ? allPeriods.filter(p => p.end >= startDate)
     : allPeriods;
-  const [selectedPeriod, setSelectedPeriod] = useState(periods[periods.length - 1]);
+  const [selectedPeriod, setSelectedPeriod] = useState<(typeof periods)[number] | null>(periods[periods.length - 1] ?? null);
   const [days, setDays] = useState<DayRow[]>([]);
 
   // Button unlocks on the cutoff day itself (compare date only, not time)
   const todayPHT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const canSubmitPeriod = todayPHT >= selectedPeriod.end;
+  const canSubmitPeriod = selectedPeriod ? todayPHT >= selectedPeriod.end : false;
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [existingPayout, setExistingPayout] = useState<any>(null);
   const [rateHistory, setRateHistory] = useState<RateEntry[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -255,57 +256,90 @@ export default function ContractorPayoutsPage() {
   const [existingDispute, setExistingDispute] = useState<any>(null);
 
   useEffect(() => {
-    if (hubUser?.id) fetchDays();
-  }, [hubUser, selectedPeriod]);
+    if (!periods.length) {
+      setSelectedPeriod(null);
+      setDays([]);
+      setExistingPayout(null);
+      setExistingDispute(null);
+      setRateHistory([]);
+      setLoading(false);
+      return;
+    }
+
+    setSelectedPeriod((current) => {
+      if (current && periods.some((period) => period.start === current.start)) return current;
+      return periods[periods.length - 1];
+    });
+  }, [periods]);
 
   const fetchDays = async () => {
-    setLoading(true);
-    const isCurrentPeriod = todayPHT >= selectedPeriod.start && todayPHT <= selectedPeriod.end;
-    const [slackRes, daysRes, payoutRes, rateRes] = await Promise.all([
-      isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
-      supabase
-        .from('hub_daily_hours')
-        .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
-        .eq('user_id', hubUser!.id)
-        .gte('date', selectedPeriod.start)
-        .lte('date', selectedPeriod.end)
-        .order('date', { ascending: true }),
-      supabase
-        .from('hub_payouts')
-        .select('id, status, final_payout, payment_date')
-        .eq('contractor_id', hubUser!.id)
-        .eq('cutoff_start', selectedPeriod.start)
-        .maybeSingle(),
-      supabase
-        .from('hub_rate_history')
-        .select('effective_date, payment_type, hourly_rate, monthly_rate')
-        .eq('contractor_id', hubUser!.id)
-        .lte('effective_date', selectedPeriod.end)
-        .order('effective_date', { ascending: true }),
-    ]);
-    const payout = payoutRes.data ?? null;
-    const mergedDays = mergeLiveAttendanceIntoDailyHours(
-      (((daysRes.data as DayRow[]) ?? []) as any[]).map((d: any) => ({ ...d, user_id: hubUser!.id })),
-      (slackRes as any)?.data?.attendance || [],
-      [hubUser!.id],
-      todayPHT,
-    ).map(({ user_id: _userId, ...rest }) => rest as DayRow);
-    setDays(mergedDays);
-    setRateHistory((rateRes.data as RateEntry[]) ?? []);
-    setExistingPayout(payout);
-
-    if (payout?.id) {
-      const { data: dispute } = await supabase
-        .from('hub_payslip_disputes')
-        .select('id, reason, status, admin_notes, created_at')
-        .eq('payout_id', payout.id)
-        .maybeSingle();
-      setExistingDispute(dispute ?? null);
-    } else {
-      setExistingDispute(null);
+    if (!hubUser || !selectedPeriod) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    setLoadError('');
+    setLoading(true);
+    try {
+      const isCurrentPeriod = todayPHT >= selectedPeriod.start && todayPHT <= selectedPeriod.end;
+      const [slackRes, daysRes, payoutRes, rateRes] = await Promise.all([
+        isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
+        supabase
+          .from('hub_daily_hours')
+          .select('date, hours_raw, hours_capped, overtime_hours, first_on, last_off')
+          .eq('user_id', hubUser.id)
+          .gte('date', selectedPeriod.start)
+          .lte('date', selectedPeriod.end)
+          .order('date', { ascending: true }),
+        supabase
+          .from('hub_payouts')
+          .select('id, status, final_payout, payment_date')
+          .eq('contractor_id', hubUser.id)
+          .eq('cutoff_start', selectedPeriod.start)
+          .maybeSingle(),
+        supabase
+          .from('hub_rate_history')
+          .select('effective_date, payment_type, hourly_rate, monthly_rate')
+          .eq('contractor_id', hubUser.id)
+          .lte('effective_date', selectedPeriod.end)
+          .order('effective_date', { ascending: true }),
+      ]);
+      const payout = payoutRes.data ?? null;
+      const mergedDays = mergeLiveAttendanceIntoDailyHours(
+        (((daysRes.data as DayRow[]) ?? []) as any[]).map((d: any) => ({ ...d, user_id: hubUser.id })),
+        (slackRes as any)?.data?.attendance || [],
+        [hubUser.id],
+        todayPHT,
+      ).map(({ user_id: _userId, ...rest }) => rest as DayRow);
+      setDays(mergedDays);
+      setRateHistory((rateRes.data as RateEntry[]) ?? []);
+      setExistingPayout(payout);
+
+      if (payout?.id) {
+        const { data: dispute } = await supabase
+          .from('hub_payslip_disputes')
+          .select('id, reason, status, admin_notes, created_at')
+          .eq('payout_id', payout.id)
+          .maybeSingle();
+        setExistingDispute(dispute ?? null);
+      } else {
+        setExistingDispute(null);
+      }
+    } catch (error) {
+      console.error('Contractor payouts load failed:', error);
+      setLoadError('Unable to load payout details right now.');
+      setDays([]);
+      setRateHistory([]);
+      setExistingPayout(null);
+      setExistingDispute(null);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    if (hubUser?.id && selectedPeriod) fetchDays();
+  }, [hubUser, selectedPeriod]);
 
   const paymentType = (hubUser as any)?.payment_type || 'hourly';
   const currentHourlyRate = Number((hubUser as any)?.hourly_rate || 0);
@@ -320,10 +354,11 @@ export default function ContractorPayoutsPage() {
   const totalOvertime = days.reduce((s, d) => s + (d.overtime_hours || 0), 0);
 
   // Prorated pay calculation using rate history (same logic as admin payroll page)
-  const changeInPeriod = rateHistory.find(r =>
-    r.effective_date >= selectedPeriod.start && r.effective_date <= selectedPeriod.end
-  );
-  const rateAtStart = [...rateHistory].filter(r => r.effective_date < selectedPeriod.start).pop() || null;
+  const activePeriod = selectedPeriod ?? periods[periods.length - 1] ?? null;
+  const changeInPeriod = activePeriod ? rateHistory.find(r =>
+    r.effective_date >= activePeriod.start && r.effective_date <= activePeriod.end
+  ) : undefined;
+  const rateAtStart = activePeriod ? [...rateHistory].filter(r => r.effective_date < activePeriod.start).pop() || null : null;
 
   let basePay: number;
   let overtimePay: number;
@@ -344,7 +379,7 @@ export default function ContractorPayoutsPage() {
     displayHourlyRate  = newHourly;
     if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
       const today = localToday();
-      const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+      const isCurrentPeriod = !!activePeriod && today >= activePeriod.start && today <= activePeriod.end;
       let hrsAtOld = 0;
       let hrsAtNew = 0;
       for (const d of days) {
@@ -352,8 +387,8 @@ export default function ContractorPayoutsPage() {
         else hrsAtNew += d.hours_capped;
       }
       const splitAccrual = computeSplitFixedAccrual({
-        periodStart: selectedPeriod.start,
-        periodEnd: selectedPeriod.end,
+        periodStart: activePeriod!.start,
+        periodEnd: activePeriod!.end,
         changeDate: changeInPeriod.effective_date,
         workDays,
         oldMonthlyRate: oldMonthly,
@@ -393,10 +428,10 @@ export default function ContractorPayoutsPage() {
     displayHourlyRate  = hourly;
     if (paymentType === 'fixed' || paymentType === 'fixed_flexible') {
       const today = localToday();
-      const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+      const isCurrentPeriod = !!activePeriod && today >= activePeriod.start && today <= activePeriod.end;
       const fixedAccrual = computeFixedAccrual({
-        periodStart: selectedPeriod.start,
-        periodEnd: selectedPeriod.end,
+        periodStart: activePeriod!.start,
+        periodEnd: activePeriod!.end,
         monthlyRate: monthly,
         workDays,
         cappedHours: totalHoursBillable,
@@ -421,8 +456,8 @@ export default function ContractorPayoutsPage() {
     setSubmitting(true);
     const { data, error } = await supabase.from('hub_payouts').upsert({
       contractor_id: hubUser.id,
-      cutoff_start: selectedPeriod.start,
-      cutoff_end: selectedPeriod.end,
+      cutoff_start: activePeriod!.start,
+      cutoff_end: activePeriod!.end,
       approved_hours: totalHoursBillable,
       hourly_rate: paymentType === 'hourly' ? displayHourlyRate : displayMonthlyRate / 176,
       base_pay: basePay,
@@ -464,10 +499,11 @@ export default function ContractorPayoutsPage() {
   };
 
   const handleDownload = () => {
+    if (!activePeriod) return;
     const html = generatePayslipHTML({
       name: hubUser?.full_name || '',
       department: (hubUser as any)?.department || null,
-      period: selectedPeriod,
+      period: activePeriod,
       days,
       paymentType,
       hourlyRate: displayHourlyRate,
@@ -493,14 +529,22 @@ export default function ContractorPayoutsPage() {
   return (
     <ContractorLayout title="My Payouts">
       <div className="max-w-2xl space-y-5">
+        {!activePeriod ? (
+          <div className="bg-white border border-gray-100 rounded-xl p-8 text-center">
+            <i className="ri-calendar-event-line text-2xl text-gray-300 block mb-2"></i>
+            <p className="text-sm font-medium text-gray-700">No payout periods available yet</p>
+            <p className="text-sm text-gray-400 mt-1">This usually means the contractor start date is missing or set in the future.</p>
+          </div>
+        ) : (
+          <>
 
         {/* Period selector */}
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-gray-800">Pay Period</p>
             <select
-              value={selectedPeriod.start}
-              onChange={(e) => setSelectedPeriod(periods.find(p => p.start === e.target.value)!)}
+              value={activePeriod.start}
+              onChange={(e) => setSelectedPeriod(periods.find(p => p.start === e.target.value) ?? activePeriod)}
               className="flex-1 max-w-[220px] border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer"
             >
               {periods.map((p) => (
@@ -513,6 +557,22 @@ export default function ContractorPayoutsPage() {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i>
+          </div>
+        ) : loadError ? (
+          <div className="bg-white border border-red-100 rounded-xl p-5">
+            <div className="flex items-start gap-3">
+              <i className="ri-error-warning-line text-red-500 text-lg mt-0.5"></i>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Payout page couldn&apos;t load</p>
+                <p className="text-sm text-gray-500 mt-1">{loadError}</p>
+                <button
+                  onClick={fetchDays}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#111827] px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <>
@@ -527,7 +587,7 @@ export default function ContractorPayoutsPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-[#FF6B35] font-bold text-sm tracking-widest">PAYSLIP</p>
-                  <p className="text-white/40 text-xs mt-1">{selectedPeriod.label}</p>
+                  <p className="text-white/40 text-xs mt-1">{activePeriod.label}</p>
                 </div>
               </div>
 
@@ -540,7 +600,7 @@ export default function ContractorPayoutsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">Pay Period</p>
-                  <p className="text-sm font-semibold text-gray-900">{selectedPeriod.label}</p>
+                  <p className="text-sm font-semibold text-gray-900">{activePeriod.label}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">Rate</p>
@@ -706,7 +766,7 @@ export default function ContractorPayoutsPage() {
                   {submitting ? 'Submitting...' : 'Submit for Payment'}
                 </button>
                 {!canSubmitPeriod && (
-                  <p className="text-xs text-center text-gray-400">Available on {selectedPeriod.end} (cutoff day)</p>
+                  <p className="text-xs text-center text-gray-400">Available on {activePeriod.end} (cutoff day)</p>
                 )}
                 {canSubmitPeriod && (
                   <p className="text-xs text-center text-gray-400">Make sure all your hours are logged before submitting.</p>
@@ -725,6 +785,8 @@ export default function ContractorPayoutsPage() {
             )}
           </>
         )}
+          </>
+        )}
       </div>
       {/* Dispute modal */}
       {disputeModal && (
@@ -733,7 +795,7 @@ export default function ContractorPayoutsPage() {
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-semibold text-[#111827]">Flag a Payslip Issue</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{selectedPeriod.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{activePeriod.label}</p>
               </div>
               <button onClick={() => setDisputeModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
                 <i className="ri-close-line text-lg"></i>
