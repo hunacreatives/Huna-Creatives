@@ -3,6 +3,13 @@ import { localToday } from '@/lib/formatUtils';
 
 const DAY_MAP: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
+function normalizeWorkDay(day: string) {
+  const trimmed = String(day || '').trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1, 3);
+}
+
 export function isAutoPayrollUser(user: { full_name?: string | null; role?: string | null }) {
   const name = (user.full_name || '').trim().toLowerCase();
   const role = (user.role || '').trim().toLowerCase();
@@ -54,7 +61,12 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
 
 export function countWorkingDays(startDate: string, endDate: string, workDays: string[] = []) {
   const scheduled = workDays.length > 0
-    ? new Set(workDays.map(d => DAY_MAP[d]))
+    ? new Set(
+        workDays
+          .map(normalizeWorkDay)
+          .map((d) => DAY_MAP[d])
+          .filter((d): d is number => typeof d === 'number')
+      )
     : new Set([1, 2, 3, 4, 5]);
   let count = 0;
   const end = new Date(`${endDate}T00:00:00`);

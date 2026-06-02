@@ -463,8 +463,12 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(true);
     const approved = rows.filter(r => {
       const p = payoutsMap[r.contractor.id];
-      return p?.status === 'hr_approved' || isAutoPayrollContractor(r.contractor);
+      return !isAutoPayrollContractor(r.contractor) && p?.status === 'hr_approved';
     });
+    if (approved.length === 0) {
+      setWorkflowLoading(false);
+      return;
+    }
     const total = approved.reduce((s, r) => {
       const p = payoutsMap[r.contractor.id];
       return s + (p?.final_payout ?? r.pay);
@@ -1800,7 +1804,9 @@ export default function AdminPayrollPage() {
 
         {/* Fund Transfer Workflow */}
         {!loading && (() => {
-          const approvedCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'hr_approved' || isAutoPayrollContractor(r.contractor)).length;
+          const approvedCount = rows.filter(r =>
+            !isAutoPayrollContractor(r.contractor) && payoutsMap[r.contractor.id]?.status === 'hr_approved'
+          ).length;
           const paidCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'paid').length;
           const isClosed = batch?.status === 'closed';
 
