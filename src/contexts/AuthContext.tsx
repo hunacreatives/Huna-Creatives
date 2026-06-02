@@ -9,7 +9,7 @@ interface AuthContextValue {
   user: HubUser | null;
   hubUser: HubUser | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; hubUser: HubUser | null }>;
   signOut: () => Promise<void>;
   refreshHubUser: () => Promise<void>;
   devViewAs: 'owner' | 'admin' | 'contractor' | null;
@@ -123,9 +123,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error && mountedRef.current) setLoading(false);
-    return { error: error as Error | null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      if (mountedRef.current) setLoading(false);
+      return { error: error as Error | null, hubUser: null };
+    }
+
+    const signedInUser = data.user;
+    if (!signedInUser) {
+      if (mountedRef.current) setLoading(false);
+      return { error: new Error('Sign-in succeeded but no user was returned.'), hubUser: null };
+    }
+
+    const profile = await loadHubUser(signedInUser.id);
+    if (!profile) {
+      await supabase.auth.signOut();
+      if (mountedRef.current) setLoading(false);
+      return {
+        error: new Error('Your account signed in, but no hub profile was found for this workspace.'),
+        hubUser: null,
+      };
+    }
+
+    if (mountedRef.current) {
+      setSession(data.session);
+      setAuthUser(signedInUser);
+      setHubUser(profile);
+      setLoading(false);
+    }
+
+    return { error: null, hubUser: profile };
   };
 
   const signOut = async () => {
