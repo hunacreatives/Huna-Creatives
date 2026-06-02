@@ -20,7 +20,56 @@ interface JobListing {
   growth: string[];
 }
 
-const JOB_LISTINGS: JobListing[] = [];
+const JOB_LISTINGS: JobListing[] = [
+  {
+    id: 'graphic-designer',
+    title: 'Graphic Designer',
+    type: 'Freelance / Project-Based',
+    shift: 'Flexible',
+    startDate: 'ASAP',
+    location: 'Remote (Cebu-based preferred)',
+    summary:
+      'We\'re looking for a creative Graphic Designer to join the Huna Creatives team on a freelance basis. You\'ll work on brand identity, digital assets, social media graphics, and marketing collateral for our clients across various industries.',
+    whatYoullDo: [
+      'Design brand identities, logos, and visual systems for clients',
+      'Create social media graphics, banners, and digital marketing assets',
+      'Produce print-ready files for marketing collateral (flyers, brochures, etc.)',
+      'Collaborate with our team to align visuals with client goals and brand guidelines',
+      'Revise designs based on client and team feedback',
+    ],
+    lookingFor: [
+      'At least 1–2 years of graphic design experience (agency or freelance)',
+      'Strong portfolio showcasing branding, digital, and/or print work',
+      'Proficient in Adobe Creative Suite (Illustrator, Photoshop, InDesign)',
+      'Good communication and ability to meet deadlines',
+      'Eye for typography, color, and layout',
+    ],
+    niceToHave: [
+      'Experience with Figma or Canva Pro',
+      'Motion graphics or basic video editing skills',
+      'Familiarity with social media content formats',
+      'Experience working with local or international brands',
+    ],
+    workSetup: [
+      'Fully remote — work from anywhere',
+      'Flexible hours, output-based',
+      'Project-based engagement with potential for long-term collaboration',
+      'Communication via Slack and project management tools',
+    ],
+    setsYouApart: [
+      'You think beyond aesthetics — you design with purpose',
+      'You can handle multiple projects without dropping quality',
+      'You take feedback well and iterate fast',
+      'You bring ideas to the table, not just execution',
+    ],
+    growth: [
+      'Ongoing project work as we grow our client roster',
+      'Opportunity to become a core creative team member',
+      'Exposure to diverse industries and brand challenges',
+      'Direct collaboration with the creative director',
+    ],
+  },
+];
 
 const HAS_OPENINGS = JOB_LISTINGS.length > 0;
 
