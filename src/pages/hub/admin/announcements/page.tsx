@@ -5,6 +5,7 @@ import { HubAnnouncement } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { DEMO_ANNOUNCEMENTS } from '@/lib/demoData';
+import { createHubNotifications } from '@/lib/hubNotifications';
 
 const priorityColors: Record<string, string> = {
   normal: 'bg-gray-100 text-gray-600',
@@ -95,7 +96,7 @@ export default function AnnouncementsPage() {
           // In-app notifications for all active contractors
           supabase.from('hub_users').select('id').eq('status', 'active').eq('role', 'contractor').then(({ data }) => {
             if (!data?.length) return;
-            supabase.from('hub_notifications').insert(
+            createHubNotifications(
               data.map(u => ({
                 user_id: u.id,
                 type: 'announcement',

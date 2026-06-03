@@ -32,15 +32,21 @@ export default function NotificationBell() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   const lsKey = `hub_notif_seen_${hubUser?.id}`;
+  const clearKey = `hub_notif_cleared_${hubUser?.id}`;
   const getLastSeen = (): Date => {
     const s = localStorage.getItem(lsKey);
     return s ? new Date(s) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  };
+  const getClearedAt = (): Date | null => {
+    const s = localStorage.getItem(clearKey);
+    return s ? new Date(s) : null;
   };
 
   const fetchNotifs = useCallback(async () => {
     if (!hubUser) return;
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // last 7 days
     const lastSeen = getLastSeen();
+    const clearedAt = getClearedAt();
     const items: Notif[] = [];
 
     const isAdmin = hubUser.role === 'admin' || hubUser.role === 'owner';
@@ -470,8 +476,11 @@ export default function NotificationBell() {
 
     // Sort by newest
     items.sort((a, b) => b.time.getTime() - a.time.getTime());
-    setNotifs(items);
-    setUnread(items.filter(n => n.time > lastSeen).length);
+    const visibleItems = clearedAt
+      ? items.filter((n) => n.time > clearedAt)
+      : items;
+    setNotifs(visibleItems);
+    setUnread(visibleItems.filter(n => n.time > lastSeen).length);
   }, [hubUser]);
 
   useEffect(() => {
@@ -524,10 +533,19 @@ export default function NotificationBell() {
     }
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
+    const nowIso = new Date().toISOString();
     setNotifs([]);
     setUnread(0);
-    localStorage.setItem(lsKey, new Date().toISOString());
+    localStorage.setItem(lsKey, nowIso);
+    localStorage.setItem(clearKey, nowIso);
+    if (hubUser) {
+      await supabase
+        .from('hub_notifications')
+        .update({ read: true })
+        .eq('user_id', hubUser.id)
+        .eq('read', false);
+    }
   };
 
   if (!hubUser) return null;

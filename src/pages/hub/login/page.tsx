@@ -45,11 +45,18 @@ export default function HubLoginPage() {
     setError('');
     setLoading(true);
     try {
-      const { error: err } = await signIn(email, password);
+      const { error: err, hubUser: nextHubUser } = await signIn(email, password);
       if (err) {
         setError(err.message || 'Invalid email or password. Please try again.');
         setLoading(false);
+        return;
       }
+      if (nextHubUser) {
+        navigate(getHubHomePath(nextHubUser.role), { replace: true });
+        return;
+      }
+      setError('Sign-in completed, but your workspace profile could not be loaded.');
+      setLoading(false);
     } catch {
       setError('Something went wrong. Please try again.');
       setLoading(false);

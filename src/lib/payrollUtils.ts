@@ -16,6 +16,61 @@ export function isAutoPayrollUser(user: { full_name?: string | null; role?: stri
   return name.includes('abigail') && (role === 'admin' || role === 'hr');
 }
 
+type DailyHoursRow = {
+  date: string;
+  hours_raw?: number | null;
+  hours_capped?: number | null;
+  overtime_hours?: number | null;
+  user_id?: string | null;
+};
+
+type LiveAttendanceRow = {
+  hub_user_id: string | null;
+  hours_today?: number | null;
+  overtime_today?: number | null;
+  shift_date?: string | null;
+  last_punch?: string | null;
+  punches?: Array<{ status?: string | null; time?: string | null }> | null;
+};
+
+function toAsiaManilaDate(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+}
+
+function inferAttendanceDate(item: LiveAttendanceRow, targetDate: string) {
+  if (item.shift_date) return item.shift_date;
+  const firstOn = item.punches?.find((p) => p.status === 'on' && p.time)?.time;
+  return toAsiaManilaDate(firstOn) || toAsiaManilaDate(item.last_punch) || targetDate;
+}
+
+export function consolidateDailyHoursByUserDate<T extends DailyHoursRow>(rows: T[]) {
+  const merged = new Map<string, T>();
+
+  for (const row of rows) {
+    const key = `${row.user_id || ''}::${row.date}`;
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...row });
+      continue;
+    }
+
+    merged.set(key, {
+      ...existing,
+      ...row,
+      user_id: row.user_id ?? existing.user_id,
+      date: row.date || existing.date,
+      hours_raw: Math.max(Number(existing.hours_raw || 0), Number(row.hours_raw || 0)),
+      hours_capped: Math.max(Number(existing.hours_capped || 0), Number(row.hours_capped || 0)),
+      overtime_hours: Math.max(Number(existing.overtime_hours || 0), Number(row.overtime_hours || 0)),
+    });
+  }
+
+  return Array.from(merged.values());
+}
+
 export function mergeLiveAttendanceIntoDailyHours<T extends {
   date: string;
   hours_raw?: number | null;
@@ -24,14 +79,14 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
   user_id?: string;
 }>(
   rows: T[],
-  attendance: Array<{ hub_user_id: string | null; hours_today?: number | null; overtime_today?: number | null }> | null | undefined,
+  attendance: LiveAttendanceRow[] | null | undefined,
   userIds?: string[],
   targetDate = localToday(),
 ) {
   const allowed = userIds ? new Set(userIds) : null;
   const merged = new Map<string, T>();
 
-  for (const row of rows) {
+  for (const row of consolidateDailyHoursByUserDate(rows)) {
     const key = `${row.user_id || ''}::${row.date}`;
     merged.set(key, { ...row });
   }
@@ -44,12 +99,13 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
     const liveOt = Number(item.overtime_today || 0);
     if (liveHours <= 0 && liveOt <= 0) continue;
 
-    const key = `${userId}::${targetDate}`;
+    const attendanceDate = inferAttendanceDate(item, targetDate);
+    const key = `${userId}::${attendanceDate}`;
     const existing = merged.get(key);
     merged.set(key, {
-      ...(existing || { user_id: userId, date: targetDate }),
+      ...(existing || { user_id: userId, date: attendanceDate }),
       user_id: userId,
-      date: targetDate,
+      date: attendanceDate,
       hours_raw: Math.max(Number(existing?.hours_raw || 0), liveHours),
       hours_capped: Math.max(Number(existing?.hours_capped || 0), liveHours),
       overtime_hours: Math.max(Number(existing?.overtime_hours || 0), liveOt),
@@ -184,7 +240,7 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
   const hoursByDate: Record<string, Record<string, number>> = {};
   const overtimeByDate: Record<string, Record<string, number>> = {};
   const hoursMap: Record<string, { capped: number; overtime: number }> = {};
-  for (const h of hoursRes.data || []) {
+  for (const h of consolidateDailyHoursByUserDate((hoursRes.data || []) as DailyHoursRow[])) {
     if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, overtime: 0 };
     hoursMap[h.user_id].capped += h.hours_capped;
     hoursMap[h.user_id].overtime += h.overtime_hours || 0;

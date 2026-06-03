@@ -58,6 +58,24 @@ function AnnouncementCard({ a, currentUserId, canDelete, onDeleted }: {
     if (!error && data) {
       setComments(prev => [...prev, data as any]);
       setCommentText('');
+      const { data: admins } = await supabase
+        .from('hub_users')
+        .select('id')
+        .in('role', ['owner', 'admin', 'hr'])
+        .eq('status', 'active');
+
+      await Promise.allSettled(
+        (admins ?? []).map((admin) =>
+          supabase.functions.invoke('send-push', {
+            body: {
+              user_id: admin.id,
+              title: 'New announcement comment',
+              body: `${(data as any).hub_users?.full_name ?? 'A contractor'} commented on "${a.title}"`,
+              url: '/hub/admin/announcements',
+            },
+          })
+        )
+      );
     }
     setPosting(false);
   };
