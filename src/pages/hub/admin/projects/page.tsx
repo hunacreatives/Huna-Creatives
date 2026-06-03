@@ -1388,9 +1388,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     setOpenSections({});
     if (activeId) setTimeout(() => detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
     // Sync URL
-    if (activeId) setSearchParams({ w: String(activeId) }, { replace: true });
+    if (activeId) setSearchParams(workspaceOpen ? { w: String(activeId), ws: '1' } : { w: String(activeId) }, { replace: true });
     else setSearchParams({}, { replace: true });
-  }, [activeId, isDemo]);
+  }, [activeId, isDemo, workspaceOpen]);
 
   useEffect(() => {
     if (!isDemo) refreshWorkspaceActivity();
@@ -1410,21 +1410,22 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     return () => { supabase.removeChannel(channel); };
   }, [activeId, isDemo]);
 
-  // Open workspace directly if ?w= param is set on initial load only
+  // Select project on load; only open workspace when explicitly requested with ?ws=1
   const didInitWorkspace = useRef(false);
-  const lastW = useRef<string | null>(null);
+  const lastRouteKey = useRef<string | null>(null);
   useEffect(() => {
     if (projects.length === 0) return;
     const w = searchParams.get('w');
-    // Fire if: first time, OR URL param changed (e.g. from notification click)
-    if (didInitWorkspace.current && w === lastW.current) return;
-    lastW.current = w;
+    const ws = searchParams.get('ws');
+    const routeKey = `${w ?? ''}:${ws ?? ''}`;
+    if (didInitWorkspace.current && routeKey === lastRouteKey.current) return;
+    lastRouteKey.current = routeKey;
     if (w) {
       const id = parseInt(w);
       if (projects.some(p => p.id === id)) {
         didInitWorkspace.current = true;
         setActiveId(id);
-        setWorkspaceOpen(true);
+        setWorkspaceOpen(ws === '1');
       }
     } else {
       didInitWorkspace.current = true;
@@ -1626,7 +1627,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <p className="text-xs text-gray-400 truncate">{internalProject ? 'Internal Project' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                 </div>
                 <button
-                  onClick={() => { const url = `${window.location.origin}/hub/admin/projects?w=${activeId}`; navigator.clipboard.writeText(url); }}
+                  onClick={() => { const url = `${window.location.origin}/hub/admin/projects?w=${activeId}&ws=1`; navigator.clipboard.writeText(url); }}
                   title="Copy workspace link"
                   className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer transition-all shadow-sm flex-shrink-0">
                   <i className="ri-link text-base"></i>
