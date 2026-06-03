@@ -21,6 +21,16 @@ const cors = {
 const fmt = (n: number) =>
   '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+function normalizeRecipients(input: unknown) {
+  if (Array.isArray(input)) {
+    return input.map((value) => String(value || '').trim()).filter(Boolean);
+  }
+  if (typeof input === 'string') {
+    return input.split(/[,\n;]+/).map((value) => value.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
@@ -50,6 +60,8 @@ Deno.serve(async (req) => {
       amount_requested,
       existing_invoice_log_id,
     } = await req.json();
+    const toList = normalizeRecipients(to);
+    const ccList = normalizeRecipients(cc);
 
     const lineItems: { description: string; amount: string }[] = line_items?.length
       ? line_items
@@ -57,7 +69,7 @@ Deno.serve(async (req) => {
     const lineItemsTotal = lineItems.reduce((s: number, i: any) => s + (parseFloat(i.amount) || 0), 0);
     const showPayments = show_payments !== false;
 
-    if (!to || !client_name || !project_name) {
+    if (toList.length === 0 || !client_name || !project_name) {
       return new Response(JSON.stringify({ error: 'to, client_name, and project_name are required' }), { status: 200, headers: cors });
     }
 
@@ -85,7 +97,7 @@ Deno.serve(async (req) => {
         invoice_number: String(invoice_number),
         client_name,
         project_name,
-        to_email: to,
+        to_email: toList.join(', '),
         amount_due: amountDue,
         due_date: deadline ?? null,
         line_items: lineItems,
@@ -280,17 +292,21 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         from: FROM_EMAIL,
-        to: [to],
-        ...(cc ? { cc: [cc] } : {}),
+        to: toList,
+        ...(ccList.length > 0 ? { cc: ccList } : {}),
         subject: subject ?? `Invoice #${String(invoice_number).padStart(4, '0')} — ${project_name}`,
         html,
       }),
     });
+    clearTimeout(timeout);
 
     const resBody = await res.json();
     if (!res.ok) {
@@ -302,8 +318,8 @@ Deno.serve(async (req) => {
       project_id: project_id ?? null,
       client_name,
       project_name,
-      sent_to: to,
-      sent_cc: cc ?? null,
+      sent_to: toList.join(', '),
+      sent_cc: ccList.length > 0 ? ccList.join(', ') : null,
       subject: subject ?? null,
       contract_price: lineItemsTotal,
       total_paid: totalPaid,

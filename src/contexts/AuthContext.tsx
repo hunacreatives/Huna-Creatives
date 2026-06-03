@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { clearSupabaseAuthStorage, supabase } from '@/lib/supabase';
 import { HubUser } from '@/lib/types';
 
 interface AuthContextValue {
@@ -41,6 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resetAuthState = () => {
+    clearSupabaseAuthStorage();
+    setSession(null);
+    setAuthUser(null);
+    setHubUser(null);
+  };
+
   const hydrateSession = async (nextSession: Session | null) => {
     if (!mountedRef.current) return;
 
@@ -59,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!mountedRef.current || requestId !== profileRequestIdRef.current) return;
 
     if (!profile) {
-      setHubUser(null);
+      resetAuthState();
       setLoading(false);
       await supabase.auth.signOut();
       return;
@@ -80,13 +87,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const timeout = setTimeout(() => {
       if (mountedRef.current) setLoading(false);
-    }, 8000);
+    }, 4000);
 
     // Initial session load — single source of truth for first render
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       await hydrateSession(s);
       clearTimeout(timeout);
     }).catch(() => {
+      resetAuthState();
       clearTimeout(timeout);
       if (mountedRef.current) setLoading(false);
     });
@@ -103,9 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Explicit sign-out
       if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setAuthUser(null);
-        setHubUser(null);
+        resetAuthState();
         if (mountedRef.current) setLoading(false);
         return;
       }
@@ -137,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const profile = await loadHubUser(signedInUser.id);
     if (!profile) {
+      resetAuthState();
       await supabase.auth.signOut();
       if (mountedRef.current) setLoading(false);
       return {
@@ -156,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    resetAuthState();
     await supabase.auth.signOut();
   };
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
 import { supabase } from '@/lib/supabase';
@@ -160,6 +160,7 @@ function Avatar({ name, url }: { name: string; url?: string | null }) {
 export default function AdminProjectsPage() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
+  const navigate = useNavigate();
   const isOwner = hubUser?.role === 'owner' || isDemo;
   const [usdRate, setUsdRate] = useState(56);
   useEffect(() => { getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v))); }, []);
@@ -1064,14 +1065,51 @@ export default function AdminProjectsPage() {
     };
   };
 
+  const parseEmailList = (value: string) =>
+    value
+      .split(/[,\n;]+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
   const sendInvoice = async (project: Project) => {
+    const toList = parseEmailList(invoiceForm.email);
+    const ccList = parseEmailList(invoiceForm.cc);
+
+    if (toList.length === 0 || toList.some((email) => !isValidEmail(email))) {
+      setInvoiceMsg({ ok: false, text: 'Enter at least one valid recipient email.' });
+      return;
+    }
+    if (ccList.some((email) => !isValidEmail(email))) {
+      setInvoiceMsg({ ok: false, text: 'One or more CC emails are invalid.' });
+      return;
+    }
+
     setInvoiceSending(true);
     setInvoiceMsg(null);
     const payload = buildInvoicePayload(project);
-    const { data, error } = await supabase.functions.invoke('send-invoice', {
-      body: payload,
+    const invokePromise = supabase.functions.invoke('send-invoice', {
+      body: {
+        ...payload,
+        to: toList,
+        cc: ccList,
+      },
     });
-    setInvoiceSending(false);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error('Invoice sending timed out. Please try again.')), 20000);
+    });
+
+    let data: any;
+    let error: any;
+    try {
+      ({ data, error } = await Promise.race([invokePromise, timeoutPromise]) as any);
+    } catch (err) {
+      error = err;
+    } finally {
+      setInvoiceSending(false);
+    }
+
     if (error || data?.error) {
       setInvoiceMsg({ ok: false, text: data?.error ?? error?.message ?? 'Failed to send' });
     } else {
@@ -1102,6 +1140,18 @@ export default function AdminProjectsPage() {
   };
 
   const scheduleInvoice = async (project: Project) => {
+    const toList = parseEmailList(invoiceForm.email);
+    const ccList = parseEmailList(invoiceForm.cc);
+
+    if (toList.length === 0 || toList.some((email) => !isValidEmail(email))) {
+      setInvoiceMsg({ ok: false, text: 'Enter at least one valid recipient email.' });
+      return;
+    }
+    if (ccList.some((email) => !isValidEmail(email))) {
+      setInvoiceMsg({ ok: false, text: 'One or more CC emails are invalid.' });
+      return;
+    }
+
     if (!invoiceForm.scheduled_for) {
       setInvoiceMsg({ ok: false, text: 'Choose when the invoice should be sent.' });
       return;
@@ -1119,8 +1169,8 @@ export default function AdminProjectsPage() {
     const { error } = await supabase.from('hub_scheduled_invoices').insert({
       project_id: project.id,
       invoice_number: String(payload.invoice_number),
-      to_email: payload.to,
-      cc_email: payload.cc ?? null,
+      to_email: toList.join(', '),
+      cc_email: ccList.length > 0 ? ccList.join(', ') : null,
       subject: payload.subject ?? null,
       client_name: payload.client_name,
       project_name: payload.project_name,
@@ -2888,7 +2938,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   </div>
                   {/* Actions */}
                   <div className="flex gap-2">
-                    {!internalProject && <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
+                    {!internalProject && <button onClick={() => navigate(`/hub/admin/invoices/${activeProject.id}`)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>}
@@ -2989,7 +3039,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <div className="w-px h-5 bg-gray-200" />
 
                     {/* Primary actions */}
-                    {!internalProject && <button onClick={async () => { const nextNum = await fetchNextInvoiceNumber(); setInvoiceModal(activeProject); const _balance = activeProject.contract_price - activeProject.hub_project_payments.reduce((s,p)=>s+p.amount,0); setInvoiceForm({ email: activeProject.contact_email ?? '', cc: '', subject: `Invoice #${nextNum} — ${activeProject.project_name}`, due_date: activeProject.deadline ?? '', invoice_number: nextNum, bill_to_name: activeProject.client_name, bill_to_address: '', reference: '', payment_terms: activeProject.deadline ? 'Due by stated date' : 'Due on receipt', send_mode: 'now', scheduled_for: '', message: '', amount_requested: String(Math.max(_balance, 0)) }); setInvoiceLineItems([{ description: activeProject.service ?? activeProject.project_name, amount: String(activeProject.contract_price) }]); setInvoiceShowPayments(true); setInvoiceMsg(null); }}
+                    {!internalProject && <button onClick={() => navigate(`/hub/admin/invoices/${activeProject.id}`)}
                       className="text-xs px-3 py-2 bg-[#111827] hover:bg-gray-800 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors font-medium">
                       <i className="ri-mail-send-line text-sm"></i> Send Invoice
                     </button>}

@@ -293,7 +293,7 @@ export default function ContractorPayoutsPage() {
           .order('date', { ascending: true }),
         supabase
           .from('hub_payouts')
-          .select('id, status, final_payout, payment_date')
+          .select('id, status, final_payout, payment_date, approved_hours, hourly_rate, base_pay, overtime_pay, bonus, incentives, reimbursements, deductions, advances, penalties, adjustments')
           .eq('contractor_id', hubUser.id)
           .eq('cutoff_start', selectedPeriod.start)
           .maybeSingle(),
@@ -450,6 +450,27 @@ export default function ContractorPayoutsPage() {
     overtimePay = totalOvertime * otRate;
   }
   const totalPay = basePay + overtimePay;
+  const payoutAdjustments = (() => {
+    if (!existingPayout) return 0;
+    const arrayTotal = Array.isArray(existingPayout.adjustments)
+      ? existingPayout.adjustments.reduce((sum: number, item: any) => sum + Number(item?.amount || 0), 0)
+      : 0;
+    const legacyTotal =
+      Number(existingPayout.bonus || 0)
+      + Number(existingPayout.incentives || 0)
+      + Number(existingPayout.reimbursements || 0)
+      - Number(existingPayout.deductions || 0)
+      - Number(existingPayout.advances || 0)
+      - Number(existingPayout.penalties || 0);
+    return arrayTotal || legacyTotal;
+  })();
+  const persistedBasePay = existingPayout?.base_pay != null ? Number(existingPayout.base_pay) : null;
+  const persistedOvertimePay = existingPayout?.overtime_pay != null ? Number(existingPayout.overtime_pay) : null;
+  const displayBasePay = persistedBasePay ?? basePay;
+  const displayOvertimePay = persistedOvertimePay ?? overtimePay;
+  const displayTotalPay = existingPayout?.final_payout != null
+    ? Number(existingPayout.final_payout)
+    : totalPay;
 
   const handleSubmit = async () => {
     if (!hubUser || submitting) return;
@@ -513,9 +534,9 @@ export default function ContractorPayoutsPage() {
       totalHoursRaw,
       totalHoursBillable,
       totalOvertime,
-      basePay,
-      overtimePay,
-      totalPay,
+      basePay: displayBasePay,
+      overtimePay: displayOvertimePay,
+      totalPay: displayTotalPay,
       generatedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
       logoUrl: `${window.location.origin}/images/547b59870e776a20eb28e4f20931787c.png`,
     });
@@ -667,19 +688,27 @@ export default function ContractorPayoutsPage() {
                           ? `Fixed base (${fmt(displayMonthlyRate)}/mo, earned from capped hours)`
                           : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${displayHourlyRate})`}
                     </span>
-                    <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>
+                    <span className="text-sm font-medium text-gray-800">{fmt(displayBasePay)}</span>
                   </div>
-                  {overtimePay > 0 && (
+                  {displayOvertimePay > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-purple-600">
                         Overtime ({totalOvertime}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)
                       </span>
-                      <span className="text-sm font-medium text-purple-700">+{fmt(overtimePay)}</span>
+                      <span className="text-sm font-medium text-purple-700">+{fmt(displayOvertimePay)}</span>
+                    </div>
+                  )}
+                  {payoutAdjustments !== 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">HR adjustments</span>
+                      <span className={`text-sm font-medium ${payoutAdjustments > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                        {payoutAdjustments > 0 ? '+' : ''}{fmt(payoutAdjustments)}
+                      </span>
                     </div>
                   )}
                   <div className="flex items-center justify-between pt-3 mt-1 border-t border-gray-100">
                     <span className="font-semibold text-gray-900">Total Payout</span>
-                    <span className="text-xl font-bold text-[#FF6B35]">{fmt(totalPay)}</span>
+                    <span className="text-xl font-bold text-[#FF6B35]">{fmt(displayTotalPay)}</span>
                   </div>
                 </div>
               </div>
