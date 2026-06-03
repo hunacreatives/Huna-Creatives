@@ -1210,10 +1210,15 @@ export default function AdminProjectsPage() {
   td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px}
   td.amount{text-align:right;font-weight:600}
   td.paid{color:#059669}
-  .totals{margin-left:auto;width:280px}
-  .totals tr td{padding:6px 0;font-size:13px;color:#6b7280;border:none}
+  .summary-wrap{display:flex;justify-content:flex-end;margin-top:10px}
+  .summary-card{width:340px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px}
+  .summary-title{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px}
+  .totals{width:100%;margin:0}
+  .totals tr td{padding:7px 0;font-size:13px;color:#6b7280;border:none}
   .totals tr td:last-child{text-align:right}
-  .totals .balance td{font-size:16px;font-weight:800;color:#111827;border-top:2px solid #e5e7eb;padding-top:10px}
+  .totals .divider td{padding:5px 0 0}
+  .totals .divider-line{border-top:2px solid #e5e7eb}
+  .totals .balance td{font-size:16px;font-weight:800;color:#111827;padding-top:10px}
   .totals .balance td:last-child{color:${balanceDue <= 0 ? '#059669' : '#FF6B35'}}
   .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af}
   .pay-via{margin-top:32px}
@@ -1263,11 +1268,17 @@ ${showPayments && project.hub_project_payments.length > 0 ? `
   <thead><tr><th>Date</th><th>Note</th><th style="text-align:right">Payment</th></tr></thead>
   <tbody>${paymentRows}</tbody>
 </table>` : ''}
-<table class="totals">
-  <tr><td>Subtotal</td><td>${fmt2(lineItemsTotal)}</td></tr>
-  ${showPayments ? `<tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>` : ''}
-  <tr class="balance"><td>Balance due</td><td>${balanceDue <= 0 ? 'Paid in full' : fmt2(balanceDue)}</td></tr>
-</table>
+<div class="summary-wrap">
+  <div class="summary-card">
+    <div class="summary-title">Invoice Summary</div>
+    <table class="totals">
+      <tr><td>Subtotal</td><td>${fmt2(lineItemsTotal)}</td></tr>
+      ${showPayments ? `<tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>` : ''}
+      <tr class="divider"><td colspan="2"><div class="divider-line"></div></td></tr>
+      <tr class="balance"><td>Balance due</td><td>${balanceDue <= 0 ? 'Paid in full' : fmt2(balanceDue)}</td></tr>
+    </table>
+  </div>
+</div>
 ${balanceDue > 0 && payUrl ? `
 <div style="margin-top:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px;text-align:center;">
   <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Choose your payment channel online</div>

@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
       project_id,
       app_base_url,
       amount_requested,
+      existing_invoice_log_id,
     } = await req.json();
 
     const lineItems: { description: string; amount: string }[] = line_items?.length
@@ -68,6 +69,15 @@ Deno.serve(async (req) => {
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
     const invoiceDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const billedTo = bill_to_name || client_name;
+    if (existing_invoice_log_id) {
+      await supabase
+        .from('hub_invoice_payment_links')
+        .update({ status: 'closed' })
+        .eq('invoice_number', String(invoice_number))
+        .eq('project_id', project_id ?? null)
+        .eq('status', 'open');
+    }
+
     const { data: paymentLink, error: paymentLinkError } = await supabase
       .from('hub_invoice_payment_links')
       .insert({
@@ -201,21 +211,24 @@ Deno.serve(async (req) => {
           <!-- Balance summary -->
           <tr>
             <td style="padding:20px 40px 28px;">
-              <table width="100%" cellpadding="0" cellspacing="0">
+              <table width="340" align="right" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;">
                 <tr>
-                  <td style="padding:6px 0;font-size:13px;color:#6b7280;">Subtotal</td>
-                  <td style="padding:6px 0;font-size:13px;color:#6b7280;text-align:right;">${fmt(lineItemsTotal)}</td>
+                  <td colspan="2" style="padding:0 0 8px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Invoice Summary</td>
+                </tr>
+                <tr>
+                  <td style="padding:7px 0;font-size:13px;color:#6b7280;">Subtotal</td>
+                  <td style="padding:7px 0;font-size:13px;color:#6b7280;text-align:right;">${fmt(lineItemsTotal)}</td>
                 </tr>
                 ${showPayments ? `<tr>
-                  <td style="padding:6px 0;font-size:13px;color:#6b7280;">Total paid</td>
-                  <td style="padding:6px 0;font-size:13px;color:#059669;font-weight:600;text-align:right;">− ${fmt(totalPaid)}</td>
+                  <td style="padding:7px 0;font-size:13px;color:#6b7280;">Total paid</td>
+                  <td style="padding:7px 0;font-size:13px;color:#059669;font-weight:600;text-align:right;">− ${fmt(totalPaid)}</td>
                 </tr>` : ''}
                 <tr>
-                  <td colspan="2" style="padding:2px 0;"><div style="border-top:2px solid #e5e7eb;margin:4px 0;"></div></td>
+                  <td colspan="2" style="padding:4px 0 0;"><div style="border-top:2px solid #e5e7eb;"></div></td>
                 </tr>
                 <tr>
-                  <td style="padding:8px 0;font-size:15px;font-weight:700;color:#111827;">Balance due</td>
-                  <td style="padding:8px 0;font-size:18px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;">${isPaid ? 'Paid in full' : fmt(amountDue)}</td>
+                  <td style="padding:10px 0 0;font-size:15px;font-weight:700;color:#111827;">Balance due</td>
+                  <td style="padding:10px 0 0;font-size:18px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;">${isPaid ? 'Paid in full' : fmt(amountDue)}</td>
                 </tr>
               </table>
             </td>
@@ -284,7 +297,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: resBody?.message ?? 'Failed to send email' }), { status: 200, headers: cors });
     }
 
-    await supabase.from('hub_invoice_log').insert({
+    const logPayload = {
       invoice_number: String(invoice_number),
       project_id: project_id ?? null,
       client_name,
@@ -297,7 +310,14 @@ Deno.serve(async (req) => {
       balance: amountDue,
       line_items: lineItems,
       show_payments: showPayments,
-    });
+      sent_at: new Date().toISOString(),
+    };
+
+    if (existing_invoice_log_id) {
+      await supabase.from('hub_invoice_log').update(logPayload).eq('id', existing_invoice_log_id);
+    } else {
+      await supabase.from('hub_invoice_log').insert(logPayload);
+    }
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
