@@ -1485,10 +1485,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     else { setWorkspaceOpen(false); }
     setOpenSections({});
     if (activeId) setTimeout(() => detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
-    // Sync URL
+  }, [activeId, isDemo]);
+
+  // Sync URL separately so changing workspaceOpen doesn't re-run the effect above and reset it
+  useEffect(() => {
     if (activeId) setSearchParams(workspaceOpen ? { w: String(activeId), ws: '1' } : { w: String(activeId) }, { replace: true });
     else setSearchParams({}, { replace: true });
-  }, [activeId, isDemo, workspaceOpen]);
+  }, [activeId, workspaceOpen]);
 
   useEffect(() => {
     if (!isDemo) refreshWorkspaceActivity();
