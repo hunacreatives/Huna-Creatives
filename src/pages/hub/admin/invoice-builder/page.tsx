@@ -30,6 +30,75 @@ export default function AdminInvoiceBuilderPage() {
 
   const draftKey = `hub_invoice_draft_${projectId}`;
 
+  async function previewPaymentPage() {
+    if (!project) return;
+    // compute amount due same as preview renderer
+    const validLineItemsLocal = lineItems.filter((item) => item.description.trim() && item.amount !== '');
+    const subtotalLocal = validLineItemsLocal.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    const amountRequestedLocal = form.amount_requested ? parseFloat(form.amount_requested) : NaN;
+    const amountDue = Number.isFinite(amountRequestedLocal) ? amountRequestedLocal : subtotalLocal;
+
+    const fmt = (n: number) => new Intl.NumberFormat(form.currency === 'USD' ? 'en-US' : 'en-PH', { style: 'currency', currency: form.currency, minimumFractionDigits: 2 }).format(n);
+
+    // open popup immediately (user gesture) and show a loading state
+    const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=800');
+    if (!win) return;
+    const staticPreviewHtml = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment preview — ${project.project_name}</title>
+      <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#111827;padding:28px} .card{max-width:720px;margin:0 auto;background:#fff;border:1px solid #e6e9ef;border-radius:12px;padding:22px} .header{display:flex;align-items:center;gap:12px;margin-bottom:12px} .logo{height:32px} .amount{font-weight:800;font-size:28px;margin-top:6px} .channels{display:flex;gap:12px;margin-top:16px} .chan{flex:1;border:1px solid #f1f5f9;border-radius:10px;padding:12px;text-align:center} .chan img{max-width:140px;border-radius:8px} .btn{display:inline-block;margin-top:10px;padding:10px 14px;background:#111827;color:#fff;border-radius:8px;text-decoration:none;font-weight:700}</style>
+      </head><body><div class="card"><div class="header"><img src="https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" class="logo"/><div><div style="font-size:12px;color:#6b7280">Payment Preview</div><div style="font-size:14px;font-weight:700">${project.project_name} — ${form.invoice_number || ''}</div></div></div>
+      <div><div style="font-size:12px;color:#6b7280">Amount due</div><div class="amount">${fmt(amountDue)}</div></div>
+      <div style="margin-top:12px;color:#6b7280">Choose your payment channel and follow the instructions to complete payment. This is a preview — uploads are disabled.</div>
+      <div class="channels">
+        <div class="chan"><div style="font-weight:700">GCash</div><img src="https://www.hunacreatives.com/images/qr-gcash.jpg" alt="GCash QR"/><div><a class="btn" href="#" onclick="window.open('https://www.hunacreatives.com/images/qr-gcash.jpg','_blank')">Open QR</a></div></div>
+        <div class="chan"><div style="font-weight:700">BDO InstaPay</div><img src="https://www.hunacreatives.com/images/qr-bdo.jpg" alt="BDO QR"/><div><a class="btn" href="#" onclick="window.open('https://www.hunacreatives.com/images/qr-bdo.jpg','_blank')">Open QR</a></div></div>
+        <div class="chan"><div style="font-weight:700">GoTyme</div><img src="https://www.hunacreatives.com/images/qr-gotyme.jpg" alt="GoTyme QR"/><div><a class="btn" href="#" onclick="window.open('https://www.hunacreatives.com/images/qr-gotyme.jpg','_blank')">Open QR</a></div></div>
+      </div>
+      <div style="margin-top:18px;font-size:13px;color:#374151">Reference: ${form.reference || '—'}</div>
+      <div style="margin-top:10px;font-size:13px;color:#374151">To test an actual submission, send a real invoice — this preview is local only.</div>
+      </div></body></html>`;
+    const loadingHtml = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preparing payment preview…</title>
+      <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px;color:#111827} .muted{color:#6b7280}</style></head><body><h2>Preparing payment preview…</h2><p class="muted">Please wait while we create a secure preview link.</p></body></html>`;
+    try {
+      win.document.open();
+      win.document.write(loadingHtml);
+      win.document.close();
+
+      const SUPABASE_URL = (import.meta.env.VITE_PUBLIC_SUPABASE_URL as string) || (import.meta.env.VITE_SUPABASE_URL as string) || '';
+      const SUPABASE_ANON_KEY = (import.meta.env.VITE_PUBLIC_SUPABASE_ANON_KEY as string) || (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
+      const payload = buildSendPayload();
+      if (!payload) {
+        // if payload can't be built, show local preview content
+        win.document.open();
+        win.document.write(staticPreviewHtml);
+        win.document.close();
+        return;
+      }
+      const bodyPayload: any = { ...(payload as any), preview_only: true, app_base_url: window.location.origin };
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify(bodyPayload),
+      });
+      const body = await res.json().catch(() => null);
+      const token = body?.token || body?.paymentLink?.token || null;
+      if (token) {
+        setPreviewToken(token);
+        // navigate the already-opened window to the real pay route (user gesture preserved)
+        win.location.href = `${window.location.origin}/pay/${token}`;
+        return;
+      }
+      // fallback: write the static preview into the popup
+      win.document.open();
+      win.document.write(staticPreviewHtml);
+      win.document.close();
+    } catch (err) {
+      // on error, write local preview
+      win.document.open();
+      win.document.write(staticPreviewHtml);
+      win.document.close();
+    }
+  };
+
   const loadNextInvoiceNumber = async () => {
     const [sentRes, scheduledRes] = await Promise.all([
       supabase.from('hub_invoice_log').select('invoice_number').order('id', { ascending: false }).limit(1).maybeSingle(),
@@ -52,55 +121,49 @@ export default function AdminInvoiceBuilderPage() {
       }
 
       setLoading(true);
-      const [{ data: projectData }, nextInvoiceNumber] = await Promise.all([
-        supabase
-          .from('hub_projects')
-          .select('id, client_name, project_name, service, contract_price, start_date, deadline, contact_email, hub_project_payments(id, amount, paid_at, notes, receipt_url)')
-          .eq('id', Number(projectId))
-          .maybeSingle(),
-        loadNextInvoiceNumber(),
-      ]);
+      try {
+        const [{ data: projectData }, nextInvoiceNumber] = await Promise.all([
+          supabase
+            .from('hub_projects')
+            .select('id, client_name, project_name, service, contract_price, start_date, deadline, contact_email, hub_project_payments(id, amount, paid_at, notes, receipt_url)')
+            .eq('id', Number(projectId))
+            .maybeSingle(),
+          loadNextInvoiceNumber(),
+        ]);
 
-      const nextProject = (projectData as InvoiceProjectSnapshot | null) ?? null;
-      setProject(nextProject);
+        const nextProject = (projectData as InvoiceProjectSnapshot | null) ?? null;
+        setProject(nextProject);
 
-      if (nextProject) {
-        const defaults = buildInvoiceDefaults(nextProject, nextInvoiceNumber);
-        const storedDraft = window.localStorage.getItem(draftKey);
-        if (storedDraft) {
-          try {
-            const parsed = JSON.parse(storedDraft) as {
-              form: InvoiceBuilderFormState;
-              lineItems: InvoiceLineItem[];
-              includePaymentHistory: boolean;
-            };
-            setForm({ ...defaults, ...parsed.form });
-            setLineItems(parsed.lineItems?.length ? parsed.lineItems : buildDefaultInvoiceLineItems(nextProject));
-            setIncludePaymentHistory(parsed.includePaymentHistory ?? true);
-          } catch {
+        if (nextProject) {
+          const defaults = buildInvoiceDefaults(nextProject, nextInvoiceNumber);
+          const storedDraft = window.localStorage.getItem(draftKey);
+          if (storedDraft) {
+            try {
+              const parsed = JSON.parse(storedDraft) as {
+                form: InvoiceBuilderFormState;
+                lineItems: InvoiceLineItem[];
+                includePaymentHistory: boolean;
+              };
+              setForm({ ...defaults, ...parsed.form });
+              setLineItems(parsed.lineItems?.length ? parsed.lineItems : buildDefaultInvoiceLineItems(nextProject));
+              setIncludePaymentHistory(parsed.includePaymentHistory ?? true);
+            } catch (error) {
+              setForm(defaults);
+              setLineItems(buildDefaultInvoiceLineItems(nextProject));
+              setIncludePaymentHistory(true);
+            }
+          } else {
             setForm(defaults);
             setLineItems(buildDefaultInvoiceLineItems(nextProject));
             setIncludePaymentHistory(true);
           }
-        } else {
-          setForm(defaults);
-          setLineItems(buildDefaultInvoiceLineItems(nextProject));
-          setIncludePaymentHistory(true);
         }
-
-        const { data: latestLink } = await supabase
-          .from('hub_invoice_payment_links')
-          .select('token')
-          .eq('project_id', nextProject.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        setPreviewToken(latestLink?.token ?? null);
+      } catch (error) {
+        console.error('Failed to load invoice builder project', error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
-
     void load();
   }, [draftKey, projectId]);
 
@@ -113,20 +176,24 @@ export default function AdminInvoiceBuilderPage() {
     () => validLineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0),
     [validLineItems],
   );
-  const totalPaid = project?.hub_project_payments.reduce((sum, payment) => sum + payment.amount, 0) ?? 0;
+  const totalPaid = (project?.hub_project_payments ?? []).reduce((sum, payment) => sum + payment.amount, 0);
   const amountRequested = form.amount_requested ? parseFloat(form.amount_requested) : NaN;
-  const balanceDue = Number.isFinite(amountRequested) ? amountRequested : Math.max(subtotal - totalPaid, 0);
+  const balanceDue = Number.isFinite(amountRequested) ? amountRequested : subtotal;
 
   const previewHtml = useMemo(() => {
     if (!project) return '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://hunacreatives.com';
+    // Always show pay buttons in live preview using a static preview URL
+    // The "Preview payment page" button creates a real token for actual payment testing
+    const payUrl = `${origin}/pay/preview`;
     return buildInvoicePreviewHtml({
       project,
       form,
       lineItems,
       includePaymentHistory,
-      payUrl: previewToken ? `https://hunacreatives.com/pay/${previewToken}` : null,
+      payUrl,
     });
-  }, [form, includePaymentHistory, lineItems, previewToken, project]);
+  }, [form, includePaymentHistory, lineItems, project]);
 
   const updateForm = (patch: Partial<InvoiceBuilderFormState>) => {
     setForm((current) => ({ ...current, ...patch }));
@@ -161,6 +228,7 @@ export default function AdminInvoiceBuilderPage() {
       service: project.service,
       contract_price: project.contract_price,
       start_date: project.start_date,
+      issue_date: form.issue_date || null,
       deadline: form.due_date || project.deadline,
       payments: project.hub_project_payments,
       show_payments: includePaymentHistory,
@@ -200,7 +268,7 @@ export default function AdminInvoiceBuilderPage() {
       form,
       lineItems,
       includePaymentHistory,
-      payUrl: previewToken ? `https://hunacreatives.com/pay/${previewToken}` : null,
+      payUrl: 'https://hunacreatives.com/pay/preview',
       printOnLoad: true,
     }));
     win.document.close();
@@ -225,7 +293,7 @@ export default function AdminInvoiceBuilderPage() {
 
     const invokePromise = supabase.functions.invoke('send-invoice', { body: payload });
     const timeoutPromise = new Promise<never>((_, reject) => {
-      window.setTimeout(() => reject(new Error('Invoice sending timed out. Please try again.')), 20000);
+      window.setTimeout(() => reject(new Error('Invoice sending timed out. Please try again.')), 45000);
     });
 
     let data: any;
@@ -470,7 +538,7 @@ export default function AdminInvoiceBuilderPage() {
                     className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
                 </label>
                 <label className="space-y-1.5">
-                  <span className="text-xs font-medium text-gray-600">Balance Due</span>
+                  <span className="text-xs font-medium text-gray-600">Amount due</span>
                   <input value={form.amount_requested} onChange={(e) => updateForm({ amount_requested: e.target.value })}
                     className="w-full rounded-xl border border-[#FF6B35] px-3 py-2.5 text-sm font-semibold text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
                 </label>
@@ -487,7 +555,7 @@ export default function AdminInvoiceBuilderPage() {
                 </div>
                 <div className="text-right text-xs text-gray-400">
                   <div>Subtotal: {formatInvoiceCurrency(subtotal, form.currency)}</div>
-                  <div>Balance: <span className="font-semibold text-[#FF6B35]">{formatInvoiceCurrency(balanceDue, form.currency)}</span></div>
+                  <div>Amount due: <span className="font-semibold text-[#FF6B35]">{formatInvoiceCurrency(balanceDue, form.currency)}</span></div>
                 </div>
               </div>
               <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-[#f7f7f7]">

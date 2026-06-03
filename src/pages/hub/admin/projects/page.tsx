@@ -129,9 +129,16 @@ interface ProjectTask {
 interface ProjectActivity {
   id: number;
   project_id: number;
-  actor_name: string;
-  description: string;
+  actor_name?: string;
+  user_id?: string;
+  action?: string;
+  entity_type?: string;
+  entity_id?: number | null;
+  entity_title?: string | null;
+  description?: string;
+  meta?: Record<string, unknown> | null;
   created_at: string;
+  hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
 }
 
 function normalizeTaskActivityDescription(row: { actor_name: string; type: string; description: string; task_title?: string | null }) {
@@ -149,6 +156,35 @@ function normalizeTaskActivityDescription(row: { actor_name: string; type: strin
       return `${row.actor_name} ${row.description} on ${title}`;
     default:
       return `${row.actor_name} ${row.description} on ${title}`;
+  }
+}
+
+function getProjectActivityActorName(activity: ProjectActivity) {
+  return activity.actor_name ?? activity.hub_users?.full_name ?? 'Someone';
+}
+
+function getProjectActivityDescription(activity: ProjectActivity) {
+  if (activity.description) return activity.description;
+  const actor = getProjectActivityActorName(activity);
+  const title = activity.entity_title ? `"${activity.entity_title}"` : 'this item';
+  switch (activity.action) {
+    case 'task_created':
+      return `${actor} created ${title}`;
+    case 'task_status_changed':
+      if (activity.meta?.to) {
+        return `${actor} moved ${title} to ${String(activity.meta.to).replace(/_/g, ' ')}`;
+      }
+      return `${actor} updated ${title}`;
+    case 'task_assigned':
+      return `${actor} assigned ${title}`;
+    case 'comment_added':
+      return `${actor} commented on ${title}`;
+    case 'attachment_added':
+      return `${actor} added an attachment to ${title}`;
+    case 'task_deleted':
+      return `${actor} deleted ${title}`;
+    default:
+      return activity.action ? `${actor} ${activity.action.replace(/_/g, ' ')} ${title}` : `${actor} updated ${title}`;
   }
 }
 
@@ -340,7 +376,7 @@ export default function AdminProjectsPage() {
         .eq('project_id', projectId)
         .order('created_at', { ascending: true }),
       supabase.from('hub_project_activity')
-        .select('*')
+        .select('*, hub_users(full_name, avatar_url)')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(20),
@@ -398,7 +434,7 @@ export default function AdminProjectsPage() {
 
     const { data: projectActivityRows } = await supabase
       .from('hub_project_activity')
-      .select('id, actor_name, description, created_at')
+      .select('*, hub_users(full_name, avatar_url)')
       .eq('project_id', activeId)
       .order('created_at', { ascending: false })
       .limit(20);
@@ -444,12 +480,26 @@ export default function AdminProjectsPage() {
 
   const logActivity = async (projectId: number, description: string) => {
     if (isDemo) return;
-    await supabase.from('hub_project_activity').insert({
+
+    const newPayload = {
       project_id: projectId,
-      actor_id: hubUser?.id ?? null,
-      actor_name: hubUser?.full_name ?? 'Admin',
-      description,
-    });
+      user_id: hubUser?.id ?? null,
+      action: 'custom',
+      entity_type: 'project',
+      entity_id: null,
+      entity_title: null,
+      meta: { message: description },
+    };
+
+    const { error } = await supabase.from('hub_project_activity').insert(newPayload);
+    if (error) {
+      await supabase.from('hub_project_activity').insert({
+        project_id: projectId,
+        actor_id: hubUser?.id ?? null,
+        actor_name: hubUser?.full_name ?? 'Admin',
+        description,
+      });
+    }
   };
 
   const createTask = async () => {
@@ -2262,13 +2312,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         {activity.slice(0, 5).map(a => {
                           const diff = Math.floor((Date.now() - new Date(a.created_at).getTime()) / 1000);
                           const time = diff < 60 ? 'just now' : diff < 3600 ? `${Math.floor(diff / 60)}m ago` : diff < 86400 ? `${Math.floor(diff / 3600)}h ago` : new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          const actorName = getProjectActivityActorName(a);
                           return (
                             <div key={a.id} className="flex items-start gap-2.5">
                               <div className="w-6 h-6 rounded-full bg-indigo-50 border border-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <span className="text-indigo-500 font-bold text-[9px]">{((a.actor_name || (a as any).hub_users?.full_name || '?')[0] ?? '?').toUpperCase()}</span>
+                                <span className="text-indigo-500 font-bold text-[9px]">{(actorName[0] ?? '?').toUpperCase()}</span>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs text-gray-600 leading-snug truncate">{a.description}</p>
+                                <p className="text-xs text-gray-600 leading-snug truncate">{getProjectActivityDescription(a)}</p>
                                 <p className="text-[10px] text-gray-400 mt-0.5">{time}</p>
                               </div>
                             </div>

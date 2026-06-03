@@ -931,7 +931,7 @@ export default function ContractorProjectsPage() {
     const projectTaskIds = tasks.filter((task) => task.project_id === projectId).map((task) => task.id);
     const { data: projectActivityRows } = await supabase
       .from('hub_project_activity')
-      .select('id, actor_name, description, created_at')
+      .select('*, hub_users(full_name, avatar_url)')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
       .limit(20);
@@ -1067,25 +1067,44 @@ export default function ContractorProjectsPage() {
       task_assigned: `assigned "${entityTitle}"`,
       attachment_added: `added attachment to "${entityTitle}"`,
     };
-    const payload = {
+    const legacyDescription = actionLabels[action] ?? `${action} "${entityTitle}"`;
+    const newPayload = {
       project_id: workspaceRow.hub_projects.id,
-      actor_id: hubUser.id,
-      actor_name: hubUser.full_name ?? 'Team',
-      description: actionLabels[action] ?? `${action} "${entityTitle}"`,
+      user_id: hubUser.id,
+      action,
+      entity_type: 'task',
+      entity_id: entityId ?? null,
+      entity_title: entityTitle,
+      meta: meta ? { ...meta, message: legacyDescription } : { message: legacyDescription },
     };
-    const { data, error } = await supabase
+
+    let insertResult = await supabase
       .from('hub_project_activity')
-      .insert(payload)
-      .select('id, actor_name, description, created_at')
+      .insert(newPayload)
+      .select('*, hub_users(full_name, avatar_url)')
       .single();
 
-    if (error) {
-      console.error('Failed to log project activity', error);
+    if (insertResult.error) {
+      const fallbackPayload = {
+        project_id: workspaceRow.hub_projects.id,
+        actor_id: hubUser.id,
+        actor_name: hubUser.full_name ?? 'Team',
+        description: legacyDescription,
+      };
+      insertResult = await supabase
+        .from('hub_project_activity')
+        .insert(fallbackPayload)
+        .select('id, actor_name, description, created_at')
+        .single();
+    }
+
+    if (insertResult.error) {
+      console.error('Failed to log project activity', insertResult.error);
       return;
     }
 
-    if (data) {
-      setActivityLog(prev => [normalizeActivityItem(data), ...prev].slice(0, 20));
+    if (insertResult.data) {
+      setActivityLog(prev => [normalizeActivityItem(insertResult.data), ...prev].slice(0, 20));
     }
   };
 

@@ -124,23 +124,26 @@ export default function AdminDashboardPage() {
   const navigate = useNavigate();
   const { hubUser, effectiveRole } = useAuth();
   const { isDemo } = useDemo();
-  const [attendance, setAttendance] = useState<SlackRecord[]>([]);
-  const [announcements, setAnnouncements] = useState<HubAnnouncement[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<HubRequest[]>([]);
-  const [pendingTimeOff, setPendingTimeOff] = useState<HubTimeOff[]>([]);
-  const [totalPayroll, setTotalPayroll] = useState(0);
-  const [totalHours, setTotalHours] = useState(0);
-  const [totalNetProfit, setTotalNetProfit] = useState(0);
-  const [totalContractValue, setTotalContractValue] = useState(0);
-  const [totalCollected, setTotalCollected] = useState(0);
-  const [activeProjectCount, setActiveProjectCount] = useState(0);
-  const [onTrackCount, setOnTrackCount] = useState(0);
-  const [atRiskCount, setAtRiskCount] = useState(0);
-  const [internalProjectCount, setInternalProjectCount] = useState(0);
-  const [monthlyRetainerTotal, setMonthlyRetainerTotal] = useState(0);
-  const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
-  const [outstandingInvoices, setOutstandingInvoices] = useState<OutstandingInvoice[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_cache] = useState<Record<string, any> | null>(() => {
+    try { const r = sessionStorage.getItem('hub_dashboard_cache'); return r ? JSON.parse(r) : null; } catch { return null; }
+  });
+  const [attendance, setAttendance] = useState<SlackRecord[]>(_cache?.attendance ?? []);
+  const [announcements, setAnnouncements] = useState<HubAnnouncement[]>(_cache?.announcements ?? []);
+  const [pendingRequests, setPendingRequests] = useState<HubRequest[]>(_cache?.pendingRequests ?? []);
+  const [pendingTimeOff, setPendingTimeOff] = useState<HubTimeOff[]>(_cache?.pendingTimeOff ?? []);
+  const [totalPayroll, setTotalPayroll] = useState(_cache?.totalPayroll ?? 0);
+  const [totalHours, setTotalHours] = useState(_cache?.totalHours ?? 0);
+  const [totalNetProfit, setTotalNetProfit] = useState(_cache?.totalNetProfit ?? 0);
+  const [totalContractValue, setTotalContractValue] = useState(_cache?.totalContractValue ?? 0);
+  const [totalCollected, setTotalCollected] = useState(_cache?.totalCollected ?? 0);
+  const [activeProjectCount, setActiveProjectCount] = useState(_cache?.activeProjectCount ?? 0);
+  const [onTrackCount, setOnTrackCount] = useState(_cache?.onTrackCount ?? 0);
+  const [atRiskCount, setAtRiskCount] = useState(_cache?.atRiskCount ?? 0);
+  const [internalProjectCount, setInternalProjectCount] = useState(_cache?.internalProjectCount ?? 0);
+  const [monthlyRetainerTotal, setMonthlyRetainerTotal] = useState(_cache?.monthlyRetainerTotal ?? 0);
+  const [birthdays, setBirthdays] = useState<BirthdayPerson[]>(_cache?.birthdays ?? []);
+  const [outstandingInvoices, setOutstandingInvoices] = useState<OutstandingInvoice[]>(_cache?.outstandingInvoices ?? []);
+  const [loading, setLoading] = useState(!_cache);
   const [widgetPrefs, setWidgetPrefs] = useState<Record<WidgetKey, boolean>>(loadWidgetPrefs);
   const [showCustomize, setShowCustomize] = useState(false);
   const isOwner = effectiveRole === 'owner';
@@ -206,7 +209,7 @@ export default function AdminDashboardPage() {
         supabase.from('hub_projects').select('contract_price, status, deadline, project_type, monthly_rate, monthly_rate_currency, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
-        supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').eq('settled', false).order('sent_at', { ascending: false }),
+        supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').gt('balance', 0).order('sent_at', { ascending: false }),
         supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
         supabase.from('hub_payouts').select('contractor_id, adjustments').eq('cutoff_start', cutoffStart),
       ]);
@@ -401,9 +404,32 @@ export default function AdminDashboardPage() {
       }));
       setOutstandingInvoices(outstanding);
 
-      setAnnouncements((annResult.data as HubAnnouncement[]) ?? []);
-      setPendingRequests((reqResult.data as HubRequest[]) ?? []);
-      setPendingTimeOff((toResult.data as HubTimeOff[]) ?? []);
+      const nextAnnouncements = (annResult.data as HubAnnouncement[]) ?? [];
+      const nextRequests = (reqResult.data as HubRequest[]) ?? [];
+      const nextTimeOff = (toResult.data as HubTimeOff[]) ?? [];
+      setAnnouncements(nextAnnouncements);
+      setPendingRequests(nextRequests);
+      setPendingTimeOff(nextTimeOff);
+      try {
+        sessionStorage.setItem('hub_dashboard_cache', JSON.stringify({
+          attendance: slackResult.data?.attendance ?? [],
+          announcements: nextAnnouncements,
+          pendingRequests: nextRequests,
+          pendingTimeOff: nextTimeOff,
+          birthdays: getBirthdayAlerts(contractorsResult.data || []),
+          outstandingInvoices: outstanding,
+          totalPayroll: payrollTotal,
+          totalHours: parseFloat(hrs.toFixed(1)),
+          totalNetProfit: netProfitTotal,
+          totalContractValue: contractValueTotal,
+          totalCollected: collectedTotal,
+          activeProjectCount: activeCount,
+          onTrackCount: onTrack,
+          atRiskCount: atRisk,
+          internalProjectCount: internalCount,
+          monthlyRetainerTotal: retainerTotal,
+        }));
+      } catch {}
       setLoading(false);
     };
     fetchAll();

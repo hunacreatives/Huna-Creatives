@@ -65,14 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profile = await loadHubUser(nextUser.id);
     if (!mountedRef.current || requestId !== profileRequestIdRef.current) return;
 
-    if (!profile) {
-      resetAuthState();
-      setLoading(false);
-      await supabase.auth.signOut();
-      return;
-    }
-
-    setHubUser(profile);
+    // If profile lookup failed (transient error or no hub record), clear local state only.
+    // Never call supabase.auth.signOut() here — a slow DB query would permanently log the user out.
+    // HubRouteGate will redirect to /hub/login if hubUser is null.
+    setHubUser(profile ?? null);
     setLoading(false);
   };
 
@@ -85,39 +81,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     mountedRef.current = true;
 
+    // Fallback: if onAuthStateChange never fires, unblock the UI
     const timeout = setTimeout(() => {
       if (mountedRef.current) setLoading(false);
-    }, 4000);
+    }, 8000);
 
-    // Initial session load — single source of truth for first render
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      await hydrateSession(s);
-      clearTimeout(timeout);
-    }).catch(() => {
-      resetAuthState();
-      clearTimeout(timeout);
-      if (mountedRef.current) setLoading(false);
-    });
-
+    // Single source of truth — onAuthStateChange fires INITIAL_SESSION on subscribe,
+    // so we don't need a separate getSession() call (which would race with INITIAL_SESSION).
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
       if (!mountedRef.current) return;
 
-      // Token refresh / user update — keep the profile already in memory
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
         setSession(s);
         setAuthUser(s?.user ?? null);
         return;
       }
 
-      // Explicit sign-out
       if (event === 'SIGNED_OUT') {
         resetAuthState();
         if (mountedRef.current) setLoading(false);
+        clearTimeout(timeout);
         return;
       }
 
-      // SIGNED_IN or INITIAL_SESSION
+      // INITIAL_SESSION or SIGNED_IN
       await hydrateSession(s);
+      clearTimeout(timeout);
     });
 
     return () => {
@@ -129,7 +118,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    let data: any, error: any;
+    try {
+      ({ data, error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Sign-in timed out. Please check your connection and try again.')), 15000)
+        ),
+      ]));
+    } catch (err: any) {
+      if (mountedRef.current) setLoading(false);
+      return { error: err instanceof Error ? err : new Error('Sign-in failed'), hubUser: null };
+    }
     if (error) {
       if (mountedRef.current) setLoading(false);
       return { error: error as Error | null, hubUser: null };
@@ -143,8 +143,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const profile = await loadHubUser(signedInUser.id);
     if (!profile) {
-      resetAuthState();
-      await supabase.auth.signOut();
       if (mountedRef.current) setLoading(false);
       return {
         error: new Error('Your account signed in, but no hub profile was found for this workspace.'),

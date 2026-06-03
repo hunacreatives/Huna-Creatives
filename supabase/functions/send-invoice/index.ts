@@ -59,6 +59,8 @@ Deno.serve(async (req) => {
       app_base_url,
       amount_requested,
       existing_invoice_log_id,
+      preview_only,
+      issue_date,
     } = await req.json();
     const toList = normalizeRecipients(to);
     const ccList = normalizeRecipients(cc);
@@ -74,12 +76,15 @@ Deno.serve(async (req) => {
     }
 
     const totalPaid: number = (payments ?? []).reduce((s: number, p: any) => s + p.amount, 0);
-    const balance = lineItemsTotal - totalPaid;
-    // amount_requested overrides the balance shown on invoice and payment link
-    const amountDue: number = amount_requested != null ? Number(amount_requested) : Math.max(balance, 0);
+    const requestedAmount = amount_requested != null && String(amount_requested).trim() !== '' ? Number(amount_requested) : NaN;
+    const amountDue: number = Number.isFinite(requestedAmount) ? requestedAmount : lineItemsTotal;
     const isPaid = amountDue <= 0;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
-    const invoiceDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const fmtDate = (d: string | null | undefined) => d
+      ? new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : '—';
+    const issueDateFmt = fmtDate(issue_date || new Date().toISOString().slice(0, 10));
+    const dueDateFmt = fmtDate(deadline);
     const billedTo = bill_to_name || client_name;
     if (existing_invoice_log_id) {
       await supabase
@@ -117,15 +122,20 @@ Deno.serve(async (req) => {
         : DEFAULT_BASE_URL;
     const payUrl = `${normalizedAppBase}/pay/${paymentLink.token}`;
 
+    // If this request is only for preview purposes, skip sending emails and return the token
+    if (preview_only) {
+      return new Response(JSON.stringify({ ok: true, token: paymentLink.token }), { headers: cors });
+    }
+
     const paymentsRows = (payments ?? []).map((p: any) => `
       <tr>
-        <td style="padding:10px 16px;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6;">
+        <td style="padding:10px 16px;font-size:13px;color:#374151;border-top:1px solid #f3f4f6;">
           ${new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </td>
-        <td style="padding:10px 16px;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6;">
+        <td style="padding:10px 16px;font-size:13px;color:#374151;border-top:1px solid #f3f4f6;">
           ${p.notes ? p.notes : 'Payment received'}
         </td>
-        <td style="padding:10px 16px;font-size:13px;color:#059669;font-weight:600;text-align:right;border-bottom:1px solid #f3f4f6;">
+        <td style="padding:10px 16px;font-size:13px;color:#059669;font-weight:600;text-align:right;border-top:1px solid #f3f4f6;">
           ${fmt(p.amount)}
         </td>
       </tr>`).join('');
@@ -182,20 +192,38 @@ Deno.serve(async (req) => {
             </td>
           </tr>
 
-          <!-- Contract price -->
+          <!-- Dates row -->
           <tr>
-            <td style="padding:24px 40px 0;">
+            <td style="padding:20px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width:50%;padding:0;">
+                    <p style="margin:0 0 4px;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Issue Date</p>
+                    <p style="margin:0;font-size:13px;font-weight:700;color:#111827;">${issueDateFmt}</p>
+                  </td>
+                  <td style="width:50%;padding:0;text-align:right;">
+                    <p style="margin:0 0 4px;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Due Date</p>
+                    <p style="margin:0;font-size:13px;font-weight:700;color:#111827;">${dueDateFmt}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Line items -->
+          <tr>
+            <td style="padding:16px 40px 0;">
               <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
                 <thead>
-                  <tr style="background:#f9fafb;">
-                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:0.05em;">Description</th>
-                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:right;text-transform:uppercase;letter-spacing:0.05em;">Amount</th>
+                  <tr>
+                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Description</th>
+                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:right;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${lineItems.map((i: any) => `<tr>
-                    <td style="padding:14px 16px;font-size:13px;color:#111827;font-weight:500;">${i.description}</td>
-                    <td style="padding:14px 16px;font-size:14px;font-weight:700;color:#111827;text-align:right;">${fmt(parseFloat(i.amount) || 0)}</td>
+                    <td style="padding:14px 16px;font-size:13px;color:#111827;font-weight:500;border-top:1px solid #f3f4f6;">${i.description}</td>
+                    <td style="padding:14px 16px;font-size:14px;font-weight:700;color:#111827;text-align:right;border-top:1px solid #f3f4f6;">${fmt(parseFloat(i.amount) || 0)}</td>
                   </tr>`).join('')}
                 </tbody>
               </table>
@@ -205,14 +233,13 @@ Deno.serve(async (req) => {
           <!-- Payments received -->
           ${showPayments && paymentsRows ? `
           <tr>
-            <td style="padding:20px 40px 0;">
-              <p style="margin:0 0 10px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Payments Received</p>
+            <td style="padding:16px 40px 0;">
               <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
                 <thead>
-                  <tr style="background:#f9fafb;">
-                    <th style="padding:8px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;">Date</th>
-                    <th style="padding:8px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;">Note</th>
-                    <th style="padding:8px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:right;">Amount</th>
+                  <tr>
+                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Date</th>
+                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Note</th>
+                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:right;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Payment</th>
                   </tr>
                 </thead>
                 <tbody>${paymentsRows}</tbody>
@@ -232,14 +259,14 @@ Deno.serve(async (req) => {
                   <td style="padding:7px 0;font-size:13px;color:#6b7280;text-align:right;">${fmt(lineItemsTotal)}</td>
                 </tr>
                 ${showPayments ? `<tr>
-                  <td style="padding:7px 0;font-size:13px;color:#6b7280;">Total paid</td>
+                  <td style="padding:7px 0;font-size:13px;color:#6b7280;">Total paid so far</td>
                   <td style="padding:7px 0;font-size:13px;color:#059669;font-weight:600;text-align:right;">− ${fmt(totalPaid)}</td>
                 </tr>` : ''}
                 <tr>
                   <td colspan="2" style="padding:4px 0 0;"><div style="border-top:2px solid #e5e7eb;"></div></td>
                 </tr>
                 <tr>
-                  <td style="padding:10px 0 0;font-size:15px;font-weight:700;color:#111827;">Balance due</td>
+                  <td style="padding:10px 0 0;font-size:15px;font-weight:700;color:#111827;">Amount due</td>
                   <td style="padding:10px 0 0;font-size:18px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;">${isPaid ? 'Paid in full' : fmt(amountDue)}</td>
                 </tr>
               </table>

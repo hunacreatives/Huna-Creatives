@@ -6,8 +6,6 @@ import { supabase } from '@/lib/supabase';
 import AdminSidebar from './AdminSidebar';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
-import PushNotificationPrompt from './PushNotificationPrompt';
 
 interface Props {
   children: ReactNode;
@@ -201,8 +199,6 @@ export default function AdminLayout({ children, title, actions }: Props) {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
   const [mobileOpen, setMobileOpen] = useState(false);
-  const pushNotifications = usePushNotifications();
-
   const toggleCollapsed = () => setCollapsed(prev => {
     const next = !prev;
     localStorage.setItem('sidebar-collapsed', String(next));
@@ -283,14 +279,6 @@ export default function AdminLayout({ children, title, actions }: Props) {
           </div>
         </header>
 
-        <PushNotificationPrompt
-          supported={pushNotifications.supported}
-          canPrompt={pushNotifications.canPrompt}
-          needsSettings={pushNotifications.needsSettings}
-          subscribing={pushNotifications.subscribing}
-          error={pushNotifications.error}
-          onEnable={pushNotifications.enableNotifications}
-        />
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto overscroll-none p-4 md:p-6 bg-transparent" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px) + 5rem)' }}>

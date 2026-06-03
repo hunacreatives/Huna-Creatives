@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 
 const SUPABASE_URL =
   (import.meta.env.VITE_PUBLIC_SUPABASE_URL as string)
@@ -82,20 +82,66 @@ export default function PublicPaymentPage() {
   const [link, setLink] = useState<PaymentLinkData | null>(null);
   const [proof, setProof] = useState<ProofData | null>(null);
   const [selected, setSelected] = useState<ChannelId | null>(null);
+  const [showChannels, setShowChannels] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
+  const channelsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!token) { setNotFound(true); setLoading(false); return; }
     if (isDemoToken) {
-      setLink({
-        id: 'demo', token: 'demo', client_name: 'FS Architects', project_name: 'fsarchitects.ph',
-        invoice_number: '0001', to_email: 'billing@example.com', amount_due: 28864.54,
-        due_date: null, line_items: [{ description: 'Website Design', amount: '48864.54' }],
-        payment_terms: 'Due upon receipt', reference: 'INV-0001', status: 'open', submitted_at: null,
-      });
+      // For preview tokens, read invoice data from sessionStorage (set by invoice builder buttons)
+      let previewData = null;
+      try {
+        const stored = window.sessionStorage.getItem('previewInvoiceData');
+        if (stored) previewData = JSON.parse(stored);
+      } catch (e) {
+        console.error('Failed to parse preview invoice data:', e);
+      }
+      // Read invoice data from URL query params (set by the Pay Now button in the invoice preview)
+      const qp = new URLSearchParams(window.location.search);
+      const clientFromUrl = qp.get('client');
+      if (token === 'preview' && clientFromUrl) {
+        setLink({
+          id: 'preview', token: 'preview',
+          client_name: clientFromUrl,
+          project_name: qp.get('project') || 'Project',
+          invoice_number: qp.get('invoice') || '0000',
+          to_email: '',
+          amount_due: parseFloat(qp.get('amount') || '0') || 0,
+          due_date: qp.get('due') || null,
+          line_items: [{ description: qp.get('service') || 'Service', amount: qp.get('amount') || '0' }],
+          payment_terms: null,
+          reference: null,
+          status: 'open',
+          submitted_at: null,
+        });
+      } else if (token === 'preview' && previewData) {
+        setLink({
+          id: 'preview', token: 'preview',
+          client_name: previewData.client || 'Client Name',
+          project_name: previewData.project || 'Project Name',
+          invoice_number: previewData.invoice || '0000',
+          to_email: '',
+          amount_due: previewData.amount || 0,
+          due_date: previewData.due || null,
+          line_items: [{ description: previewData.service || 'Service', amount: String(previewData.amount || 0) }],
+          payment_terms: null,
+          reference: null,
+          status: 'open',
+          submitted_at: null,
+        });
+      } else {
+        // Fallback demo data
+        setLink({
+          id: 'demo', token: 'demo', client_name: 'FS Architects', project_name: 'fsarchitects.ph',
+          invoice_number: '0001', to_email: 'billing@example.com', amount_due: 28864.54,
+          due_date: null, line_items: [{ description: 'Website Design', amount: '48864.54' }],
+          payment_terms: 'Due upon receipt', reference: 'INV-0001', status: 'open', submitted_at: null,
+        });
+      }
       setLoading(false);
       return;
     }
@@ -118,6 +164,25 @@ export default function PublicPaymentPage() {
       .finally(() => setLoading(false));
   }, [token, isDemoToken]);
 
+  // Preselect channel from query param if present (e.g. ?channel=gcash)
+  const location = useLocation();
+  useEffect(() => {
+    if (!link) return;
+    const params = new URLSearchParams(location.search);
+    const channel = params.get('channel');
+    if (!channel) return;
+    if (channel === 'gcash' || channel === 'bdo' || channel === 'gotyme') {
+      setShowChannels(true);
+      setSelected(channel as ChannelId);
+      setTimeout(() => qrRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
+  }, [link, location.search]);
+
+
+  const openChannels = () => {
+    setShowChannels(true);
+    setTimeout(() => channelsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
 
   const selectChannel = (id: ChannelId) => {
     setSelected(id);
@@ -317,6 +382,14 @@ export default function PublicPaymentPage() {
         </div>
 
 
+        {/* Pay Now button — shown until channels are revealed */}
+        {!alreadySubmitted && !showChannels && (
+          <button onClick={openChannels}
+            className="w-full py-4 rounded-2xl bg-[#FF6B35] text-white text-base font-bold hover:bg-[#ea5c28] transition-colors cursor-pointer shadow-sm">
+            Pay Now
+          </button>
+        )}
+
         {alreadySubmitted ? (
           <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center">
             <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto">
@@ -339,9 +412,11 @@ export default function PublicPaymentPage() {
         ) : (
           <>
             {/* Step 1: Choose channel — logo only */}
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            {showChannels && (
+            <div ref={channelsRef} className="bg-white border border-gray-200 rounded-2xl overflow-hidden scroll-mt-6">
               <div className="px-5 py-4 border-b border-gray-100">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Step 1 — Choose Payment Method</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Choose Payment Method</p>
+                <p className="text-sm font-semibold text-[#111827] mt-0.5">Paying as {link.client_name}</p>
               </div>
               <div className="p-4 grid grid-cols-3 gap-3">
                 {(Object.entries(channels) as [ChannelId, typeof channels[ChannelId]][]).map(([id, ch]) => {
@@ -360,13 +435,14 @@ export default function PublicPaymentPage() {
                 })}
               </div>
             </div>
+            )}
 
             {/* Step 2 & 3 — shown after channel selected */}
             {selected && currentChannel && (
               <>
                 <div ref={qrRef} className="bg-white border border-gray-200 rounded-2xl overflow-hidden scroll-mt-6">
                   <div className="px-5 py-4 border-b border-gray-100">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Step 2 — Scan & Pay via {currentChannel.label}</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Scan & Pay via {currentChannel.label}</p>
                   </div>
                   <div className="p-5 space-y-4">
                     <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex items-center justify-center">
@@ -405,7 +481,7 @@ export default function PublicPaymentPage() {
                 {/* Step 3: Upload */}
                 <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                   <div className="px-5 py-4 border-b border-gray-100">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Step 3 — Upload Proof of Payment</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Upload Proof of Payment</p>
                   </div>
                   <div className="p-5 space-y-4">
                     <label className="block border-2 border-dashed border-gray-200 rounded-xl px-4 py-6 hover:border-[#FF6B35]/40 transition-colors cursor-pointer text-center">
