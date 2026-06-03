@@ -1155,6 +1155,11 @@ export default function AdminProjectsPage() {
   };
 
   const printInvoice = async (project: Project, overrides?: { due_date?: string; invoice_number?: string; bill_to_name?: string; bill_to_address?: string; reference?: string; payment_terms?: string; message?: string; line_items?: { description: string; amount: string }[]; show_payments?: boolean; amount_requested?: number }) => {
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Preparing invoice…</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px;color:#111827} .muted{color:#6b7280;font-size:14px}</style></head><body><h2>Preparing invoice preview…</h2><p class="muted">Please wait while we generate the print view.</p></body></html>`);
+    win.document.close();
+
     const { data: latestLink } = await supabase
       .from('hub_invoice_payment_links')
       .select('token')
@@ -1292,16 +1297,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 <script>window.onload=function(){setTimeout(function(){window.print()},400)}</script>
 </body></html>`;
 
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank', 'noopener,noreferrer,width=900,height=700');
-    if (!win) {
-      URL.revokeObjectURL(url);
-      return;
-    }
-    win.addEventListener('load', () => {
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }, { once: true });
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
   };
 
   const projectTypes = Array.from(new Set(projects.map(p => p.service).filter(Boolean) as string[])).sort();

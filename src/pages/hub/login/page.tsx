@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getHubHomePath } from '@/lib/hubAuth';
 
 export default function HubLoginPage() {
-  const { signIn, hubUser } = useAuth();
+  const { signIn, hubUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const justSignedUp = searchParams.get('welcome') === '1';
@@ -37,8 +37,17 @@ export default function HubLoginPage() {
   }, [displayed, deleting, wordIdx]);
 
   useEffect(() => {
-    if (hubUser) navigate(getHubHomePath(hubUser.role), { replace: true });
+    if (!hubUser) return;
+    setLoading(false);
+    navigate(getHubHomePath(hubUser.role), { replace: true });
   }, [hubUser, navigate]);
+
+  useEffect(() => {
+    if (!loading) return;
+    if (!authLoading && !hubUser) {
+      setLoading(false);
+    }
+  }, [loading, authLoading, hubUser]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
