@@ -81,10 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     mountedRef.current = true;
 
-    // Fallback: if onAuthStateChange never fires, unblock the UI
+    // Fallback: only fires if onAuthStateChange never fires at all (e.g. network totally down)
+    // 30s so slow DB queries don't cause a spurious redirect to /hub/login
     const timeout = setTimeout(() => {
       if (mountedRef.current) setLoading(false);
-    }, 8000);
+    }, 30000);
 
     // Single source of truth — onAuthStateChange fires INITIAL_SESSION on subscribe,
     // so we don't need a separate getSession() call (which would race with INITIAL_SESSION).

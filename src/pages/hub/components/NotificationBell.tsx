@@ -430,11 +430,12 @@ export default function NotificationBell() {
       }
     }
 
-    // hub_notifications — unified inbox from all edge functions
+    // hub_notifications — only fetch unread so cleared ones never come back
     const { data: hubNotifs } = await supabase
       .from('hub_notifications')
       .select('id, type, title, body, link, read, created_at')
       .eq('user_id', hubUser.id)
+      .eq('read', false)
       .order('created_at', { ascending: false })
       .limit(20);
 
@@ -464,14 +465,8 @@ export default function NotificationBell() {
         body: n.body,
         link: n.link ?? undefined,
         time: new Date(n.created_at),
-        unreadDot: !n.read,
+        unreadDot: true, // only unread are fetched
       });
-    }
-
-    // Mark hub_notifications as read when bell is opened
-    const unreadHubIds = (hubNotifs ?? []).filter(n => !n.read).map(n => n.id);
-    if (unreadHubIds.length > 0) {
-      supabase.from('hub_notifications').update({ read: true }).in('id', unreadHubIds).then(() => {});
     }
 
     // Sort by newest
@@ -482,6 +477,10 @@ export default function NotificationBell() {
     setNotifs(visibleItems);
     setUnread(visibleItems.filter(n => n.time > lastSeen).length);
   }, [hubUser]);
+
+  // Keep a stable ref to fetchNotifs so the realtime subscription never needs to recreate
+  const fetchNotifsRef = useRef(fetchNotifs);
+  useEffect(() => { fetchNotifsRef.current = fetchNotifs; }, [fetchNotifs]);
 
   useEffect(() => {
     if (!hubUser) return;
@@ -497,7 +496,7 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Realtime subscription — re-fetch on any relevant table change
+  // Realtime subscription — stable channel, never recreates unless user changes
   useEffect(() => {
     if (!hubUser) return;
 
@@ -506,11 +505,10 @@ export default function NotificationBell() {
     const contractorTables = ['hub_announcements', 'hub_payouts', 'hub_payroll_batches', 'hub_time_off', 'hub_requests', 'hub_overtime_requests', 'hub_notifications'];
     const tables = isAdmin ? adminTables : contractorTables;
 
-    // Debounce to avoid flooding on burst inserts
     let debounce: ReturnType<typeof setTimeout>;
     const refetch = () => {
       clearTimeout(debounce);
-      debounce = setTimeout(() => fetchNotifs(), 800);
+      debounce = setTimeout(() => fetchNotifsRef.current(), 800);
     };
 
     const channel = supabase.channel(`hub-notifs-${hubUser.id}`);
@@ -523,13 +521,19 @@ export default function NotificationBell() {
       clearTimeout(debounce);
       supabase.removeChannel(channel);
     };
-  }, [hubUser, fetchNotifs]);
+  }, [hubUser]); // stable — only recreates if user changes
 
   const handleOpen = () => {
-    setOpen(v => !v);
-    if (!open) {
+    const opening = !open;
+    setOpen(opening);
+    if (opening) {
       localStorage.setItem(lsKey, new Date().toISOString());
       setUnread(0);
+      // Mark all unread hub_notifications as read in DB when user opens the bell
+      if (hubUser) {
+        supabase.from('hub_notifications').update({ read: true })
+          .eq('user_id', hubUser.id).eq('read', false).then(() => {});
+      }
     }
   };
 

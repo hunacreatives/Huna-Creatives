@@ -88,6 +88,7 @@ export default function ContractorLayout({ children, title, titleContent, action
   // Live fetch tasks + projects on debounce
   useEffect(() => {
     if (!q || !hubUser) { setLiveProjects([]); setLiveTasks([]); return; }
+    let cancelled = false;
     const timer = setTimeout(async () => {
       setLiveLoading(true);
       const [projectsRes, tasksRes] = await Promise.all([
@@ -101,6 +102,7 @@ export default function ContractorLayout({ children, title, titleContent, action
           .ilike('title', `%${globalSearch.trim()}%`)
           .limit(5),
       ]);
+      if (cancelled) return;
       const projects = ((projectsRes.data ?? []) as any[])
         .map((r: any) => {
           const p = Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects;
@@ -118,7 +120,7 @@ export default function ContractorLayout({ children, title, titleContent, action
       setLiveTasks(tasks.slice(0, 4));
       setLiveLoading(false);
     }, 250);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [globalSearch, hubUser]);
 
   const toggleCollapsed = () => {

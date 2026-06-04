@@ -126,12 +126,15 @@ export default function InvoiceLogPage() {
     email: '',
     cc: '',
     subject: '',
+    issue_date: '',
     due_date: '',
+    currency: 'PHP' as 'PHP' | 'USD',
     bill_to_name: '',
     bill_to_address: '',
     reference: '',
     payment_terms: '',
-    message: '',
+    customer_notes: '',
+    payment_instructions: '',
     amount_requested: '',
   });
 
@@ -205,12 +208,15 @@ export default function InvoiceLogPage() {
       email: '',
       cc: '',
       subject: '',
+      issue_date: '',
       due_date: '',
+      currency: 'PHP',
       bill_to_name: '',
       bill_to_address: '',
       reference: '',
       payment_terms: '',
-      message: '',
+      customer_notes: '',
+      payment_instructions: '',
       amount_requested: '',
     });
   };
@@ -254,12 +260,15 @@ export default function InvoiceLogPage() {
         email: inv.sent_to || projectData?.contact_email || linkData?.to_email || '',
         cc: inv.sent_cc || '',
         subject: inv.subject || `Invoice #${inv.invoice_number.padStart(4, '0')} — ${inv.project_name}`,
+        issue_date: new Date().toISOString().slice(0, 10),
         due_date: linkData?.due_date || projectData?.deadline || '',
+        currency: 'PHP',
         bill_to_name: projectData?.client_name || inv.client_name,
         bill_to_address: '',
         reference: linkData?.reference || '',
         payment_terms: linkData?.payment_terms || '',
-        message: '',
+        customer_notes: '',
+        payment_instructions: projectData?.notes || '',
         amount_requested: inv.balance != null ? String(Math.max(inv.balance, 0)) : '',
       });
     } catch (error) {
@@ -288,21 +297,23 @@ export default function InvoiceLogPage() {
         to: editForm.email.trim(),
         cc: editForm.cc.trim() || undefined,
         subject: editForm.subject.trim() || undefined,
-        client_name: editingProject.client_name,
+        client_name: editForm.bill_to_name.trim() || editingProject.client_name,
         project_name: editingProject.project_name,
         service: editingProject.service,
         contract_price: editingProject.contract_price,
         start_date: editingProject.start_date,
+        issue_date: editForm.issue_date || undefined,
         deadline: editForm.due_date || editingProject.deadline,
+        currency: editForm.currency,
         payments: editingProject.hub_project_payments ?? [],
         show_payments: editShowPayments,
         line_items: cleanedLineItems,
-        notes: editingProject.notes,
+        notes: editForm.payment_instructions.trim() || undefined,
         bill_to_name: editForm.bill_to_name.trim() || undefined,
         bill_to_address: editForm.bill_to_address.trim() || undefined,
         reference: editForm.reference.trim() || undefined,
         payment_terms: editForm.payment_terms.trim() || undefined,
-        message: editForm.message.trim() || undefined,
+        message: editForm.customer_notes.trim() || undefined,
         invoice_number: editingInvoice.invoice_number,
         project_id: editingInvoice.project_id,
         app_base_url: 'https://hunacreatives.com',
@@ -983,140 +994,159 @@ export default function InvoiceLogPage() {
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto max-h-[calc(92vh-132px)] space-y-4">
+            <div className="overflow-y-auto max-h-[calc(92vh-132px)]">
               {editLoading ? (
                 <div className="py-16 text-center text-sm text-gray-400">Loading invoice details…</div>
               ) : (
-                <>
+                <div className="divide-y divide-gray-100">
                   {editError && (
-                    <div className="bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-sm text-rose-600">
-                      {editError}
+                    <div className="px-5 pt-4">
+                      <div className="bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-sm text-rose-600">{editError}</div>
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input
-                      type="email"
-                      value={editForm.email}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
-                      placeholder="Recipient email"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.cc}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, cc: e.target.value }))}
-                      placeholder="CC email"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.subject}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, subject: e.target.value }))}
-                      placeholder="Subject"
-                      className="sm:col-span-2 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                    />
-                    <input
-                      type="date"
-                      value={editForm.due_date}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, due_date: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                    />
-                    <input
-                      type="number"
-                      value={editForm.amount_requested}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, amount_requested: e.target.value }))}
-                      placeholder="Amount due to show"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.bill_to_name}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, bill_to_name: e.target.value }))}
-                      placeholder="Bill to name"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.reference}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, reference: e.target.value }))}
-                      placeholder="Reference"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                    />
-                    <textarea
-                      value={editForm.bill_to_address}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, bill_to_address: e.target.value }))}
-                      placeholder="Bill to address"
-                      rows={2}
-                      className="sm:col-span-2 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 resize-none"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.payment_terms}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, payment_terms: e.target.value }))}
-                      placeholder="Payment terms"
-                      className="sm:col-span-2 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                    />
-                    <textarea
-                      value={editForm.message}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, message: e.target.value }))}
-                      placeholder="Optional message"
-                      rows={3}
-                      className="sm:col-span-2 w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 resize-none"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Line Items</p>
-                      <p className="text-xs text-gray-400">Update what appears on the resent invoice.</p>
+                  {/* Client Details */}
+                  <div className="px-5 py-4 space-y-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Client Details</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="space-y-1">
+                        <span className="text-xs font-medium text-gray-500">Send To</span>
+                        <input type="email" value={editForm.email}
+                          onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
+                          placeholder="client@email.com"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-xs font-medium text-gray-500">CC</span>
+                        <input type="text" value={editForm.cc}
+                          onChange={(e) => setEditForm((p) => ({ ...p, cc: e.target.value }))}
+                          placeholder="finance@client.com"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-xs font-medium text-gray-500">Client Name</span>
+                        <input type="text" value={editForm.bill_to_name}
+                          onChange={(e) => setEditForm((p) => ({ ...p, bill_to_name: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-xs font-medium text-gray-500">Reference / PO</span>
+                        <input type="text" value={editForm.reference}
+                          onChange={(e) => setEditForm((p) => ({ ...p, reference: e.target.value }))}
+                          placeholder="PO-1042"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                      <label className="sm:col-span-2 space-y-1">
+                        <span className="text-xs font-medium text-gray-500">Billing Address</span>
+                        <textarea value={editForm.bill_to_address}
+                          onChange={(e) => setEditForm((p) => ({ ...p, bill_to_address: e.target.value }))}
+                          rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
                     </div>
-                    <label className="flex items-center gap-2 text-xs text-gray-600">
-                      <input
-                        type="checkbox"
-                        checked={editShowPayments}
-                        onChange={(e) => setEditShowPayments(e.target.checked)}
-                        className="rounded border-gray-300"
-                      />
-                      Show payment history
-                    </label>
                   </div>
 
-                  <div className="space-y-2">
-                    {editLineItems.map((item, index) => (
-                      <div key={index} className="grid grid-cols-[1fr_140px_auto] gap-2">
-                        <input
-                          type="text"
-                          value={item.description}
-                          onChange={(e) => setEditLineItems((prev) => prev.map((line, lineIndex) => lineIndex === index ? { ...line, description: e.target.value } : line))}
-                          placeholder="Description"
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                        />
-                        <input
-                          type="number"
-                          value={item.amount}
-                          onChange={(e) => setEditLineItems((prev) => prev.map((line, lineIndex) => lineIndex === index ? { ...line, amount: e.target.value } : line))}
-                          placeholder="0.00"
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setEditLineItems((prev) => prev.filter((_, lineIndex) => lineIndex !== index))}
-                          className="w-10 h-10 flex items-center justify-center text-rose-500 border border-rose-200 rounded-lg hover:bg-rose-50 cursor-pointer"
-                        >
-                          <i className="ri-delete-bin-line"></i>
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setEditLineItems((prev) => [...prev, { description: '', amount: '' }])}
-                      className="px-3 py-2 text-xs text-sky-600 border border-sky-200 rounded-lg hover:bg-sky-50 cursor-pointer"
-                    >
-                      <i className="ri-add-line mr-1"></i>Add line item
-                    </button>
+                  {/* Invoice Settings */}
+                  <div className="px-5 py-4 space-y-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Invoice Settings</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="space-y-1">
+                        <span className="text-xs font-medium text-gray-500">Issue Date</span>
+                        <input type="date" value={editForm.issue_date}
+                          onChange={(e) => setEditForm((p) => ({ ...p, issue_date: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-xs font-medium text-gray-500">Due Date</span>
+                        <input type="date" value={editForm.due_date}
+                          onChange={(e) => setEditForm((p) => ({ ...p, due_date: e.target.value }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-xs font-medium text-gray-500">Currency</span>
+                        <select value={editForm.currency}
+                          onChange={(e) => setEditForm((p) => ({ ...p, currency: e.target.value as 'PHP' | 'USD' }))}
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]">
+                          <option value="PHP">PHP</option>
+                          <option value="USD">USD</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-xs font-medium text-gray-500">Payment Terms</span>
+                        <input type="text" value={editForm.payment_terms}
+                          onChange={(e) => setEditForm((p) => ({ ...p, payment_terms: e.target.value }))}
+                          placeholder="Due on receipt"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                    </div>
                   </div>
-                </>
+
+                  {/* Line Items */}
+                  <div className="px-5 py-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Line Items</p>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                        <input type="checkbox" checked={editShowPayments}
+                          onChange={(e) => setEditShowPayments(e.target.checked)}
+                          className="h-3.5 w-3.5 accent-[#FF6B35]" />
+                        Include payment history
+                      </label>
+                    </div>
+                    <div className="space-y-2">
+                      {editLineItems.map((item, index) => (
+                        <div key={index} className="grid grid-cols-[minmax(0,1fr)_160px_44px] gap-2">
+                          <input type="text" value={item.description}
+                            onChange={(e) => setEditLineItems((prev) => prev.map((l, i) => i === index ? { ...l, description: e.target.value } : l))}
+                            placeholder="Description"
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                          <input type="number" value={item.amount}
+                            onChange={(e) => setEditLineItems((prev) => prev.map((l, i) => i === index ? { ...l, amount: e.target.value } : l))}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                          <button type="button"
+                            onClick={() => setEditLineItems((prev) => prev.length === 1 ? prev : prev.filter((_, i) => i !== index))}
+                            className="rounded-xl border border-gray-200 text-gray-400 hover:text-rose-500 hover:border-rose-200 cursor-pointer">
+                            <i className="ri-delete-bin-line text-sm"></i>
+                          </button>
+                        </div>
+                      ))}
+                      <button type="button"
+                        onClick={() => setEditLineItems((prev) => [...prev, { description: '', amount: '' }])}
+                        className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-[#FF6B35] hover:bg-orange-100 cursor-pointer">
+                        <i className="ri-add-line"></i> Add Item
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="px-5 py-4 space-y-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Notes</p>
+                    <div className="space-y-3">
+                      <label className="space-y-1 block">
+                        <span className="text-xs font-medium text-gray-500">Customer Notes</span>
+                        <textarea value={editForm.customer_notes}
+                          onChange={(e) => setEditForm((p) => ({ ...p, customer_notes: e.target.value }))}
+                          rows={3} placeholder="Thank you for your continued trust…"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                      <label className="space-y-1 block">
+                        <span className="text-xs font-medium text-gray-500">Payment Instructions</span>
+                        <textarea value={editForm.payment_instructions}
+                          onChange={(e) => setEditForm((p) => ({ ...p, payment_instructions: e.target.value }))}
+                          rows={3} placeholder="Bank details, transfer instructions…"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                      </label>
+                      <label className="space-y-1 block">
+                        <span className="text-xs font-medium text-gray-500">Amount Due Override</span>
+                        <input type="number" value={editForm.amount_requested}
+                          onChange={(e) => setEditForm((p) => ({ ...p, amount_requested: e.target.value }))}
+                          placeholder="Leave blank to use line items total"
+                          className="w-full px-3 py-2 text-sm border border-[#FF6B35] rounded-xl font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 

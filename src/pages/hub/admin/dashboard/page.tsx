@@ -125,7 +125,8 @@ export default function AdminDashboardPage() {
   const { hubUser, effectiveRole } = useAuth();
   const { isDemo } = useDemo();
   const [_cache] = useState<Record<string, any> | null>(() => {
-    try { const r = sessionStorage.getItem('hub_dashboard_cache'); return r ? JSON.parse(r) : null; } catch { return null; }
+    try { const r = sessionStorage.getItem('hub_dashboard_cache'); return r ? JSON.parse(r) : null; }
+    catch { sessionStorage.removeItem('hub_dashboard_cache'); return null; }
   });
   const [attendance, setAttendance] = useState<SlackRecord[]>(_cache?.attendance ?? []);
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>(_cache?.announcements ?? []);
@@ -199,6 +200,7 @@ export default function AdminDashboardPage() {
       return;
     }
     const fetchAll = async () => {
+      try {
       const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult, payoutsResult] = await Promise.all([
         supabase.functions.invoke('slack-attendance'),
         supabase.from('hub_announcements').select('*, hub_users(full_name)').order('created_at', { ascending: false }).limit(4),
@@ -431,6 +433,10 @@ export default function AdminDashboardPage() {
         }));
       } catch {}
       setLoading(false);
+      } catch (err) {
+        console.error('Dashboard fetch failed:', err);
+        setLoading(false);
+      }
     };
     fetchAll();
   }, [isDemo]);
