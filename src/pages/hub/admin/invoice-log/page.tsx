@@ -279,7 +279,8 @@ export default function InvoiceLogPage() {
   };
 
   const resendEditedInvoice = async () => {
-    if (!editingInvoice || !editingProject) return;
+    if (!editingInvoice) return;
+    if (!editingProject) { setEditError('Project data could not be loaded. Close and try again.'); return; }
     if (!editForm.email.trim()) {
       setEditError('Recipient email is required.');
       return;
