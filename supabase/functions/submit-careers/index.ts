@@ -1,9 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import postgres from 'https://deno.land/x/postgresjs@v3.4.4/mod.js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const SUPABASE_DB_URL = Deno.env.get('SUPABASE_DB_URL')!;
 const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID')!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
 const GOOGLE_REFRESH_TOKEN = Deno.env.get('GOOGLE_REFRESH_TOKEN')!;
@@ -173,7 +171,6 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const sql = postgres(SUPABASE_DB_URL, { ssl: 'require' });
     let finalResumeLink = resume_link || null;
     let driveFileId: string | null = null;
 
@@ -183,41 +180,25 @@ Deno.serve(async (req) => {
       driveFileId = driveUpload.fileId ?? null;
     }
 
-    try {
-      await sql`
-        insert into hub_job_applications (
-          job_id,
-          role,
-          name,
-          email,
-          expected_rate,
-          portfolio_link,
-          resume_link,
-          resume_filename,
-          resume_drive_file_id,
-          message,
-          source
-        ) values (
-          ${job_id || null},
-          ${role.trim()},
-          ${name.trim()},
-          ${email.trim().toLowerCase()},
-          ${expected_rate.trim()},
-          ${portfolio_link?.trim() || null},
-          ${finalResumeLink},
-          ${resume_filename || null},
-          ${driveFileId},
-          ${message.trim()},
-          ${'careers_site'}
-        )
-      `;
-    } catch (insertError) {
-      await sql.end({ timeout: 1 }).catch(() => {});
-      return new Response(JSON.stringify({ error: String(insertError) }), { status: 500, headers: cors });
+    const { error: insertError } = await supabase.from('hub_job_applications').insert({
+      job_id: job_id || null,
+      role: role.trim(),
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      expected_rate: expected_rate.trim(),
+      portfolio_link: portfolio_link?.trim() || null,
+      resume_link: finalResumeLink,
+      resume_filename: resume_filename || null,
+      resume_drive_file_id: driveFileId,
+      message: message.trim(),
+      source: 'careers_site',
+    });
+
+    if (insertError) {
+      return new Response(JSON.stringify({ error: insertError.message }), { status: 500, headers: cors });
     }
 
     await notifyAdmins(supabase, name.trim(), role.trim());
-    await sql.end({ timeout: 1 }).catch(() => {});
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
