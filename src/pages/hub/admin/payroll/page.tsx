@@ -570,7 +570,8 @@ export default function AdminPayrollPage() {
         .from('hub_users')
         .select('id, full_name, avatar_url, hourly_rate, currency, department')
         .eq('payment_type', 'hourly')
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .eq('role', 'contractor'); // exclude admins/owners from contractor fund transfer
       if (!hourlyCs?.length) { setHourlyRequests([]); setHourlyBatch(null); return; }
       const ids = hourlyCs.map((c: any) => c.id);
       const { data: payouts } = await supabase
@@ -1330,85 +1331,6 @@ export default function AdminPayrollPage() {
           );
         })()}
 
-        {/* ── Hourly Fund Transfer Requests ───────────────────────── */}
-        {hourlyRequests.length > 0 && (
-          <div className="bg-white border border-indigo-100 rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <i className="ri-exchange-dollar-line text-indigo-500"></i>
-                <p className="text-sm font-semibold text-[#111827]">Hourly Fund Transfer Requests</p>
-                <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">{hourlyRequests.length}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* Owner: approve batch */}
-                {hourlyBatch?.status === 'pending_owner' && isOwner && (
-                  <button onClick={approveHourlyBatch} disabled={hourlyWorkflowLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">
-                    <i className="ri-checkbox-circle-line"></i> Approve Fund Transfer
-                  </button>
-                )}
-                {/* HR: request owner approval */}
-                {!hourlyBatch && hourlyRequests.some(r => r.status === 'hr_approved') && (
-                  <button onClick={requestHourlyOwnerApproval} disabled={hourlyWorkflowLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-50 cursor-pointer">
-                    <i className="ri-send-plane-line"></i> Request Owner Approval
-                  </button>
-                )}
-                {hourlyBatch?.status === 'pending_owner' && !isOwner && (
-                  <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">Awaiting owner approval</span>
-                )}
-                {hourlyBatch?.status === 'owner_approved' && (
-                  <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">Owner approved — mark as paid</span>
-                )}
-              </div>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {hourlyRequests.map((req: any) => {
-                const c = req.contractor;
-                const canPay = req.status === 'hr_approved' && hourlyBatch?.status === 'owner_approved';
-                const canApprove = req.status === 'submitted';
-                const fmtDate = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                return (
-                  <div key={req.id} className="flex items-center gap-3 px-5 py-3.5">
-                    {c?.avatar_url
-                      ? <img src={c.avatar_url} className="w-8 h-8 rounded-full object-cover object-top flex-shrink-0" alt={c.full_name} />
-                      : <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center flex-shrink-0"><span className="text-white text-xs font-bold">{c?.full_name?.[0]}</span></div>
-                    }
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">{c?.full_name}</p>
-                      <p className="text-xs text-gray-400">{fmtDate(req.cutoff_start)} – {fmtDate(req.cutoff_end)} · {req.approved_hours?.toFixed(1)}h × ₱{c?.hourly_rate}/hr</p>
-                    </div>
-                    <div className="text-right flex-shrink-0 mr-3">
-                      <p className="text-sm font-bold text-gray-900">{fmt(req.final_payout)}</p>
-                      <p className={`text-xs font-medium ${req.status === 'hr_approved' ? 'text-sky-600' : 'text-amber-600'}`}>
-                        {req.status === 'hr_approved' ? 'HR Approved' : 'Pending HR'}
-                      </p>
-                    </div>
-                    {canApprove && (
-                      <button onClick={() => approveHourlyRequest(req.id, req.contractor_id, req.final_payout)} disabled={hourlyWorkflowLoading}
-                        className="px-3 py-1.5 bg-sky-600 text-white text-xs font-semibold rounded-lg hover:bg-sky-700 disabled:opacity-50 cursor-pointer flex-shrink-0">
-                        Approve
-                      </button>
-                    )}
-                    {canPay && (
-                      <button onClick={() => markHourlyPaid(req.id, req.contractor_id, req.final_payout)} disabled={hourlyWorkflowLoading}
-                        className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 cursor-pointer flex-shrink-0">
-                        Mark Paid
-                      </button>
-                    )}
-                    {!canApprove && !canPay && (
-                      <span className="text-xs text-gray-400 flex-shrink-0">
-                        {req.status === 'hr_approved' && !hourlyBatch ? 'Awaiting batch' : ''}
-                        {req.status === 'hr_approved' && hourlyBatch?.status === 'pending_owner' ? 'Awaiting owner' : ''}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Header card */}
         <div className="bg-[#111827] rounded-2xl p-5 text-white">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -1985,7 +1907,8 @@ export default function AdminPayrollPage() {
 
           return (
             <>
-            <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
+            {/* Hide regular fund transfer when hourly requests are active — hourly panel below handles it */}
+            {!hourlyRequests.length && <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-[#111827]">Fund Transfer</h3>
@@ -2070,7 +1993,83 @@ export default function AdminPayrollPage() {
                   </div>
                 );
               })()}
-            </div>
+            </div>}
+
+            {/* ── Hourly Fund Transfer Requests (bottom) ───────────── */}
+            {hourlyRequests.length > 0 && (
+              <div className="bg-white border border-indigo-100 rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <i className="ri-exchange-dollar-line text-indigo-500"></i>
+                    <p className="text-sm font-semibold text-[#111827]">Hourly Fund Transfer Requests</p>
+                    <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">{hourlyRequests.length}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hourlyBatch?.status === 'pending_owner' && isOwner && (
+                      <button onClick={approveHourlyBatch} disabled={hourlyWorkflowLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 cursor-pointer">
+                        <i className="ri-checkbox-circle-line"></i> Approve Fund Transfer
+                      </button>
+                    )}
+                    {!hourlyBatch && hourlyRequests.some(r => r.status === 'hr_approved') && (
+                      <button onClick={requestHourlyOwnerApproval} disabled={hourlyWorkflowLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-50 cursor-pointer">
+                        <i className="ri-send-plane-line"></i> Request Owner Approval
+                      </button>
+                    )}
+                    {hourlyBatch?.status === 'pending_owner' && !isOwner && (
+                      <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">Awaiting owner approval</span>
+                    )}
+                    {hourlyBatch?.status === 'owner_approved' && (
+                      <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">Owner approved — mark as paid</span>
+                    )}
+                  </div>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {hourlyRequests.map((req: any) => {
+                    const c = req.contractor;
+                    const canPay = req.status === 'hr_approved' && hourlyBatch?.status === 'owner_approved';
+                    const canApprove = req.status === 'submitted';
+                    const fd = (s: string) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    return (
+                      <div key={req.id} className="flex items-center gap-3 px-5 py-3.5">
+                        {c?.avatar_url
+                          ? <img src={c.avatar_url} className="w-8 h-8 rounded-full object-cover object-top flex-shrink-0" alt={c.full_name} />
+                          : <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center flex-shrink-0"><span className="text-white text-xs font-bold">{c?.full_name?.[0]}</span></div>
+                        }
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900">{c?.full_name}</p>
+                          <p className="text-xs text-gray-400">{fd(req.cutoff_start)} – {fd(req.cutoff_end)} · {req.approved_hours?.toFixed(1)}h × ₱{c?.hourly_rate}/hr</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 mr-3">
+                          <p className="text-sm font-bold text-gray-900">{fmt(req.final_payout)}</p>
+                          <p className={`text-xs font-medium ${req.status === 'hr_approved' ? 'text-sky-600' : 'text-amber-600'}`}>
+                            {req.status === 'hr_approved' ? 'HR Approved' : 'Pending HR'}
+                          </p>
+                        </div>
+                        {canApprove && (
+                          <button onClick={() => approveHourlyRequest(req.id, req.contractor_id, req.final_payout)} disabled={hourlyWorkflowLoading}
+                            className="px-3 py-1.5 bg-sky-600 text-white text-xs font-semibold rounded-lg hover:bg-sky-700 disabled:opacity-50 cursor-pointer flex-shrink-0">
+                            Approve
+                          </button>
+                        )}
+                        {canPay && (
+                          <button onClick={() => markHourlyPaid(req.id, req.contractor_id, req.final_payout)} disabled={hourlyWorkflowLoading}
+                            className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 cursor-pointer flex-shrink-0">
+                            Mark Paid
+                          </button>
+                        )}
+                        {!canApprove && !canPay && (
+                          <span className="text-xs text-gray-400 flex-shrink-0">
+                            {req.status === 'hr_approved' && hourlyBatch?.status === 'pending_owner' ? 'Awaiting owner' : 'Awaiting batch'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             </>
           );
         })()}
