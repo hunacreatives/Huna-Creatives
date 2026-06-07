@@ -764,9 +764,13 @@ export default function ContractorProjectsPage() {
     entity_id: row.entity_id ?? null,
     meta: row.meta ?? null,
     created_at: row.created_at,
-    hub_users: row.hub_users
-      ? (Array.isArray(row.hub_users) ? (row.hub_users[0] ?? null) : row.hub_users)
-      : (row.actor_name ? { full_name: row.actor_name, avatar_url: null } : null),
+    hub_users: (() => {
+      const u = row.hub_users;
+      const resolved = u && (!Array.isArray(u) || u.length > 0)
+        ? (Array.isArray(u) ? u[0] : u)
+        : null;
+      return resolved ?? (row.actor_name ? { full_name: row.actor_name, avatar_url: null } : null);
+    })(),
   });
 
   const updateTaskStatus = async (task: ProjectTask, newStatus: ProjectTask['status']) => {

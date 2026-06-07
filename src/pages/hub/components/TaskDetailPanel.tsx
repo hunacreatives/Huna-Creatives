@@ -62,7 +62,12 @@ interface Comment {
   user_id: string;
   body: string;
   created_at: string;
+  author_name: string | null;
   hub_users: { full_name: string; avatar_url: string | null } | null;
+  attachment_url: string | null;
+  attachment_name: string | null;
+  attachment_size: number | null;
+  attachment_mime: string | null;
 }
 
 interface Attachment {
@@ -268,6 +273,9 @@ export default function TaskDetailPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPosting] = useState(false);
+  const [commentFile, setCommentFile] = useState<File | null>(null);
+  const [commentFileError, setCommentFileError] = useState<string | null>(null);
+  const commentFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading]   = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
@@ -391,7 +399,7 @@ export default function TaskDetailPanel({
         .eq('id', taskId)
         .single(),
       supabase.from('hub_project_task_comments')
-        .select('id, user_id, body, created_at')
+        .select('id, user_id, body, created_at, author_name, attachment_url, attachment_name, attachment_size, attachment_mime')
         .eq('task_id', taskId).order('created_at', { ascending: true }),
       supabase.from('hub_project_task_attachments')
         .select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
@@ -610,20 +618,47 @@ export default function TaskDetailPanel({
 
   const postComment = async () => {
     const body = commentRef.current?.innerHTML?.trim() || newComment.trim();
-    if (!body || body === '<br>' || !task) return;
+    if ((!body || body === '<br>') && !commentFile || !task) return;
     setPosting(true);
+    setCommentFileError(null);
+
+    let attachmentUrl: string | null = null;
+    let attachmentName: string | null = null;
+    let attachmentSize: number | null = null;
+    let attachmentMime: string | null = null;
+
+    if (commentFile) {
+      try {
+        attachmentUrl = await uploadFileToDrive(commentFile, 'task_attachment', { project_name: projectName });
+        attachmentName = commentFile.name;
+        attachmentSize = commentFile.size;
+        attachmentMime = commentFile.type || null;
+      } catch (err: any) {
+        setCommentFileError(err.message ?? 'File upload failed.');
+        setPosting(false);
+        return;
+      }
+    }
+
     const { data } = await supabase
       .from('hub_project_task_comments')
-      .insert({ task_id: task.id, user_id: currentUserId, body: (commentRef.current?.innerHTML?.trim() || newComment).replace(/<br\s*\/?>/gi,'\n').trim() })
-      .select('id, user_id, body, created_at')
+      .insert({
+        task_id: task.id,
+        user_id: currentUserId,
+        body: (commentRef.current?.innerHTML?.trim() || newComment).replace(/<br\s*\/?>/gi,'\n').trim(),
+        author_name: currentUserName,
+        attachment_url: attachmentUrl,
+        attachment_name: attachmentName,
+        attachment_size: attachmentSize,
+        attachment_mime: attachmentMime,
+      })
+      .select('id, user_id, body, created_at, author_name, attachment_url, attachment_name, attachment_size, attachment_mime')
       .single();
     if (data) {
-      // Fetch commenter info separately to avoid join RLS issues
       const { data: commenter } = await supabase.from('hub_users').select('full_name, avatar_url').eq('id', currentUserId).single();
       const norm = { ...data, hub_users: commenter ? { full_name: commenter.full_name, avatar_url: commenter.avatar_url ?? null } : { full_name: currentUserName, avatar_url: null } };
       setComments(prev => [...prev, norm]);
       await logActivity(task.id, 'comment_added', 'added a comment');
-      // Notify mentioned users
       if (newComment.includes('@')) {
         supabase.functions.invoke('notify-task-mention', {
           body: { comment_id: data.id, task_id: task.id, author_id: currentUserId, author_name: currentUserName, body: newComment.trim(), project_id: task.project_id },
@@ -631,6 +666,8 @@ export default function TaskDetailPanel({
       }
     }
     setNewComment('');
+    setCommentFile(null);
+    if (commentFileRef.current) commentFileRef.current.value = '';
     if (commentRef.current) commentRef.current.innerHTML = '';
     setPosting(false);
   };
@@ -1458,10 +1495,10 @@ export default function TaskDetailPanel({
                 {comments.length === 0 && <p className="text-xs text-gray-400 italic">No comments yet</p>}
                 {comments.map(c => (
                   <div key={c.id} className="flex gap-2.5 group">
-                    <Avatar name={c.hub_users?.full_name ?? '?'} url={c.hub_users?.avatar_url} size={7} />
+                    <Avatar name={c.hub_users?.full_name ?? c.author_name ?? '?'} url={c.hub_users?.avatar_url} size={7} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-gray-800">{c.hub_users?.full_name ?? 'Unknown'}</span>
+                        <span className="text-xs font-semibold text-gray-800">{c.hub_users?.full_name ?? c.author_name ?? 'Unknown'}</span>
                         <span className="text-[10px] text-gray-400">{timeAgo(c.created_at)}</span>
                         {c.user_id === currentUserId && (
                           <div className="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
@@ -1486,10 +1523,21 @@ export default function TaskDetailPanel({
                           </div>
                         </div>
                       ) : (
-                      <div
-                        className={`text-sm text-gray-700 leading-relaxed ${renderCommentBody(c.body).isHtml ? '[&_a]:text-blue-600 [&_a]:underline [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5 [&_li]:my-0.5' : 'whitespace-pre-wrap'}`}
-                        dangerouslySetInnerHTML={{ __html: renderCommentBody(c.body).html }}
-                      />
+                      <>
+                        {c.body && <div
+                          className={`text-sm text-gray-700 leading-relaxed ${renderCommentBody(c.body).isHtml ? '[&_a]:text-blue-600 [&_a]:underline [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5 [&_li]:my-0.5' : 'whitespace-pre-wrap'}`}
+                          dangerouslySetInnerHTML={{ __html: renderCommentBody(c.body).html }}
+                        />}
+                        {c.attachment_url && (
+                          <a href={c.attachment_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 mt-1.5 px-2.5 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors max-w-xs">
+                            <i className={`${c.attachment_mime?.startsWith('image/') ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
+                            <span className="text-xs text-gray-700 truncate">{c.attachment_name}</span>
+                            {c.attachment_size && <span className="text-[10px] text-gray-400 flex-shrink-0">{(c.attachment_size / 1024).toFixed(0)} KB</span>}
+                            <i className="ri-external-link-line text-[10px] text-gray-400 flex-shrink-0"></i>
+                          </a>
+                        )}
+                      </>
                       )}
                     </div>
                   </div>
@@ -1547,7 +1595,20 @@ export default function TaskDetailPanel({
                     data-placeholder="Add a comment… (@mention)"
                     className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[60px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
                   />
-                  {/* Color dots + send button */}
+                  {/* Selected file preview */}
+                  {commentFile && (
+                    <div className="flex items-center gap-2 mt-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+                      <i className={`${commentFile.type.startsWith('image/') ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
+                      <span className="text-xs text-gray-600 truncate flex-1">{commentFile.name}</span>
+                      <span className="text-[10px] text-gray-400 flex-shrink-0">{(commentFile.size / 1024).toFixed(0)} KB</span>
+                      <button type="button" onClick={() => { setCommentFile(null); setCommentFileError(null); if (commentFileRef.current) commentFileRef.current.value = ''; }}
+                        className="text-gray-300 hover:text-red-400 flex-shrink-0 cursor-pointer">
+                        <i className="ri-close-line text-sm"></i>
+                      </button>
+                    </div>
+                  )}
+                  {commentFileError && <p className="text-xs text-red-500 mt-1">{commentFileError}</p>}
+                  {/* Color dots + attach + send button */}
                   <div className="flex items-center gap-1.5 mt-1.5">
                     {['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#111827'].map(col => (
                       <button key={col} type="button" title="Color selected text"
@@ -1559,9 +1620,23 @@ export default function TaskDetailPanel({
                         className="w-4 h-4 rounded-full cursor-pointer hover:scale-125 transition-transform flex-shrink-0 border border-gray-100"
                         style={{ background: col }} />
                     ))}
-                    <button onClick={postComment} disabled={postingComment || !newComment.trim()}
-                      className="ml-auto w-7 h-7 bg-[#FF6B35] disabled:opacity-30 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0">
-                      <i className="ri-send-plane-fill text-white text-xs"></i>
+                    <button type="button" title="Attach file" onClick={() => commentFileRef.current?.click()}
+                      className="ml-auto text-gray-400 hover:text-[#FF6B35] cursor-pointer transition-colors">
+                      <i className="ri-attachment-2 text-base"></i>
+                    </button>
+                    <input ref={commentFileRef} type="file" className="hidden" onChange={e => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      if (f.size > 100 * 1024 * 1024) {
+                        setCommentFileError(`File too large (max 100 MB). This file is ${(f.size / 1024 / 1024).toFixed(1)} MB.`);
+                        return;
+                      }
+                      setCommentFile(f);
+                      setCommentFileError(null);
+                    }} />
+                    <button onClick={postComment} disabled={postingComment || (!newComment.trim() && !commentFile)}
+                      className="w-7 h-7 bg-[#FF6B35] disabled:opacity-30 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0">
+                      <i className={`${postingComment ? 'ri-loader-4-line animate-spin' : 'ri-send-plane-fill'} text-white text-xs`}></i>
                     </button>
                   </div>
                 </div>
