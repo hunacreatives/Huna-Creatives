@@ -211,7 +211,7 @@ export default function AdminDashboardPage() {
         supabase.from('hub_projects').select('contract_price, status, deadline, project_type, monthly_rate, monthly_rate_currency, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
-        supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').gt('balance', 0).order('sent_at', { ascending: false }),
+        supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').gt('balance', 0).eq('settled', false).order('sent_at', { ascending: false }),
         supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
       ]);
       const payrollTotal = await fetchPayrollTotal(cutoffStart, cutoffEnd, parseFloat(usdRateStr || '56')).catch(() => 0);
