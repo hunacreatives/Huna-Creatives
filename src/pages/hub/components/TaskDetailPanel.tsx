@@ -5,6 +5,30 @@ import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeChecklistItems, normalizeTaskAssigneePayload, sameAssigneeIds } from '@/lib/taskAssignments';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function renderCommentBody(body: string): { html: string; isHtml: boolean } {
+  const hasHtml = /<[a-z][\s\S]*?>/i.test(body);
+  if (hasHtml) {
+    // Sanitize: strip event handlers and javascript: hrefs, keep everything else
+    const safe = body
+      .replace(/\s+on\w+\s*=\s*(["'])[^"']*\1/gi, '')
+      .replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"');
+    return {
+      html: safe.replace(/(@[\w]+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>'),
+      isHtml: true,
+    };
+  }
+  // Plain-text path — escape then apply lightweight markdown
+  const html = body
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/(@\w+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\[color:(#[0-9a-fA-F]{3,6}|\w+)\](.*?)\[\/color\]/g, '<span style="color:$1">$2</span>');
+  return { html, isHtml: false };
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface TaskDetailTask {
@@ -1456,12 +1480,10 @@ export default function TaskDetailPanel({
                           </div>
                         </div>
                       ) : (
-                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{ __html: c.body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                          .replace(/(@\w+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>')
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                          .replace(/\[color:(#[0-9a-fA-F]{3,6}|\w+)\](.*?)\[\/color\]/g, '<span style="color:$1">$2</span>') }} />
+                      {(() => { const { html, isHtml } = renderCommentBody(c.body); return (
+                        <div className={`text-sm text-gray-700 leading-relaxed ${isHtml ? '[&_a]:text-blue-600 [&_a]:underline [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5 [&_li]:my-0.5' : 'whitespace-pre-wrap'}`}
+                          dangerouslySetInnerHTML={{ __html: html }} />
+                      ); })()}
                       )}
                     </div>
                   </div>
@@ -1503,6 +1525,11 @@ export default function TaskDetailPanel({
                           setMentionOpen(false);
                         }
                       }
+                    }}
+                    onPaste={e => {
+                      e.preventDefault();
+                      const text = e.clipboardData.getData('text/plain');
+                      document.execCommand('insertText', false, text);
                     }}
                     onKeyDown={e => {
                       if (e.key === 'Enter' && !e.shiftKey && !mentionOpen) {
