@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 function toBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -18,7 +18,7 @@ export async function uploadFileToDrive(
   meta: Record<string, string> = {},
 ): Promise<string | null> {
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`File is too large (max 50 MB). This file is ${(file.size / 1024 / 1024).toFixed(1)} MB.`);
+    throw new Error(`File is too large (max 100 MB). This file is ${(file.size / 1024 / 1024).toFixed(1)} MB.`);
   }
 
   const buffer = await file.arrayBuffer();
