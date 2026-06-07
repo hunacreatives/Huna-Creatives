@@ -157,10 +157,10 @@ Deno.serve(async (req) => {
             <td style="background:#111827;padding:28px 40px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td>
+                  <td valign="middle">
                     <img src="${logoUrl}" alt="Huna Creatives" height="34" style="display:block;" />
                   </td>
-                  <td style="text-align:right;">
+                  <td align="right" valign="middle" style="text-align:right;">
                     <p style="margin:0;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">Invoice</p>
                     <p style="margin:4px 0 0;color:#ffffff;font-size:16px;font-weight:700;">#${String(invoice_number).padStart(4, '0')}</p>
                   </td>
