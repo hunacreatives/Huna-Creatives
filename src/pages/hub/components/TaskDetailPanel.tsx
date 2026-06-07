@@ -63,6 +63,7 @@ interface Comment {
   body: string;
   created_at: string;
   author_name: string | null;
+  author_avatar_url: string | null;
   hub_users: { full_name: string; avatar_url: string | null } | null;
   attachment_url: string | null;
   attachment_name: string | null;
@@ -108,6 +109,7 @@ interface Props {
   canEdit: boolean;
   currentUserId: string;
   currentUserName: string;
+  currentUserAvatarUrl?: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -236,6 +238,7 @@ export default function TaskDetailPanel({
   canEdit,
   currentUserId,
   currentUserName,
+  currentUserAvatarUrl,
 }: Props) {
   const isNew = !task;
 
@@ -361,6 +364,34 @@ export default function TaskDetailPanel({
     }
   }, [task?.id, open]);
 
+  // Realtime: push new comments from other users into the list live
+  useEffect(() => {
+    if (!open || !task?.id) return;
+    const channel = supabase
+      .channel(`task-comments-${task.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'hub_project_task_comments',
+        filter: `task_id=eq.${task.id}`,
+      }, (payload) => {
+        const row = payload.new as any;
+        // Skip comments posted by the current user — already added optimistically
+        if (row.user_id === currentUserId) return;
+        setComments(prev => {
+          if (prev.some(c => c.id === row.id)) return prev;
+          return [...prev, {
+            ...row,
+            hub_users: teamMembers.find(m => m.id === row.user_id)
+              ? { full_name: teamMembers.find(m => m.id === row.user_id)!.full_name, avatar_url: teamMembers.find(m => m.id === row.user_id)!.avatar_url ?? null }
+              : null,
+          }];
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [open, task?.id, currentUserId]);
+
   useEffect(() => {
     if (!open || !editing || !descRef.current) return;
     descRef.current.innerHTML = description || '';
@@ -399,7 +430,7 @@ export default function TaskDetailPanel({
         .eq('id', taskId)
         .single(),
       supabase.from('hub_project_task_comments')
-        .select('id, user_id, body, created_at, author_name, attachment_url, attachment_name, attachment_size, attachment_mime')
+        .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime')
         .eq('task_id', taskId).order('created_at', { ascending: true }),
       supabase.from('hub_project_task_attachments')
         .select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
@@ -647,12 +678,13 @@ export default function TaskDetailPanel({
         user_id: currentUserId,
         body: (commentRef.current?.innerHTML?.trim() || newComment).replace(/<br\s*\/?>/gi,'\n').trim(),
         author_name: currentUserName,
+        author_avatar_url: currentUserAvatarUrl ?? null,
         attachment_url: attachmentUrl,
         attachment_name: attachmentName,
         attachment_size: attachmentSize,
         attachment_mime: attachmentMime,
       })
-      .select('id, user_id, body, created_at, author_name, attachment_url, attachment_name, attachment_size, attachment_mime')
+      .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime')
       .single();
     if (data) {
       const { data: commenter } = await supabase.from('hub_users').select('full_name, avatar_url').eq('id', currentUserId).single();
@@ -1495,7 +1527,7 @@ export default function TaskDetailPanel({
                 {comments.length === 0 && <p className="text-xs text-gray-400 italic">No comments yet</p>}
                 {comments.map(c => (
                   <div key={c.id} className="flex gap-2.5 group">
-                    <Avatar name={c.hub_users?.full_name ?? c.author_name ?? '?'} url={c.hub_users?.avatar_url} size={7} />
+                    <Avatar name={c.hub_users?.full_name ?? c.author_name ?? '?'} url={c.hub_users?.avatar_url ?? c.author_avatar_url} size={7} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-semibold text-gray-800">{c.hub_users?.full_name ?? c.author_name ?? 'Unknown'}</span>
@@ -1545,7 +1577,7 @@ export default function TaskDetailPanel({
               </div>
               {/* Comment input */}
               <div className="flex gap-2.5 relative">
-                <Avatar name={currentUserName} size={7} />
+                <Avatar name={currentUserName} url={currentUserAvatarUrl} size={7} />
                 <div className="flex-1 relative">
                   {mentionOpen && mentionMatches.length > 0 && (
                     <div className="absolute bottom-full mb-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 min-w-[160px] overflow-hidden">

@@ -3095,6 +3095,7 @@ export default function ContractorProjectsPage() {
         canEdit={true}
         currentUserId={hubUser?.id ?? ''}
         currentUserName={hubUser?.full_name ?? 'Contractor'}
+        currentUserAvatarUrl={hubUser?.avatar_url ?? null}
       />
     </ContractorLayout>
   );

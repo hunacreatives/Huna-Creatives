@@ -4173,6 +4173,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         canEdit={true}
         currentUserId={hubUser?.id ?? ''}
         currentUserName={hubUser?.full_name ?? 'Admin'}
+        currentUserAvatarUrl={hubUser?.avatar_url ?? null}
       />
     </AdminLayout>
   );
