@@ -1542,8 +1542,8 @@ export default function TaskDetailPanel({
                     className="absolute top-2 right-2 z-10 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black cursor-pointer">
                     <i className="ri-close-line text-sm"></i>
                   </button>
-                  {isImage ? (
-                    <img src={previewSrc} alt={commentPreview.name}
+                  {isImage && fid ? (
+                    <img src={`https://drive.google.com/thumbnail?id=${fid}&sz=w1600`} alt={commentPreview.name}
                       className="w-full max-h-[80vh] object-contain rounded-lg" />
                   ) : (
                     <iframe src={previewSrc} title={commentPreview.name}
