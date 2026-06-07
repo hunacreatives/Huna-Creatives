@@ -8,7 +8,7 @@ import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { getSetting } from '@/lib/settings';
 import { getPeriods } from '@/lib/formatUtils';
 import { DEMO_ATTENDANCE, DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_INVOICES, DEMO_DASHBOARD } from '@/lib/demoData';
-import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -201,7 +201,7 @@ export default function AdminDashboardPage() {
     }
     const fetchAll = async () => {
       try {
-      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult, payoutsResult] = await Promise.all([
+      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult, payrollCacheResult] = await Promise.all([
         supabase.functions.invoke('slack-attendance'),
         supabase.from('hub_announcements').select('*, hub_users(full_name)').order('created_at', { ascending: false }).limit(4),
         supabase.from('hub_requests').select('*, hub_users(full_name, avatar_url)').in('status', ['open', 'in_review']).order('created_at', { ascending: false }),
@@ -213,7 +213,7 @@ export default function AdminDashboardPage() {
         getSetting('usd_rate', '56'),
         supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').gt('balance', 0).order('sent_at', { ascending: false }),
         supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
-        supabase.from('hub_payouts').select('contractor_id, adjustments').eq('cutoff_start', cutoffStart),
+        supabase.from('hub_payroll_cache').select('computed_total').eq('period_start', cutoffStart).maybeSingle(),
       ]);
 
       if (!slackResult.error && slackResult.data?.attendance) {
@@ -234,118 +234,8 @@ export default function AdminDashboardPage() {
       let hrs = 0;
       for (const h of mergedHoursRows) hrs += h.hours_capped || 0;
 
-      const hoursMap: Record<string, { capped: number; raw: number; overtime: number; days: number }> = {};
-      const hoursByDate: Record<string, Record<string, number>> = {};
-      const overtimeByDate: Record<string, Record<string, number>> = {};
-      for (const h of mergedHoursRows) {
-        if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, raw: 0, overtime: 0, days: 0 };
-        hoursMap[h.user_id].capped += h.hours_capped || 0;
-        hoursMap[h.user_id].raw += h.hours_raw || 0;
-        hoursMap[h.user_id].overtime += h.overtime_hours || 0;
-        hoursMap[h.user_id].days += 1;
-        if (!hoursByDate[h.user_id]) hoursByDate[h.user_id] = {};
-        hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + (h.hours_capped || 0);
-        if (h.overtime_hours) {
-          if (!overtimeByDate[h.user_id]) overtimeByDate[h.user_id] = {};
-          overtimeByDate[h.user_id][h.date] = (overtimeByDate[h.user_id][h.date] || 0) + h.overtime_hours;
-        }
-      }
-      const ids = eligibleContractors.map((c: any) => c.id);
-      const { data: rateHistoryAll } = ids.length > 0
-        ? await supabase
-            .from('hub_rate_history')
-            .select('contractor_id, effective_date, payment_type, hourly_rate, monthly_rate')
-            .in('contractor_id', ids)
-            .lte('effective_date', cutoffEnd)
-            .order('effective_date', { ascending: true })
-        : { data: [] as any[] };
-
-      const rateHistoryMap: Record<string, any[]> = {};
-      for (const r of rateHistoryAll || []) {
-        if (!rateHistoryMap[r.contractor_id]) rateHistoryMap[r.contractor_id] = [];
-        rateHistoryMap[r.contractor_id].push(r);
-      }
-      const adjMap: Record<string, number> = {};
-      for (const p of (payoutsResult.data as any[]) || []) {
-        const adjs: any[] = p.adjustments || [];
-        adjMap[p.contractor_id] = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
-      }
-      const usdRate = parseFloat(usdRateStr);
-      let payrollTotal = 0;
-      for (const c of eligibleContractors) {
-        const h = hoursMap[c.id] || { capped: 0, raw: 0, overtime: 0, days: 0 };
-        const payType = c.payment_type || 'hourly';
-        const history = rateHistoryMap[c.id] || [];
-        const changeInPeriod = history.find((r: any) => r.effective_date >= cutoffStart && r.effective_date <= cutoffEnd);
-        const rateAtStart = [...history].filter((r: any) => r.effective_date < cutoffStart).pop() || null;
-        let pay = 0;
-        let overtimePay = 0;
-        if (changeInPeriod) {
-          const beforeChange = [...history].filter((r: any) => r.effective_date < changeInPeriod.effective_date).pop();
-          const oldMonthly = beforeChange ? (beforeChange.monthly_rate || 0) : (c.monthly_rate || 0);
-          const oldHourly  = beforeChange ? (beforeChange.hourly_rate  || 0) : (c.hourly_rate  || 0);
-          const newMonthly = changeInPeriod.monthly_rate || 0;
-          const newHourly  = changeInPeriod.hourly_rate  || 0;
-          if (payType === 'fixed' || payType === 'fixed_flexible') {
-            const datesMap = hoursByDate[c.id] || {};
-            let hrsAtOld = 0;
-            let hrsAtNew = 0;
-            for (const [date, hv] of Object.entries(datesMap)) {
-              if (date < changeInPeriod.effective_date) hrsAtOld += hv as number;
-              else hrsAtNew += hv as number;
-            }
-            const basePay = computeSplitFixedAccrual({
-              periodStart: cutoffStart,
-              periodEnd: cutoffEnd,
-              changeDate: changeInPeriod.effective_date,
-              workDays: c.work_days,
-              oldMonthlyRate: oldMonthly,
-              newMonthlyRate: newMonthly,
-              oldCappedHours: hrsAtOld,
-              newCappedHours: hrsAtNew,
-            }).accruedPay;
-            const oldOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
-            const newOT = changeInPeriod.hourly_rate || newMonthly / 176;
-            const otDates = overtimeByDate[c.id] || {};
-            let otAtOld = 0, otAtNew = 0;
-            for (const [date, ot] of Object.entries(otDates)) {
-              if (date < changeInPeriod.effective_date) otAtOld += ot as number;
-              else if (date <= effectiveEnd) otAtNew += ot as number;
-            }
-            overtimePay = otAtOld * oldOT + otAtNew * newOT;
-            pay = basePay;
-          } else {
-            const datesMap = hoursByDate[c.id] || {};
-            let hrsAtOld = 0, hrsAtNew = 0;
-            for (const [date, hv] of Object.entries(datesMap)) {
-              if (date < changeInPeriod.effective_date) hrsAtOld += hv as number;
-              else hrsAtNew += hv as number;
-            }
-            overtimePay = h.overtime * newHourly;
-            pay = hrsAtOld * oldHourly + hrsAtNew * newHourly;
-          }
-        } else {
-          const monthly = rateAtStart?.monthly_rate ?? c.monthly_rate ?? 0;
-          const hourly  = rateAtStart?.hourly_rate  ?? c.hourly_rate  ?? 0;
-          const derivedHourlyRate = payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / 176) : hourly;
-          overtimePay = h.overtime * derivedHourlyRate;
-          if (payType === 'hourly') {
-            pay = h.capped * derivedHourlyRate;
-          } else {
-            pay = computeFixedAccrual({
-              periodStart: cutoffStart,
-              periodEnd: cutoffEnd,
-              monthlyRate: monthly,
-              workDays: c.work_days,
-              cappedHours: h.capped,
-            }).accruedPay;
-          }
-        }
-        const inPHP = c.currency === 'USD' ? pay * usdRate : pay;
-        const otInPHP = c.currency === 'USD' ? overtimePay * usdRate : overtimePay;
-        payrollTotal += inPHP + otInPHP + (adjMap[c.id] || 0);
-      }
-      setTotalPayroll(payrollTotal);
+      const cachedTotal = (payrollCacheResult as any)?.data?.computed_total;
+      setTotalPayroll(cachedTotal != null ? Number(cachedTotal) : 0);
       setTotalHours(parseFloat(hrs.toFixed(1)));
       setBirthdays(getBirthdayAlerts(contractorsResult.data || []));
 
@@ -420,7 +310,7 @@ export default function AdminDashboardPage() {
           pendingTimeOff: nextTimeOff,
           birthdays: getBirthdayAlerts(contractorsResult.data || []),
           outstandingInvoices: outstanding,
-          totalPayroll: payrollTotal,
+          totalPayroll: cachedTotal != null ? Number(cachedTotal) : 0,
           totalHours: parseFloat(hrs.toFixed(1)),
           totalNetProfit: netProfitTotal,
           totalContractValue: contractValueTotal,

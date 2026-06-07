@@ -197,7 +197,7 @@ export default function HubLoginPage() {
               <h1 className="text-white font-bold leading-tight" style={{ fontSize: '2.6rem', letterSpacing: '-0.02em' }}>
                 Sign in to<br />your workspace.
               </h1>
-              <p className="text-white/30 text-sm mt-3">Authorized personnel only</p>
+              <p className="text-white/30 text-sm mt-3">For Huna Creatives team members only</p>
             </div>
 
             {justSignedUp && (
