@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
@@ -28,9 +29,22 @@ export async function uploadFileToDrive(
     body: { filename: file.name, mimeType: file.type || 'application/octet-stream', base64Content, type, meta },
   });
 
-  if (error || !data?.success) {
-    const msg = data?.error ?? error?.message ?? 'Upload failed';
-    throw new Error(msg);
+  if (error) {
+    // Extract the actual error body from the edge function response
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = await error.context.json();
+        throw new Error(body?.error ?? error.message);
+      } catch (parseErr: any) {
+        if (parseErr?.message && parseErr.message !== error.message) throw parseErr;
+      }
+    }
+    throw new Error(error.message);
   }
+
+  if (!data?.success) {
+    throw new Error(data?.error ?? 'Upload failed');
+  }
+
   return data.url as string;
 }
