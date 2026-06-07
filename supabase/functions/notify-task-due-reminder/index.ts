@@ -76,13 +76,15 @@ Deno.serve(async (req) => {
         .select('id, full_name, email, slack_id')
         .in('id', assigneeIds);
 
+      const deepLink = `${HUB_URL}?workspace=${task.project_id}&task=${task.id}`;
+
       for (const assignee of assignees ?? []) {
         await supabase.from('hub_notifications').insert({
           user_id: assignee.id,
           type: 'task_due_reminder',
           title: `Task due ${whenLabel}`,
           body: `"${task.title}" is due ${whenLabel} — ${projectName}`,
-          link: HUB_URL,
+          link: deepLink,
           read: false,
         }).catch(() => {});
 
@@ -92,12 +94,12 @@ Deno.serve(async (req) => {
             headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               channel: assignee.slack_id,
-              text: `⏰ *Task due ${whenLabel}*\n*"${task.title}"* — ${projectName}\n<${HUB_URL}|Open workspace →>`,
+              text: `⏰ *Task due ${whenLabel}*\n*"${task.title}"* — ${projectName}\n<${deepLink}|Open workspace →>`,
             }),
           }).catch(() => {});
         }
 
-        await sendPush(assignee.id, `Task due ${whenLabel}`, `"${task.title}" is due ${whenLabel} — ${projectName}`, HUB_URL);
+        await sendPush(assignee.id, `Task due ${whenLabel}`, `"${task.title}" is due ${whenLabel} — ${projectName}`, deepLink);
         notified++;
       }
     }

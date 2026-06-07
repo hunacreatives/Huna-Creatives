@@ -48,13 +48,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, skipped: 'assignee not found' }), { headers: cors });
     }
 
+    const deepLink = `${HUB_URL}?workspace=${project_id}&task=${task_id}`;
+
     for (const assignee of assignees) {
       await supabase.from('hub_notifications').insert({
         user_id: assignee.id,
         type: 'task_assigned',
         title: 'New task assigned',
         body: `${assigned_by_name} assigned you "${task_title}" on ${project_name}`,
-        link: HUB_URL,
+        link: deepLink,
         read: false,
       }).catch(() => {});
 
@@ -64,12 +66,12 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             channel: assignee.slack_id,
-            text: `🎯 *You've been assigned a task*\n*Task:* ${task_title}\n*Project:* ${project_name}\n*Assigned by:* ${assigned_by_name}\n<${HUB_URL}|Open in Sentro Hub →>`,
+            text: `🎯 *You've been assigned a task*\n*Task:* ${task_title}\n*Project:* ${project_name}\n*Assigned by:* ${assigned_by_name}\n<${deepLink}|Open in Sentro Hub →>`,
           }),
         }).catch(() => {});
       }
 
-      await sendPush(assignee.id, 'New task assigned', `${assigned_by_name} assigned you "${task_title}" on ${project_name}`, HUB_URL);
+      await sendPush(assignee.id, 'New task assigned', `${assigned_by_name} assigned you "${task_title}" on ${project_name}`, deepLink);
     }
 
     return new Response(JSON.stringify({ ok: true, task_id, notified: assignees.length, project_id }), { headers: cors });

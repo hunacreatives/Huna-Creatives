@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
@@ -713,6 +714,8 @@ export default function ContractorProjectsPage() {
   const { hubUser: demoHubUser } = useHubAuth();
   const hubUser = realHubUser ?? demoHubUser;
   const { isDemo } = useDemo();
+  const [searchParams] = useSearchParams();
+  const deepLinkDone = useRef<string | null>(null);
   const [rows, setRows] = useState<ProjectRow[]>([]);
   const [clientEntries, setClientEntries] = useState<{ id: string; rowId?: number; name: string; type: 'retainer' | 'assignment'; status: string; service?: string | null; monthly_rate?: number | null; months_paid?: number; platform?: string | null; role?: string | null; notes?: string | null; clientId?: number }[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
@@ -1256,6 +1259,30 @@ export default function ContractorProjectsPage() {
       }
     })();
   }, [hubUser]);
+
+  // Deep link: ?workspace=PROJECT_ID&task=TASK_ID
+  useEffect(() => {
+    if (loading) return;
+    const workspaceParam = searchParams.get('workspace');
+    const taskParam = searchParams.get('task');
+    const paramKey = `${workspaceParam}:${taskParam}`;
+    if (!workspaceParam || deepLinkDone.current === paramKey) return;
+    deepLinkDone.current = paramKey;
+    const projectId = Number(workspaceParam);
+    const row = rows.find(r => r.hub_projects?.id === projectId);
+    if (!row) return;
+    setWorkspaceRow(row);
+    setTaskFilter('all');
+    setTaskSearch('');
+    setWsSearch('');
+    setWsSearchOpen(false);
+    setWsFocusSection('ws-tasks');
+    if (taskParam) {
+      const taskId = Number(taskParam);
+      const task = tasks.find(t => t.id === taskId);
+      if (task) openViewTask(task);
+    }
+  }, [loading, rows, tasks, searchParams]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';

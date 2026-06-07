@@ -78,13 +78,15 @@ Deno.serve(async (req) => {
       });
       if (!mentioned || mentioned.id === author_id) continue;
 
+      const deepLink = `${HUB_URL}?workspace=${project_id}&task=${task_id}`;
+
       // In-app notification
       await supabase.from('hub_notifications').insert({
         user_id: mentioned.id,
         type: 'task_mention',
         title: `${authorName} mentioned you`,
         body: `In "${taskTitle}": ${body.slice(0, 100)}`,
-        link: HUB_URL,
+        link: deepLink,
         read: false,
       }).catch(() => {});
 
@@ -95,11 +97,11 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             channel: mentioned.slack_id,
-            text: `💬 *${authorName}* mentioned you in a task comment on *"${taskTitle}"*:\n> ${body.slice(0, 200)}\n<${HUB_URL}|Open in Sentro Hub →>`,
+            text: `💬 *${authorName}* mentioned you in a task comment on *"${taskTitle}"*:\n> ${body.slice(0, 200)}\n<${deepLink}|Open in Sentro Hub →>`,
           }),
         }).catch(() => {});
       }
-      await sendPush(mentioned.id, `${authorName} mentioned you`, `In "${taskTitle}": ${body.slice(0, 100)}`, HUB_URL);
+      await sendPush(mentioned.id, `${authorName} mentioned you`, `In "${taskTitle}": ${body.slice(0, 100)}`, deepLink);
     }
 
     return new Response(JSON.stringify({ ok: true, mentions }), { headers: cors });
