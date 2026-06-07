@@ -24,6 +24,14 @@ async function disableStaleServiceWorkers() {
 
 void disableStaleServiceWorkers();
 
+// Auto-reload when Vercel deploys a new build and old chunk files are gone
+window.addEventListener('error', (e) => {
+  const msg = e.message ?? '';
+  if (msg.includes('Failed to fetch dynamically imported module') || msg.includes('Importing a module script failed')) {
+    window.location.reload();
+  }
+}, true);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
