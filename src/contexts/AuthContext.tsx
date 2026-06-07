@@ -30,12 +30,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadHubUser = async (userId: string): Promise<HubUser | null> => {
     try {
-      const { data } = await supabase
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000));
+      const query = supabase
         .from('hub_users')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
-      return data ?? null;
+        .maybeSingle()
+        .then(({ data }) => data ?? null);
+      return await Promise.race([query, timeout]);
     } catch {
       return null;
     }
@@ -65,10 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profile = await loadHubUser(nextUser.id);
     if (!mountedRef.current || requestId !== profileRequestIdRef.current) return;
 
-    // If profile lookup failed (transient error or no hub record), clear local state only.
-    // Never call supabase.auth.signOut() here — a slow DB query would permanently log the user out.
-    // HubRouteGate will redirect to /hub/login if hubUser is null.
-    setHubUser(profile ?? null);
+    // Don't overwrite an existing authenticated user if the DB query returned null
+    // (transient error, timeout, tab-switch re-hydration failure). Keep the previous
+    // hubUser when the session belongs to the same user.
+    setHubUser(prev => profile ?? (prev?.id === nextUser.id ? prev : null));
     setLoading(false);
   };
 
