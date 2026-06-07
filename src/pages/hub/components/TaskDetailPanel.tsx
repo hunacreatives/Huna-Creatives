@@ -1477,10 +1477,10 @@ export default function TaskDetailPanel({
                           </div>
                         </div>
                       ) : (
-                      {(() => { const { html, isHtml } = renderCommentBody(c.body); return (
+                      (() => { const { html, isHtml } = renderCommentBody(c.body); return (
                         <div className={`text-sm text-gray-700 leading-relaxed ${isHtml ? '[&_a]:text-blue-600 [&_a]:underline [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5 [&_li]:my-0.5' : 'whitespace-pre-wrap'}`}
                           dangerouslySetInnerHTML={{ __html: html }} />
-                      ); })()}
+                      ); })()
                       )}
                     </div>
                   </div>
