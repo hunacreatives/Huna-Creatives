@@ -484,6 +484,13 @@ export default function InvoiceLogPage() {
     }
   };
 
+  const settleInvoice = async (inv: InvoiceLog) => {
+    if (!window.confirm(`Mark invoice #${inv.invoice_number.padStart(4, '0')} for ${inv.client_name} as settled?`)) return;
+    const settled_at = new Date().toISOString();
+    await supabase.from('hub_invoice_log').update({ settled: true, settled_at }).eq('id', inv.id);
+    setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, settled: true, settled_at } : i));
+  };
+
   const deleteInvoice = async (id: number) => {
     if (!window.confirm('Delete this invoice log entry? This cannot be undone.')) return;
     await supabase.from('hub_invoice_log').delete().eq('id', id);
@@ -622,14 +629,24 @@ export default function InvoiceLogPage() {
                       <i className={`ri-arrow-${expanded === inv.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
                     </button>
                     {!inv.settled && (
-                      <button
-                        type="button"
-                        onClick={() => void openEditInvoice(inv)}
-                        className="ml-1 flex items-center gap-1 px-3 py-1.5 text-xs text-sky-600 border border-sky-200 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer flex-shrink-0"
-                      >
-                        <i className="ri-edit-line"></i>
-                        <span className="hidden sm:inline">Re-edit</span>
-                      </button>
+                      <div className="flex items-center gap-1.5 ml-1">
+                        <button
+                          type="button"
+                          onClick={() => void settleInvoice(inv)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors cursor-pointer flex-shrink-0"
+                        >
+                          <i className="ri-check-double-line"></i>
+                          <span className="hidden sm:inline">Settle</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void openEditInvoice(inv)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-sky-600 border border-sky-200 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer flex-shrink-0"
+                        >
+                          <i className="ri-edit-line"></i>
+                          <span className="hidden sm:inline">Re-edit</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                   {expanded === inv.id && (
