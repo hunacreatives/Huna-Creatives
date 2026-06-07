@@ -35,7 +35,7 @@ const categories = [
     description: 'Strategic content that builds community.',
     icon: 'ri-bar-chart-grouped-line',
     count: '24+',
-    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/ccd16ed1-02ba-4ad6-be83-377096c7027f/1+BCN+-+Social+Media+Contents.png',
+    image: '/images/portfolio-bcn-social-1.webp',
     accent: '#fb7185',
   },
   {

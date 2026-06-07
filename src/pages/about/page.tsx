@@ -9,42 +9,42 @@ const teamMembers = [
     name: 'Francis Fiel Roble',
     role: 'Founder/Creative Director',
     bio: 'The visionary behind Huna. Francis leads with bold ideas and a deep belief that design should always serve a purpose.',
-    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/4ea0f3e2-5d0d-4fbd-b1e8-e899bd2b7ea4/Francis+Fiel+Roble',
+    image: '/images/team-francis-fiel-roble.webp',
     hasPhoto: true,
   },
   {
     name: 'Thamara Ong',
     role: 'Partner & Senior Brand Strategist',
     bio: 'Thamara is the strategic force behind every brand story. She turns insights into direction and ideas into impact.',
-    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/c2dcdf7b-60dc-456d-9a36-2b105fab1551/Thamara+Ong',
+    image: '/images/team-thamara-ong.webp',
     hasPhoto: true,
   },
   {
     name: 'Ma. Reeva Jumawan',
     role: 'Partner & Senior Visual Director',
     bio: 'Reeva brings visual worlds to life. Her eye for detail and aesthetic direction keeps every project looking sharp and intentional.',
-    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/92579145-71f3-43d0-9b81-41c9a60f82d8/Reeva+Jumawan',
+    image: '/images/team-reeva-jumawan.webp',
     hasPhoto: true,
   },
   {
     name: 'Katleen Nellas',
     role: 'Senior Graphic Designer',
     bio: 'Katleen crafts visuals that speak before words do. She blends creativity with precision to deliver designs that truly stand out.',
-    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/faec8908-b5d8-4696-9701-826dce495457/Katleen+Nellas',
+    image: '/images/team-katleen-nellas.webp',
     hasPhoto: true,
   },
   {
     name: 'Abigail Duterte',
     role: 'HR Specialist/Admin',
     bio: 'Abigail is the backbone of the team. She keeps everything running smoothly so the creatives can focus on what they do best.',
-    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/399d867a-4c64-4366-ae66-ee8752bc4a7f/Abigail+Duterte',
+    image: '/images/team-abigail-duterte.webp',
     hasPhoto: true,
   },
   {
     name: 'Angela Louise Ando',
     role: 'Admin/Account Specialist',
     bio: 'Angela is the bridge between partners and the team. She ensures every project runs on time and every brand feels heard.',
-    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/567bc5cd-ef1c-4efa-9fca-25c37e13ff02/Angela+Ando',
+    image: '/images/team-angela-ando.webp',
     hasPhoto: true,
   },
   {
@@ -59,7 +59,7 @@ const teamMembers = [
     name: 'Reese Jumawan',
     role: 'Junior Graphic Designer',
     bio: 'Reese is a passionate creative who thrives on turning concepts into compelling visuals that resonate with audiences.',
-    image: 'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/bf9d33e6-e10b-4f2d-9f05-2312e1695007/Reese+Jumawan',
+    image: '/images/team-reese-jumawan.webp',
     hasPhoto: true,
   },
   {
@@ -183,7 +183,7 @@ export default function AboutPage() {
           <div className="relative rounded-2xl md:rounded-3xl overflow-hidden">
             <div className="w-full h-[220px] sm:h-[340px] md:h-[440px] lg:h-[520px]">
               <motion.img
-                src="https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/f4405f8d-bb2d-4158-8112-4d2c495073e8/Screenshot+2025-08-05+at+12.46.35%E2%80%AFPM.png"
+                src="/images/team-photo.webp"
                 alt="Huna Creatives Team Photo"
                 className="w-full h-full object-cover object-top"
                 initial={{ filter: 'blur(16px)', scale: 1.04, opacity: 0.8 }}

@@ -12,7 +12,7 @@ interface SEOProps {
 
 const BASE_URL = 'https://www.hunacreatives.com';
 const DEFAULT_OG_IMAGE =
-  'https://images.squarespace-cdn.com/content/v1/688d8b734aa1173915369520/61ea0e60-dcf9-4b3d-a489-1dd4824eb825/Huna+Creatives+%28with+shadow%29.png?format=1500w';
+  '/images/huna-creatives-logo.webp';
 
 function upsertMeta(selector: string, attrKey: string, attrValue: string, content: string) {
   let el = document.querySelector<HTMLMetaElement>(selector);

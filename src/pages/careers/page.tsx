@@ -50,31 +50,40 @@ const JOB_LISTINGS: JobListing[] = [
     ],
   },
   {
-    id: 'video-editor',
-    title: 'Video Editor',
-    type: 'Project-Based',
-    shift: 'Flexible',
+    id: 'marketing-lead-coordinator',
+    title: 'Marketing & Lead Coordinator',
+    type: 'Full-Time',
+    shift: '11:00 PM – 7:00 AM (PH Time)',
     startDate: 'ASAP',
     location: 'Remote',
     summary:
-      'We are looking for a reliable, creative Video Editor for ongoing freelance projects, with a strong eye for pacing, polish, and brand-aligned content.',
+      'We are looking for a full-time Marketing & Lead Coordinator to support our marketing operations and lead management across four home service brands in the Portland, Oregon area. This is a dual-role position — part marketing support, part lead coordination — working closely with the Marketing Coordinator and reporting to company leadership.',
     whatYoullDo: [
-      'Edit video content for marketing, campaigns, and social media',
-      'Shape polished cuts that feel clear, engaging, and on-brand',
-      'Add text, music, transitions, and light motion support when needed',
-      'Deliver high-quality work on time and handle revisions smoothly',
+      'Follow up on inbound leads via outbound calls and messages — converting open and unresponsive leads into booked appointments',
+      'Log and track leads accurately in ServiceTitan with correct campaign sources',
+      'Coordinate with field technicians across departments to collect weekly job photos for social media',
+      'Send drafted social media posts to the appropriate department for approval, then schedule approved content in Hootsuite',
+      'Respond to Google reviews and comments across multiple brand profiles daily',
+      'Publish weekly Google Business Profile updates',
+      'Monitor Yelp, Thumbtack, and HouseHappy for new leads and messages',
+      'Assist with graphic design tasks and collateral in Canva as needed',
+      'Support the marketing calendar and day-to-day marketing operations',
     ],
     whatYouBring: [
-      'Strong working knowledge of Premiere Pro, Final Cut Pro, or DaVinci Resolve',
-      'A sharp sense of detail, rhythm, and storytelling',
-      'Ability to work independently and communicate clearly',
-      'A portfolio or reel that shows solid editing judgment',
+      'Experience in lead follow-up, outbound calling, or customer coordination',
+      'Strong written and verbal English communication skills',
+      'Proficiency in Canva — non-negotiable',
+      'Experience with social media scheduling tools (Hootsuite or similar)',
+      'Highly organized, self-directed, and comfortable managing multiple tasks',
+      'Bonus: Experience with ServiceTitan or similar CRM',
+      'Bonus: Background in home services, real estate, or property management',
     ],
     whyJoinUs: [
-      'Freelance, project-based setup',
-      'Consistent work for the right fit',
-      'Fast-moving creative projects with room to grow',
-      'Long-term collaboration potential',
+      'Full-time remote position',
+      'Competitive salary based on experience',
+      'Work directly with the marketing team of a growing multi-brand home services company',
+      'Opportunity to grow into a broader marketing role over time',
+      'Must be available to start ASAP',
     ],
   },
 ];
@@ -168,7 +177,7 @@ export default function CareersPage() {
       });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error('Submission timed out. Please try again.')), 25000);
+        window.setTimeout(() => reject(new Error('Submission timed out. Please try again.')), 60000);
       });
 
       const { error } = await Promise.race([invokePromise, timeoutPromise]);
@@ -292,7 +301,7 @@ export default function CareersPage() {
         <p className="text-white/40 text-xs md:text-sm leading-relaxed">
           {job.id === 'graphic-designer'
             ? 'This application is specifically for the Graphic Designer role. Share your portfolio and resume so we can review your fit clearly.'
-            : 'This application is specifically for the Video Editor role. Share your resume, and include a reel or portfolio link if you have one.'}
+            : 'This application is specifically for the Marketing & Lead Coordinator role. Share your resume and tell us about your experience.'}
         </p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
@@ -407,7 +416,7 @@ export default function CareersPage() {
                     >
                       <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
                         <div className="w-12 h-12 flex items-center justify-center rounded-xl shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
-                          <i className={`text-xl text-orange-400 ${job.id === 'graphic-designer' ? 'ri-palette-line' : 'ri-task-line'}`} />
+                          <i className={`text-xl text-orange-400 ${job.id === 'graphic-designer' ? 'ri-palette-line' : 'ri-megaphone-line'}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1.5">

@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: insertError.message }), { status: 500, headers: cors });
     }
 
-    await notifyAdmins(supabase, name.trim(), role.trim());
+    notifyAdmins(supabase, name.trim(), role.trim()).catch(() => {});
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
