@@ -113,6 +113,7 @@ export default function InvoiceLogPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [showPaid, setShowPaid] = useState(false);
   const [verifying, setVerifying] = useState<Set<number>>(new Set());
   const [resending, setResending] = useState<Set<number>>(new Set());
   const [editingInvoice, setEditingInvoice] = useState<InvoiceLog | null>(null);
@@ -171,6 +172,8 @@ export default function InvoiceLogPage() {
     i.invoice_number.includes(q) ||
     i.sent_to.toLowerCase().includes(q)
   );
+  const activeInvoices = filteredInvoices.filter(i => !i.settled);
+  const paidInvoices = filteredInvoices.filter(i => i.settled);
   const filteredReceipts = receipts.filter(r =>
     r.client_name.toLowerCase().includes(q) ||
     r.project_name.toLowerCase().includes(q) ||
@@ -580,7 +583,10 @@ export default function InvoiceLogPage() {
             <div className="text-sm text-gray-400 py-12 text-center">No invoices found</div>
           ) : (
             <div className="space-y-2">
-              {filteredInvoices.map(inv => (
+              {activeInvoices.length === 0 && (
+                <div className="text-sm text-gray-400 py-6 text-center">No active invoices</div>
+              )}
+              {activeInvoices.map(inv => (
                 <div key={inv.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                   <div className="px-4 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors">
                     <button
@@ -701,6 +707,60 @@ export default function InvoiceLogPage() {
                   )}
                 </div>
               ))}
+              {paidInvoices.length > 0 && (
+                <div className="mt-4">
+                  <button type="button" onClick={() => setShowPaid(p => !p)}
+                    className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors cursor-pointer mb-2">
+                    <i className={`ri-arrow-${showPaid ? 'up' : 'down'}-s-line`}></i>
+                    {showPaid ? 'Hide' : 'Show'} paid invoices ({paidInvoices.length})
+                  </button>
+                  {showPaid && (
+                    <div className="space-y-2 opacity-70">
+                      {paidInvoices.map(inv => (
+                        <div key={inv.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                          <div className="px-4 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors">
+                            <button className="flex-1 min-w-0 flex items-center gap-3 text-left cursor-pointer"
+                              onClick={() => setExpanded(expanded === inv.id ? null : inv.id)}>
+                              <span className="text-xs font-mono font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded flex-shrink-0">
+                                #{inv.invoice_number.padStart(4, '0')}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-700 truncate">{inv.project_name}</p>
+                                <p className="text-xs text-gray-400 truncate">{inv.client_name}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-sm font-bold text-gray-700">{fmt(inv.contract_price)}</p>
+                                <p className="text-xs font-medium text-emerald-600">Paid</p>
+                              </div>
+                              <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-shrink-0">
+                                <i className="ri-check-double-line"></i> <span className="hidden sm:inline">Settled</span>
+                              </span>
+                              <div className="text-xs text-gray-400 flex-shrink-0 text-right hidden md:block">{fmtDateTime(inv.sent_at)}</div>
+                              <i className={`ri-arrow-${expanded === inv.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
+                            </button>
+                          </div>
+                          {expanded === inv.id && (
+                            <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-2 text-sm text-gray-600">
+                              {inv.settled_at && <p className="text-xs text-gray-400">Settled on {fmtDateTime(inv.settled_at)}</p>}
+                              {inv.payments && inv.payments.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Payments</p>
+                                  {inv.payments.map((p, i) => (
+                                    <div key={i} className="flex justify-between text-xs py-1 border-b border-gray-100 last:border-0">
+                                      <span>{fmtDate(p.paid_at)}{p.notes ? ` · ${p.notes}` : ''}</span>
+                                      <span className="font-semibold">{fmt(p.amount)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         ) : tab === 'scheduled' ? (
