@@ -19,9 +19,10 @@ function renderCommentBody(body: string): { html: string; isHtml: boolean } {
       isHtml: true,
     };
   }
-  // Plain-text path — escape then apply lightweight markdown
+  // Plain-text path — escape then apply lightweight markdown + auto-link URLs
   const html = body
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#1d4ed8;text-decoration:underline">$1</a>')
     .replace(/(@\w+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
