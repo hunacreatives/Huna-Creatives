@@ -413,12 +413,9 @@ export default function TaskDetailPanel({
       setCustomFields((taskRes.data as any).meta?.custom_fields ?? []);
     }
     if (commRes.data) {
-      const userIds = [...new Set(commRes.data.map((c: any) => c.user_id).filter(Boolean))];
+      // Build user map from teamMembers (already loaded, no RLS issues for contractors)
       const userMap: Record<string, { full_name: string; avatar_url: string | null }> = {};
-      if (userIds.length) {
-        const { data: users } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', userIds);
-        for (const u of users ?? []) userMap[u.id] = { full_name: u.full_name, avatar_url: u.avatar_url ?? null };
-      }
+      for (const m of teamMembers) userMap[m.id] = { full_name: m.full_name, avatar_url: m.avatar_url ?? null };
       setComments(commRes.data.map((c: any) => ({ ...c, hub_users: userMap[c.user_id] ?? null })));
     }
     if (attRes.data)  setAttachments(attRes.data);
