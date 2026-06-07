@@ -171,34 +171,43 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    let finalResumeLink = resume_link || null;
-    let driveFileId: string | null = null;
 
-    if (resume_base64 && resume_filename) {
-      const driveUpload = await uploadResumeToDrive(resume_filename, resume_mime, resume_base64);
-      finalResumeLink = driveUpload.url;
-      driveFileId = driveUpload.fileId ?? null;
-    }
-
-    const { error: insertError } = await supabase.from('hub_job_applications').insert({
-      job_id: job_id || null,
-      role: role.trim(),
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      expected_rate: expected_rate.trim(),
-      portfolio_link: portfolio_link?.trim() || null,
-      resume_link: finalResumeLink,
-      resume_filename: resume_filename || null,
-      resume_drive_file_id: driveFileId,
-      message: message.trim(),
-      source: 'careers_site',
-    });
+    // Insert immediately — Drive upload happens in the background after response
+    const { data: inserted, error: insertError } = await supabase
+      .from('hub_job_applications')
+      .insert({
+        job_id: job_id || null,
+        role: role.trim(),
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        expected_rate: expected_rate.trim(),
+        portfolio_link: portfolio_link?.trim() || null,
+        resume_link: resume_link || null,
+        resume_filename: resume_filename || null,
+        resume_drive_file_id: null,
+        message: message.trim(),
+        source: 'careers_site',
+      })
+      .select('id')
+      .single();
 
     if (insertError) {
       return new Response(JSON.stringify({ error: insertError.message }), { status: 500, headers: cors });
     }
 
-    notifyAdmins(supabase, name.trim(), role.trim()).catch(() => {});
+    // Background: Drive upload + update record + notify — does not block the response
+    (async () => {
+      try {
+        if (resume_base64 && resume_filename && inserted?.id) {
+          const driveUpload = await uploadResumeToDrive(resume_filename, resume_mime, resume_base64);
+          await supabase
+            .from('hub_job_applications')
+            .update({ resume_link: driveUpload.url, resume_drive_file_id: driveUpload.fileId ?? null })
+            .eq('id', inserted.id);
+        }
+      } catch (_) { /* Drive upload failure is non-fatal */ }
+      await notifyAdmins(supabase, name.trim(), role.trim()).catch(() => {});
+    })();
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
