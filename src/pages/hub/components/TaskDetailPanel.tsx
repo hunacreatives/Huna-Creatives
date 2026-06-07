@@ -282,6 +282,7 @@ export default function TaskDetailPanel({
   const [uploading, setUploading]   = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  const [commentPreview, setCommentPreview] = useState<{ url: string; name: string; mime: string | null } | null>(null);
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -704,9 +705,19 @@ export default function TaskDetailPanel({
     setPosting(false);
   };
 
+  const driveFileIdFromUrl = (url: string): string | null => {
+    const m = url.match(/\/file\/d\/([^/]+)/);
+    return m ? m[1] : null;
+  };
+
   const deleteComment = async (commentId: number) => {
+    const comment = comments.find(c => c.id === commentId);
     await supabase.from('hub_project_task_comments').delete().eq('id', commentId);
     setComments(prev => prev.filter(c => c.id !== commentId));
+    if (comment?.attachment_url) {
+      const fileId = driveFileIdFromUrl(comment.attachment_url);
+      if (fileId) supabase.functions.invoke('delete-from-drive', { body: { fileId } }).catch(() => {});
+    }
   };
 
   // @mention handling
@@ -1517,6 +1528,45 @@ export default function TaskDetailPanel({
             </div>
           )}
 
+          {/* Comment attachment preview modal */}
+          {commentPreview && (() => {
+            const fid = driveFileIdFromUrl(commentPreview.url);
+            const isImage = commentPreview.mime?.startsWith('image/');
+            const previewSrc = fid ? `https://drive.google.com/file/d/${fid}/preview` : commentPreview.url;
+            const downloadUrl = fid ? `https://drive.google.com/uc?export=download&id=${fid}` : commentPreview.url;
+            return (
+              <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4"
+                onClick={() => setCommentPreview(null)}>
+                <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                  <button type="button" onClick={() => setCommentPreview(null)}
+                    className="absolute top-2 right-2 z-10 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black cursor-pointer">
+                    <i className="ri-close-line text-sm"></i>
+                  </button>
+                  {isImage ? (
+                    <img src={previewSrc} alt={commentPreview.name}
+                      className="w-full max-h-[80vh] object-contain rounded-lg" />
+                  ) : (
+                    <iframe src={previewSrc} title={commentPreview.name}
+                      className="w-full rounded-lg bg-white" style={{ height: '80vh' }} />
+                  )}
+                  <div className="flex items-center justify-between mt-2 px-1">
+                    <span className="text-white/70 text-xs truncate">{commentPreview.name}</span>
+                    <div className="flex items-center gap-2">
+                      <a href={downloadUrl} target="_blank" rel="noopener noreferrer" download
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black">
+                        <i className="ri-download-line text-xs"></i> Download
+                      </a>
+                      <a href={commentPreview.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black">
+                        <i className="ri-external-link-line text-xs"></i> Open in Drive
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Comments */}
           {!isNew && (
             <div className="p-5 border-b border-gray-100">
@@ -1560,15 +1610,35 @@ export default function TaskDetailPanel({
                           className={`text-sm text-gray-700 leading-relaxed ${renderCommentBody(c.body).isHtml ? '[&_a]:text-blue-600 [&_a]:underline [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5 [&_li]:my-0.5' : 'whitespace-pre-wrap'}`}
                           dangerouslySetInnerHTML={{ __html: renderCommentBody(c.body).html }}
                         />}
-                        {c.attachment_url && (
-                          <a href={c.attachment_url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 mt-1.5 px-2.5 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors max-w-xs">
-                            <i className={`${c.attachment_mime?.startsWith('image/') ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
-                            <span className="text-xs text-gray-700 truncate">{c.attachment_name}</span>
-                            {c.attachment_size && <span className="text-[10px] text-gray-400 flex-shrink-0">{(c.attachment_size / 1024).toFixed(0)} KB</span>}
-                            <i className="ri-external-link-line text-[10px] text-gray-400 flex-shrink-0"></i>
-                          </a>
-                        )}
+                        {c.attachment_url && (() => {
+                          const fid = driveFileIdFromUrl(c.attachment_url);
+                          const isImage = c.attachment_mime?.startsWith('image/');
+                          const thumbUrl = fid ? `https://drive.google.com/thumbnail?id=${fid}&sz=w400` : null;
+                          const downloadUrl = fid ? `https://drive.google.com/uc?export=download&id=${fid}` : c.attachment_url;
+                          return (
+                            <div className="mt-1.5 space-y-1">
+                              {isImage && thumbUrl && (
+                                <button onClick={() => setCommentPreview({ url: c.attachment_url!, name: c.attachment_name ?? 'Image', mime: c.attachment_mime ?? null })}
+                                  className="block rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity max-w-[220px]">
+                                  <img src={thumbUrl} alt={c.attachment_name ?? ''} className="w-full object-cover" />
+                                </button>
+                              )}
+                              <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 max-w-xs">
+                                <i className={`${isImage ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
+                                <span className="text-xs text-gray-700 truncate flex-1">{c.attachment_name}</span>
+                                {c.attachment_size && <span className="text-[10px] text-gray-400 flex-shrink-0">{(c.attachment_size / 1024).toFixed(0)} KB</span>}
+                                <button onClick={() => setCommentPreview({ url: c.attachment_url!, name: c.attachment_name ?? 'File', mime: c.attachment_mime ?? null })}
+                                  title="Preview" className="ml-1 text-gray-400 hover:text-sky-500 transition-colors cursor-pointer flex-shrink-0">
+                                  <i className="ri-eye-line text-xs"></i>
+                                </button>
+                                <a href={downloadUrl} target="_blank" rel="noopener noreferrer" download
+                                  title="Download" className="text-gray-400 hover:text-emerald-500 transition-colors flex-shrink-0">
+                                  <i className="ri-download-line text-xs"></i>
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </>
                       )}
                     </div>
