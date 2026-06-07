@@ -329,6 +329,7 @@ Deno.serve(async (req) => {
         from: FROM_EMAIL,
         to: toList,
         ...(ccList.length > 0 ? { cc: ccList } : {}),
+        bcc: ['contact@hunacreatives.com'],
         subject: subject ?? `Invoice #${String(invoice_number).padStart(4, '0')} — ${project_name}`,
         html,
       }),
