@@ -269,6 +269,7 @@ export default function TaskDetailPanel({
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPosting] = useState(false);
   const [uploading, setUploading]   = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [mentionOpen, setMentionOpen] = useState(false);
@@ -703,16 +704,21 @@ export default function TaskDetailPanel({
     }
     if (!task) return;
     setUploading(true);
-    const url = await uploadFileToDrive(file, 'task_attachment', { project_name: projectName });
-    if (url) {
-      const { data } = await supabase
+    setUploadError(null);
+    try {
+      const url = await uploadFileToDrive(file, 'task_attachment', { project_name: projectName });
+      if (!url) throw new Error('Upload failed. Please try again.');
+      const { data, error: insertErr } = await supabase
         .from('hub_project_task_attachments')
         .insert({ task_id: task.id, uploaded_by: currentUserId, name: file.name, url, size: file.size, mime_type: file.type })
         .select('*').single();
+      if (insertErr) throw new Error(insertErr.message);
       if (data) {
         setAttachments(prev => [data, ...prev]);
         await logActivity(task.id, 'attachment_added', `added attachment "${file.name}"`);
       }
+    } catch (err: any) {
+      setUploadError(err.message ?? 'Upload failed.');
     }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
@@ -1333,6 +1339,9 @@ export default function TaskDetailPanel({
               )}
               <input ref={fileRef} type="file" className="hidden" onChange={handleFileUpload} />
             </div>
+            {uploadError && (
+              <p className="text-xs text-red-500 mb-2">{uploadError}</p>
+            )}
             {isNew ? (
               pendingAttachment ? (
                 <div className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl">
