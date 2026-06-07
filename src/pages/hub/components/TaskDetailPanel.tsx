@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseUrl_, supabaseAnonKey_ } from '@/lib/supabase';
 import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeChecklistItems, normalizeTaskAssigneePayload, sameAssigneeIds } from '@/lib/taskAssignments';
@@ -693,8 +693,10 @@ export default function TaskDetailPanel({
       setComments(prev => [...prev, norm]);
       await logActivity(task.id, 'comment_added', 'added a comment');
       if (newComment.includes('@')) {
-        supabase.functions.invoke('notify-task-mention', {
-          body: { comment_id: data.id, task_id: task.id, author_id: currentUserId, author_name: currentUserName, body: newComment.trim(), project_id: task.project_id },
+        fetch(`${supabaseUrl_}/functions/v1/notify-task-mention`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${supabaseAnonKey_}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment_id: data.id, task_id: task.id, author_id: currentUserId, author_name: currentUserName, body: newComment.trim(), project_id: task.project_id }),
         }).catch(() => {});
       }
     }

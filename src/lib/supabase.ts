@@ -9,6 +9,8 @@ const supabaseAnonKey =
   || (import.meta.env.VITE_SUPABASE_ANON_KEY as string)
   || '';
 
+export const supabaseAnonKey_ = supabaseAnonKey;
+export const supabaseUrl_ = supabaseUrl;
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 function getSupabaseProjectRef() {
