@@ -707,7 +707,6 @@ export default function TaskDetailPanel({
     setUploadError(null);
     try {
       const url = await uploadFileToDrive(file, 'task_attachment', { project_name: projectName });
-      if (!url) throw new Error('Upload failed. Please try again.');
       const { data, error: insertErr } = await supabase
         .from('hub_project_task_attachments')
         .insert({ task_id: task.id, uploaded_by: currentUserId, name: file.name, url, size: file.size, mime_type: file.type })
