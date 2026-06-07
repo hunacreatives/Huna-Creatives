@@ -676,7 +676,7 @@ export default function TaskDetailPanel({
       .insert({
         task_id: task.id,
         user_id: currentUserId,
-        body: (commentRef.current?.innerHTML?.trim() || newComment).replace(/<br\s*\/?>/gi,'\n').trim(),
+        body: (commentRef.current?.innerHTML?.trim() || newComment).replace(/&nbsp;/g, ' ').replace(/<br\s*\/?>/gi,'\n').trim(),
         author_name: currentUserName,
         author_avatar_url: currentUserAvatarUrl ?? null,
         attachment_url: attachmentUrl,

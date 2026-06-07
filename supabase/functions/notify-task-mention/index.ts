@@ -32,19 +32,27 @@ Deno.serve(async (req) => {
     const mentions = [...body.matchAll(/@(\w+)/g)].map(m => m[1].toLowerCase());
     if (!mentions.length) return new Response(JSON.stringify({ ok: true, skipped: true }), { headers: cors });
 
-    // Fetch all hub_users directly for this project
+    // Fetch all hub_users for this project (contractors + admins/owners)
     const { data: pcRows } = await supabase
       .from('hub_project_contractors')
       .select('contractor_id')
       .eq('project_id', project_id);
 
     const contractorIds = (pcRows ?? []).map((r: any) => r.contractor_id);
-    const { data: usersData } = await supabase
-      .from('hub_users')
-      .select('id, full_name, slack_id, email')
-      .in('id', contractorIds);
 
-    const teamMembers = usersData ?? [];
+    const [contractorsRes, adminsRes] = await Promise.all([
+      contractorIds.length > 0
+        ? supabase.from('hub_users').select('id, full_name, slack_id, email').in('id', contractorIds)
+        : Promise.resolve({ data: [] }),
+      supabase.from('hub_users').select('id, full_name, slack_id, email').in('role', ['admin', 'owner']),
+    ]);
+
+    const seen = new Set<string>();
+    const teamMembers = [...(contractorsRes.data ?? []), ...(adminsRes.data ?? [])].filter((u: any) => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    });
 
     // Use passed author name or fall back to DB lookup
     let authorName = author_name;
