@@ -280,6 +280,8 @@ export default function TaskDetailPanel({
   const [commentFileError, setCommentFileError] = useState<string | null>(null);
   const commentFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading]   = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const uploadProgressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
   const [commentPreview, setCommentPreview] = useState<{ url: string; name: string; mime: string | null } | null>(null);
@@ -661,11 +663,21 @@ export default function TaskDetailPanel({
 
     if (commentFile) {
       try {
+        setUploadProgress(5);
+        uploadProgressTimer.current = setInterval(() => {
+          setUploadProgress(p => (p !== null && p < 88) ? p + 2 : p);
+        }, 250);
         attachmentUrl = await uploadFileToDrive(commentFile, 'task_attachment', { project_name: projectName });
         attachmentName = commentFile.name;
         attachmentSize = commentFile.size;
         attachmentMime = commentFile.type || null;
+        if (uploadProgressTimer.current) clearInterval(uploadProgressTimer.current);
+        setUploadProgress(100);
+        await new Promise(r => setTimeout(r, 400));
+        setUploadProgress(null);
       } catch (err: any) {
+        if (uploadProgressTimer.current) clearInterval(uploadProgressTimer.current);
+        setUploadProgress(null);
         setCommentFileError(err.message ?? 'File upload failed.');
         setPosting(false);
         return;
@@ -1701,14 +1713,25 @@ export default function TaskDetailPanel({
                   />
                   {/* Selected file preview */}
                   {commentFile && (
-                    <div className="flex items-center gap-2 mt-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
-                      <i className={`${commentFile.type.startsWith('image/') ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
-                      <span className="text-xs text-gray-600 truncate flex-1">{commentFile.name}</span>
-                      <span className="text-[10px] text-gray-400 flex-shrink-0">{(commentFile.size / 1024).toFixed(0)} KB</span>
-                      <button type="button" onClick={() => { setCommentFile(null); setCommentFileError(null); if (commentFileRef.current) commentFileRef.current.value = ''; }}
-                        className="text-gray-300 hover:text-red-400 flex-shrink-0 cursor-pointer">
-                        <i className="ri-close-line text-sm"></i>
-                      </button>
+                    <div className="mt-1.5 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="flex items-center gap-2 px-2.5 py-1.5">
+                        <i className={`${commentFile.type.startsWith('image/') ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
+                        <span className="text-xs text-gray-600 truncate flex-1">{commentFile.name}</span>
+                        <span className="text-[10px] text-gray-400 flex-shrink-0">{(commentFile.size / 1024).toFixed(0)} KB</span>
+                        {uploadProgress !== null
+                          ? <span className="text-[10px] text-[#FF6B35] flex-shrink-0 font-medium">{uploadProgress}%</span>
+                          : <button type="button" onClick={() => { setCommentFile(null); setCommentFileError(null); if (commentFileRef.current) commentFileRef.current.value = ''; }}
+                              className="text-gray-300 hover:text-red-400 flex-shrink-0 cursor-pointer">
+                              <i className="ri-close-line text-sm"></i>
+                            </button>
+                        }
+                      </div>
+                      {uploadProgress !== null && (
+                        <div className="h-0.5 bg-gray-200">
+                          <div className="h-full bg-[#FF6B35] transition-all duration-300 ease-out"
+                            style={{ width: `${uploadProgress}%` }} />
+                        </div>
+                      )}
                     </div>
                   )}
                   {commentFileError && <p className="text-xs text-red-500 mt-1">{commentFileError}</p>}
