@@ -8,7 +8,7 @@ import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { getSetting } from '@/lib/settings';
 import { getPeriods } from '@/lib/formatUtils';
 import { DEMO_ATTENDANCE, DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_INVOICES, DEMO_DASHBOARD } from '@/lib/demoData';
-import { mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { mergeLiveAttendanceIntoDailyHours, fetchPayrollTotal } from '@/lib/payrollUtils';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -201,7 +201,7 @@ export default function AdminDashboardPage() {
     }
     const fetchAll = async () => {
       try {
-      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult, payrollCacheResult] = await Promise.all([
+      const [slackResult, annResult, reqResult, toResult, contractorsResult, hoursResult, projectsResult, clientsResult, usdRateStr, invResult, linkResult] = await Promise.all([
         supabase.functions.invoke('slack-attendance'),
         supabase.from('hub_announcements').select('*, hub_users(full_name)').order('created_at', { ascending: false }).limit(4),
         supabase.from('hub_requests').select('*, hub_users(full_name, avatar_url)').in('status', ['open', 'in_review']).order('created_at', { ascending: false }),
@@ -213,8 +213,8 @@ export default function AdminDashboardPage() {
         getSetting('usd_rate', '56'),
         supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').gt('balance', 0).order('sent_at', { ascending: false }),
         supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
-        supabase.from('hub_payroll_cache').select('computed_total').eq('period_start', cutoffStart).maybeSingle(),
       ]);
+      const payrollTotal = await fetchPayrollTotal(cutoffStart, cutoffEnd, parseFloat(usdRateStr || '56')).catch(() => 0);
 
       if (!slackResult.error && slackResult.data?.attendance) {
         setAttendance(slackResult.data.attendance);
@@ -234,8 +234,7 @@ export default function AdminDashboardPage() {
       let hrs = 0;
       for (const h of mergedHoursRows) hrs += h.hours_capped || 0;
 
-      const cachedTotal = (payrollCacheResult as any)?.data?.computed_total;
-      setTotalPayroll(cachedTotal != null ? Number(cachedTotal) : 0);
+      setTotalPayroll(payrollTotal);
       setTotalHours(parseFloat(hrs.toFixed(1)));
       setBirthdays(getBirthdayAlerts(contractorsResult.data || []));
 
@@ -310,7 +309,7 @@ export default function AdminDashboardPage() {
           pendingTimeOff: nextTimeOff,
           birthdays: getBirthdayAlerts(contractorsResult.data || []),
           outstandingInvoices: outstanding,
-          totalPayroll: cachedTotal != null ? Number(cachedTotal) : 0,
+          totalPayroll: payrollTotal,
           totalHours: parseFloat(hrs.toFixed(1)),
           totalNetProfit: netProfitTotal,
           totalContractValue: contractValueTotal,
