@@ -418,18 +418,28 @@ export default function InvoiceLogPage() {
       // 3. Mark as verified
       await supabase.from('hub_payment_proof_submissions').update({ verified: true, verified_at }).eq('id', proof.id);
 
-      // 4. Settle matching invoice log entry
+      // 4. Settle matching invoice log entry — try invoice_number first, fall back to project_id
+      let matchedInvoiceId: number | null = null;
       if (proof.invoice_number) {
-        const { data: matched } = await supabase
-          .from('hub_invoice_log')
-          .select('id')
+        const { data: m } = await supabase
+          .from('hub_invoice_log').select('id')
           .eq('invoice_number', proof.invoice_number)
-          .eq('project_id', proof.project_id)
           .maybeSingle();
-        if (matched) {
-          await supabase.from('hub_invoice_log').update({ settled: true, settled_at: verified_at }).eq('id', matched.id);
-          setInvoices(prev => prev.map(i => i.id === matched.id ? { ...i, settled: true, settled_at: verified_at } : i));
-        }
+        if (m) matchedInvoiceId = m.id;
+      }
+      if (!matchedInvoiceId && proof.project_id) {
+        const { data: m } = await supabase
+          .from('hub_invoice_log').select('id')
+          .eq('project_id', proof.project_id)
+          .eq('settled', false)
+          .order('sent_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (m) matchedInvoiceId = m.id;
+      }
+      if (matchedInvoiceId) {
+        await supabase.from('hub_invoice_log').update({ settled: true, settled_at: verified_at }).eq('id', matchedInvoiceId);
+        setInvoices(prev => prev.map(i => i.id === matchedInvoiceId ? { ...i, settled: true, settled_at: verified_at } : i));
       }
 
       // 5. Slack notification
