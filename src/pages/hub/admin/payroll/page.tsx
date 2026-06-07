@@ -918,7 +918,7 @@ export default function AdminPayrollPage() {
         .in('role', ['contractor', 'admin']),
       supabase
         .from('hub_daily_hours')
-        .select('user_id, hours_capped, hours_raw, overtime_hours, date')
+        .select('user_id, hours_capped, hours_raw, overtime_hours, date, is_manual')
         .gte('date', selectedPeriod.start)
         .lte('date', selectedPeriod.end),
     ]);

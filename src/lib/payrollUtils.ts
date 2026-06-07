@@ -77,6 +77,7 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
   hours_capped?: number | null;
   overtime_hours?: number | null;
   user_id?: string;
+  is_manual?: boolean | null;
 }>(
   rows: T[],
   attendance: LiveAttendanceRow[] | null | undefined,
@@ -102,6 +103,10 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
     const attendanceDate = inferAttendanceDate(item, targetDate);
     const key = `${userId}::${attendanceDate}`;
     const existing = merged.get(key);
+
+    // Never overwrite a manually-edited record with live Slack data
+    if (existing?.is_manual) continue;
+
     merged.set(key, {
       ...(existing || { user_id: userId, date: attendanceDate }),
       user_id: userId,
