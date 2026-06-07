@@ -250,24 +250,24 @@ Deno.serve(async (req) => {
           <!-- Balance summary -->
           <tr>
             <td style="padding:20px 40px 28px;">
-              <table width="340" align="right" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;">
                 <tr>
                   <td colspan="2" style="padding:0 0 8px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Invoice Summary</td>
                 </tr>
                 <tr>
                   <td style="padding:7px 0;font-size:13px;color:#6b7280;">Subtotal</td>
-                  <td style="padding:7px 0;font-size:13px;color:#6b7280;text-align:right;">${fmt(lineItemsTotal)}</td>
+                  <td style="padding:7px 0;font-size:13px;color:#6b7280;text-align:right;white-space:nowrap;">${fmt(lineItemsTotal)}</td>
                 </tr>
                 ${showPayments ? `<tr>
                   <td style="padding:7px 0;font-size:13px;color:#6b7280;">Total paid so far</td>
-                  <td style="padding:7px 0;font-size:13px;color:#059669;font-weight:600;text-align:right;">− ${fmt(totalPaid)}</td>
+                  <td style="padding:7px 0;font-size:13px;color:#059669;font-weight:600;text-align:right;white-space:nowrap;">− ${fmt(totalPaid)}</td>
                 </tr>` : ''}
                 <tr>
                   <td colspan="2" style="padding:4px 0 0;"><div style="border-top:2px solid #e5e7eb;"></div></td>
                 </tr>
                 <tr>
-                  <td style="padding:10px 0 0;font-size:15px;font-weight:700;color:#111827;">Amount due</td>
-                  <td style="padding:10px 0 0;font-size:18px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;">${isPaid ? 'Paid in full' : fmt(amountDue)}</td>
+                  <td style="padding:12px 0 0;font-size:15px;font-weight:700;color:#111827;">Amount due</td>
+                  <td style="padding:12px 0 0;font-size:18px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;white-space:nowrap;">${isPaid ? 'Paid in full' : fmt(amountDue)}</td>
                 </tr>
               </table>
             </td>
