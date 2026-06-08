@@ -77,6 +77,8 @@ interface ProjectTask {
   assigned_to: string | null;
   assignee_ids?: string[] | null;
   checklist?: { id: string; text: string; done: boolean; detail?: string; assignee_id?: string | null }[] | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
 }
 
 const emptyTaskForm = () => ({
@@ -125,7 +127,6 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
   const [viewMonth, setViewMonth] = useState<Date>(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState<string | null>(today);
 
-  // Suppress unused-variable warnings for projectStart / projectEnd — kept for API compatibility
   void projectStart; void projectEnd;
 
   const year = viewMonth.getFullYear();
@@ -137,29 +138,11 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
 
   const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Build calendar grid: pad to start on Monday
   const firstDay = new Date(year, month, 1);
-  // getDay(): 0=Sun…6=Sat → convert to Mon-based (0=Mon…6=Sun)
-  const startPad = (firstDay.getDay() + 6) % 7;
+  const startPad = (firstDay.getDay() + 6) % 7; // Mon-based
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const totalCells = Math.ceil((startPad + daysInMonth) / 7) * 7;
-
-  // Build a map: dateStr -> tasks that span that date (start_date → due_date range)
-  // Tasks with only a due_date appear as a single dot on the due date
-  const tasksByDate: Record<string, ProjectTask[]> = {};
   const pad2 = (n: number) => String(n).padStart(2, '0');
-  for (const t of tasks) {
-    if (!t.due_date) continue;
-    const start = t.start_date ?? t.due_date;
-    const end = t.due_date;
-    const cur = new Date(start + 'T00:00:00');
-    const endD = new Date(end + 'T00:00:00');
-    while (cur <= endD) {
-      const key = `${cur.getFullYear()}-${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`;
-      (tasksByDate[key] ??= []).push(t);
-      cur.setDate(cur.getDate() + 1);
-    }
-  }
 
   const PALETTE = [
     { chip: 'bg-violet-100 text-violet-700', dot: 'bg-violet-400' },
@@ -175,25 +158,95 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
   ];
   const colorMap = Object.fromEntries(tasks.map((t, i) => [t.id, PALETTE[i % PALETTE.length]]));
 
-  const chipCls = (t: ProjectTask): string => {
+  const getChipCls = (t: ProjectTask): string => {
     if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-100 text-rose-600';
     if ((t as any).color) return '';
     return colorMap[t.id]?.chip ?? 'bg-indigo-100 text-indigo-700';
   };
-
-  const chipStyleFn = (t: ProjectTask): React.CSSProperties | undefined => {
+  const getChipStyle = (t: ProjectTask): React.CSSProperties | undefined => {
     if ((t as any).color && !(t.due_date && t.due_date < today && t.status !== 'done')) {
       return { background: (t as any).color, color: '#fff' };
     }
     return undefined;
   };
-
-  const dotCls = (t: ProjectTask): string => {
+  const getDotCls = (t: ProjectTask): string => {
     if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-400';
     if ((t as any).color) return 'bg-white/70';
     return colorMap[t.id]?.dot ?? 'bg-indigo-400';
   };
 
+  // ── Week-row lane assignment ──────────────────────────────────────────────
+  // Each task gets a fixed lane per week row so bars stay aligned.
+  const MAX_LANES = 3;
+
+  type LaneEntry = { task: ProjectTask; lane: number; spanStart: boolean; spanEnd: boolean };
+  type WeekRow = { dates: (string | null)[]; lanes: LaneEntry[]; overflowByDate: Record<string, number> };
+
+  const weekRows: WeekRow[] = [];
+  for (let wi = 0; wi < totalCells; wi += 7) {
+    const dates: (string | null)[] = [];
+    for (let di = 0; di < 7; di++) {
+      const dn = (wi + di) - startPad + 1;
+      dates.push(dn >= 1 && dn <= daysInMonth ? `${year}-${pad2(month + 1)}-${pad2(dn)}` : null);
+    }
+    const weekDates = dates.filter(Boolean) as string[];
+    const weekStart = weekDates[0] ?? '';
+    const weekEnd   = weekDates[weekDates.length - 1] ?? '';
+
+    const weekTasks = tasks
+      .filter(t => {
+        if (!t.due_date) return false;
+        const ts = t.start_date ?? t.due_date;
+        return ts <= weekEnd && t.due_date >= weekStart;
+      })
+      .sort((a, b) => {
+        const as_ = a.start_date ?? a.due_date ?? '';
+        const bs_ = b.start_date ?? b.due_date ?? '';
+        return as_.localeCompare(bs_) || a.id - b.id;
+      });
+
+    const laneEnd: string[] = []; // laneEnd[i] = last date occupying lane i
+    const lanes: LaneEntry[] = [];
+    const overflowByDate: Record<string, number> = {};
+
+    for (const t of weekTasks) {
+      const ts = t.start_date ?? t.due_date ?? '';
+      const te = t.due_date ?? '';
+      let lane = laneEnd.findIndex(e => e < ts);
+      if (lane === -1) lane = laneEnd.length;
+      laneEnd[lane] = te;
+
+      if (lane < MAX_LANES) {
+        lanes.push({ task: t, lane, spanStart: ts >= weekStart, spanEnd: te <= weekEnd });
+      } else {
+        // count overflow per date for "+N more"
+        const effStart = ts < weekStart ? weekStart : ts;
+        const effEnd   = te > weekEnd   ? weekEnd   : te;
+        const cur = new Date(effStart + 'T00:00:00');
+        const endD = new Date(effEnd + 'T00:00:00');
+        while (cur <= endD) {
+          const k = `${cur.getFullYear()}-${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`;
+          overflowByDate[k] = (overflowByDate[k] ?? 0) + 1;
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+    }
+
+    weekRows.push({ dates, lanes, overflowByDate });
+  }
+
+  // tasksByDate for selected-day bottom panel only
+  const tasksByDate: Record<string, ProjectTask[]> = {};
+  for (const t of tasks) {
+    if (!t.due_date) continue;
+    const cur = new Date((t.start_date ?? t.due_date) + 'T00:00:00');
+    const endD = new Date(t.due_date + 'T00:00:00');
+    while (cur <= endD) {
+      const k = `${cur.getFullYear()}-${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`;
+      (tasksByDate[k] ??= []).push(t);
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
   const selectedTasks = selectedDate ? (tasksByDate[selectedDate] ?? []) : [];
 
   return (
@@ -224,67 +277,93 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today }: {
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7">
-        {Array.from({ length: totalCells }).map((_, idx) => {
-          const dayNum = idx - startPad + 1;
-          const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
-          const pad2 = (n: number) => String(n).padStart(2, '0');
-          const cellDate = inMonth ? `${year}-${pad2(month + 1)}-${pad2(dayNum)}` : null;
-          const isToday = cellDate === today;
-          const isSelected = cellDate !== null && cellDate === selectedDate;
-          const colIdx = idx % 7; // 5=Sat, 6=Sun
-          const isWeekend = colIdx === 5 || colIdx === 6;
-          const dayTasks = cellDate ? (tasksByDate[cellDate] ?? []) : [];
-          const visible = dayTasks.slice(0, 2);
-          const extra = dayTasks.length - visible.length;
+      {/* Calendar grid — rendered week by week for consistent lane alignment */}
+      <div>
+        {weekRows.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7">
+            {week.dates.map((cellDate, di) => {
+              const inMonth = cellDate !== null;
+              const dayNum = cellDate ? parseInt(cellDate.split('-')[2]) : 0;
+              const isToday = cellDate === today;
+              const isSelected = cellDate !== null && cellDate === selectedDate;
+              const isWeekend = di === 5 || di === 6;
+              const overflow = cellDate ? (week.overflowByDate[cellDate] ?? 0) : 0;
 
-          return (
-            <div
-              key={idx}
-              onClick={() => inMonth && cellDate && setSelectedDate(isSelected ? null : cellDate)}
-              className={[
-                'min-h-[72px] p-1.5 border-b border-r border-gray-50 flex flex-col gap-0.5',
-                !inMonth ? 'bg-gray-50/30' : '',
-                isWeekend && inMonth ? 'bg-gray-50/50' : '',
-                isSelected ? 'ring-2 ring-inset ring-orange-300' : '',
-                inMonth ? 'cursor-pointer hover:bg-orange-50/30 transition-colors' : '',
-              ].filter(Boolean).join(' ')}
-            >
-              {/* Date number */}
-              <div className="flex justify-end">
-                <span className={[
-                  'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
-                  isToday ? 'bg-orange-500 text-white font-bold' : '',
-                  !inMonth ? 'text-gray-300' : isToday ? '' : 'text-gray-600',
-                ].filter(Boolean).join(' ')}>
-                  {inMonth ? dayNum : ''}
-                </span>
-              </div>
-              {/* Task chips */}
-              <div className="flex flex-col gap-0.5 flex-1">
-                {visible.map(t => {
-                  const isStart = cellDate === (t.start_date ?? t.due_date);
-                  const isEnd = cellDate === t.due_date;
-                  const hasRange = t.start_date && t.start_date !== t.due_date;
-                  return (
-                    <div key={t.id} style={chipStyleFn(t)} className={`flex items-center gap-1 py-0.5 text-[10px] font-medium truncate ${chipCls(t)} ${
-                      hasRange
-                        ? `px-1.5 ${isStart ? 'rounded-l-md rounded-r-none' : isEnd ? 'rounded-r-md rounded-l-none' : 'rounded-none'}`
-                        : 'px-1.5 rounded'
-                    }`}>
-                      {(!hasRange || isStart) && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls(t)}`}></span>}
-                      {isStart && <span className="truncate">{t.title}</span>}
-                    </div>
-                  );
-                })}
-                {extra > 0 && (
-                  <div className="text-[10px] text-gray-400 px-1.5">+{extra} more</div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+              // Fill 3 fixed lane slots — null means empty (renders as spacer)
+              const slots: (LaneEntry | null)[] = [null, null, null];
+              for (const entry of week.lanes) {
+                const ts = entry.task.start_date ?? entry.task.due_date ?? '';
+                const te = entry.task.due_date ?? '';
+                if (cellDate && ts <= cellDate && te >= cellDate) {
+                  slots[entry.lane] = entry;
+                }
+              }
+
+              return (
+                <div
+                  key={di}
+                  onClick={() => inMonth && cellDate && setSelectedDate(isSelected ? null : cellDate)}
+                  className={[
+                    'min-h-[96px] border-b border-r border-gray-50 flex flex-col',
+                    !inMonth ? 'bg-gray-50/30' : '',
+                    isWeekend && inMonth ? 'bg-gray-50/50' : '',
+                    isSelected ? 'ring-2 ring-inset ring-orange-300' : '',
+                    inMonth ? 'cursor-pointer hover:bg-orange-50/30 transition-colors' : '',
+                  ].filter(Boolean).join(' ')}
+                >
+                  {/* Date number */}
+                  <div className="flex justify-end p-1.5 pb-1">
+                    <span className={[
+                      'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
+                      isToday ? 'bg-orange-500 text-white font-bold' : '',
+                      !inMonth ? 'text-gray-300' : isToday ? '' : 'text-gray-600',
+                    ].filter(Boolean).join(' ')}>
+                      {inMonth ? dayNum : ''}
+                    </span>
+                  </div>
+
+                  {/* Lane rows — fixed height per lane keeps bars horizontally aligned */}
+                  <div className="flex flex-col gap-px pb-1">
+                    {slots.map((slot, laneIdx) => {
+                      if (!slot || !cellDate) {
+                        // Empty spacer keeps other lanes in position
+                        return <div key={laneIdx} className="h-5" />;
+                      }
+                      const t = slot.task;
+                      const ts = t.start_date ?? t.due_date ?? '';
+                      const te = t.due_date ?? '';
+                      const isActualStart = cellDate === ts;
+                      const isActualEnd   = cellDate === te;
+                      // Show label on first visible day in this week row
+                      const weekFirstDay = week.dates.find(Boolean) ?? '';
+                      const showLabel = isActualStart || (!slot.spanStart && cellDate === weekFirstDay);
+                      // Rounded corners only at true start/end
+                      const rl = slot.spanStart ? (isActualStart  ? 'rounded-l-full ml-1' : 'rounded-l-none -ml-px') : 'rounded-l-none -ml-px';
+                      const rr = slot.spanEnd   ? (isActualEnd    ? 'rounded-r-full mr-1' : 'rounded-r-none -mr-px') : 'rounded-r-none -mr-px';
+
+                      return (
+                        <div key={laneIdx}
+                          style={getChipStyle(t)}
+                          className={`h-5 flex items-center text-[10px] font-medium overflow-hidden ${getChipCls(t)} ${rl} ${rr}`}
+                        >
+                          {showLabel && (
+                            <>
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ml-1.5 ${getDotCls(t)}`} />
+                              <span className="truncate ml-1 pr-1">{t.title}</span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {overflow > 0 && (
+                      <div className="text-[10px] text-gray-400 px-1.5">+{overflow} more</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* Selected day task list */}
@@ -725,6 +804,7 @@ export default function ContractorProjectsPage() {
   const [workspaceRow, setWorkspaceRow] = useState<ProjectRow | null>(null);
   const [clientWorkspace, setClientWorkspace] = useState<typeof clientEntries[0] | null>(null);
   const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done' | 'overdue'>('all');
+  const [showArchivedTasks, setShowArchivedTasks] = useState(false);
   const [taskView, setTaskView] = useState<'list' | 'board'>('list');
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -1194,7 +1274,7 @@ export default function ContractorProjectsPage() {
 
         // 3. tasks + team
         const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
-          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta').in('project_id', projectIds),
+          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta, archived, archived_at').in('project_id', projectIds),
           supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', projectIds),
         ]);
         setTasks((taskData as ProjectTask[]) ?? []);
@@ -1376,7 +1456,9 @@ export default function ContractorProjectsPage() {
   const wsRow = workspaceRow;
   const wsProject = wsRow?.hub_projects;
   const wsIsInternal = wsProject?.project_type === 'internal';
-  const wsTasks = wsRow ? tasks.filter(t => t.project_id === wsProject?.id) : [];
+  const wsAllTasks = wsRow ? tasks.filter(t => t.project_id === wsProject?.id) : [];
+  const wsTasks = wsAllTasks.filter(t => !t.archived);
+  const wsArchivedTasks = wsAllTasks.filter(t => !!t.archived);
   const wsToday = localToday();
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
   // wsTeam must be declared before wsFiltered — wsFiltered references wsTeam
@@ -2141,6 +2223,29 @@ export default function ContractorProjectsPage() {
                         );
                       });
                     })()}
+                  </div>
+                )}
+
+                {/* Archived tasks toggle */}
+                {wsArchivedTasks.length > 0 && (
+                  <div className="border-t border-gray-100">
+                    <button
+                      onClick={() => setShowArchivedTasks(v => !v)}
+                      className="w-full flex items-center gap-2 px-5 py-2.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                      <i className="ri-archive-line text-sm"></i>
+                      <span>{showArchivedTasks ? 'Hide' : 'Show'} archived ({wsArchivedTasks.length})</span>
+                      <i className={`${showArchivedTasks ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} ml-auto`}></i>
+                    </button>
+                    {showArchivedTasks && (
+                      <div className="p-3 space-y-2">
+                        {wsArchivedTasks.map(task => (
+                          <div key={task.id} className="opacity-50">
+                            {TaskCard(task)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3114,6 +3219,11 @@ export default function ContractorProjectsPage() {
           setDetailPanelOpen(false);
           setEditingTask(null);
           refreshWorkspaceActivity();
+        }}
+        onArchived={(id) => {
+          setTasks(prev => prev.map(t => t.id === id ? { ...t, archived: true, archived_at: new Date().toISOString() } : t));
+          setDetailPanelOpen(false);
+          setEditingTask(null);
         }}
         onActivityChange={refreshWorkspaceActivity}
         projectId={wsProject?.id ?? 0}

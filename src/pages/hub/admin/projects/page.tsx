@@ -124,6 +124,8 @@ interface ProjectTask {
   created_at: string;
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
   meta?: { custom_fields?: {id: string; label: string; value: string}[] } | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
 }
 
 interface ProjectActivity {
@@ -315,6 +317,7 @@ export default function AdminProjectsPage() {
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [commentCounts, setCommentCounts] = useState<Record<number,number>>({});
   const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done' | 'overdue'>('all');
+  const [showArchivedTasks, setShowArchivedTasks] = useState(false);
   const [taskView, setTaskView] = useState<'list' | 'board'>('list');
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
   const [boardDragOver, setBoardDragOver] = useState<ProjectTask['status'] | null>(null);
@@ -1549,7 +1552,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
   const wsToday = localToday();
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
-  const wsFilteredTasks = tasks.filter(t => {
+  const wsArchivedTasks = tasks.filter(t => !!t.archived);
+  const wsFilteredTasks = tasks.filter(t => !t.archived).filter(t => {
     if (taskFilter === 'all') return true;
     if (taskFilter === 'overdue') return !!wsIsOverdue(t);
     return t.status === taskFilter;
@@ -1563,8 +1567,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     if (!b.due_date) return -1;
     return a.due_date.localeCompare(b.due_date);
   });
-  const wsDoneCt = tasks.filter(t => t.status === 'done').length;
-  const wsPct = tasks.length > 0 ? Math.round((wsDoneCt / tasks.length) * 100) : 0;
+  const wsActiveTasks = tasks.filter(t => !t.archived);
+  const wsDoneCt = wsActiveTasks.filter(t => t.status === 'done').length;
+  const wsPct = wsActiveTasks.length > 0 ? Math.round((wsDoneCt / wsActiveTasks.length) * 100) : 0;
   const wsTaskTeam = activeProject ? activeProject.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean) : [];
   const getWorkspaceTaskAssignees = (task: ProjectTask) =>
     getTaskAssigneeIds(task)
@@ -2255,6 +2260,33 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           );
                         });
                       })()}
+                    </div>
+                  )}
+
+                  {/* Archived tasks toggle */}
+                  {wsArchivedTasks.length > 0 && (
+                    <div className="border-t border-gray-100">
+                      <button
+                        onClick={() => setShowArchivedTasks(v => !v)}
+                        className="w-full flex items-center gap-2 px-5 py-2.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <i className="ri-archive-line text-sm"></i>
+                        <span>{showArchivedTasks ? 'Hide' : 'Show'} archived ({wsArchivedTasks.length})</span>
+                        <i className={`${showArchivedTasks ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} ml-auto`}></i>
+                      </button>
+                      {showArchivedTasks && (
+                        <div className="p-3 space-y-2">
+                          {wsArchivedTasks.map(task => (
+                            <div key={task.id} onClick={() => openTaskDetail(task)}
+                              className="opacity-50 bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 cursor-pointer hover:opacity-70 transition-opacity">
+                              <div className="flex items-center gap-2">
+                                <i className="ri-archive-line text-gray-400 text-sm flex-shrink-0"></i>
+                                <p className="text-sm text-gray-500 line-clamp-1">{task.title}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -4165,6 +4197,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           setDetailOpen(false);
           setDetailTask(null);
           refreshWorkspaceActivity();
+        }}
+        onArchived={(id) => {
+          setTasks(prev => prev.map(t => t.id === id ? { ...t, archived: true, archived_at: new Date().toISOString() } : t));
+          setDetailOpen(false);
+          setDetailTask(null);
         }}
         onActivityChange={refreshWorkspaceActivity}
         projectId={activeId ?? 0}

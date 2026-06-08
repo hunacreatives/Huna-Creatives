@@ -102,6 +102,7 @@ interface Props {
   onClose: () => void;
   onSaved: (task: TaskDetailTask) => void;
   onDeleted: (taskId: number) => void;
+  onArchived?: (taskId: number) => void;
   onActivityChange?: () => void;
   projectId: number;
   projectName?: string;
@@ -231,6 +232,7 @@ export default function TaskDetailPanel({
   onClose,
   onSaved,
   onDeleted,
+  onArchived,
   onActivityChange,
   projectId,
   projectName = 'General',
@@ -324,8 +326,7 @@ export default function TaskDetailPanel({
         description: null,
         status: 'todo' as TaskDetailTask['status'],
         priority: 'medium' as TaskDetailTask['priority'],
-        assigned_to: null,
-        assignee_ids: null,
+        ...normalizeTaskAssigneePayload([]),
         due_date: null,
         start_date: null,
         checklist: [],
@@ -582,6 +583,14 @@ export default function TaskDetailPanel({
     setDeleting(false);
   };
 
+  const handleArchive = async () => {
+    if (!task) return;
+    const archived_at = new Date().toISOString();
+    await supabase.from('hub_project_tasks').update({ archived: true, archived_at }).eq('id', task.id);
+    onArchived?.(task.id);
+    onClose();
+  };
+
   // ── Checklist ──────────────────────────────────────────────────────────────
 
   const addCheckItem = async () => {
@@ -641,6 +650,10 @@ export default function TaskDetailPanel({
 
   const requestClose = async () => {
     if (saving) return;
+    if (isNew && !title.trim()) {
+      onClose();
+      return;
+    }
     if (canEdit && hasUnsavedChanges) {
       await handleSave({ closeAfterSave: true });
       return;
@@ -1797,11 +1810,18 @@ export default function TaskDetailPanel({
         {(editing || isNew || hasUnsavedChanges) && (
           <div className="border-t border-gray-100 px-5 py-4 flex items-center gap-3 bg-white flex-shrink-0">
             {!isNew && !confirmDelete && (
-              <button onClick={() => setConfirmDelete(true)}
-                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-rose-500 transition-colors cursor-pointer">
-                <i className="ri-delete-bin-line text-sm"></i>
-                Delete
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={handleArchive}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-amber-500 transition-colors cursor-pointer">
+                  <i className="ri-archive-line text-sm"></i>
+                  Archive
+                </button>
+                <button onClick={() => setConfirmDelete(true)}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-rose-500 transition-colors cursor-pointer">
+                  <i className="ri-delete-bin-line text-sm"></i>
+                  Delete
+                </button>
+              </div>
             )}
             {confirmDelete && (
               <div className="flex items-center gap-2 flex-1">
