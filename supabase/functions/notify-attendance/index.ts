@@ -1,5 +1,3 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const HUB_URL = 'https://www.hunacreatives.com/hub/admin/attendance';
@@ -9,6 +7,71 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Content-Type': 'application/json',
 };
+
+async function dbQuery<T = unknown>(sql: string, params: unknown[] = []): Promise<T[]> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ sql, params }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T[]>;
+}
+
+async function dbSelect<T = Record<string, unknown>>(
+  table: string,
+  select: string,
+  filters: Record<string, unknown> = {},
+): Promise<T[]> {
+  const params = new URLSearchParams({ select });
+  for (const [k, v] of Object.entries(filters)) {
+    params.set(k, `eq.${v}`);
+  }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+    },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T[]>;
+}
+
+async function dbSelectWithFilter<T = Record<string, unknown>>(
+  table: string,
+  select: string,
+  query: string,
+): Promise<T[]> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${select}&${query}`, {
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+    },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T[]>;
+}
+
+async function dbInsert(table: string, row: Record<string, unknown>): Promise<void> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('dbInsert error', text);
+  }
+}
 
 async function sendPush(user_id: string, title: string, body: string) {
   try {
@@ -26,50 +89,59 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json();
 
-    // Supabase webhook sends { type, table, record, old_record }
     const record = payload.record;
     const oldRecord = payload.old_record;
     const eventType = payload.type; // INSERT or UPDATE
 
     if (!record?.user_id) return new Response('no user_id', { headers: cors });
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
     // Get contractor name
-    const { data: user } = await supabase
-      .from('hub_users')
-      .select('full_name')
-      .eq('id', record.user_id)
-      .single();
-
-    const name = user?.full_name ?? 'Someone';
+    const users = await dbSelect<{ full_name: string }>('hub_users', 'full_name', { id: record.user_id });
+    const name = users[0]?.full_name ?? 'Someone';
+    const firstName = name.split(' ')[0];
 
     let title: string;
     let body: string;
+    // Use the actual punch timestamp from the record (not the time this function runs)
+    const eventTime = record.created_at ?? record.last_on ?? new Date().toISOString();
 
     if (eventType === 'INSERT') {
-      title = `${name} clocked in`;
+      title = `${firstName} clocked in`;
       body = 'Now in the office';
     } else if (eventType === 'UPDATE' && record.last_off && !oldRecord?.last_off) {
       const hours = record.hours_raw ? parseFloat(record.hours_raw).toFixed(1) : '?';
-      title = `${name} clocked out`;
+      title = `${firstName} clocked out`;
       body = `Logged ${hours}h today`;
     } else {
       return new Response('no push needed', { headers: cors });
     }
 
-    // Send push to all owners and admins
-    const { data: admins } = await supabase
-      .from('hub_users')
-      .select('id')
-      .eq('status', 'active')
-      .in('role', ['owner', 'admin'])
-      .neq('id', record.user_id);
+    // Get all owners and admins (excluding the contractor who clocked in/out)
+    const admins = await dbSelectWithFilter<{ id: string }>(
+      'hub_users',
+      'id',
+      `status=eq.active&role=in.(owner,admin)&id=neq.${record.user_id}`,
+    );
 
-    await Promise.all((admins ?? []).map(a => sendPush(a.id, title, body)));
+    // Send push + insert hub_notification for each admin
+    await Promise.all(
+      (admins ?? []).map(async (a) => {
+        await sendPush(a.id, title, body);
+        await dbInsert('hub_notifications', {
+          user_id: a.id,
+          type: 'attendance',
+          title,
+          body,
+          link: HUB_URL,
+          read: false,
+          created_at: eventTime,
+        });
+      }),
+    );
 
     return new Response(JSON.stringify({ sent: (admins ?? []).length }), { headers: cors });
   } catch (e) {
+    console.error('notify-attendance error', e);
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: cors });
   }
 });
