@@ -1410,23 +1410,25 @@ export default function ContractorProjectsPage() {
   const today = localToday();
   const firstName = hubUser?.full_name?.split(' ')[0] ?? '';
 
-  const myTasks = tasks.filter(t => getTaskAssigneeIds(t).includes(hubUser?.id ?? ''));
+  const myTasks = tasks.filter(t => getTaskAssigneeIds(t).includes(hubUser?.id ?? '') && !t.archived_at);
+  const doneTasks = myTasks.filter(t => t.status === 'done');
+  const inProgressTasks = myTasks.filter(t => t.status === 'in_progress');
+  const todoTasks = myTasks.filter(t => t.status === 'todo');
   const overdueTasks = myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done');
   const todayDueTasks = myTasks.filter(t => t.due_date === today && t.status !== 'done');
+  const pct = myTasks.length > 0 ? Math.round((doneTasks.length / myTasks.length) * 100) : 0;
 
-  // Overall progress chart uses ALL tasks in the contractor's projects (not just assigned to them)
-  const activeTasks = tasks.filter(t => !t.archived_at);
-  const doneTasks = activeTasks.filter(t => t.status === 'done');
-  const inProgressTasks = activeTasks.filter(t => t.status === 'in_progress');
-  const todoTasks = activeTasks.filter(t => t.status === 'todo');
-  const pct = activeTasks.length > 0 ? Math.round((doneTasks.length / activeTasks.length) * 100) : 0;
+  const sortedMyTasks = [
+    ...myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done'),
+    ...myTasks.filter(t => t.status === 'in_progress' && !(t.due_date && t.due_date < today)),
+    ...myTasks.filter(t => t.status === 'todo' && !(t.due_date && t.due_date < today)),
+    ...myTasks.filter(t => t.status === 'done'),
+  ];
 
-  const myInProgress = myTasks.filter(t => t.status === 'in_progress');
-  const myTodo = myTasks.filter(t => t.status === 'todo');
   const featuredTasks = todayDueTasks.length > 0 ? todayDueTasks
     : overdueTasks.length > 0 ? overdueTasks
-    : myInProgress.length > 0 ? myInProgress
-    : myTodo.slice(0, 6);
+    : inProgressTasks.length > 0 ? inProgressTasks
+    : todoTasks.slice(0, 6);
 
   const subline = todayDueTasks.length > 0
     ? `${todayDueTasks.length} task${todayDueTasks.length > 1 ? 's' : ''} due today`
@@ -2669,16 +2671,14 @@ export default function ContractorProjectsPage() {
               </div>
             )}
 
-            {/* Today's tasks */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-5 flex-1">
+            {/* My tasks list */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-5 flex-1 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
                     {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
                   </p>
-                  <p className="text-lg font-bold text-gray-900 leading-tight">
-                    {todayDueTasks.length > 0 ? 'Due Today' : overdueTasks.length > 0 ? 'Overdue' : 'Upcoming'}
-                  </p>
+                  <p className="text-lg font-bold text-gray-900 leading-tight">My Tasks</p>
                 </div>
                 {overdueTasks.length > 0 && (
                   <span className="text-[11px] font-semibold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full">
@@ -2687,51 +2687,40 @@ export default function ContractorProjectsPage() {
                 )}
               </div>
 
-              {featuredTasks.length === 0 ? (
+              {sortedMyTasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
                     <i className="ri-checkbox-circle-fill text-emerald-400 text-2xl"></i>
                   </div>
-                  <p className="text-sm text-gray-400 font-medium text-center">You're all caught up!</p>
+                  <p className="text-sm text-gray-400 font-medium text-center">No tasks assigned yet</p>
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {featuredTasks.slice(0, 10).map((t, i) => {
+                <div className="space-y-0.5">
+                  {sortedMyTasks.map(t => {
                     const projectName = getProjectName(t.project_id);
                     const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
-                    const palColor = getCardPalette(null);
                     return (
-                      <div key={t.id} className={`flex items-start gap-2 p-2.5 rounded-2xl transition-colors ${t.status === 'done' ? 'opacity-50' : 'hover:bg-gray-50/80'}`}>
-                        {/* Status toggle */}
-                        <button type="button" title="Change status"
-                          onClick={() => cycleTask(t)}
-                          className="mt-0.5 flex-shrink-0 cursor-pointer">
+                      <div key={t.id} className={`flex items-start gap-2 px-2 py-2 rounded-xl transition-colors ${t.status === 'done' ? 'opacity-40' : 'hover:bg-gray-50/80'}`}>
+                        <button type="button" onClick={() => cycleTask(t)} className="mt-0.5 flex-shrink-0 cursor-pointer">
                           <i className={`text-base ${
-                            t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' :
+                            t.status === 'done'        ? 'ri-checkbox-circle-fill text-emerald-500' :
                             t.status === 'in_progress' ? 'ri-loader-2-line text-sky-500' :
+                            isOverdue                  ? 'ri-error-warning-line text-rose-400' :
                             'ri-checkbox-blank-circle-line text-gray-300 hover:text-gray-400'
                           }`}></i>
                         </button>
-                        {/* Title — click to open workspace */}
                         <button type="button" onClick={() => openTaskFromDashboard(t)} className="flex-1 min-w-0 text-left cursor-pointer">
-                          <p className={`text-sm font-medium leading-snug ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                            {t.title}
-                          </p>
-                          {projectName && (
-                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">{projectName}</p>
-                          )}
+                          <p className={`text-sm leading-snug ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{projectName}</p>
                         </button>
-                        {t.due_date && (
+                        {t.due_date && t.status !== 'done' && (
                           <span className={`text-[10px] font-semibold flex-shrink-0 mt-0.5 ${isOverdue ? 'text-rose-500' : t.due_date === today ? 'text-amber-600' : 'text-gray-400'}`}>
-                            {t.due_date === today ? 'Today' : isOverdue ? 'Overdue' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {t.due_date === today ? 'Today' : isOverdue ? 'Late' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
                         )}
                       </div>
                     );
                   })}
-                  {featuredTasks.length > 10 && (
-                    <p className="text-xs text-gray-400 pt-1 pl-5">+{featuredTasks.length - 10} more</p>
-                  )}
                 </div>
               )}
             </div>
