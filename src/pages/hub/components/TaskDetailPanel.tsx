@@ -14,8 +14,11 @@ function renderCommentBody(body: string): { html: string; isHtml: boolean } {
     const safe = body
       .replace(/\s+on\w+\s*=\s*(["'])[^"']*\1/gi, '')
       .replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"');
+    // Auto-link bare URLs not already inside an <a> tag
+    const linked = safe.replace(/(?<!href=["'])(?<!">)(https?:\/\/[^\s<>"]+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#1d4ed8;text-decoration:underline">$1</a>');
     return {
-      html: safe.replace(/(@[\w]+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>'),
+      html: linked.replace(/(@[\w]+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>'),
       isHtml: true,
     };
   }
