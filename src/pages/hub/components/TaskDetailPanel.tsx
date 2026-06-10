@@ -69,6 +69,7 @@ interface Comment {
   attachment_name: string | null;
   attachment_size: number | null;
   attachment_mime: string | null;
+  reactions: Record<string, string[]>;
 }
 
 interface Attachment {
@@ -386,6 +387,7 @@ export default function TaskDetailPanel({
           if (prev.some(c => c.id === row.id)) return prev;
           return [...prev, {
             ...row,
+            reactions: row.reactions ?? {},
             hub_users: teamMembers.find(m => m.id === row.user_id)
               ? { full_name: teamMembers.find(m => m.id === row.user_id)!.full_name, avatar_url: teamMembers.find(m => m.id === row.user_id)!.avatar_url ?? null }
               : null,
@@ -434,7 +436,7 @@ export default function TaskDetailPanel({
         .eq('id', taskId)
         .single(),
       supabase.from('hub_project_task_comments')
-        .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime')
+        .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime, reactions')
         .eq('task_id', taskId).order('created_at', { ascending: true }),
       supabase.from('hub_project_task_attachments')
         .select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
@@ -461,7 +463,7 @@ export default function TaskDetailPanel({
       // Build user map from teamMembers (already loaded, no RLS issues for contractors)
       const userMap: Record<string, { full_name: string; avatar_url: string | null }> = {};
       for (const m of teamMembers) userMap[m.id] = { full_name: m.full_name, avatar_url: m.avatar_url ?? null };
-      setComments(commRes.data.map((c: any) => ({ ...c, hub_users: userMap[c.user_id] ?? null })));
+      setComments(commRes.data.map((c: any) => ({ ...c, reactions: c.reactions ?? {}, hub_users: userMap[c.user_id] ?? null })));
     }
     if (attRes.data)  setAttachments(attRes.data);
     if (actRes.data)  setActivity(actRes.data);
@@ -714,7 +716,7 @@ export default function TaskDetailPanel({
       .single();
     if (data) {
       const { data: commenter } = await supabase.from('hub_users').select('full_name, avatar_url').eq('id', currentUserId).single();
-      const norm = { ...data, hub_users: commenter ? { full_name: commenter.full_name, avatar_url: commenter.avatar_url ?? null } : { full_name: currentUserName, avatar_url: null } };
+      const norm = { ...data, reactions: {}, hub_users: commenter ? { full_name: commenter.full_name, avatar_url: commenter.avatar_url ?? null } : { full_name: currentUserName, avatar_url: null } };
       setComments(prev => [...prev, norm]);
       await logActivity(task.id, 'comment_added', 'added a comment');
       if (newComment.includes('@')) {
@@ -745,6 +747,21 @@ export default function TaskDetailPanel({
       const fileId = driveFileIdFromUrl(comment.attachment_url);
       if (fileId) supabase.functions.invoke('delete-from-drive', { body: { fileId } }).catch(() => {});
     }
+  };
+
+  const toggleReaction = async (commentId: number, emoji: string) => {
+    if (!currentUserId) return;
+    const comment = comments.find(c => c.id === commentId);
+    if (!comment) return;
+    const current = comment.reactions[emoji] ?? [];
+    const hasReacted = current.includes(currentUserId);
+    const updated = hasReacted
+      ? current.filter(id => id !== currentUserId)
+      : [...current, currentUserId];
+    const newReactions = { ...comment.reactions, [emoji]: updated };
+    if (updated.length === 0) delete newReactions[emoji];
+    setComments(prev => prev.map(c => c.id === commentId ? { ...c, reactions: newReactions } : c));
+    await supabase.from('hub_project_task_comments').update({ reactions: newReactions }).eq('id', commentId);
   };
 
   // @mention handling
@@ -1666,6 +1683,41 @@ export default function TaskDetailPanel({
                             </div>
                           );
                         })()}
+                        {/* Reactions */}
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          {(['❤️', '👍', '😂'] as const).map(emoji => {
+                            const reactors = c.reactions[emoji] ?? [];
+                            const hasReacted = reactors.includes(currentUserId ?? '');
+                            if (reactors.length === 0 && !hasReacted) return null;
+                            return (
+                              <button
+                                key={emoji}
+                                onClick={() => toggleReaction(c.id, emoji)}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all cursor-pointer ${hasReacted ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                              >
+                                <span>{emoji}</span>
+                                <span className="font-medium">{reactors.length}</span>
+                              </button>
+                            );
+                          })}
+                          {/* Add reaction button */}
+                          <div className="relative group/react">
+                            <button className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] border border-dashed border-gray-200 text-gray-300 hover:border-gray-300 hover:text-gray-500 transition-all cursor-pointer">
+                              <i className="ri-emotion-line text-xs"></i>
+                            </button>
+                            <div className="absolute bottom-full mb-1 left-0 hidden group-hover/react:flex bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-1.5 gap-0.5">
+                              {(['❤️', '👍', '😂'] as const).map(emoji => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => toggleReaction(c.id, emoji)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-base cursor-pointer transition-colors"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </>
                       )}
                     </div>
