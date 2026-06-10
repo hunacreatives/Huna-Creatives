@@ -874,7 +874,7 @@ export default function TaskDetailPanel({
       />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-[520px] bg-white z-50 flex flex-col shadow-2xl">
+      <div className="fixed right-0 top-0 h-full w-full max-w-[520px] bg-white z-50 flex flex-col shadow-2xl overflow-x-hidden">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="px-5 py-4 flex-shrink-0" style={{ background: taskColor || '#111827' }}>
@@ -961,7 +961,7 @@ export default function TaskDetailPanel({
         </div>
 
         {/* ── Body ────────────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
 
           {/* Properties */}
           <div className="p-5 space-y-4 border-b border-gray-100">
