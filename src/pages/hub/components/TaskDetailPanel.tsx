@@ -1774,7 +1774,7 @@ export default function TaskDetailPanel({
                       if (e.key === 'Escape') setMentionOpen(false);
                     }}
                     data-placeholder="Add a comment… (@mention)"
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[60px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[60px] break-all empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
                   />
                   {/* Selected file preview */}
                   {commentFile && (
