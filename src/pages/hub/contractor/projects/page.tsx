@@ -1412,7 +1412,7 @@ export default function ContractorProjectsPage() {
 
   const myTasks = tasks.filter(t => getTaskAssigneeIds(t).includes(hubUser?.id ?? '') && !t.archived_at);
   const doneTasks = myTasks.filter(t => t.status === 'done');
-  const inProgressTasks = myTasks.filter(t => t.status === 'in_progress');
+  const inProgressTasks = myTasks.filter(t => ['in_progress', 'in_review', 'blocked'].includes(t.status));
   const todoTasks = myTasks.filter(t => t.status === 'todo');
   const overdueTasks = myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done');
   const todayDueTasks = myTasks.filter(t => t.due_date === today && t.status !== 'done');
