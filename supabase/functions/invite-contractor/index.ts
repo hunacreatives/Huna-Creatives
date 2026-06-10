@@ -77,7 +77,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: linkErr?.message ?? 'Failed to generate invite link' }), { status: 200, headers: cors });
     }
 
-    const inviteUrl = linkData.properties?.action_link;
+    const hashedToken = linkData.properties?.hashed_token;
+    const inviteUrl = hashedToken
+      ? `https://www.hunacreatives.com/hub/signup?invite=1&token_hash=${hashedToken}&type=invite`
+      : linkData.properties?.action_link;
 
     // Create hub_users row with the new auth user's UUID
     const { error: insertErr } = await supabase.from('hub_users').insert({

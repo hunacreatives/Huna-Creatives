@@ -822,6 +822,7 @@ export default function ContractorProjectsPage() {
   const [wsFocusSection, setWsFocusSection] = useState<string | null>(null); // null = show all
   const wsSearchRef = useRef<HTMLDivElement>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [projectRefreshKey, setProjectRefreshKey] = useState(0);
   const [taskComments, setTaskComments] = useState<{ id: number; user_id: string; body: string; created_at: string; hub_users: { full_name: string; avatar_url: string | null } | null }[]>([]);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
@@ -1338,7 +1339,22 @@ export default function ContractorProjectsPage() {
         setLoading(false);
       }
     })();
-  }, [hubUser]);
+  }, [hubUser, projectRefreshKey]);
+
+  // Realtime: re-fetch when admin assigns or removes this contractor from a project
+  useEffect(() => {
+    if (!hubUser?.id || isDemo) return;
+    const channel = supabase
+      .channel(`contractor-assignments-${hubUser.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'hub_project_contractors',
+        filter: `contractor_id=eq.${hubUser.id}`,
+      }, () => setProjectRefreshKey(k => k + 1))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [hubUser?.id, isDemo]);
 
   // Deep link: ?workspace=PROJECT_ID&task=TASK_ID
   useEffect(() => {
