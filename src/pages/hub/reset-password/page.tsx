@@ -1,33 +1,66 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { getHubHomePath } from '@/lib/hubAuth';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [validSession, setValidSession] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Listen for PASSWORD_RECOVERY event fired when Supabase parses the hash tokens
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-        setValidSession(true);
-      }
-    });
+    let cancelled = false;
 
-    // Fallback for already-active sessions
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setValidSession(true);
-    });
+    const bootstrap = async () => {
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const code = searchParams.get('code');
+      const tokenHash = searchParams.get('token_hash') ?? hash.get('token_hash');
+      const type = searchParams.get('type') ?? hash.get('type');
 
-    return () => subscription.unsubscribe();
-  }, []);
+      try {
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        } else if (tokenHash && type) {
+          await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as 'recovery' });
+        }
+      } catch { /* session events will handle it */ }
+
+      if (cancelled) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) { setReady(true); return; }
+
+      // Fallback: wait for PASSWORD_RECOVERY or SIGNED_IN event (implicit flow)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
+        if (cancelled) return;
+        if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && sess)) {
+          setReady(true);
+          subscription.unsubscribe();
+        }
+      });
+
+      // Last-resort retry for detectSessionInUrl timing
+      setTimeout(async () => {
+        if (cancelled) return;
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (s) { setReady(true); subscription.unsubscribe(); }
+      }, 1200);
+
+      return () => { cancelled = true; subscription.unsubscribe(); };
+    };
+
+    const cleanupPromise = bootstrap();
+    return () => {
+      cancelled = true;
+      Promise.resolve(cleanupPromise).then(fn => { if (typeof fn === 'function') fn(); });
+    };
+  }, [searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -48,6 +81,14 @@ export default function ResetPasswordPage() {
       setTimeout(() => navigate('/hub/login'), 2000);
     }
   };
+
+  if (!ready && !done) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+        <i className="ri-loader-4-line animate-spin text-2xl text-gray-400"></i>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6">

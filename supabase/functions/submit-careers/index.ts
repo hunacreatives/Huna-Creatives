@@ -170,6 +170,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: cors });
     }
 
+    const hasResume = !!(resume_base64 || resume_link?.trim());
+    if (!hasResume) {
+      return new Response(JSON.stringify({ error: 'A resume is required to apply.' }), { status: 400, headers: cors });
+    }
+
+    const isGraphicDesigner = (job_id || '').toLowerCase().includes('graphic') || role.toLowerCase().includes('graphic');
+    if (isGraphicDesigner && !portfolio_link?.trim()) {
+      return new Response(JSON.stringify({ error: 'A portfolio link is required for graphic design roles.' }), { status: 400, headers: cors });
+    }
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
     // Insert immediately — Drive upload happens in the background after response

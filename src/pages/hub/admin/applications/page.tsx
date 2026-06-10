@@ -5,6 +5,16 @@ import { useAuth } from '@/contexts/AuthContext';
 
 type ApplicationStatus = 'new' | 'reviewing' | 'shortlisted' | 'archived';
 
+interface ApplicationNote {
+  id: number;
+  application_id: number;
+  author_id: string;
+  author_name: string;
+  author_avatar_url: string | null;
+  content: string;
+  created_at: string;
+}
+
 interface JobApplication {
   id: number;
   job_id: string | null;
@@ -40,6 +50,12 @@ export default function ApplicationsPage() {
   const [selected, setSelected] = useState<JobApplication | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [notes, setNotes] = useState<ApplicationNote[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const [savedNoteId, setSavedNoteId] = useState<number | null>(null);
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -81,6 +97,54 @@ export default function ApplicationsPage() {
       .eq('id', selected.id);
 
     setUpdating(false);
+    setSelected(null);
+    fetchApplications();
+  };
+
+  const fetchNotes = async (applicationId: number) => {
+    const { data } = await supabase
+      .from('hub_application_notes')
+      .select('*')
+      .eq('application_id', applicationId)
+      .order('created_at', { ascending: true });
+    setNotes((data as ApplicationNote[]) ?? []);
+  };
+
+  const addNote = async () => {
+    if (!selected || !newNote.trim() || !hubUser) return;
+    setSavingNote(true);
+    const { data, error } = await supabase
+      .from('hub_application_notes')
+      .insert({
+        application_id: selected.id,
+        author_id: hubUser.id,
+        author_name: hubUser.full_name,
+        author_avatar_url: hubUser.avatar_url ?? null,
+        content: newNote.trim(),
+      })
+      .select()
+      .single();
+    if (!error && data) {
+      const note = data as ApplicationNote;
+      setNotes(prev => [...prev, note]);
+      setSavedNoteId(note.id);
+      setTimeout(() => setSavedNoteId(null), 2000);
+      setNewNote('');
+    }
+    setSavingNote(false);
+  };
+
+  const deleteNote = async (noteId: number) => {
+    await supabase.from('hub_application_notes').delete().eq('id', noteId);
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+  };
+
+  const deleteApplication = async () => {
+    if (!selected) return;
+    setDeleting(true);
+    await supabase.from('hub_job_applications').delete().eq('id', selected.id);
+    setDeleting(false);
+    setConfirmDelete(false);
     setSelected(null);
     fetchApplications();
   };
@@ -142,6 +206,9 @@ export default function ApplicationsPage() {
               onClick={() => {
                 setSelected(app);
                 setAdminNotes(app.admin_notes || '');
+                setNewNote('');
+                setConfirmDelete(false);
+                fetchNotes(app.id);
               }}
               className="w-full bg-white border border-gray-100 rounded-2xl p-4 text-left hover:border-gray-200 transition-colors cursor-pointer"
             >
@@ -176,7 +243,7 @@ export default function ApplicationsPage() {
                 <p className="text-xs text-gray-400 mt-1">{selected.role}</p>
               </div>
               <button
-                onClick={() => setSelected(null)}
+                onClick={() => { setSelected(null); setConfirmDelete(false); }}
                 className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0"
               >
                 <i className="ri-close-line text-lg"></i>
@@ -253,37 +320,115 @@ export default function ApplicationsPage() {
                 <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{selected.message}</p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-700">Admin Notes</label>
-                <textarea
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  rows={4}
-                  placeholder="Add notes from review, interview feedback, next steps..."
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none"
-                />
+              <div className="space-y-3">
+                <p className="text-xs font-medium text-gray-700">Notes</p>
+
+                {notes.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">No notes yet.</p>
+                )}
+
+                {notes.map(note => (
+                  <div
+                    key={note.id}
+                    className={`rounded-xl p-3 text-sm transition-colors ${savedNoteId === note.id ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50'}`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {note.author_avatar_url
+                          ? <img src={note.author_avatar_url} alt={note.author_name} className="w-6 h-6 rounded-full object-cover object-top" />
+                          : <div className="w-6 h-6 rounded-full bg-[#FF6B35] flex items-center justify-center"><span className="text-white text-[10px] font-bold">{note.author_name.charAt(0)}</span></div>
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-gray-700">{note.author_name.split(' ')[0]}</span>
+                            {savedNoteId === note.id && (
+                              <span className="text-[11px] text-emerald-600 font-medium">Saved</span>
+                            )}
+                            <span className="text-[11px] text-gray-400">
+                              {new Date(note.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => deleteNote(note.id)}
+                            className="text-gray-300 hover:text-rose-400 transition-colors cursor-pointer flex-shrink-0"
+                            title="Delete note"
+                          >
+                            <i className="ri-delete-bin-line text-xs"></i>
+                          </button>
+                        </div>
+                        <p className="text-gray-700 whitespace-pre-wrap">{note.content}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex gap-2">
+                  <textarea
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addNote(); }}
+                    rows={2}
+                    placeholder="Add a note... (⌘↵ to submit)"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none"
+                  />
+                  <button
+                    onClick={addNote}
+                    disabled={savingNote || !newNote.trim()}
+                    className="px-3 py-2 text-xs bg-[#111827] text-white rounded-lg hover:bg-[#1f2937] disabled:opacity-40 cursor-pointer self-end"
+                  >
+                    {savingNote ? '...' : 'Add'}
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-2 p-5 border-t border-gray-100 flex-wrap">
-              {statusOrder.map((status) => (
+            <div className="p-5 border-t border-gray-100 space-y-3">
+              <div className="flex gap-2 flex-wrap">
+                {statusOrder.map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => updateApplication(status)}
+                    disabled={updating || selected.status === status}
+                    className={`flex-1 py-2 text-xs rounded-lg transition-colors cursor-pointer whitespace-nowrap capitalize disabled:opacity-40 ${
+                      status === 'shortlisted'
+                        ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                        : status === 'reviewing'
+                          ? 'bg-sky-500 text-white hover:bg-sky-600'
+                          : status === selected.status
+                            ? 'border border-gray-200 text-gray-400'
+                            : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+              {!confirmDelete ? (
                 <button
-                  key={status}
-                  onClick={() => updateApplication(status)}
-                  disabled={updating || selected.status === status}
-                  className={`flex-1 py-2 text-xs rounded-lg transition-colors cursor-pointer whitespace-nowrap capitalize disabled:opacity-40 ${
-                    status === 'shortlisted'
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                      : status === 'reviewing'
-                        ? 'bg-sky-500 text-white hover:bg-sky-600'
-                        : status === selected.status
-                          ? 'border border-gray-200 text-gray-400'
-                          : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-full py-2 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer border border-rose-100"
                 >
-                  {status}
+                  Delete application
                 </button>
-              ))}
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="flex-1 py-2 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={deleteApplication}
+                    disabled={deleting}
+                    className="flex-1 py-2 text-xs bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50 cursor-pointer"
+                  >
+                    {deleting ? 'Deleting...' : 'Confirm delete'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

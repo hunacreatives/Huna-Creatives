@@ -7,7 +7,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { DEMO_CONTRACTORS } from '@/lib/demoData';
 import AddContractorModal from './AddContractorModal';
 
-type ConfirmAction = { type: 'deactivate' | 'delete' | 'resend-invite'; contractor: HubUser };
+type ConfirmAction = { type: 'deactivate' | 'delete' | 'resend-invite' | 'reset-password'; contractor: HubUser };
 type Toast = { id: number; message: string; type: 'success' | 'error' };
 
 export default function ContractorsPage() {
@@ -322,7 +322,7 @@ export default function ContractorsPage() {
                         <i className="ri-more-2-fill text-sm"></i>
                       </button>
                       {openMenu === c.id && (
-                        <div className="absolute right-0 top-9 z-20 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 text-sm">
+                        <div className="absolute right-0 bottom-full mb-1 z-20 w-48 bg-white border border-gray-100 rounded-xl shadow-lg py-1 text-sm">
                           <button onClick={() => navigate(`/hub/admin/contractors/${c.id}`)}
                             className="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50 cursor-pointer">
                             <i className="ri-eye-line text-gray-400"></i> View profile
@@ -347,6 +347,15 @@ export default function ContractorsPage() {
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-emerald-600 hover:bg-emerald-50 cursor-pointer">
                               <i className="ri-user-follow-line"></i> Reactivate
                             </button>
+                          )}
+                          {c.status === 'active' && c.onboarding_completed && (
+                            <>
+                              <div className="border-t border-gray-50 my-1" />
+                              <button onClick={() => { setOpenMenu(null); setConfirm({ type: 'reset-password', contractor: c }); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-violet-600 hover:bg-violet-50 cursor-pointer">
+                                <i className="ri-lock-password-line"></i> Send password reset
+                              </button>
+                            </>
                           )}
                           <div className="border-t border-gray-50 my-1" />
                           <button onClick={() => { setOpenMenu(null); setConfirm({ type: 'delete', contractor: c }); }}
@@ -391,21 +400,23 @@ export default function ContractorsPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
-              confirm.type === 'delete' ? 'bg-rose-100' : confirm.type === 'resend-invite' ? 'bg-sky-100' : 'bg-amber-100'
+              confirm.type === 'delete' ? 'bg-rose-100' : confirm.type === 'resend-invite' ? 'bg-sky-100' : confirm.type === 'reset-password' ? 'bg-violet-100' : 'bg-amber-100'
             }`}>
               <i className={`text-xl ${
-                confirm.type === 'delete' ? 'ri-delete-bin-line text-rose-600' : confirm.type === 'resend-invite' ? 'ri-mail-send-line text-sky-600' : 'ri-user-forbid-line text-amber-600'
+                confirm.type === 'delete' ? 'ri-delete-bin-line text-rose-600' : confirm.type === 'resend-invite' ? 'ri-mail-send-line text-sky-600' : confirm.type === 'reset-password' ? 'ri-lock-password-line text-violet-600' : 'ri-user-forbid-line text-amber-600'
               }`}></i>
             </div>
             <div className="text-center space-y-1">
               <h3 className="font-semibold text-[#111827]">
-                {confirm.type === 'delete' ? 'Remove contractor?' : confirm.type === 'resend-invite' ? 'Resend invite?' : 'Deactivate contractor?'}
+                {confirm.type === 'delete' ? 'Remove contractor?' : confirm.type === 'resend-invite' ? 'Resend invite?' : confirm.type === 'reset-password' ? 'Send password reset?' : 'Deactivate contractor?'}
               </h3>
               <p className="text-sm text-gray-500">
                 {confirm.type === 'delete'
                   ? <>This will permanently delete <strong>{confirm.contractor.full_name}</strong> and all their data. This cannot be undone.</>
                   : confirm.type === 'resend-invite'
                   ? <>A fresh invite link will be sent to <strong>{confirm.contractor.email}</strong>. Any previous link will no longer work.</>
+                  : confirm.type === 'reset-password'
+                  ? <>A password reset link will be sent to <strong>{confirm.contractor.email}</strong>. They can use it to set a new password.</>
                   : <>This will mark <strong>{confirm.contractor.full_name}</strong> as inactive. They won't be able to log in. You can reactivate them later.</>
                 }
               </p>
@@ -437,6 +448,23 @@ export default function ContractorsPage() {
                       setResendingId(null);
                       setConfirm(null);
                     }
+                  } else if (confirm.type === 'reset-password') {
+                    setResendingId(confirm.contractor.id);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('resend-invite', {
+                        body: { contractor_id: confirm.contractor.id },
+                      });
+                      if (error || data?.error) {
+                        showToast(data?.error ?? 'Failed to send reset link', 'error');
+                      } else {
+                        showToast(`Password reset sent to ${confirm.contractor.email}`, 'success');
+                      }
+                    } catch {
+                      showToast('Failed to send reset link', 'error');
+                    } finally {
+                      setResendingId(null);
+                      setConfirm(null);
+                    }
                   } else if (confirm.type === 'delete') {
                     handleDelete(confirm.contractor);
                   } else {
@@ -445,10 +473,10 @@ export default function ContractorsPage() {
                 }}
                 disabled={actionLoading || resendingId !== null}
                 className={`flex-1 py-2.5 text-sm text-white rounded-lg cursor-pointer disabled:opacity-60 ${
-                  confirm.type === 'delete' ? 'bg-rose-600 hover:bg-rose-700' : confirm.type === 'resend-invite' ? 'bg-sky-600 hover:bg-sky-700' : 'bg-amber-500 hover:bg-amber-600'
+                  confirm.type === 'delete' ? 'bg-rose-600 hover:bg-rose-700' : confirm.type === 'resend-invite' ? 'bg-sky-600 hover:bg-sky-700' : confirm.type === 'reset-password' ? 'bg-violet-600 hover:bg-violet-700' : 'bg-amber-500 hover:bg-amber-600'
                 }`}
               >
-                {(actionLoading || resendingId !== null) ? <i className="ri-loader-4-line animate-spin"></i> : confirm.type === 'delete' ? 'Remove' : confirm.type === 'resend-invite' ? 'Send Invite' : 'Deactivate'}
+                {(actionLoading || resendingId !== null) ? <i className="ri-loader-4-line animate-spin"></i> : confirm.type === 'delete' ? 'Remove' : confirm.type === 'resend-invite' ? 'Send Invite' : confirm.type === 'reset-password' ? 'Send Reset Link' : 'Deactivate'}
               </button>
             </div>
           </div>

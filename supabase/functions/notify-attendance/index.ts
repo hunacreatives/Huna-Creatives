@@ -123,9 +123,16 @@ Deno.serve(async (req) => {
       `status=eq.active&role=in.(owner,admin)&id=neq.${record.user_id}`,
     );
 
-    // Send push + insert hub_notification for each admin
+    // Send push + insert hub_notification for each admin (deduplicated: skip if same event already inserted within 5 min)
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     await Promise.all(
       (admins ?? []).map(async (a) => {
+        const existing = await dbSelectWithFilter<{ id: string }>(
+          'hub_notifications',
+          'id',
+          `user_id=eq.${a.id}&type=eq.attendance&created_at=gte.${encodeURIComponent(fiveMinAgo)}&title=like.${encodeURIComponent(`*${firstName}*`)}`,
+        );
+        if (existing.length > 0) return; // already notified for this event
         await sendPush(a.id, title, body);
         await dbInsert('hub_notifications', {
           user_id: a.id,
