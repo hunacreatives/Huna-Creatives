@@ -1411,17 +1411,22 @@ export default function ContractorProjectsPage() {
   const firstName = hubUser?.full_name?.split(' ')[0] ?? '';
 
   const myTasks = tasks.filter(t => getTaskAssigneeIds(t).includes(hubUser?.id ?? ''));
-  const doneTasks = myTasks.filter(t => t.status === 'done');
-  const inProgressTasks = myTasks.filter(t => t.status === 'in_progress');
-  const todoTasks = myTasks.filter(t => t.status === 'todo');
   const overdueTasks = myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done');
   const todayDueTasks = myTasks.filter(t => t.due_date === today && t.status !== 'done');
-  const pct = myTasks.length > 0 ? Math.round((doneTasks.length / myTasks.length) * 100) : 0;
 
+  // Overall progress chart uses ALL tasks in the contractor's projects (not just assigned to them)
+  const activeTasks = tasks.filter(t => !t.archived_at);
+  const doneTasks = activeTasks.filter(t => t.status === 'done');
+  const inProgressTasks = activeTasks.filter(t => t.status === 'in_progress');
+  const todoTasks = activeTasks.filter(t => t.status === 'todo');
+  const pct = activeTasks.length > 0 ? Math.round((doneTasks.length / activeTasks.length) * 100) : 0;
+
+  const myInProgress = myTasks.filter(t => t.status === 'in_progress');
+  const myTodo = myTasks.filter(t => t.status === 'todo');
   const featuredTasks = todayDueTasks.length > 0 ? todayDueTasks
     : overdueTasks.length > 0 ? overdueTasks
-    : inProgressTasks.length > 0 ? inProgressTasks
-    : todoTasks.slice(0, 6);
+    : myInProgress.length > 0 ? myInProgress
+    : myTodo.slice(0, 6);
 
   const subline = todayDueTasks.length > 0
     ? `${todayDueTasks.length} task${todayDueTasks.length > 1 ? 's' : ''} due today`
