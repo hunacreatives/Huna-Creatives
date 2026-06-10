@@ -1421,6 +1421,8 @@ export default function ContractorProjectsPage() {
   const sortedMyTasks = [
     ...myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done'),
     ...myTasks.filter(t => t.status === 'in_progress' && !(t.due_date && t.due_date < today)),
+    ...myTasks.filter(t => t.status === 'in_review' && !(t.due_date && t.due_date < today)),
+    ...myTasks.filter(t => t.status === 'blocked' && !(t.due_date && t.due_date < today)),
     ...myTasks.filter(t => t.status === 'todo' && !(t.due_date && t.due_date < today)),
     ...myTasks.filter(t => t.status === 'done'),
   ];
@@ -2705,6 +2707,8 @@ export default function ContractorProjectsPage() {
                           <i className={`text-base ${
                             t.status === 'done'        ? 'ri-checkbox-circle-fill text-emerald-500' :
                             t.status === 'in_progress' ? 'ri-loader-2-line text-sky-500' :
+                            t.status === 'in_review'   ? 'ri-eye-line text-violet-400' :
+                            t.status === 'blocked'     ? 'ri-forbid-line text-rose-400' :
                             isOverdue                  ? 'ri-error-warning-line text-rose-400' :
                             'ri-checkbox-blank-circle-line text-gray-300 hover:text-gray-400'
                           }`}></i>
