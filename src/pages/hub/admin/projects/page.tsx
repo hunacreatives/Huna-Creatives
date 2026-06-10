@@ -327,6 +327,7 @@ export default function AdminProjectsPage() {
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [newTaskAttachment, setNewTaskAttachment] = useState<File | null>(null);
   const [taskSaving, setTaskSaving] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const newTaskAttachmentRef = useRef<HTMLInputElement>(null);
 
@@ -508,49 +509,58 @@ export default function AdminProjectsPage() {
   const createTask = async () => {
     if (!activeId || !newTaskTitle.trim()) return;
     setTaskSaving(true);
-    const taskAssigneePayload = normalizeTaskAssigneePayload(newTaskAssigneeIds);
-    const { data, error } = await supabase.from('hub_project_tasks').insert({
-      project_id: activeId,
-      title: newTaskTitle.trim(),
-      status: 'todo',
-      priority: newTaskPriority,
-      ...taskAssigneePayload,
-      due_date: newTaskDue || null,
-    }).select('*').single();
-    setTaskSaving(false);
-    if (error || !data) return;
-    if (newTaskAttachment && hubUser?.id) {
-      await createTaskAttachment({
-        taskId: data.id,
-        file: newTaskAttachment,
-        uploadedBy: hubUser.id,
-        projectName: activeProject?.project_name ?? 'General',
-      });
+    try {
+      const taskAssigneePayload = normalizeTaskAssigneePayload(newTaskAssigneeIds);
+      const { data, error } = await supabase.from('hub_project_tasks').insert({
+        project_id: activeId,
+        title: newTaskTitle.trim(),
+        status: 'todo',
+        priority: newTaskPriority,
+        ...taskAssigneePayload,
+        due_date: newTaskDue || null,
+      }).select('*').single();
+      if (error || !data) return;
+      if (newTaskAttachment && hubUser?.id) {
+        setUploadingAttachment(true);
+        try {
+          await createTaskAttachment({
+            taskId: data.id,
+            file: newTaskAttachment,
+            uploadedBy: hubUser.id,
+            projectName: activeProject?.project_name ?? 'General',
+          });
+        } finally {
+          setUploadingAttachment(false);
+        }
+      }
+      const assigneeUser = taskAssigneePayload.assigned_to
+        ? activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === taskAssigneePayload.assigned_to)?.hub_users ?? null
+        : null;
+      setTasks(prev => [...prev, { ...data, hub_users: assigneeUser } as ProjectTask]);
+      const assigneeNames = newTaskAssigneeIds
+        .map((assigneeId) => activeProject?.hub_project_contractors.find((pc) => pc.hub_users?.id === assigneeId)?.hub_users?.full_name ?? '')
+        .filter(Boolean);
+      await logActivity(activeId, `${hubUser?.full_name ?? 'Admin'} created task "${newTaskTitle.trim()}"${assigneeNames.length ? ` — assigned to ${assigneeNames.join(', ')}` : ''}`);
+      if (newTaskAssigneeIds.length > 0 && data) {
+        supabase.functions.invoke('notify-task-assigned', {
+          body: {
+            task_id: data.id,
+            task_title: newTaskTitle.trim(),
+            project_id: activeId,
+            project_name: activeProject?.project_name ?? '',
+            assigned_to_ids: newTaskAssigneeIds,
+            assigned_by_name: hubUser?.full_name ?? 'Admin',
+          },
+        }).catch(() => {});
+      }
+      setNewTaskTitle(''); setNewTaskAssigneeIds([]); setNewTaskDue(''); setNewTaskPriority('medium'); setNewTaskAttachment(null); setShowTaskForm(false);
+      if (newTaskAttachmentRef.current) newTaskAttachmentRef.current.value = '';
+      fetchTasks(activeId);
+    } catch (err) {
+      console.error('Task create error:', err);
+    } finally {
+      setTaskSaving(false);
     }
-    // Enrich with hub_users from known contractors so assignee shows immediately
-    const assigneeUser = taskAssigneePayload.assigned_to
-      ? activeProject?.hub_project_contractors.find(pc => pc.hub_users?.id === taskAssigneePayload.assigned_to)?.hub_users ?? null
-      : null;
-    setTasks(prev => [...prev, { ...data, hub_users: assigneeUser } as ProjectTask]);
-    const assigneeNames = newTaskAssigneeIds
-      .map((assigneeId) => activeProject?.hub_project_contractors.find((pc) => pc.hub_users?.id === assigneeId)?.hub_users?.full_name ?? '')
-      .filter(Boolean);
-    await logActivity(activeId, `${hubUser?.full_name ?? 'Admin'} created task "${newTaskTitle.trim()}"${assigneeNames.length ? ` — assigned to ${assigneeNames.join(', ')}` : ''}`);
-    if (newTaskAssigneeIds.length > 0 && data) {
-      supabase.functions.invoke('notify-task-assigned', {
-        body: {
-          task_id: data.id,
-          task_title: newTaskTitle.trim(),
-          project_id: activeId,
-          project_name: activeProject?.project_name ?? '',
-          assigned_to_ids: newTaskAssigneeIds,
-          assigned_by_name: hubUser?.full_name ?? 'Admin',
-        },
-      }).catch(() => {});
-    }
-    setNewTaskTitle(''); setNewTaskAssigneeIds([]); setNewTaskDue(''); setNewTaskPriority('medium'); setNewTaskAttachment(null); setShowTaskForm(false);
-    if (newTaskAttachmentRef.current) newTaskAttachmentRef.current.value = '';
-    fetchTasks(activeId);
   };
 
   const updateTaskStatus = async (task: ProjectTask, newStatus: ProjectTask['status']) => {
@@ -1956,28 +1966,43 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         autoFocus onKeyDown={e => e.key === 'Enter' && createTask()}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 bg-white" />
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => newTaskAttachmentRef.current?.click()}
-                          className="px-3 py-1.5 text-xs border border-dashed border-indigo-200 text-indigo-700 rounded-lg bg-white hover:bg-indigo-50 cursor-pointer whitespace-nowrap"
-                        >
-                          <i className="ri-attachment-2 mr-1"></i>
-                          {newTaskAttachment ? 'Change attachment' : 'Add attachment'}
-                        </button>
-                        {newTaskAttachment && (
-                          <div className="min-w-0 flex items-center gap-2 text-xs text-gray-600">
-                            <span className="truncate">{newTaskAttachment.name}</span>
+                        {uploadingAttachment ? (
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <i className="ri-upload-cloud-2-line text-indigo-400 text-sm"></i>
+                              <span className="text-xs text-indigo-600 font-medium truncate">{newTaskAttachment?.name}</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-indigo-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-indigo-400 rounded-full animate-upload-progress" style={{ width: '40%' }} />
+                            </div>
+                            <p className="text-[10px] text-indigo-400">Uploading to Drive…</p>
+                          </div>
+                        ) : (
+                          <>
                             <button
                               type="button"
-                              onClick={() => {
-                                setNewTaskAttachment(null);
-                                if (newTaskAttachmentRef.current) newTaskAttachmentRef.current.value = '';
-                              }}
-                              className="text-gray-400 hover:text-rose-500 cursor-pointer"
+                              onClick={() => newTaskAttachmentRef.current?.click()}
+                              className="px-3 py-1.5 text-xs border border-dashed border-indigo-200 text-indigo-700 rounded-lg bg-white hover:bg-indigo-50 cursor-pointer whitespace-nowrap"
                             >
-                              <i className="ri-close-line"></i>
+                              <i className="ri-attachment-2 mr-1"></i>
+                              {newTaskAttachment ? 'Change attachment' : 'Add attachment'}
                             </button>
-                          </div>
+                            {newTaskAttachment && (
+                              <div className="min-w-0 flex items-center gap-2 text-xs text-gray-600">
+                                <span className="truncate">{newTaskAttachment.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setNewTaskAttachment(null);
+                                    if (newTaskAttachmentRef.current) newTaskAttachmentRef.current.value = '';
+                                  }}
+                                  className="text-gray-400 hover:text-rose-500 cursor-pointer"
+                                >
+                                  <i className="ri-close-line"></i>
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                         <input
                           ref={newTaskAttachmentRef}

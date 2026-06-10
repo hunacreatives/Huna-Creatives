@@ -1384,7 +1384,7 @@ export default function TaskDetailPanel({
                           <span className="text-xs text-gray-700 truncate">{f.value || <span className="text-gray-300 italic">Empty</span>}</span>
                         )}
                         {canEdit && (
-                          <button onClick={() => setEditingFieldId(f.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-gray-600 cursor-pointer transition-all flex-shrink-0">
+                          <button onClick={() => setEditingFieldId(f.id)} className="text-gray-300 hover:text-gray-600 cursor-pointer transition-all flex-shrink-0">
                             <i className="ri-pencil-line text-[10px]"></i>
                           </button>
                         )}
@@ -1396,7 +1396,7 @@ export default function TaskDetailPanel({
                         setCustomFields(updated);
                         if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id)
                         .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
-                      }} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 cursor-pointer transition-all flex-shrink-0">
+                      }} className="text-gray-300 hover:text-rose-500 cursor-pointer transition-all flex-shrink-0">
                         <i className="ri-delete-bin-line text-[10px]"></i>
                       </button>
                     )}

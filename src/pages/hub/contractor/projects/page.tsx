@@ -812,6 +812,7 @@ export default function ContractorProjectsPage() {
   const [taskForm, setTaskForm] = useState(emptyTaskForm());
   const [taskAttachment, setTaskAttachment] = useState<File | null>(null);
   const [taskSaving, setTaskSaving] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const taskAttachmentRef = useRef<HTMLInputElement>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
@@ -905,60 +906,70 @@ export default function ContractorProjectsPage() {
   const saveTask = async () => {
     if (!taskForm.title.trim() || !workspaceRow?.hub_projects?.id) return;
     setTaskSaving(true);
-    const existingColor = editingTask ? (tasks.find(t => t.id === editingTask.id) as any)?.color ?? null : null;
-    const taskAssigneePayload = normalizeTaskAssigneePayload(taskForm.assigned_to ? [taskForm.assigned_to] : []);
-    const payload = {
-      title: taskForm.title.trim(),
-      description: taskForm.description.trim() || null,
-      status: taskForm.status,
-      priority: taskForm.priority,
-      start_date: taskForm.start_date || null,
-      due_date: taskForm.due_date || null,
-      ...taskAssigneePayload,
-      ...(existingColor ? { color: existingColor } : {}),
-    };
-    if (editingTask) {
-      const { error: updateErr } = await supabase.from('hub_project_tasks').update(payload).eq('id', editingTask.id);
-      if (updateErr) { console.error('Task update error:', updateErr); setTaskSaving(false); return; }
-      setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...payload } : t));
-      await logActivity('task_updated', taskForm.title.trim(), editingTask.id);
-    } else {
-      const { data, error: insertErr } = await supabase
-        .from('hub_project_tasks')
-        .insert({ ...payload, project_id: workspaceRow.hub_projects.id })
-        .select()
-        .single();
-      if (insertErr) { console.error('Task insert error:', insertErr); setTaskSaving(false); return; }
-      if (data) {
-        if (taskAttachment && hubUser?.id) {
-          await createTaskAttachment({
-            taskId: (data as ProjectTask).id,
-            file: taskAttachment,
-            uploadedBy: hubUser.id,
-            projectName: workspaceRow?.hub_projects?.project_name ?? 'General',
-          });
-        }
-        setTasks(prev => [...prev, data as ProjectTask]);
-        await logActivity('task_created', taskForm.title.trim(), (data as ProjectTask).id);
-        if (taskForm.assigned_to && hubUser && taskForm.assigned_to !== hubUser.id) {
-          supabase.functions.invoke('notify-task-assigned', {
-            body: {
-              task_id: (data as ProjectTask).id,
-              task_title: taskForm.title.trim(),
-              project_id: workspaceRow.hub_projects.id,
-              project_name: workspaceRow?.hub_projects?.project_name ?? '',
-              assigned_to_id: taskForm.assigned_to,
-              assigned_by_name: hubUser.full_name ?? 'Team',
-            },
-          }).catch(() => {});
+    try {
+      const existingColor = editingTask ? (tasks.find(t => t.id === editingTask.id) as any)?.color ?? null : null;
+      const taskAssigneePayload = normalizeTaskAssigneePayload(taskForm.assigned_to ? [taskForm.assigned_to] : []);
+      const payload = {
+        title: taskForm.title.trim(),
+        description: taskForm.description.trim() || null,
+        status: taskForm.status,
+        priority: taskForm.priority,
+        start_date: taskForm.start_date || null,
+        due_date: taskForm.due_date || null,
+        ...taskAssigneePayload,
+        ...(existingColor ? { color: existingColor } : {}),
+      };
+      if (editingTask) {
+        const { error: updateErr } = await supabase.from('hub_project_tasks').update(payload).eq('id', editingTask.id);
+        if (updateErr) throw updateErr;
+        setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...payload } : t));
+        await logActivity('task_updated', taskForm.title.trim(), editingTask.id);
+      } else {
+        const { data, error: insertErr } = await supabase
+          .from('hub_project_tasks')
+          .insert({ ...payload, project_id: workspaceRow.hub_projects.id })
+          .select()
+          .single();
+        if (insertErr) throw insertErr;
+        if (data) {
+          if (taskAttachment && hubUser?.id) {
+            setUploadingAttachment(true);
+            try {
+              await createTaskAttachment({
+                taskId: (data as ProjectTask).id,
+                file: taskAttachment,
+                uploadedBy: hubUser.id,
+                projectName: workspaceRow?.hub_projects?.project_name ?? 'General',
+              });
+            } finally {
+              setUploadingAttachment(false);
+            }
+          }
+          setTasks(prev => [...prev, data as ProjectTask]);
+          await logActivity('task_created', taskForm.title.trim(), (data as ProjectTask).id);
+          if (taskForm.assigned_to && hubUser && taskForm.assigned_to !== hubUser.id) {
+            supabase.functions.invoke('notify-task-assigned', {
+              body: {
+                task_id: (data as ProjectTask).id,
+                task_title: taskForm.title.trim(),
+                project_id: workspaceRow.hub_projects.id,
+                project_name: workspaceRow?.hub_projects?.project_name ?? '',
+                assigned_to_id: taskForm.assigned_to,
+                assigned_by_name: hubUser.full_name ?? 'Team',
+              },
+            }).catch(() => {});
+          }
         }
       }
+      setTaskAttachment(null);
+      if (taskAttachmentRef.current) taskAttachmentRef.current.value = '';
+      setShowTaskModal(false);
+      setMentionOpen(false); setMentionQuery('');
+    } catch (err) {
+      console.error('Task save error:', err);
+    } finally {
+      setTaskSaving(false);
     }
-    setTaskSaving(false);
-    setTaskAttachment(null);
-    if (taskAttachmentRef.current) taskAttachmentRef.current.value = '';
-    setShowTaskModal(false);
-    setMentionOpen(false); setMentionQuery('');
   };
 
   const deleteTask = async (taskId: number) => {
@@ -3020,36 +3031,49 @@ export default function ContractorProjectsPage() {
                 {!editingTask && (
                   <div className="px-5 pb-4">
                     <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Attachment</p>
-                          <p className="text-xs text-gray-600 truncate mt-1">
-                            {taskAttachment ? taskAttachment.name : 'Optional. Upload an image or file together with the new task.'}
-                          </p>
+                      {uploadingAttachment ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <i className="ri-upload-cloud-2-line text-indigo-400 text-sm"></i>
+                            <p className="text-xs text-indigo-600 font-medium truncate">{taskAttachment?.name}</p>
+                          </div>
+                          <div className="w-full h-1.5 bg-indigo-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-indigo-400 rounded-full animate-upload-progress" style={{ width: '40%' }} />
+                          </div>
+                          <p className="text-[10px] text-indigo-400">Uploading to Drive…</p>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => taskAttachmentRef.current?.click()}
-                            className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 cursor-pointer whitespace-nowrap"
-                          >
-                            <i className="ri-attachment-2 mr-1"></i>
-                            {taskAttachment ? 'Change' : 'Add file'}
-                          </button>
-                          {taskAttachment && (
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Attachment</p>
+                            <p className="text-xs text-gray-600 truncate mt-1">
+                              {taskAttachment ? taskAttachment.name : 'Optional. Upload an image or file together with the new task.'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <button
                               type="button"
-                              onClick={() => {
-                                setTaskAttachment(null);
-                                if (taskAttachmentRef.current) taskAttachmentRef.current.value = '';
-                              }}
-                              className="w-7 h-7 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-white cursor-pointer"
+                              onClick={() => taskAttachmentRef.current?.click()}
+                              className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 cursor-pointer whitespace-nowrap"
                             >
-                              <i className="ri-close-line"></i>
+                              <i className="ri-attachment-2 mr-1"></i>
+                              {taskAttachment ? 'Change' : 'Add file'}
                             </button>
-                          )}
+                            {taskAttachment && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTaskAttachment(null);
+                                  if (taskAttachmentRef.current) taskAttachmentRef.current.value = '';
+                                }}
+                                className="w-7 h-7 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-white cursor-pointer"
+                              >
+                                <i className="ri-close-line"></i>
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <input
                         ref={taskAttachmentRef}
                         type="file"

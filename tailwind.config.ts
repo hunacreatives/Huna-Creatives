@@ -25,6 +25,14 @@ export default {
           'bubble-float': 'bubble-float 8s ease-in-out infinite',
           'bubble-float-slow': 'bubble-float 12s ease-in-out infinite',
           'bubble-float-fast': 'bubble-float 6s ease-in-out infinite',
+          'upload-progress': 'upload-progress 1.4s ease-in-out infinite',
+        },
+        keyframes: {
+          'upload-progress': {
+            '0%':   { transform: 'translateX(-200%)', width: '40%' },
+            '60%':  { transform: 'translateX(200%)',  width: '60%' },
+            '100%': { transform: 'translateX(300%)',  width: '40%' },
+          },
         },
       },
     },
