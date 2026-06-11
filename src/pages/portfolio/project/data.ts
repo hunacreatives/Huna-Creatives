@@ -47,8 +47,7 @@ export const projectDataMap: Record<string, ProjectData> = {
     timeline: '8 Weeks',
     industry: 'Retail & Consignment',
     scope: 'Full Brand Identity',
-    heroImage:
-      '/images/686a4b13770b0b212e743808c854259d.png',
+    heroImage: '/images/tsh-real-coming-soon-1.webp',
     challenge: {
       heading: 'Building trust in secondhand luxury',
       body:
@@ -107,39 +106,44 @@ export const projectDataMap: Record<string, ProjectData> = {
     ],
     applications: [
       {
-        image:
-          '/images/de3dc4fe11e43aff6de19c4a7ce16556.png',
-        label: 'Luxury Packaging Box',
+        image: '/images/tsh-real-coming-soon-2.webp',
+        label: 'Launch Campaign',
       },
       {
-        image:
-          '/images/tsh-app-cards-001.jpg',
-        label: 'Business Cards',
+        image: '/images/tsh-real-tsh4.webp',
+        label: 'Branded Dust Bag',
       },
       {
-        image:
-          '/images/tsh-app-tote-001.jpg',
-        label: 'Tote Bag',
+        image: '/images/tsh-real-tsh2.webp',
+        label: 'Lifestyle Photography',
       },
       {
-        image:
-          '/images/tsh-app-packaging-001.jpg',
-        label: 'Packaging',
+        image: '/images/tsh-real-tsh1.webp',
+        label: 'Lifestyle Photography',
       },
       {
-        image:
-          '/images/tsh-app-signage-001.jpg',
-        label: 'Storefront Signage',
+        image: '/images/tsh-real-tsh8.webp',
+        label: 'Editorial Flat Lay',
       },
       {
-        image:
-          '/images/tsh-app-tags-001.jpg',
-        label: 'Hang Tags & Labels',
-      },
-      {
-        image:
-          '/images/tsh-app-social-001.jpg',
+        image: '/images/tsh-real-ad-0.webp',
         label: 'Social Media Templates',
+      },
+      {
+        image: '/images/tsh-real-tsh10.webp',
+        label: 'Product Photography',
+      },
+      {
+        image: '/images/tsh-real-bag-1.webp',
+        label: 'Instagram Content',
+      },
+      {
+        image: '/images/tsh-real-bag-2.webp',
+        label: 'Instagram Content',
+      },
+      {
+        image: '/images/tsh-real-bag-3.webp',
+        label: 'Instagram Content',
       },
     ],
     results: {

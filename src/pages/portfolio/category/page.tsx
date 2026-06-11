@@ -736,7 +736,7 @@ const categoryDataMap = {
         description:
           'Complete brand identity for a modern consignment boutique — logo, typography, color palette, brand guidelines, packaging, and every touchpoint.',
         image:
-          '/images/cat-brand1-dark.jpg',
+          '/images/tsh-real-coming-soon-1.webp',
         slug: 'the-second-haus',
       },
       {
