@@ -24,6 +24,336 @@ export interface BlogArticle {
 
 export const blogArticles: BlogArticle[] = [
   {
+    slug: 'peak-coffee-roasters-branding-cebu-it-park',
+    category: 'Case Study',
+    title: 'How We Branded Peak Coffee Roasters — Cebu\'s Boldest Specialty Café Identity',
+    excerpt:
+      'From a blank canvas to laser-cut wood signage, tasting cards, bean bags, and a complete visual system — how Huna Creatives built the brand identity for Peak Coffee Roasters, one of Cebu City\'s most ambitious specialty coffee concepts.',
+    readTime: '7 min read',
+    date: 'June 11, 2026',
+    isoDate: '2026-06-11',
+    heroImage: '/images/peak-coffee-pcr-1.webp',
+    author: {
+      name: 'Huna Creatives',
+      role: 'Brand Identity Team',
+      avatar: '/images/blog-author-huna-001.jpg',
+    },
+    seo: {
+      description:
+        'See how Huna Creatives built the complete brand identity for Peak Coffee Roasters in Cebu — logo suite, packaging, cups, menus, tasting cards, signage, and social media templates for a specialty coffee brand competing at the highest level in Cebu IT Park and beyond.',
+      keywords: [
+        'specialty coffee branding Cebu',
+        'coffee shop brand identity Cebu',
+        'café branding Cebu City',
+        'coffee shop logo design Cebu',
+        'branding agency IT Park Cebu',
+        'specialty coffee Cebu IT Park',
+        'restaurant branding Cebu',
+        'Peak Coffee Roasters',
+        'Huna Creatives Cebu',
+        'café logo design Philippines',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Cebu City\'s coffee scene has never been more competitive. From Ayala Center to IT Park and Lahug, specialty cafés are opening every quarter — and the ones that last are not just the ones with the best beans. They are the ones with the strongest brands. Peak Coffee Roasters came to us with a clear brief: build an identity that matches the obsession and precision behind specialty coffee. No compromises. No generic café aesthetic. A brand built to command the room — and the shelf, the cup, the menu, and the feed.',
+      },
+      {
+        type: 'heading',
+        content: 'The Challenge: Standing Out in Cebu\'s Saturated Coffee Market',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'IT Park in Cebu City is one of the most caffeine-dense square kilometers in the Philippines. Dozens of cafés compete for the same BPO workers, tech professionals, and weekend crowd. Most of them look the same — the same neutral palettes, the same minimalist sans-serif, the same "artisan" aesthetic that stopped feeling artisan years ago. Peak Coffee Roasters needed to be unmistakably different. The brand had to communicate precision and craft — not just on a menu, but across every single touchpoint.',
+      },
+      {
+        type: 'heading',
+        content: 'The Strategy: Minimal System, Maximum Presence',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'We built the PCR identity around a geometric symbol — a mark constructed from the brand\'s initials P, C, and R, forming a path going upward. Clean, precise, and immediately legible at any size. The primary palette is Black, Grey, and White — a deliberate decision that forces everything to live or die on form and composition, not color. Secondary tones of Mahogany, Sky Blue, and Bean provide warmth and specificity when needed. Outfit was chosen as the sole typeface — ExtraBold for display, Regular for labels — because its geometric precision works at every scale, from a 2mm stamp to a 2-meter backdrop.',
+      },
+      {
+        type: 'quote',
+        content:
+          'Great café branding does not look like café branding. It looks like a brand that happens to be a café — with a point of view, a voice, and a visual language strong enough to carry the entire business.',
+      },
+      {
+        type: 'heading',
+        content: 'The Deliverables: 50+ Assets Across Every Touchpoint',
+      },
+      {
+        type: 'list',
+        content: 'What we delivered for Peak Coffee Roasters:',
+        items: [
+          'Full logo suite — PCR combination mark, horizontal, stacked, and icon versions across all colorways',
+          'Branded cups — hot and cold cup designs that carry the identity into every hand that holds one',
+          'Bean bag packaging — premium kraft packaging with full bleed brand application',
+          'Paper bags and tissue — the entire take-out experience, branded end to end',
+          'Café menu — typography-forward design that sells the philosophy before the product',
+          'Tasting cards — detailed per-origin cards that position the café as a craft destination, not a commodity',
+          'Sticker suite — collectible, giftable, and impossible not to put on everything',
+          'Laser-cut wood signage — the physical brand presence that makes the space unmistakable',
+          'Digital menu display — HD-formatted content for in-café screens',
+          'Company ID cards — the internal brand that signals to staff this is a serious operation',
+          'Full social media template suite — Instagram and Facebook templates for launches, promotions, and education content',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'Why Specialty Cafés in Cebu Need More Than a Logo',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The coffee shop owners who succeed long-term in Cebu — in IT Park, in Capitol, in the growing café strip along Escario — all share one thing: they treat their brand as seriously as they treat their beans. Your brand is the first thing a new customer sees before they taste a single sip. It is the reason someone chooses to photograph their drink and tag you. It is the reason a first-time customer becomes a regular. Peak Coffee Roasters understood this from day one. The investment in a complete brand system was not just about aesthetics — it was about building the infrastructure for a business that lasts.',
+      },
+      {
+        type: 'heading',
+        content: 'The Result: A Brand That Competes at the Highest Level',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Peak Coffee Roasters launched with a brand identity that looked like it came from a studio in Tokyo or Melbourne — because the brief demanded nothing less. The complete system carries consistently from the first Instagram impression to the cup in the customer\'s hand, from the laser-cut sign on the wall to the tasting card on the table. Every touchpoint reinforces the same message: this is a café that cares about every detail. See the <a href="/portfolio/project/peak-coffee-roasters">full Peak Coffee Roasters case study</a> for the complete visual system.',
+      },
+    ],
+    cta: {
+      heading: 'Opening a café or restaurant in Cebu? Your brand is your most important first impression.',
+      body: 'Huna Creatives builds complete brand identities for food and beverage businesses in Cebu City and across the Philippines — from IT Park concepts to regional chains. Let\'s build yours.',
+    },
+    relatedSlugs: [
+      'whisk-up-matcha-brand-identity-cebu',
+      'the-second-haus-branding-consignment',
+      'the-power-of-consistent-visual-branding',
+    ],
+  },
+  {
+    slug: 'the-second-haus-branding-consignment',
+    category: 'Case Study',
+    title: 'How We Built The Second Haus — A Premium Brand Identity for Cebu\'s Conscious Luxury Market',
+    excerpt:
+      'The resale and consignment market is growing fast in Cebu. The Second Haus needed a brand that felt as premium as the pieces it carries — curated, warm, and built to earn trust from style-conscious buyers from day one.',
+    readTime: '6 min read',
+    date: 'June 11, 2026',
+    isoDate: '2026-06-11',
+    heroImage: '/images/tsh-insta-unboxing.webp',
+    author: {
+      name: 'Huna Creatives',
+      role: 'Brand Identity Team',
+      avatar: '/images/blog-author-huna-002.jpg',
+    },
+    seo: {
+      description:
+        'See how Huna Creatives built a complete luxury brand identity for The Second Haus, a Cebu-based consignment boutique — logo, typography, color palette, packaging, dust bags, hang tags, and social media templates that positioned the brand as premium from launch day.',
+      keywords: [
+        'fashion brand identity Cebu',
+        'consignment boutique branding Philippines',
+        'luxury brand design Cebu',
+        'branding agency Cebu Philippines',
+        'logo design consignment store',
+        'sustainable fashion brand Philippines',
+        'boutique branding Cebu',
+        'The Second Haus',
+        'Huna Creatives brand identity',
+        'pre-loved fashion branding Cebu',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'The resale and consignment market in the Philippines is having a moment. Platforms like Carousell and Instagram shops have normalized buying pre-loved — but the brands that are winning in this space are not the ones with the most listings. They are the ones that have figured out how to make secondhand feel as premium and curated as buying new. The Second Haus came to us with exactly that ambition: build a brand that earns the trust and desire of Cebu\'s most style-conscious shoppers.',
+      },
+      {
+        type: 'heading',
+        content: 'The Brief: Premium Consignment Without the Secondhand Stigma',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The core challenge was positioning. Consignment carries a perception problem — for many shoppers, it still feels like buying someone\'s unwanted things. The Second Haus needed to flip that narrative entirely: every piece is curated, authenticated, and given a second life by people who genuinely love fashion. The brand had to communicate warmth and approachability without sacrificing the premium quality signal. Think: a beautifully curated boutique you want to spend time in, not a bazaar you feel slightly self-conscious about.',
+      },
+      {
+        type: 'quote',
+        content:
+          'The best luxury resale brands do not apologize for being resale. They celebrate it — the story behind the piece, the sustainability angle, the thrill of the find. That was the territory we wanted The Second Haus to own.',
+      },
+      {
+        type: 'heading',
+        content: 'The Identity: Refined, Warm, and Intentional',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'We started with typography — a transitional serif logotype that felt elevated and timeless, paired with a clean geometric sans-serif for body copy and labels. The combination communicates curated luxury without stiffness. The palette — Charcoal, Warm Sand, Linen, Terracotta, and Sage — was built to feel like stepping into a beautifully dressed home: warm, collected, and instantly comfortable. Every color decision was made to evoke the feeling of pieces with history, not pieces that were simply owned by someone else.',
+      },
+      {
+        type: 'heading',
+        content: 'The Touchpoints That Built Trust',
+      },
+      {
+        type: 'list',
+        content: 'What we delivered for The Second Haus across 8 weeks:',
+        items: [
+          'Primary logotype, monogram mark, and inverted dark version — a complete logo suite built for every context',
+          'Color system and typography hierarchy — the visual rulebook that keeps everything consistent',
+          'Branded dust bags — the tactile brand moment that turns every purchase into an experience',
+          'Hang tags and tissue paper — packaging designed to make unboxing feel like opening something new',
+          'Launch campaign social content — the Instagram presence that introduced the brand to Cebu',
+          'Brand guidelines document — everything the team needed to stay on-brand without the founders policing it',
+          'Social media template suite — post templates that let the brand grow without losing visual consistency',
+          'Editorial flat lay direction — the photography guidelines that made every product shot look like magazine editorial',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'The Cebu Market: Why Brand Matters More Than Ever for Fashion and Retail',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Fashion retail in Cebu City has become more competitive at every price point. The growth of online shopping, the rise of Instagram boutiques, and the increasing sophistication of Cebuano consumers means that brand perception is no longer a nice-to-have — it is the difference between a buyer choosing you or choosing the next account. The Second Haus launched into this market with a brand that could hold its own against established regional boutiques. Three times the social engagement in the first month compared to pre-brand launch metrics. 100% satisfaction on every brand deliverable. The numbers followed the brand.',
+      },
+      {
+        type: 'heading',
+        content: 'What Fashion and Retail Brands in Cebu Can Learn From This',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The investment in a complete brand system — not just a logo — is what separates the boutiques that become institutions from the ones that quietly disappear. If your brand is inconsistent across your packaging, your social media, and your in-person experience, you are creating friction every time a potential customer encounters you. The Second Haus invested in getting it right from the very first touchpoint — and it shows. See the <a href="/portfolio/project/the-second-haus">full case study here</a>.',
+      },
+    ],
+    cta: {
+      heading: 'Launching a boutique, fashion label, or retail brand in Cebu?',
+      body: 'Huna Creatives builds premium brand identities for fashion and retail businesses across the Philippines. From your first logo to your full packaging system — let\'s build something worth wearing.',
+    },
+    relatedSlugs: [
+      'peak-coffee-roasters-branding-cebu-it-park',
+      'whisk-up-matcha-brand-identity-cebu',
+      'the-power-of-consistent-visual-branding',
+    ],
+  },
+  {
+    slug: 'whisk-up-matcha-brand-identity-cebu',
+    category: 'Case Study',
+    title: 'Whisk Up Matcha & Uji-Matcha Café: How We Built Two Matcha Brand Identities That Stand Apart',
+    excerpt:
+      'Two matcha brands, two distinct identities. How Huna Creatives approached the branding for Whisk Up Matcha — a full identity built from scratch — and the logo refinement for Uji-Matcha Café, an established brand ready to evolve.',
+    readTime: '7 min read',
+    date: 'June 11, 2026',
+    isoDate: '2026-06-11',
+    heroImage: '/images/wum-hero.webp',
+    author: {
+      name: 'Huna Creatives',
+      role: 'Brand Identity Team',
+      avatar: '/images/blog-author-huna-003.jpg',
+    },
+    seo: {
+      description:
+        'How Huna Creatives built brand identities for two matcha café brands in the Philippines — Whisk Up Matcha (full identity from scratch) and Uji-Matcha Café (logo refinement and evolution study). Discover what makes a matcha brand stand out in a crowded market.',
+      keywords: [
+        'matcha café branding Philippines',
+        'café logo design Cebu',
+        'food and beverage branding Philippines',
+        'matcha brand identity',
+        'coffee shop branding Cebu City',
+        'logo refinement Philippines',
+        'Whisk Up Matcha',
+        'Uji Matcha Cebu',
+        'branding agency food beverage Philippines',
+        'Huna Creatives Cebu',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Matcha has gone from a niche wellness trend to a fully mainstream café staple in the Philippines — and the market for matcha-focused brands is growing fast. We worked with two of them in the same period: Whisk Up Matcha, a new brand we built from scratch, and Uji-Matcha Café, an established café with an existing identity that needed to evolve. Same category, completely different briefs. Here is how we approached both.',
+      },
+      {
+        type: 'heading',
+        content: 'Whisk Up Matcha: Building an Identity From the Ground Up',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Whisk Up Matcha needed everything — a brand strategy, a logo, a color system, a logo suite, and the visual language to carry it all forward. The brief called for something warm and grounded: not the clinical minimalism of health-food brands, not the generic green-leaf aesthetic of every matcha competitor, but something genuinely rooted in the natural world of the plant. We built the identity around a monstera leaf silhouette — botanical, distinctive, and immediately connected to the living world that matcha comes from.',
+      },
+      {
+        type: 'quote',
+        content:
+          'The best food and beverage brands do not just make you want to buy the product. They make you want to be the kind of person who drinks it. That is the emotional territory a great café brand needs to own.',
+      },
+      {
+        type: 'heading',
+        content: 'The WUM Color Story: Drawing Directly From Nature',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The Whisk Up Matcha palette was built entirely from the landscape of matcha: Forest Green for the tea itself, Olive for the dried leaf, Amber for the terracotta of the teaware, Dark Brown for the soil, and a warm Cream as the base that ties everything together. The palette feels simultaneously earthy and elegant — the visual equivalent of stepping into a café that takes its ingredients as seriously as its aesthetics. The full logo suite — horizontal lockup, stacked variation, mark only — was designed to work at every scale, from a 16mm cup stamp to a full billboard.',
+      },
+      {
+        type: 'heading',
+        content: 'Uji-Matcha Café: Refining What Already Exists',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The Uji-Matcha Café project was a different challenge entirely. The brand already existed and had an audience — but the existing logo had scalability problems. Detailed line work that broke down at small sizes, inconsistent stroke weight, slight visual imbalance. The brief was to refine without erasing: keep the chasen (matcha whisk) and bowl character that was already recognizable to the brand\'s audience, and evolve it into something that could carry the next phase of growth.',
+      },
+      {
+        type: 'heading',
+        content: 'Three Directions, One Clear Answer',
+      },
+      {
+        type: 'list',
+        content: 'We presented three evolution paths for Uji-Matcha Café:',
+        items: [
+          'Direction A — Refined Evolution: Keep the existing whisk-in-bowl illustration, improve proportions, balance, and stroke consistency for better scalability',
+          'Direction B — New Brand Expression: Abstract "UJI" lettermark with the chasen form integrated directly into the letterforms, bold and modern',
+          'Direction C — Unified Expression: The "U" letterform merged with the whisk — the most conceptually unified of the three directions',
+          'Typography: Cinzel for display (classical structure echoing Japanese craft heritage) paired with Gilroy for body copy',
+          'Colors: Forest Green, Charcoal, Amber, Sky Blue — a palette that bridges Japanese heritage with contemporary café aesthetics',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'What Makes Matcha Branding Different',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Matcha as a product sits at an interesting intersection — it is healthy but indulgent, traditional but Instagram-worthy, Japanese in origin but increasingly global in appeal. The brands that succeed in this space understand that their identity needs to hold both sides of that tension: honoring the ritual and heritage while speaking to a contemporary audience who discovered matcha through social media. Both Whisk Up Matcha and Uji-Matcha Café navigate this differently — one through a botanical mark, one through an evolved letterform — but both are built to carry that dual identity confidently.',
+      },
+      {
+        type: 'heading',
+        content: 'The Portfolio',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'You can see the complete work for both brands in our portfolio: <a href="/portfolio/project/whisk-up-matcha">Whisk Up Matcha brand identity</a> and <a href="/portfolio/project/uji-matcha-cafe">Uji-Matcha Café logo refinement</a>. If you are building a food and beverage brand in the Philippines — a café, a specialty drink concept, a restaurant, or a packaged product — the work speaks for itself.',
+      },
+    ],
+    cta: {
+      heading: 'Building a café, food brand, or beverage concept in the Philippines?',
+      body: 'Huna Creatives specializes in food and beverage brand identities built to stand out in a crowded market. From first cup to full brand system — let\'s build yours.',
+    },
+    relatedSlugs: [
+      'peak-coffee-roasters-branding-cebu-it-park',
+      'the-second-haus-branding-consignment',
+      'the-power-of-consistent-visual-branding',
+    ],
+  },
+  {
     slug: 'why-brand-identity-is-your-most-valuable-asset',
     category: 'Brand Identity',
     title: 'Why US and Australian Brands Are Outsourcing Brand Identity to the Philippines in 2026',
