@@ -192,7 +192,7 @@ export const projectDataMap: Record<string, ProjectData> = {
     timeline: '10 Weeks',
     industry: 'Food & Beverage',
     scope: 'Full Brand Identity & Packaging',
-    heroImage: '/images/peak-coffee-hero.webp',
+    heroImage: '/images/peak-coffee-app-beanbag.webp',
     challenge: {
       heading: 'Standing out in a saturated specialty coffee market',
       body:
@@ -216,8 +216,8 @@ export const projectDataMap: Record<string, ProjectData> = {
       },
       {
         image: '/images/peak-coffee-logo-dark.webp',
-        label: 'Dark Version',
-        bg: 'bg-[#1C1209]',
+        label: 'Badge Variation',
+        bg: 'bg-[#E8DCCB]',
       },
     ],
     typography: {
