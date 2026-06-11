@@ -731,21 +731,36 @@ const categoryDataMap = {
     stats: { projects: '25+', satisfaction: '100%', rating: '5.0★' },
     projects: [
       {
-        id: 'b1',
-        title: 'The Second Haus',
-        description:
-          'Complete brand identity for a modern consignment boutique — logo, typography, color palette, brand guidelines, packaging, and every touchpoint.',
-        image:
-          '/images/tsh-real-coming-soon-1.webp',
-        slug: 'the-second-haus',
-      },
-      {
         id: 'b2',
         title: 'Peak Coffee Roasters',
         description:
           'Full brand identity and packaging system for a specialty coffee roaster — logo suite, bean bags, cups, menus, tasting cards, stickers, and laser-cut signage.',
         image: '/images/peak-coffee-pcr-1.webp',
         slug: 'peak-coffee-roasters',
+      },
+      {
+        id: 'b1',
+        title: 'The Second Haus',
+        description:
+          'Complete brand identity for a modern consignment boutique — logo, typography, color palette, brand guidelines, packaging, and every touchpoint.',
+        image: '/images/tsh-insta-unboxing.webp',
+        slug: 'the-second-haus',
+      },
+      {
+        id: 'b3',
+        title: 'Whisk Up Matcha',
+        description:
+          'Full brand identity for a matcha café — leaf mark, logotype, color palette, and a complete logo suite across all colorways.',
+        image: '/images/wum-hero.webp',
+        slug: 'whisk-up-matcha',
+      },
+      {
+        id: 'b4',
+        title: 'Uji-Matcha Café',
+        description:
+          'Logo refinement and brand evolution study — three directions, full logo suite, color system, and typography for a Japanese matcha café.',
+        image: '/images/uji-hero.webp',
+        slug: 'uji-matcha-cafe',
       },
     ],
   },

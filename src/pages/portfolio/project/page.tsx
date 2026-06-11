@@ -216,7 +216,7 @@ const ProjectPage = () => {
                     src={logo.image}
                     alt={logo.label}
                     className="max-w-full max-h-full object-contain"
-                    style={logo.bg === 'bg-black' ? { filter: 'invert(1)' } : undefined}
+                    style={!logo.noInvert && (logo.bg === 'bg-black' || logo.invert) ? { filter: 'invert(1)' } : undefined}
                   />
                 </div>
               ))}

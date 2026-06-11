@@ -13,7 +13,7 @@ export interface ProjectData {
   heroImage: string;
   challenge: { heading: string; body: string };
   approach: { heading: string; body: string };
-  logos: { image: string; label: string; bg: string }[];
+  logos: { image: string; label: string; bg: string; noInvert?: boolean; invert?: boolean }[];
   typography: {
     description: string;
     fonts: { role: string; family: string; weights: string; sample: string }[];
@@ -47,7 +47,7 @@ export const projectDataMap: Record<string, ProjectData> = {
     timeline: '8 Weeks',
     industry: 'Retail & Consignment',
     scope: 'Full Brand Identity',
-    heroImage: '/images/tsh-real-coming-soon-1.webp',
+    heroImage: '/images/tsh-insta-unboxing.webp',
     challenge: {
       heading: 'Building trust in secondhand luxury',
       body:
@@ -155,6 +155,21 @@ export const projectDataMap: Record<string, ProjectData> = {
         label: 'Instagram Content',
         objectPosition: 'center',
       },
+      {
+        image: '/images/tsh-insta-collection.webp',
+        label: 'Collection Photography',
+        objectPosition: 'center',
+      },
+      {
+        image: '/images/tsh-insta-unboxing.webp',
+        label: 'Unboxing Experience',
+        objectPosition: 'center',
+      },
+      {
+        image: '/images/tsh-insta-box-logo.webp',
+        label: 'Branded Packaging',
+        objectPosition: 'center',
+      },
     ],
     results: {
       summary:
@@ -182,6 +197,176 @@ export const projectDataMap: Record<string, ProjectData> = {
         "Huna Creatives didn't just design a logo — they gave The Second Haus a soul. Every detail, from the color palette to the hang tags, feels like it was made with so much care. I couldn't be happier.",
       author: 'Mariana Voss',
       role: 'Founder, The Second Haus',
+    },
+  },
+
+  'whisk-up-matcha': {
+    slug: 'whisk-up-matcha',
+    category: 'branding',
+    categoryLabel: 'Branding & Identity',
+    title: 'Whisk Up Matcha',
+    subtitle:
+      'A full brand identity for a matcha café rooted in warmth and nature — leaf mark, logotype, color palette, and a complete logo suite built to carry across every touchpoint from cups to social.',
+    tags: ['Logo Design', 'Brand Identity', 'Color Palette', 'Brand Guidelines', 'Logo Suite'],
+    client: 'Whisk Up Matcha',
+    timeline: '6 Weeks',
+    industry: 'Food & Beverage',
+    scope: 'Full Brand Identity',
+    heroImage: '/images/wum-hero.webp',
+    challenge: {
+      heading: 'A brand as warm as the drink itself',
+      body:
+        'Whisk Up Matcha needed an identity that felt both grounded and inviting — something that communicated the ritual of matcha without feeling overly minimal or clinical. The brand had to appeal to a health-conscious, aesthetically-driven audience while staying approachable enough for everyday visits.',
+    },
+    approach: {
+      heading: 'Organic mark, earthy palette',
+      body:
+        'We built the identity around a monstera leaf silhouette — organic, recognizable, and instantly connected to the botanical world of matcha. Paired with a bold rounded logotype, the mark works both as a full lockup and a standalone icon. The palette draws from nature: forest green, olive, amber, and dark brown, anchored by a warm cream base.',
+    },
+    logos: [
+      {
+        image: '/images/wum-logo-h-green.webp',
+        label: 'Primary Lockup',
+        bg: 'bg-white',
+      },
+      {
+        image: '/images/wum-logo-s-green.webp',
+        label: 'Stacked Variation',
+        bg: 'bg-white',
+      },
+      {
+        image: '/images/wum-logo-s-dark.webp',
+        label: 'Dark Version',
+        bg: 'bg-black',
+        noInvert: true,
+      },
+    ],
+    typography: {
+      description:
+        "A single bold rounded serif carries the entire brand — expressive enough to feel handcrafted, structured enough to stay legible at any size. The typeface reinforces the brand's warmth without sacrificing clarity.",
+      fonts: [
+        {
+          role: 'Logotype / Display',
+          family: 'Rounded Serif',
+          weights: 'Bold',
+          sample: 'whisk up matcha',
+        },
+      ],
+    },
+    colors: [
+      { name: 'Cream', hex: '#FEFCEF' },
+      { name: 'Olive', hex: '#BEB767' },
+      { name: 'Forest', hex: '#596B36' },
+      { name: 'Amber', hex: '#C07A37' },
+      { name: 'Dark Brown', hex: '#4A3B22' },
+    ],
+    applications: [
+      { image: '/images/wum-cup-hand.webp', label: 'Branded Cup', objectPosition: 'center' },
+      { image: '/images/wum-barista-pour.webp', label: 'Brand in Action', objectPosition: 'center' },
+      { image: '/images/wum-cup-milk.webp', label: 'Product Photography', objectPosition: 'center' },
+      { image: '/images/wum-strawberry-pour.webp', label: 'Strawberry Matcha', objectPosition: 'center' },
+      { image: '/images/wum-product-pour.webp', label: 'Matcha Preparation', objectPosition: 'center' },
+      { image: '/images/wum-stickers.webp', label: 'Branded Stickers', objectPosition: 'center' },
+      { image: '/images/wum-stamp-cards.webp', label: 'Stamp Cards', objectPosition: 'center' },
+      { image: '/images/wum-social-new.webp', label: 'Social Media Content', objectPosition: 'center' },
+      { image: '/images/wum-event-summer.webp', label: 'Event Collateral', objectPosition: 'center' },
+    ],
+    results: {
+      summary:
+        'Whisk Up Matcha launched with a cohesive identity that felt immediately distinct — warm, natural, and built to scale across physical and digital touchpoints.',
+      metrics: [
+        { value: '20+', label: 'Brand Assets Delivered', detail: 'Logo suite, palette, guidelines' },
+        { value: '5', label: 'Logo Variations', detail: 'Horizontal, stacked, mark — all colorways' },
+        { value: '100%', label: 'Brand Satisfaction', detail: 'Exceeded expectations on every deliverable' },
+      ],
+    },
+  },
+
+  'uji-matcha-cafe': {
+    slug: 'uji-matcha-cafe',
+    category: 'branding',
+    categoryLabel: 'Branding & Identity',
+    title: 'Uji-Matcha Café',
+    subtitle:
+      'A logo refinement and brand evolution study for a Japanese matcha café — refining the original chasen mark, exploring three distinct directions, and delivering a complete identity system with color, typography, and a full suite of logo variations.',
+    tags: ['Logo Refinement', 'Brand Identity', 'Logo Suite', 'Typography', 'Color Palette', 'Brand Guidelines'],
+    client: 'Uji-Matcha Café',
+    timeline: '6 Weeks',
+    industry: 'Food & Beverage',
+    scope: 'Logo Refinement & Brand Identity',
+    heroImage: '/images/uji-hero.webp',
+    challenge: {
+      heading: 'Refining a mark without losing its soul',
+      body:
+        'Uji-Matcha Café had an existing logo with strong character — a chasen (matcha whisk) in a bowl — but it lacked scalability and visual consistency. The challenge was to refine the mark for modern use while honoring the ritual and heritage behind matcha culture. The new identity needed to work across every touchpoint, from cups to signage to digital, without losing what made the original feel authentic.',
+    },
+    approach: {
+      heading: 'Three directions, one clear answer',
+      body:
+        'We presented three evolution paths: a refined version of the original illustration, a bold new abstract lettermark integrating the UJI initials with the chasen form, and a unified expression that merged the U letterform with the whisk. Paired with Cinzel for display and Gilroy for body copy, the identity balances Japanese heritage with a clean, modern aesthetic. The final palette — forest green, charcoal, amber, and sky blue — draws from the natural world of matcha.',
+    },
+    logos: [
+      {
+        image: '/images/uji-logo-mark.webp',
+        label: 'Logo Mark',
+        bg: 'bg-white',
+        noInvert: true,
+      },
+      {
+        image: '/images/uji-logo-mark.webp',
+        label: 'On Forest Green',
+        bg: 'bg-[#4b622c]',
+        invert: true,
+      },
+      {
+        image: '/images/uji-logo-mark.webp',
+        label: 'On Charcoal',
+        bg: 'bg-black',
+      },
+    ],
+    typography: {
+      description:
+        "Cinzel brings classical structure to the display type — its Roman proportions echo the timeless quality of Japanese craft. Gilroy handles body copy with a clean, modern voice. Together they bridge heritage and contemporary without friction.",
+      fonts: [
+        {
+          role: 'Display / Headlines',
+          family: 'Cinzel',
+          weights: 'Regular 400 · Bold 700',
+          sample: 'UJI-MATCHA CAFÉ',
+        },
+        {
+          role: 'Body / UI',
+          family: 'Gilroy',
+          weights: 'Regular 400 · Medium 500 · Bold 700',
+          sample: 'This direction explores how Uji Matcha could evolve into a more iconic, modern, and future-facing identity while still honoring its heritage.',
+        },
+      ],
+    },
+    colors: [
+      { name: 'Forest', hex: '#4b622c' },
+      { name: 'Charcoal', hex: '#2E2E2E' },
+      { name: 'Amber', hex: '#d15f18' },
+      { name: 'Sky', hex: '#c5e2f1' },
+      { name: 'White', hex: '#ffffff' },
+    ],
+    applications: [
+      { image: '/images/uji-insta-pour.webp', label: 'Branded Cup', objectPosition: 'center' },
+      { image: '/images/uji-insta-icecream.webp', label: 'Product Photography', objectPosition: 'center' },
+      { image: '/images/uji-insta-drinks.webp', label: 'Lifestyle Photography', objectPosition: 'center' },
+      { image: '/images/uji-insta-sifting.webp', label: 'Matcha Ritual', objectPosition: 'center' },
+      { image: '/images/uji-insta-cafe.webp', label: 'Café Interior', objectPosition: 'center' },
+      { image: '/images/uji-insta-merch.webp', label: 'Brand Merchandise', objectPosition: 'center' },
+      { image: '/images/uji-insta-lifestyle.webp', label: 'Social Content', objectPosition: 'center' },
+      { image: '/images/uji-insta-tiramisu.webp', label: 'Product Photography', objectPosition: 'center' },
+    ],
+    results: {
+      summary:
+        'Uji-Matcha Café received a refined, scalable identity rooted in their heritage — with a complete logo suite, color system, and typography that carries consistently across every touchpoint.',
+      metrics: [
+        { value: '3', label: 'Direction Proposals', detail: 'Refined, Lettermark & Unified' },
+        { value: '10+', label: 'Logo Variations', detail: 'Color, scale, and background variants' },
+        { value: '100%', label: 'Brand Satisfaction', detail: 'Exceeded expectations on every deliverable' },
+      ],
     },
   },
 
