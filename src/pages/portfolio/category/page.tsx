@@ -739,6 +739,14 @@ const categoryDataMap = {
           '/images/cat-brand1-dark.jpg',
         slug: 'the-second-haus',
       },
+      {
+        id: 'b2',
+        title: 'Peak Coffee Roasters',
+        description:
+          'Full brand identity and packaging system for a specialty coffee roaster — logo suite, bean bags, cups, menus, tasting cards, stickers, and laser-cut signage.',
+        image: '/images/peak-coffee-hero.jpg',
+        slug: 'peak-coffee-roasters',
+      },
     ],
   },
   'graphic-design': {
