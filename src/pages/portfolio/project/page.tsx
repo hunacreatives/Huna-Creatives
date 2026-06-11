@@ -126,49 +126,60 @@ const ProjectPage = () => {
           </div>
         </section>
 
-        {/* Hero Image */}
-        <section className="px-4 md:px-6 -mt-2">
+        {/* Hero Image + Challenge & Approach */}
+        <section className="px-4 md:px-6 py-12 md:py-16 lg:py-24 bg-[#0a0a0a]">
           <div className="max-w-6xl mx-auto">
-            <div
-              className="w-full h-[240px] md:h-[320px] lg:h-[480px] rounded-xl md:rounded-2xl overflow-hidden shadow-2xl"
-              style={{ border: '1px solid rgba(255,255,255,0.07)' }}
-            >
-              <img
-                src={project.heroImage}
-                alt={project.title}
-                className="w-full h-full object-cover object-center"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* The Challenge & Approach */}
-        <section className="py-12 md:py-16 lg:py-24 px-4 md:px-6 bg-[#0a0a0a]">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-8 md:gap-12 lg:gap-20">
-              <div>
-                <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                  <span className="w-5 h-px bg-orange-400 inline-block" />
-                  The Challenge
-                </span>
-                <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white mb-4 md:mb-5">
-                  {project.challenge.heading}
-                </h2>
-                <p className="text-white/45 text-sm leading-relaxed">
-                  {project.challenge.body}
-                </p>
+            <div className="grid lg:grid-cols-2 gap-6 lg:gap-10 lg:items-stretch">
+              {/* Left: stacked text blocks */}
+              <div className="flex flex-col gap-6 md:gap-8">
+                <div
+                  className="rounded-xl md:rounded-2xl p-6 md:p-8 flex-1"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
+                    <span className="w-5 h-px bg-orange-400 inline-block" />
+                    The Challenge
+                  </span>
+                  <h2 className="font-display text-xl md:text-2xl font-bold text-white mb-4 md:mb-5">
+                    {project.challenge.heading}
+                  </h2>
+                  <p className="text-white/45 text-sm leading-relaxed">
+                    {project.challenge.body}
+                  </p>
+                </div>
+                <div
+                  className="rounded-xl md:rounded-2xl p-6 md:p-8 flex-1"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
+                    <span className="w-5 h-px bg-orange-400 inline-block" />
+                    Our Approach
+                  </span>
+                  <h2 className="font-display text-xl md:text-2xl font-bold text-white mb-4 md:mb-5">
+                    {project.approach.heading}
+                  </h2>
+                  <p className="text-white/45 text-sm leading-relaxed">
+                    {project.approach.body}
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                  <span className="w-5 h-px bg-orange-400 inline-block" />
-                  Our Approach
-                </span>
-                <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white mb-4 md:mb-5">
-                  {project.approach.heading}
-                </h2>
-                <p className="text-white/45 text-sm leading-relaxed">
-                  {project.approach.body}
-                </p>
+
+              {/* Right: hero image full height */}
+              <div
+                className="rounded-xl md:rounded-2xl overflow-hidden min-h-[360px] lg:min-h-0"
+                style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+              >
+                <img
+                  src={project.heroImage}
+                  alt={project.title}
+                  className="w-full h-full object-cover object-top"
+                />
               </div>
             </div>
           </div>
