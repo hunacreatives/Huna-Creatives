@@ -108,42 +108,52 @@ export const projectDataMap: Record<string, ProjectData> = {
       {
         image: '/images/tsh-real-coming-soon-2.webp',
         label: 'Launch Campaign',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-tsh4.webp',
         label: 'Branded Dust Bag',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-tsh2.webp',
         label: 'Lifestyle Photography',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-tsh1.webp',
         label: 'Lifestyle Photography',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-tsh8.webp',
         label: 'Editorial Flat Lay',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-ad-0.webp',
         label: 'Social Media Templates',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-tsh10.webp',
         label: 'Product Photography',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-bag-1.webp',
         label: 'Instagram Content',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-bag-2.webp',
         label: 'Instagram Content',
+        objectPosition: 'center',
       },
       {
         image: '/images/tsh-real-bag-3.webp',
         label: 'Instagram Content',
+        objectPosition: 'center',
       },
     ],
     results: {
