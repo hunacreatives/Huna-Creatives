@@ -177,10 +177,11 @@ export const projectDataMap: Record<string, ProjectData> = {
     categoryLabel: 'Branding & Identity',
     title: 'Peak Coffee Roasters',
     subtitle:
-      'A full brand identity and packaging system for a specialty coffee roaster — from the primary logo to bean bags, cups, menus, tasting cards, stickers, and laser-cut signage. Every touchpoint brewed with intention.',
+      'A complete brand identity system for a specialty coffee roaster — from the PCR combination mark to bean bags, cups, menus, tasting cards, stickers, laser-cut signage, and a full social media suite. Bold, minimal, and built for the serious coffee drinker.',
     tags: [
       'Logo Design',
       'Brand Identity',
+      'Brand Guidelines',
       'Packaging Design',
       'Menu Design',
       'Sticker Design',
@@ -192,59 +193,59 @@ export const projectDataMap: Record<string, ProjectData> = {
     timeline: '10 Weeks',
     industry: 'Food & Beverage',
     scope: 'Full Brand Identity & Packaging',
-    heroImage: '/images/peak-coffee-app-beanbag.webp',
+    heroImage: '/images/peak-coffee-pcr-1.webp',
     challenge: {
-      heading: 'Standing out in a saturated specialty coffee market',
+      heading: 'Building a bold identity for serious specialty coffee',
       body:
-        'Peak Coffee Roasters needed more than a logo — they needed a complete visual language that could hold its own against established specialty roasters while feeling approachable and local. Every physical touchpoint, from the bean bag you take home to the cup you hold in the morning, had to feel cohesive, premium, and unmistakably Peak.',
+        'Peak Coffee Roasters needed a visual identity that matched their philosophy: every detail intentional, every process shaped with purpose. The brand had to communicate precision and craft — not just on a menu or a cup, but across a complete system from the logo mark to laser-cut wood signage. The challenge was building something bold enough to command attention while staying rooted in the discipline that defines specialty coffee.',
     },
     approach: {
-      heading: 'Rooted in craft, refined in execution',
+      heading: 'Minimal system, maximum presence',
       body:
-        'We started with brand strategy — defining Peak\'s personality, their target coffee drinker, and the feeling they wanted to leave behind. From there we built a complete visual system: a versatile logo suite, a rich earthy palette, packaging that communicates quality on the shelf, and a set of applications spanning everything from greaseproof paper to laser-cut wood pieces. Every detail was designed to tell the same story.',
+        'We developed the PCR combination mark — a geometric symbol built from the brand\'s initials P, C, and R, forming a path going upward. The identity is anchored in a primary palette of Black, Grey, and White, supported by secondary tones of Mahogany, Sky Blue, and Bean. Outfit was chosen as the sole typeface for its clean geometry and bold presence at any scale. From there we extended the system across every touchpoint: packaging, cups, menus, tasting cards, stickers, tissue paper, laser-cut signage, and a full social media template suite.',
     },
     logos: [
       {
         image: '/images/peak-coffee-logo-primary.webp',
-        label: 'Primary Logo',
+        label: 'Primary Lockup',
         bg: 'bg-white',
       },
       {
         image: '/images/peak-coffee-logo-alt.webp',
-        label: 'Alternate Mark',
-        bg: 'bg-[#F5EFE6]',
+        label: 'Stacked Variation',
+        bg: 'bg-[#afafaf]',
       },
       {
         image: '/images/peak-coffee-logo-dark.webp',
-        label: 'Badge Variation',
-        bg: 'bg-[#E8DCCB]',
+        label: 'Dark Background',
+        bg: 'bg-black',
       },
     ],
     typography: {
       description:
-        'We paired a strong, characterful serif for the wordmark and headlines with a clean workhorse sans-serif for body copy and labels. The result is typography that feels grounded and artisanal without sacrificing legibility across packaging formats.',
+        'Outfit carries the entire brand — Extrabold for headlines and display, Regular for body copy and labels. Its geometric precision works across every scale, from large signage to fine label copy, keeping the brand consistent and unmistakable wherever it appears.',
       fonts: [
         {
-          role: 'Display / Wordmark',
-          family: 'Canela',
-          weights: 'Light 300 · Regular 400 · Medium 500',
-          sample: 'Roasted at the peak of perfection.',
+          role: 'Headlines / Display',
+          family: 'Outfit',
+          weights: 'ExtraBold 800',
+          sample: 'From every cup to every detail, we bring stories to life.',
         },
         {
           role: 'Body / Labels',
-          family: 'Neue Haas Grotesk',
-          weights: 'Regular 400 · Medium 500 · Bold 700',
+          family: 'Outfit',
+          weights: 'Regular 400 · Medium 500',
           sample:
-            'Single origin. Small batch. Sourced from the world\'s finest growing regions and roasted to bring out every note.',
+            'Coffee goes beyond the cup — it becomes a medium for experience, craft, and connection. Rooted in specialty, every detail is intentional.',
         },
       ],
     },
     colors: [
-      { name: 'Espresso', hex: '#1C1209' },
-      { name: 'Roast', hex: '#5C3317' },
-      { name: 'Caramel', hex: '#C47F3A' },
-      { name: 'Cream', hex: '#F5EFE6' },
-      { name: 'Parchment', hex: '#E8DCCB' },
+      { name: 'Black', hex: '#000000' },
+      { name: 'Grey', hex: '#afafaf' },
+      { name: 'White', hex: '#ffffff' },
+      { name: 'Bean', hex: '#42160b' },
+      { name: 'Sky Blue', hex: '#b7e1f2' },
     ],
     applications: [
       {
@@ -272,12 +273,20 @@ export const projectDataMap: Record<string, ProjectData> = {
         label: 'Sticker Suite',
       },
       {
-        image: '/images/peak-coffee-app-tissue.webp',
+        image: '/images/peak-coffee-pcr-2.webp',
         label: 'Tissue & Greaseproof Paper',
       },
       {
-        image: '/images/peak-coffee-app-laser.webp',
+        image: '/images/peak-coffee-pcr-5.webp',
         label: 'Laser-Cut Wood Signage',
+      },
+      {
+        image: '/images/peak-coffee-pcr-6.webp',
+        label: 'Branded Serving Experience',
+      },
+      {
+        image: '/images/peak-coffee-pcr-4.webp',
+        label: 'Digital Menu Display',
       },
       {
         image: '/images/peak-coffee-app-insta.webp',
@@ -290,12 +299,12 @@ export const projectDataMap: Record<string, ProjectData> = {
     ],
     results: {
       summary:
-        'Peak Coffee Roasters launched with a fully realized brand identity that carries consistently across every customer touchpoint — from the first Instagram impression to the cup in hand.',
+        'Peak Coffee Roasters launched with a fully realized brand identity system — one that carries consistently from the first Instagram impression to the cup in hand, and every touchpoint in between.',
       metrics: [
         {
           value: '50+',
           label: 'Brand Assets Delivered',
-          detail: 'Logo suite, packaging, templates & more',
+          detail: 'Logo suite, guidelines, packaging & more',
         },
         {
           value: '10+',
