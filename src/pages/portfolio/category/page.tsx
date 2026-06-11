@@ -744,7 +744,7 @@ const categoryDataMap = {
         title: 'Peak Coffee Roasters',
         description:
           'Full brand identity and packaging system for a specialty coffee roaster — logo suite, bean bags, cups, menus, tasting cards, stickers, and laser-cut signage.',
-        image: '/images/peak-coffee-hero.jpg',
+        image: '/images/peak-coffee-hero.webp',
         slug: 'peak-coffee-roasters',
       },
     ],

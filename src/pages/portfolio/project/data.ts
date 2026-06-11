@@ -192,7 +192,7 @@ export const projectDataMap: Record<string, ProjectData> = {
     timeline: '10 Weeks',
     industry: 'Food & Beverage',
     scope: 'Full Brand Identity & Packaging',
-    heroImage: '/images/peak-coffee-hero.jpg',
+    heroImage: '/images/peak-coffee-hero.webp',
     challenge: {
       heading: 'Standing out in a saturated specialty coffee market',
       body:
@@ -205,17 +205,17 @@ export const projectDataMap: Record<string, ProjectData> = {
     },
     logos: [
       {
-        image: '/images/peak-coffee-logo-primary.jpg',
+        image: '/images/peak-coffee-logo-primary.webp',
         label: 'Primary Logo',
         bg: 'bg-white',
       },
       {
-        image: '/images/peak-coffee-logo-alt.jpg',
+        image: '/images/peak-coffee-logo-alt.webp',
         label: 'Alternate Mark',
         bg: 'bg-[#F5EFE6]',
       },
       {
-        image: '/images/peak-coffee-logo-dark.jpg',
+        image: '/images/peak-coffee-logo-dark.webp',
         label: 'Dark Version',
         bg: 'bg-[#1C1209]',
       },
@@ -248,43 +248,43 @@ export const projectDataMap: Record<string, ProjectData> = {
     ],
     applications: [
       {
-        image: '/images/peak-coffee-app-cups.jpg',
+        image: '/images/peak-coffee-app-cups.webp',
         label: 'Branded Coffee Cups',
       },
       {
-        image: '/images/peak-coffee-app-beanbag.jpg',
+        image: '/images/peak-coffee-app-beanbag.webp',
         label: 'Bean Bag Packaging',
       },
       {
-        image: '/images/peak-coffee-app-paperbag.jpg',
+        image: '/images/peak-coffee-app-paperbag.webp',
         label: 'Paper Bag',
       },
       {
-        image: '/images/peak-coffee-app-menu.jpg',
+        image: '/images/peak-coffee-app-menu.webp',
         label: 'Café Menu',
       },
       {
-        image: '/images/peak-coffee-app-tasting-card.jpg',
+        image: '/images/peak-coffee-app-tasting-card.webp',
         label: 'Tasting Card',
       },
       {
-        image: '/images/peak-coffee-app-stickers.jpg',
+        image: '/images/peak-coffee-app-stickers.webp',
         label: 'Sticker Suite',
       },
       {
-        image: '/images/peak-coffee-app-tissue.jpg',
+        image: '/images/peak-coffee-app-tissue.webp',
         label: 'Tissue & Greaseproof Paper',
       },
       {
-        image: '/images/peak-coffee-app-laser.jpg',
+        image: '/images/peak-coffee-app-laser.webp',
         label: 'Laser-Cut Wood Signage',
       },
       {
-        image: '/images/peak-coffee-app-insta.jpg',
+        image: '/images/peak-coffee-app-insta.webp',
         label: 'Instagram Post Templates',
       },
       {
-        image: '/images/peak-coffee-app-id.jpg',
+        image: '/images/peak-coffee-app-id.webp',
         label: 'Company ID',
       },
     ],
