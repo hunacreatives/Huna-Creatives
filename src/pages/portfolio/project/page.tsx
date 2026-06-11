@@ -345,7 +345,8 @@ const ProjectPage = () => {
                     <img
                       src={app.image}
                       alt={app.label}
-                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      style={{ objectPosition: app.objectPosition ?? 'top' }}
                     />
                   </div>
                   <div

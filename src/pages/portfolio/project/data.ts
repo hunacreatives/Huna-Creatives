@@ -19,7 +19,7 @@ export interface ProjectData {
     fonts: { role: string; family: string; weights: string; sample: string }[];
   };
   colors: { name: string; hex: string }[];
-  applications: { image: string; label: string }[];
+  applications: { image: string; label: string; objectPosition?: string }[];
   results: {
     summary: string;
     metrics: { value: string; label: string; detail: string }[];
@@ -279,6 +279,7 @@ export const projectDataMap: Record<string, ProjectData> = {
       {
         image: '/images/peak-coffee-pcr-5.webp',
         label: 'Laser-Cut Wood Signage',
+        objectPosition: 'center',
       },
       {
         image: '/images/peak-coffee-pcr-6.webp',
@@ -287,6 +288,7 @@ export const projectDataMap: Record<string, ProjectData> = {
       {
         image: '/images/peak-coffee-pcr-4.webp',
         label: 'Digital Menu Display',
+        objectPosition: 'center',
       },
       {
         image: '/images/peak-coffee-app-insta.webp',
