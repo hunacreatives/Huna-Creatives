@@ -8,7 +8,7 @@ import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
 import { getSetting } from '@/lib/settings';
-import { localToday } from '@/lib/formatUtils';
+import { localToday, slugify } from '@/lib/formatUtils';
 import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/TaskDetailPanel';
 import { uploadFileToDrive } from '@/lib/driveUpload';
@@ -1743,8 +1743,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <p className="text-xs text-gray-400 truncate">{internalProject ? 'Internal Project' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                 </div>
                 <button
-                  onClick={() => { const url = `${window.location.origin}/hub/admin/projects?w=${activeId}&ws=1`; navigator.clipboard.writeText(url); }}
-                  title="Copy workspace link"
+                  onClick={() => {
+                    const slug = (p as any).slug || slugify(p.client_name);
+                    const url = `${window.location.origin}/hub/admin/project/${slug}`;
+                    navigator.clipboard.writeText(url);
+                  }}
+                  title="Copy project link"
                   className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer transition-all shadow-sm flex-shrink-0">
                   <i className="ri-link text-base"></i>
                 </button>

@@ -8,7 +8,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import { DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS, DEMO_CONTRACTOR_TEAM } from '@/lib/demoData';
 import TaskDetailPanel from '@/pages/hub/components/TaskDetailPanel';
-import { localToday } from '@/lib/formatUtils';
+import { localToday, slugify } from '@/lib/formatUtils';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeTaskAssigneePayload } from '@/lib/taskAssignments';
@@ -56,6 +56,7 @@ interface ProjectRow {
     deadline: string | null;
     notes: string | null;
     drive_url: string | null;
+    slug: string | null;
     hub_project_payments: { amount: number }[];
     hub_project_costs: { amount: number }[];
   };
@@ -1249,7 +1250,7 @@ export default function ContractorProjectsPage() {
           { data: paymentsData },
           { data: costsData },
         ] = await Promise.all([
-          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url').in('id', projectIds),
+          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, slug').in('id', projectIds),
           supabase.from('hub_project_contractor_payouts').select('id, amount, paid_at, notes, receipt_url, project_contractor_id').in('project_contractor_id', pcIds),
           supabase.from('hub_project_payments').select('amount, project_id').in('project_id', projectIds),
           supabase.from('hub_project_costs').select('amount, project_id').in('project_id', projectIds),
@@ -1877,10 +1878,19 @@ export default function ContractorProjectsPage() {
             className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
             <i className="ri-arrow-left-s-line text-base"></i>
           </button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-gray-900 truncate leading-tight">{wsProject.project_name}</p>
             <p className="text-xs text-gray-400 truncate">{wsIsInternal ? 'Internal Project' : wsProject.client_name}{wsProject.service ? ` · ${wsProject.service}` : ''}</p>
           </div>
+          <button
+            onClick={() => {
+              const slug = wsProject.slug || slugify(wsProject.client_name);
+              navigator.clipboard.writeText(`${window.location.origin}/hub/contractor/project/${slug}`);
+            }}
+            title="Copy project link"
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer transition-all shadow-sm flex-shrink-0">
+            <i className="ri-link text-base"></i>
+          </button>
         </div>
       ) : clientWorkspace ? (
         <div className="flex items-center gap-3 min-w-0">
