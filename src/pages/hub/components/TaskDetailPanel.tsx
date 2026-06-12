@@ -7,30 +7,61 @@ import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeChecklistItems, 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const LINK_STYLE = 'color:#1d4ed8;text-decoration:underline';
+const LINK_ATTRS = `target="_blank" rel="noopener noreferrer" style="${LINK_STYLE}"`;
+
+function autoLinkUrls(text: string): string {
+  // Match https?:// URLs or bare www. addresses not already inside an <a> tag
+  return text.replace(
+    /(?<!href=["'])(?<!")(https?:\/\/[^\s<>"]+|(?<![/\w])www\.[a-zA-Z0-9][^\s<>"]*)/g,
+    (match) => {
+      const href = match.startsWith('http') ? match : `https://${match}`;
+      return `<a href="${href}" ${LINK_ATTRS}>${match}</a>`;
+    },
+  );
+}
+
 function renderCommentBody(body: string): { html: string; isHtml: boolean } {
   const hasHtml = /<[a-z][\s\S]*?>/i.test(body);
   if (hasHtml) {
-    // Sanitize: strip event handlers and javascript: hrefs, keep everything else
     const safe = body
       .replace(/\s+on\w+\s*=\s*(["'])[^"']*\1/gi, '')
       .replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"');
-    // Auto-link bare URLs not already inside an <a> tag
-    const linked = safe.replace(/(?<!href=["'])(?<!">)(https?:\/\/[^\s<>"]+)/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#1d4ed8;text-decoration:underline">$1</a>');
     return {
-      html: linked.replace(/(@[\w]+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>'),
+      html: autoLinkUrls(safe).replace(/(@[\w]+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>'),
       isHtml: true,
     };
   }
-  // Plain-text path — escape then apply lightweight markdown + auto-link URLs
   const html = body
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#1d4ed8;text-decoration:underline">$1</a>')
+    .replace(/(https?:\/\/[^\s<>"]+|(?<![/\w])www\.[a-zA-Z0-9][^\s<>"]*)/g, (match) => {
+      const href = match.startsWith('http') ? match : `https://${match}`;
+      return `<a href="${href}" ${LINK_ATTRS}>${match}</a>`;
+    })
     .replace(/(@\w+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\[color:(#[0-9a-fA-F]{3,6}|\w+)\](.*?)\[\/color\]/g, '<span style="color:$1">$2</span>');
   return { html, isHtml: false };
+}
+
+function renderDescription(body: string): string {
+  const hasHtml = /<[a-z][\s\S]*?>/i.test(body);
+  if (hasHtml) {
+    const safe = body
+      .replace(/\s+on\w+\s*=\s*(["'])[^"']*\1/gi, '')
+      .replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"')
+      // Ensure existing <a> tags open in a new tab
+      .replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ');
+    return autoLinkUrls(safe);
+  }
+  return body
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br/>')
+    .replace(/(https?:\/\/[^\s<>"]+|(?<![/\w])www\.[a-zA-Z0-9][^\s<>"]*)/g, (match) => {
+      const href = match.startsWith('http') ? match : `https://${match}`;
+      return `<a href="${href}" ${LINK_ATTRS}>${match}</a>`;
+    });
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -1246,7 +1277,7 @@ export default function TaskDetailPanel({
             ) : (
               <div className="text-sm text-gray-600 leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-gray-100 [&_img]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1">
                 {description
-                  ? <div dangerouslySetInnerHTML={{ __html: description.replace(/\n/g, '<br/>') }} />
+                  ? <div dangerouslySetInnerHTML={{ __html: renderDescription(description) }} />
                   : <span className="text-gray-400 italic">No description</span>}
               </div>
             )}
