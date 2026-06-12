@@ -8,7 +8,7 @@ import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { getSetting } from '@/lib/settings';
 import { getPeriods } from '@/lib/formatUtils';
 import { DEMO_ATTENDANCE, DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_INVOICES, DEMO_DASHBOARD } from '@/lib/demoData';
-import { mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { mergeLiveAttendanceIntoDailyHours, fetchPayrollTotal } from '@/lib/payrollUtils';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -219,7 +219,9 @@ export default function AdminDashboardPage() {
         .select('computed_total')
         .eq('period_start', cutoffStart)
         .maybeSingle();
-      const payrollTotal = cacheRow?.computed_total ?? 0;
+      const payrollTotal = (cacheRow?.computed_total != null && cacheRow.computed_total > 0)
+        ? cacheRow.computed_total
+        : await fetchPayrollTotal(cutoffStart, cutoffEnd, parseFloat(usdRateStr || '56')).catch(() => 0);
 
       if (!slackResult.error && slackResult.data?.attendance) {
         setAttendance(slackResult.data.attendance);
