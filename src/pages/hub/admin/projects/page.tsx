@@ -1745,7 +1745,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <button
                   onClick={() => {
                     const slug = (p as any).slug || slugify(p.client_name);
-                    const url = `${window.location.origin}/hub/admin/project/${slug}`;
+                    const url = `https://hunacreatives.com/hub/admin/project/${slug}`;
                     navigator.clipboard.writeText(url);
                   }}
                   title="Copy project link"

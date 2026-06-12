@@ -1885,7 +1885,7 @@ export default function ContractorProjectsPage() {
           <button
             onClick={() => {
               const slug = wsProject.slug || slugify(wsProject.client_name);
-              navigator.clipboard.writeText(`${window.location.origin}/hub/contractor/project/${slug}`);
+              navigator.clipboard.writeText(`https://hunacreatives.com/hub/contractor/project/${slug}`);
             }}
             title="Copy project link"
             className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer transition-all shadow-sm flex-shrink-0">
