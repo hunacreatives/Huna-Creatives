@@ -214,14 +214,7 @@ export default function AdminDashboardPage() {
         supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').gt('balance', 0).eq('settled', false).order('sent_at', { ascending: false }),
         supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
       ]);
-      const { data: cacheRow } = await supabase
-        .from('hub_payroll_cache')
-        .select('computed_total')
-        .eq('period_start', cutoffStart)
-        .maybeSingle();
-      const payrollTotal = (cacheRow?.computed_total != null && cacheRow.computed_total > 0)
-        ? cacheRow.computed_total
-        : await fetchPayrollTotal(cutoffStart, cutoffEnd, parseFloat(usdRateStr || '56')).catch(() => 0);
+      const payrollTotal = await fetchPayrollTotal(cutoffStart, cutoffEnd, parseFloat(usdRateStr || '56')).catch(() => 0);
 
       if (!slackResult.error && slackResult.data?.attendance) {
         setAttendance(slackResult.data.attendance);

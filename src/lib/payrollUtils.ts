@@ -237,7 +237,7 @@ export function computeSplitFixedAccrual(params: {
 }
 
 export async function fetchPayrollTotal(periodStart: string, periodEnd: string, usdRate = 56): Promise<number> {
-  const [contractorsRes, hoursRes] = await Promise.all([
+  const [contractorsRes, hoursRes, paidPayoutsRes] = await Promise.all([
     supabase
       .from('hub_users')
       .select('id, full_name, role, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days')
@@ -248,6 +248,11 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
       .select('user_id, hours_capped, overtime_hours, date')
       .gte('date', periodStart)
       .lte('date', periodEnd),
+    supabase
+      .from('hub_payouts')
+      .select('contractor_id, payment_date')
+      .eq('cutoff_start', periodStart)
+      .eq('status', 'paid'),
   ]);
 
   const contractors = (contractorsRes.data || []).filter((c: any) =>
@@ -255,10 +260,18 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
     (!c.start_date || c.start_date <= periodEnd)
   );
 
+  // Mirror payroll page: skip hours on or before payment_date for already-paid contractors
+  const paidPaymentDateMap: Record<string, string> = {};
+  for (const p of paidPayoutsRes.data || []) {
+    if (p.payment_date) paidPaymentDateMap[p.contractor_id] = p.payment_date;
+  }
+
   const hoursByDate: Record<string, Record<string, number>> = {};
   const overtimeByDate: Record<string, Record<string, number>> = {};
   const hoursMap: Record<string, { capped: number; overtime: number }> = {};
   for (const h of consolidateDailyHoursByUserDate((hoursRes.data || []) as DailyHoursRow[])) {
+    const paymentDate = paidPaymentDateMap[h.user_id];
+    if (paymentDate && h.date <= paymentDate) continue;
     if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, overtime: 0 };
     hoursMap[h.user_id].capped += h.hours_capped;
     hoursMap[h.user_id].overtime += h.overtime_hours || 0;
