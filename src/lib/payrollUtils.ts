@@ -92,6 +92,8 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
     merged.set(key, { ...row });
   }
 
+  // Accumulate live hours across multiple sessions for the same user+date
+  const liveAccum = new Map<string, { userId: string; date: string; hours: number; ot: number }>();
   for (const item of attendance || []) {
     const userId = item.hub_user_id;
     if (!userId) continue;
@@ -102,18 +104,28 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
 
     const attendanceDate = inferAttendanceDate(item, targetDate);
     const key = `${userId}::${attendanceDate}`;
+    const acc = liveAccum.get(key);
+    if (acc) {
+      acc.hours += liveHours;
+      acc.ot += liveOt;
+    } else {
+      liveAccum.set(key, { userId, date: attendanceDate, hours: liveHours, ot: liveOt });
+    }
+  }
+
+  for (const [key, live] of liveAccum) {
     const existing = merged.get(key);
 
     // Never overwrite a manually-edited record with live Slack data
     if (existing?.is_manual) continue;
 
     merged.set(key, {
-      ...(existing || { user_id: userId, date: attendanceDate }),
-      user_id: userId,
-      date: attendanceDate,
-      hours_raw: Math.max(Number(existing?.hours_raw || 0), liveHours),
-      hours_capped: Math.max(Number(existing?.hours_capped || 0), liveHours),
-      overtime_hours: Math.max(Number(existing?.overtime_hours || 0), liveOt),
+      ...(existing || { user_id: live.userId, date: live.date }),
+      user_id: live.userId,
+      date: live.date,
+      hours_raw: Math.max(Number(existing?.hours_raw || 0), live.hours),
+      hours_capped: Math.max(Number(existing?.hours_capped || 0), live.hours),
+      overtime_hours: Math.max(Number(existing?.overtime_hours || 0), live.ot),
     } as T);
   }
 
