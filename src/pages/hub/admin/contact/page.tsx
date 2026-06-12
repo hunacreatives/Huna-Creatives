@@ -88,12 +88,25 @@ export default function ContactSubmissionsPage() {
   useEffect(() => { fetchSubmissions(); }, [filter]);
   useEffect(() => { if (tab === 'sent') fetchReplies(); }, [tab]);
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const updateStatus = async (id: number, status: SubmissionStatus) => {
     setUpdating(true);
     await supabase.from('contact_submissions').update({ status }).eq('id', id);
     setUpdating(false);
     setSelected((prev) => prev ? { ...prev, status } : prev);
     setSubmissions((prev) => prev.map((s) => s.id === id ? { ...s, status } : s));
+  };
+
+  const deleteSubmission = async (id: number) => {
+    setDeleting(true);
+    await supabase.from('contact_submissions').delete().eq('id', id);
+    setDeleting(false);
+    setConfirmDeleteId(null);
+    setSelected(null);
+    setComposing(false);
+    setSubmissions((prev) => prev.filter((s) => s.id !== id));
   };
 
   const openCompose = (s: ContactSubmission) => {
@@ -488,6 +501,35 @@ export default function ContactSubmissionsPage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-gray-100">
+                    {confirmDeleteId === selected.id ? (
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-500 flex-1">Delete this message?</p>
+                        <button
+                          onClick={() => deleteSubmission(selected.id)}
+                          disabled={deleting}
+                          className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {deleting ? 'Deleting…' : 'Delete'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(selected.id)}
+                        className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                      >
+                        <i className="ri-delete-bin-line" />
+                        Delete message
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
