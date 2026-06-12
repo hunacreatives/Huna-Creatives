@@ -1547,7 +1547,11 @@ export default function TaskDetailPanel({
                           <a href={att.url} target="_blank" rel="noopener noreferrer"
                             className="text-xs font-medium text-gray-700 hover:text-[#FF6B35] truncate block">{att.name}</a>
                         )}
-                        {att.size && <p className="text-[10px] text-gray-400">{fmtBytes(att.size)}</p>}
+                        <p className="text-[10px] text-gray-400">
+                          {att.size ? `${fmtBytes(att.size)} · ` : ''}
+                          {new Date(att.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+                          {new Date(att.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </p>
                       </div>
                       {canPreview && (
                         <button
