@@ -14,6 +14,6 @@ create policy "Admins can manage contact submissions"
   on contact_submissions for all
   using (
     exists (
-      select 1 from hub_users where id = auth.uid() and role = 'admin'
+      select 1 from hub_users where id = auth.uid() and role in ('admin', 'owner')
     )
   );

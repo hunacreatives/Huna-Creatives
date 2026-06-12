@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 interface FooterProps {
   isDark?: boolean;
+  forceLight?: boolean;
   compact?: boolean;
 }
 
@@ -23,7 +24,7 @@ const socials = [
 
 const services = ['Brand Identity', 'Digital Design', 'Content Creation', 'Creative Strategy'];
 
-export default function Footer({ isDark = false, compact = false }: FooterProps) {
+export default function Footer({ isDark = false, forceLight = false, compact = false }: FooterProps) {
   const [currentPath, setCurrentPath] = useState('');
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function Footer({ isDark = false, compact = false }: FooterProps)
   }, []);
 
   const isPortfolioPage = currentPath.startsWith('/portfolio');
-  const shouldBeDark = isDark || isPortfolioPage;
+  const shouldBeDark = !forceLight && (isDark || isPortfolioPage);
 
   const borderColor = shouldBeDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
   const mutedColor = shouldBeDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)';
@@ -82,18 +83,6 @@ export default function Footer({ isDark = false, compact = false }: FooterProps)
           <img src={logoSrc} alt="Huna Creatives" className="h-7 w-auto" />
         </a>
 
-        {/* Nav grid */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 mb-6">
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className={`text-xs font-medium transition-colors cursor-pointer hover:text-orange-500 ${shouldBeDark ? 'text-white/50' : 'text-black/50'}`}
-            >
-              {link.label}
-            </a>
-          ))}
-        </div>
 
         {/* Divider */}
         <div className="h-px mb-5" style={{ background: borderColor }} />
@@ -167,22 +156,6 @@ export default function Footer({ isDark = false, compact = false }: FooterProps)
             </span>
           </div>
 
-          {/* Nav links */}
-          <nav className="flex items-center gap-5">
-            {navLinks.map((link, i) => (
-              <span key={link.href} className="flex items-center gap-5">
-                <a
-                  href={link.href}
-                  className={`text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer hover:text-orange-500 ${shouldBeDark ? 'text-white/45' : 'text-black/45'}`}
-                >
-                  {link.label}
-                </a>
-                {i < navLinks.length - 1 && (
-                  <span className="w-px h-3 flex-shrink-0" style={{ background: borderColor }} />
-                )}
-              </span>
-            ))}
-          </nav>
 
           {/* Contact + socials */}
           <div className="flex items-center gap-4 flex-shrink-0">

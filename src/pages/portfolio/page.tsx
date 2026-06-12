@@ -98,9 +98,10 @@ function CategoriesHoverReveal() {
               What we <span className="gradient-text-animated">specialize</span> in.
             </h2>
           </div>
-          <p className="text-white/30 text-xs md:text-sm max-w-sm leading-relaxed text-right">
-            Five core disciplines, one unified creative vision. Click any category to explore.
-          </p>
+          <div className="text-white/30 text-xs md:text-sm text-right">
+            <p>Five core disciplines, one unified creative vision.</p>
+            <p>Click any category to explore.</p>
+          </div>
         </div>
 
         {/* Desktop: split layout */}
@@ -254,37 +255,20 @@ export default function PortfolioPage() {
   });
 
   const marqueeRef = useRef<HTMLElement>(null);
-  const cursorGlowRef = useRef<HTMLDivElement>(null);
+  const cursorGlowRef = useRef<HTMLDivElement>(null); // kept ref to avoid JSX error on hidden div
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  // Direct DOM cursor glow — no setState, zero re-renders
-  const handlePageMouseMove = (e: React.MouseEvent) => {
-    const glow = cursorGlowRef.current;
-    const marquee = marqueeRef.current;
-    if (!glow) return;
-    glow.style.left = `${e.clientX - 250}px`;
-    glow.style.top = `${e.clientY - 250}px`;
-    if (marquee) {
-      const rect = marquee.getBoundingClientRect();
-      glow.style.opacity = e.clientY > rect.bottom ? '1' : '0';
-    }
-  };
-
   return (
     <div
       className="min-h-screen bg-[#0a0a0a] font-body overflow-x-hidden"
-      onMouseMove={handlePageMouseMove}
-      onMouseLeave={() => {
-        if (cursorGlowRef.current) cursorGlowRef.current.style.opacity = '0';
-      }}
     >
-      {/* Cursor glow — controlled via ref, never triggers re-render */}
+      {/* Cursor glow removed */}
       <div
         ref={cursorGlowRef}
-        className="fixed rounded-full pointer-events-none z-[999]"
+        className="hidden"
         style={{
           width: '500px',
           height: '500px',

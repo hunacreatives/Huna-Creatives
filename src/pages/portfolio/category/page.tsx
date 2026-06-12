@@ -18,6 +18,7 @@ const socialClients = [
     logo: '/images/portfolio-eq-logo.webp',
     logoBg: '#1a1a1a',
     dark: true,
+    sectionBg: '#111111',
     description:
       'In the competitive world of sport horses, presentation is everything. For Equestrian International, we designed content that speaks directly to serious buyers and breeders—spotlighting world-class horses, showcasing seller credibility, and creating a premium feed aesthetic that reflects the prestige of the industry. Every post is tailored to attract the right audience and inspire meaningful inquiries.',
     images: [
@@ -33,7 +34,8 @@ const socialClients = [
     name: 'Everyone by One',
     logo: '/images/portfolio-ebo-logo.webp',
     logoBg: '#f7f5f2',
-    dark: false,
+    dark: true,
+    sectionBg: '#1a1a1a',
     description:
       "Parents want reassurance when it comes to their children's dental health. For Everyone By One, we create educational, parent‑friendly content that answers real‑life questions—from pacifier habits to first dental visits—while building a warm, trustworthy online presence that feels like a friendly guide, not a sales pitch.",
     images: [
@@ -50,6 +52,7 @@ const socialClients = [
     logo: '/images/portfolio-tct-logo.webp',
     logoBg: '#1a1a1a',
     dark: true,
+    sectionBg: '#111111',
     description:
       "Mortgages don't have to feel intimidating. With The Cowart Team, our goal was to turn complex financial concepts into approachable, trust‑building content. We create a balance of educational posts, client success stories, and timely market insights—making their feed both a resource hub and a brand people trust with their biggest financial decision.",
     images: [
@@ -65,7 +68,8 @@ const socialClients = [
     name: 'Blue Collar Nutrition',
     logo: '/images/portfolio-bcn-logo.webp',
     logoBg: '#f7f5f2',
-    dark: false,
+    dark: true,
+    sectionBg: '#141414',
     description:
       "For Blue Collar Nutrition, our focus is on creating bold, high‑impact content that matches the brand's energy and grit. We develop a mix of product‑centered promotions, seasonal campaigns, and lifestyle‑driven content designed to connect with their community of athletes and everyday grinders. From supplement spotlights to campaign launches, every piece of content reinforces their identity as a trusted, no‑nonsense brand built on performance, consistency, and strength.",
     images: [
@@ -137,7 +141,7 @@ const GraphicDesignLayout = ({ category }) => {
                   className="text-[11px] font-semibold tracking-widest uppercase mb-3 block"
                   style={{ color: 'rgba(249,115,22,0.85)' }}
                 >
-                  {sec.number} — Graphic Design
+                  {sec.number} Graphic Design
                 </span>
                 <h2
                   className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-5 leading-tight"
@@ -181,7 +185,7 @@ const GraphicDesignLayout = ({ category }) => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10 md:mb-12">
             <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: 'rgba(249,115,22,0.85)' }}>
-              04 — Menus
+              04 Menus
             </span>
             <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white mb-3 md:mb-4">More Menu Designs</h2>
             <p className="text-white/35 text-sm max-w-lg mx-auto">From ramen shops to cocktail bars — menus designed to sell the experience.</p>
@@ -209,7 +213,7 @@ const GraphicDesignLayout = ({ category }) => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10 md:mb-12 lg:mb-16">
             <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: 'rgba(249,115,22,0.85)' }}>
-              05 — Our Work
+              05 Our Work
             </span>
             <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white mb-3 md:mb-4">Past Flyers &amp; Designs</h2>
             <p className="text-white/35 text-sm max-w-lg mx-auto">Bold, intentional designs built to make an impression.</p>
@@ -376,7 +380,7 @@ const EmailMarketingLayout = ({ category }) => {
             <div className="absolute inset-0 flex items-center px-6 md:px-10 lg:px-16">
               <div className="max-w-lg">
                 <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: 'rgba(210,150,90,0.9)' }}>
-                  02 — Why Email
+                  02 Why Email
                 </span>
                 <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">
                   The Distinct Advantages of Email Marketing Services
@@ -427,7 +431,7 @@ const EmailMarketingLayout = ({ category }) => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10 md:mb-12">
             <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: '#c4572a' }}>
-              03 — Newsletter Samples
+              03 Newsletter Samples
             </span>
             <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-3 md:mb-4 leading-tight" style={{ color: '#1a1a1a' }}>
               Campaigns That Convert
@@ -817,95 +821,49 @@ const SocialMediaLayout = ({ category }) => {
       </section>
 
       {/* Client sections */}
-      {clients.map((client, idx) => {
-        const isDark = client.dark;
-        return (
-          <section
-            key={client.id}
-            className="relative py-16 md:py-20 px-4 md:px-6"
-            style={{ background: isDark ? '#111111' : '#f7f5f2' }}
-          >
-            {/* top divider */}
-            <div
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px]"
-              style={{
-                background: isDark
-                  ? 'linear-gradient(90deg, transparent, rgba(249,115,22,0.25), transparent)'
-                  : 'linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)',
-              }}
-            />
-
-            <div className="max-w-7xl mx-auto">
-              {/* Header row */}
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 md:gap-8 mb-10 md:mb-12">
-                {/* Left: number + title + description */}
-                <div className="flex-1 max-w-xl">
-                  <span
-                    className="text-[11px] font-semibold tracking-widest uppercase mb-3 block"
-                    style={{ color: isDark ? 'rgba(249,115,22,0.8)' : 'rgba(180,100,40,0.9)' }}
-                  >
-                    {idx + 1 < 10 ? `0${idx + 1}` : idx + 1} — Brand
-                  </span>
-                  <h2
-                    className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-5 leading-tight"
-                    style={{ color: isDark ? '#ffffff' : '#1a1a1a' }}
-                  >
-                    {client.name}
-                  </h2>
-                  <p
-                    className="text-sm leading-relaxed"
-                    style={{ color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.55)' }}
-                  >
-                    {client.description}
-                  </p>
-                </div>
-
-                {/* Right: logo */}
-                <div
-                  className="flex-shrink-0 flex items-center justify-center rounded-xl md:rounded-2xl p-5 md:p-6 w-40 h-24 md:w-48 md:h-28 lg:w-56 lg:h-32"
-                  style={{
-                    background: client.logoBg,
-                    border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                  }}
-                >
-                  <img
-                    src={client.logo}
-                    alt={`${client.name} logo`}
-                    className="max-w-full max-h-full object-contain"
-                  />
-                </div>
+      {clients.map((client, idx) => (
+        <section
+          key={client.id}
+          className="relative py-16 md:py-20 px-4 md:px-6 border-t border-white/5"
+          style={{ background: client.sectionBg ?? '#0e1420' }}
+        >
+          <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 md:gap-8 mb-10 md:mb-12">
+              <div className="flex-1 max-w-xl">
+                <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block text-[#FF6B35]">
+                  {idx + 1 < 10 ? `0${idx + 1}` : idx + 1} Brand
+                </span>
+                <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-5 leading-tight text-white">
+                  {client.name}
+                </h2>
+                <p className="text-sm leading-relaxed text-gray-400">
+                  {client.description}
+                </p>
               </div>
 
-              {/* Image grid — 4 columns on desktop, 2 on mobile */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                {client.images.map((img, i) => (
-                  <div
-                    key={i}
-                    className="group relative overflow-hidden rounded-lg md:rounded-xl aspect-square"
-                    style={{
-                      border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
-                    }}
-                  >
-                    <img
-                      src={img}
-                      alt={`${client.name} post ${i + 1}`}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      style={{
-                        background: isDark
-                          ? 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)'
-                          : 'linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%)',
-                      }}
-                    />
-                  </div>
-                ))}
+              <div
+                className="flex-shrink-0 flex items-center justify-center rounded-xl md:rounded-2xl p-5 md:p-6 w-40 h-24 md:w-48 md:h-28 lg:w-56 lg:h-32"
+                style={{ background: client.logoBg, border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <img src={client.logo} alt={`${client.name} logo`} className="max-w-full max-h-full object-contain" />
               </div>
             </div>
-          </section>
-        );
-      })}
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              {client.images.map((img, i) => (
+                <div
+                  key={i}
+                  className="group relative overflow-hidden rounded-lg md:rounded-xl aspect-square"
+                  style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <img src={img} alt={`${client.name} post ${i + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ))}
     </>
   );
 };
@@ -1042,7 +1000,7 @@ const PortfolioCategoryPage = () => {
 
       <main className="relative z-10">
         {/* ── HERO ── */}
-        <section className="relative pt-24 md:pt-32 pb-12 md:pb-16 lg:pb-24 px-4 md:px-6 overflow-hidden">
+        <section className="relative pt-20 md:pt-32 pb-8 md:pb-16 lg:pb-24 px-4 md:px-6 overflow-hidden">
           <div
             className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px]"
             style={{ background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.5), transparent)' }}
@@ -1092,7 +1050,7 @@ const PortfolioCategoryPage = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3 md:gap-4 animate-fade-in-up opacity-0-init delay-300">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 animate-fade-in-up opacity-0-init delay-300">
                 {[
                   { label: 'Projects', value: category.stats.projects, icon: 'ri-stack-line' },
                   { label: 'Satisfaction', value: category.stats.satisfaction, icon: 'ri-heart-line' },
@@ -1100,7 +1058,7 @@ const PortfolioCategoryPage = () => {
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="rounded-lg md:rounded-xl lg:rounded-2xl p-4 md:p-5 text-center transition-all duration-300 hover:-translate-y-1"
+                    className="rounded-lg md:rounded-xl lg:rounded-2xl p-3 sm:p-4 md:p-5 text-center transition-all duration-300 hover:-translate-y-1"
                     style={isDarkTheme ? {
                       background: 'rgba(255,255,255,0.04)',
                       border: '1px solid rgba(255,255,255,0.08)',
@@ -1125,19 +1083,19 @@ const PortfolioCategoryPage = () => {
                     }}
                   >
                     <div
-                      className="w-7 h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 flex items-center justify-center rounded-md md:rounded-lg mx-auto mb-2 md:mb-3"
+                      className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 flex items-center justify-center rounded-md md:rounded-lg mx-auto mb-1.5 sm:mb-2 md:mb-3"
                       style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(249,115,22,0.1))' }}
                     >
-                      <i className={`${stat.icon} text-orange-500 text-xs md:text-sm`} />
+                      <i className={`${stat.icon} text-orange-500 text-[10px] sm:text-xs md:text-sm`} />
                     </div>
                     <div
-                      className="text-lg md:text-xl lg:text-2xl font-bold font-display mb-1"
+                      className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold font-display mb-0.5 sm:mb-1"
                       style={{ color: isDarkTheme ? '#ffffff' : '#1a1a1a' }}
                     >
                       {stat.value}
                     </div>
                     <div
-                      className="text-[10px] md:text-[11px] whitespace-nowrap"
+                      className="text-[9px] sm:text-[10px] md:text-[11px] whitespace-nowrap"
                       style={{ color: isDarkTheme ? 'rgba(255,255,255,0.35)' : 'rgba(26,26,26,0.4)' }}
                     >
                       {stat.label}
@@ -1183,12 +1141,12 @@ const PortfolioCategoryPage = () => {
               </div>
 
               {category.projects.length > 0 ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                   {category.projects.map((project, index) => {
                     const cardContent = (
                       <>
                         <div
-                          className="relative overflow-hidden rounded-2xl mb-4 aspect-[3/4] border border-white/8"
+                          className="relative overflow-hidden rounded-xl sm:rounded-2xl mb-2 sm:mb-4 aspect-[3/4] border border-white/8"
                           style={{ background: 'rgba(255,255,255,0.03)' }}
                         >
                           <img
@@ -1213,12 +1171,12 @@ const PortfolioCategoryPage = () => {
                         </div>
 
                         <h3
-                          className="text-sm font-semibold text-white mb-1.5 leading-snug transition-all duration-300"
+                          className="text-xs sm:text-sm font-semibold text-white mb-1 sm:mb-1.5 leading-snug transition-all duration-300"
                           style={{ fontFamily: 'Montserrat, sans-serif' }}
                         >
                           {project.title}
                         </h3>
-                        <p className="text-white/35 text-xs leading-relaxed">{project.description}</p>
+                        <p className="text-white/35 text-[11px] sm:text-xs leading-relaxed hidden sm:block">{project.description}</p>
                       </>
                     );
 
@@ -1248,7 +1206,7 @@ const PortfolioCategoryPage = () => {
                     style={{ animation: `catFadeUp 0.6s ease-out ${category.projects.length * 0.08}s both` }}
                   >
                     <div
-                      className="relative overflow-hidden rounded-2xl mb-4 aspect-[3/4] flex flex-col items-center justify-center text-center p-8"
+                      className="relative overflow-hidden rounded-xl sm:rounded-2xl mb-2 sm:mb-4 aspect-[3/4] flex flex-col items-center justify-center text-center p-4 sm:p-8"
                       style={{
                         background: 'linear-gradient(145deg, rgba(239,68,68,0.06), rgba(249,115,22,0.03))',
                         border: '1px dashed rgba(249,115,22,0.25)',

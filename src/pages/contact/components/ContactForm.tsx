@@ -1,9 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+
+const SERVICES = [
+  'Brand Identity & Logo Design',
+  'Social Media Management',
+  'Content Creation & Photography',
+  'Website Design & Development',
+  'Email Marketing',
+  'Print & Collateral Design',
+  'Creative Strategy & Consulting',
+  'General Inquiry',
+];
 
 export default function ContactForm() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const preselectedService = searchParams.get('service') ?? '';
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [charCount, setCharCount] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
@@ -60,9 +74,7 @@ export default function ContactForm() {
       label: 'Address',
       icon: 'ri-map-pin-line',
       lines: [
-        'Unit XXXX Meridian Building,',
-        'Golam Drive, Brgy. Kasambagan,',
-        'Mabolo, Cebu City',
+        'Cebu City, Philippines',
       ],
     },
     {
@@ -73,7 +85,7 @@ export default function ContactForm() {
     {
       label: 'Email',
       icon: 'ri-mail-line',
-      lines: ['info@fsarchitects.ph'],
+      lines: ['contact@hunacreatives.com'],
     },
   ];
 
@@ -119,7 +131,7 @@ export default function ContactForm() {
 
       <div className="flex flex-col lg:flex-row gap-16 lg:gap-24">
 
-        {/* ── LEFT: Contact Info ── */}
+        {/* LEFT: Contact Info */}
         <div className="cf-left lg:w-5/12 flex flex-col">
           <div className="flex flex-col gap-8">
             {contactDetails.map(({ label, icon, lines }) => (
@@ -149,7 +161,7 @@ export default function ContactForm() {
           </div>
         </div>
 
-        {/* ── RIGHT: Form ── */}
+        {/* RIGHT: Form */}
         <div className="cf-right lg:w-7/12">
           {status === 'success' ? (
             <div className="border border-black/10 rounded-xl px-8 py-12 text-center flex flex-col items-center justify-center">
@@ -204,21 +216,19 @@ export default function ContactForm() {
                   className="text-xs text-black/40 tracking-wider uppercase"
                   style={{ fontFamily: 'Geist, sans-serif', letterSpacing: '0.1em' }}
                 >
-                  {t('contact_field_subject')}
+                  Service
                 </label>
                 <select
-                  name="subject"
+                  name="service"
                   required
                   className={`${inputClass} cursor-pointer`}
                   style={{ fontFamily: 'Geist, sans-serif' }}
-                  defaultValue=""
+                  defaultValue={SERVICES.includes(preselectedService) ? preselectedService : ''}
                 >
-                  <option value="" disabled>{t('contact_placeholder_subject')}</option>
-                  <option value="New Project">{t('contact_subject_new_project')}</option>
-                  <option value="Collaboration">{t('contact_subject_collaboration')}</option>
-                  <option value="Press & Media">{t('contact_subject_press')}</option>
-                  <option value="Careers">{t('contact_subject_careers')}</option>
-                  <option value="General Inquiry">{t('contact_subject_general')}</option>
+                  <option value="" disabled>What can we help you with?</option>
+                  {SERVICES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
                 </select>
               </div>
 
@@ -256,7 +266,7 @@ export default function ContactForm() {
               )}
 
               <div className="pt-2">
-                  <button
+                <button
                   type="submit"
                   disabled={status === 'sending' || charCount > 500}
                   className="px-8 py-3 rounded-full bg-black text-white text-xs tracking-widest uppercase hover:bg-black/80 transition-colors duration-300 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"

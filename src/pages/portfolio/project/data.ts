@@ -195,7 +195,7 @@ export const projectDataMap: Record<string, ProjectData> = {
     testimonial: {
       quote:
         "Huna Creatives didn't just design a logo — they gave The Second Haus a soul. Every detail, from the color palette to the hang tags, feels like it was made with so much care. I couldn't be happier.",
-      author: 'Mariana Voss',
+      author: 'Angelica L.',
       role: 'Founder, The Second Haus',
     },
   },
@@ -474,6 +474,7 @@ export const projectDataMap: Record<string, ProjectData> = {
       {
         image: '/images/peak-coffee-pcr-2.webp',
         label: 'Tissue & Greaseproof Paper',
+        objectPosition: 'top',
       },
       {
         image: '/images/peak-coffee-pcr-5.webp',
@@ -483,6 +484,7 @@ export const projectDataMap: Record<string, ProjectData> = {
       {
         image: '/images/peak-coffee-pcr-6.webp',
         label: 'Branded Serving Experience',
+        objectPosition: 'top',
       },
       {
         image: '/images/peak-coffee-pcr-4.webp',

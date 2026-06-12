@@ -552,10 +552,12 @@ export default function AdminPayrollPage() {
     const existing = payoutsMap[contractorId];
     if (!existing) return;
     setWorkflowLoading(true);
+    const row = rows.find(r => r.contractor.id === contractorId);
     await supabase.from('hub_payouts').update({
       status: 'paid',
       payment_date: new Date().toISOString().slice(0, 10),
       paid_at: new Date().toISOString(),
+      approved_hours: row?.cappedHours ?? existing.approved_hours ?? 0,
     }).eq('id', existing.id);
     // Fire payslip email (non-blocking — ignore failures)
     supabase.functions.invoke('send-payslip', { body: { payout_id: existing.id } }).catch(() => {});
@@ -909,7 +911,7 @@ export default function AdminPayrollPage() {
     const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
 
     // Payroll reads from hub_daily_hours, so sync Slack punches first for the live cutoff.
-    const [slackRes, contractorsRes, hoursRes] = await Promise.all([
+    const [slackRes, contractorsRes, hoursRes, paidPayoutsRes] = await Promise.all([
       isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
       supabase
         .from('hub_users')
@@ -921,7 +923,19 @@ export default function AdminPayrollPage() {
         .select('user_id, hours_capped, hours_raw, overtime_hours, date, is_manual')
         .gte('date', selectedPeriod.start)
         .lte('date', selectedPeriod.end),
+      supabase
+        .from('hub_payouts')
+        .select('contractor_id, payment_date')
+        .eq('cutoff_start', selectedPeriod.start)
+        .eq('status', 'paid'),
     ]);
+
+    // Map contractor_id → payment_date for already-paid payouts this period.
+    // Hours on or before payment_date are already settled — exclude them from the live count.
+    const paidPaymentDateMap: Record<string, string> = {};
+    for (const p of paidPayoutsRes.data || []) {
+      if (p.payment_date) paidPaymentDateMap[p.contractor_id] = p.payment_date;
+    }
 
     const eligibleContractors = (contractorsRes.data || []).filter((c: any) =>
       c.payment_type !== 'project_based' &&
@@ -941,6 +955,10 @@ export default function AdminPayrollPage() {
     const overtimeByDate: Record<string, Record<string, number>> = {};
     const hoursMap: Record<string, { capped: number; raw: number; overtime: number; days: number }> = {};
     for (const h of mergedHoursRows) {
+      // Skip hours already covered by a paid payout (on or before payment_date)
+      const paymentDate = paidPaymentDateMap[h.user_id];
+      if (paymentDate && h.date <= paymentDate) continue;
+
       if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, raw: 0, overtime: 0, days: 0 };
       hoursMap[h.user_id].capped += h.hours_capped || 0;
       hoursMap[h.user_id].raw += h.hours_raw || 0;
@@ -1526,6 +1544,8 @@ export default function AdminPayrollPage() {
               const displayPay = override?.pay !== undefined ? override.pay : r.pay;
               const displayHours = override?.hours !== undefined ? override.hours : r.cappedHours;
               const p = payoutsMap[c.id];
+              // If already paid but new hours exist (post-payment), reset to pending so admin can approve the new hours
+              const effectivePayout = (p?.status === 'paid' && r.cappedHours > 0) ? null : p;
               const adjs: { label: string; amount: number }[] = p?.adjustments || [];
               const adjTotal = adjs.reduce((s, i) => s + i.amount, 0);
               const displayOTHours = override?.otHours !== undefined ? override.otHours : r.overtimeHours;
@@ -1589,19 +1609,19 @@ export default function AdminPayrollPage() {
                   <div className="flex items-center justify-between pt-3 border-t border-gray-50">
                     {(() => {
                       if (isAutoPayrollContractor(c)) return <span className="text-xs text-emerald-600 font-medium">Auto Included</span>;
-                      if (!p || p.status === 'pending') return <span className="text-xs text-gray-400">Pending</span>;
+                      if (!effectivePayout || effectivePayout.status === 'pending') return <span className="text-xs text-gray-400">Pending</span>;
                       const cfg = {
                         submitted:   { label: 'Submitted',   cls: 'bg-amber-100 text-amber-700' },
                         hr_approved: { label: 'HR Approved', cls: 'bg-sky-100 text-sky-700' },
                         paid:        { label: 'Paid',        cls: 'bg-emerald-100 text-emerald-700' },
-                      }[p.status as string] || { label: p.status, cls: 'bg-gray-100 text-gray-500' };
+                      }[effectivePayout.status as string] || { label: effectivePayout.status, cls: 'bg-gray-100 text-gray-500' };
                       return (
                         <div className="flex items-center gap-1.5">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
-                          {p.status === 'paid' && p.payslip_sent_at && (
-                            <span title={`Receipt sent ${new Date(p.payslip_sent_at).toLocaleString()}`} className="text-emerald-400"><i className="ri-mail-check-line text-xs"></i></span>
+                          {effectivePayout.status === 'paid' && effectivePayout.payslip_sent_at && (
+                            <span title={`Receipt sent ${new Date(effectivePayout.payslip_sent_at).toLocaleString()}`} className="text-emerald-400"><i className="ri-mail-check-line text-xs"></i></span>
                           )}
-                          {p.status === 'paid' && !p.payslip_sent_at && (
+                          {effectivePayout.status === 'paid' && !effectivePayout.payslip_sent_at && (
                             <span title="Receipt email pending" className="text-amber-400"><i className="ri-mail-line text-xs"></i></span>
                           )}
                         </div>
@@ -1616,7 +1636,7 @@ export default function AdminPayrollPage() {
                         </>
                       ) : (
                         <>
-                          {!isAutoPayrollContractor(c) && p && p.status !== 'pending' && (
+                          {!isAutoPayrollContractor(c) && effectivePayout && effectivePayout.status !== 'pending' && (
                             <button onClick={() => setConfirmCancelId(c.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer">
                               <i className="ri-arrow-go-back-line text-sm"></i>
                             </button>
@@ -1624,11 +1644,11 @@ export default function AdminPayrollPage() {
                           {(() => {
                             const batchApproved = batch?.status === 'owner_approved';
                             if (isAutoPayrollContractor(c)) return null;
-                            if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
-                            if (batchApproved && p?.status === 'hr_approved') return (
+                            if (effectivePayout?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
+                            if (batchApproved && effectivePayout?.status === 'hr_approved') return (
                               <button onClick={() => markPaid(c.id)} disabled={workflowLoading || batch?.status === 'closed'} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
                             );
-                            if (!p || p.status === 'pending' || p.status === 'submitted') return (
+                            if (!effectivePayout || effectivePayout.status === 'pending' || effectivePayout.status === 'submitted') return (
                               <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || batch?.status === 'closed'} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Approve</button>
                             );
                             return null;
@@ -1701,6 +1721,7 @@ export default function AdminPayrollPage() {
                     const displayPay = override?.pay !== undefined ? override.pay : r.pay;
                     const displayHours = override?.hours !== undefined ? override.hours : r.cappedHours;
                     const p = payoutsMap[c.id];
+                    const effectivePayout = (p?.status === 'paid' && r.cappedHours > 0) ? null : p;
                     const adjs: { label: string; amount: number }[] = p?.adjustments || [];
                     const adjTotal = adjs.reduce((s: number, i: { label: string; amount: number }) => s + i.amount, 0);
                     const displayOTHours = override?.otHours !== undefined ? override.otHours : r.overtimeHours;
@@ -1820,19 +1841,19 @@ export default function AdminPayrollPage() {
                               <>
                                 {(() => {
                                   if (isAutoPayrollContractor(c)) return <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">Auto Included</span>;
-                                  if (!p || p.status === 'pending') return <span className="text-xs text-gray-400 font-medium">Pending</span>;
+                                  if (!effectivePayout || effectivePayout.status === 'pending') return <span className="text-xs text-gray-400 font-medium">Pending</span>;
                                   const cfg = {
                                     submitted:   { label: 'Submitted',   cls: 'bg-amber-100 text-amber-700' },
                                     hr_approved: { label: 'HR Approved', cls: 'bg-sky-100 text-sky-700' },
                                     paid:        { label: 'Paid',        cls: 'bg-emerald-100 text-emerald-700' },
-                                  }[p.status as string] || { label: p.status, cls: 'bg-gray-100 text-gray-500' };
+                                  }[effectivePayout.status as string] || { label: effectivePayout.status, cls: 'bg-gray-100 text-gray-500' };
                                   return (
                                     <div className="flex items-center gap-1">
                                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${cfg.cls}`}>{cfg.label}</span>
-                                      {p.status === 'paid' && p.payslip_sent_at && (
-                                        <span title={`Receipt sent ${new Date(p.payslip_sent_at).toLocaleString()}`} className="text-emerald-400"><i className="ri-mail-check-line text-xs"></i></span>
+                                      {effectivePayout.status === 'paid' && effectivePayout.payslip_sent_at && (
+                                        <span title={`Receipt sent ${new Date(effectivePayout.payslip_sent_at).toLocaleString()}`} className="text-emerald-400"><i className="ri-mail-check-line text-xs"></i></span>
                                       )}
-                                      {p.status === 'paid' && !p.payslip_sent_at && (
+                                      {effectivePayout.status === 'paid' && !effectivePayout.payslip_sent_at && (
                                         <span title="Receipt email pending" className="text-amber-400"><i className="ri-mail-line text-xs"></i></span>
                                       )}
                                     </div>
@@ -1841,8 +1862,8 @@ export default function AdminPayrollPage() {
                                 {(() => {
                                   const batchApproved = batch?.status === 'owner_approved';
                                   if (isAutoPayrollContractor(c)) return null;
-                                  if (p?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
-                                  if (batchApproved && p?.status === 'hr_approved') {
+                                  if (effectivePayout?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
+                                  if (batchApproved && effectivePayout?.status === 'hr_approved') {
                                     return (
                                       <button onClick={() => markPaid(c.id)} disabled={workflowLoading || batch?.status === 'closed'}
                                         className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap font-medium">
@@ -1850,7 +1871,7 @@ export default function AdminPayrollPage() {
                                       </button>
                                     );
                                   }
-                                  if (!p || p.status === 'pending' || p.status === 'submitted') {
+                                  if (!effectivePayout || effectivePayout.status === 'pending' || effectivePayout.status === 'submitted') {
                                     return (
                                       <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || batch?.status === 'closed'}
                                         className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap font-medium">
@@ -1860,7 +1881,7 @@ export default function AdminPayrollPage() {
                                   }
                                   return null;
                                 })()}
-                                {!isAutoPayrollContractor(c) && p && p.status !== 'pending' && (
+                                {!isAutoPayrollContractor(c) && effectivePayout && effectivePayout.status !== 'pending' && (
                                   <button onClick={() => setConfirmCancelId(c.id)} title="Undo"
                                     className="text-gray-200 hover:text-rose-400 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">
                                     <i className="ri-arrow-go-back-line text-sm"></i>

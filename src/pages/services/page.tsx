@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
@@ -13,6 +14,8 @@ const services = [
     accentTo: '#ef4444',
     tag: 'Most Popular',
     serviceKey: 'Brand Identity & Logo Design',
+    startingFrom: '$1,500',
+    startingFromPH: '₱25,000',
   },
   {
     icon: 'ri-layout-line',
@@ -22,7 +25,9 @@ const services = [
     accent: '#ef4444',
     accentTo: '#fb7185',
     tag: null,
-    serviceKey: 'Website Design',
+    serviceKey: 'Website Design & Development',
+    startingFrom: '$4,500',
+    startingFromPH: '₱60,000',
   },
   {
     icon: 'ri-bar-chart-grouped-line',
@@ -32,7 +37,9 @@ const services = [
     accent: '#fb7185',
     accentTo: '#f97316',
     tag: null,
-    serviceKey: 'Digital Design (Social Media, Ads)',
+    serviceKey: 'Social Media Management',
+    startingFrom: '$800/mo',
+    startingFromPH: '₱18,000/mo',
   },
   {
     icon: 'ri-camera-line',
@@ -43,6 +50,8 @@ const services = [
     accentTo: '#f97316',
     tag: null,
     serviceKey: 'Content Creation & Photography',
+    startingFrom: '$1,200/mo',
+    startingFromPH: '₱20,000/mo',
   },
   {
     icon: 'ri-printer-line',
@@ -52,7 +61,9 @@ const services = [
     accent: '#f97316',
     accentTo: '#fbbf24',
     tag: null,
-    serviceKey: 'Print & Packaging Design',
+    serviceKey: 'Print & Collateral Design',
+    startingFrom: '$900',
+    startingFromPH: '₱15,000',
   },
   {
     icon: 'ri-lightbulb-flash-line',
@@ -63,6 +74,30 @@ const services = [
     accentTo: '#f97316',
     tag: 'Foundation',
     serviceKey: 'Creative Strategy & Consulting',
+    startingFrom: '$3,000',
+    startingFromPH: '₱45,000',
+  },
+];
+
+
+const testimonials = [
+  {
+    quote: "Huna Creatives didn't just design a logo — they gave The Second Haus a soul. Every detail, from the color palette to the hang tags, feels like it was made with so much care. I couldn't be happier.",
+    author: 'Angelica L.',
+    role: 'Founder, The Second Haus',
+    accent: '#f97316',
+  },
+  {
+    quote: "I've worked with a lot of agencies and no one has come close to what Huna Creatives delivered. They understood the prestige of the equestrian world immediately and created content that truly speaks to our buyers. Absolutely blown away.",
+    author: 'Beata W.',
+    role: 'Equestrian International',
+    accent: '#ef4444',
+  },
+  {
+    quote: "Our social media presence completely transformed. Engagement went up and our feed finally looks as premium as our product. The team is responsive, creative, and genuinely invested.",
+    author: 'Blue Collar Nutrition',
+    role: 'Social Media Client',
+    accent: '#fbbf24',
   },
 ];
 
@@ -203,9 +238,20 @@ export default function ServicesPage() {
   });
 
   const navigate = useNavigate();
+  const [market, setMarket] = useState<'ph' | 'intl' | null>(null);
+
+  useEffect(() => {
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then(d => setMarket(d.country_code === 'PH' ? 'ph' : 'intl'))
+      .catch(() => setMarket('intl'));
+  }, []);
+
+  const isPH = market === 'ph';
+  const priceFor = (s: typeof services[0]) => isPH ? s.startingFromPH : s.startingFrom;
 
   return (
-    <div className="relative min-h-screen text-white font-body" style={{ background: '#0a0a0a' }}>
+    <div className="relative min-h-screen text-white font-body" style={{ background: '#080c14' }}>
       <Navigation />
 
       {/* ── Static ambient background ── */}
@@ -227,13 +273,19 @@ export default function ServicesPage() {
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-bold font-display tracking-tight mb-5 text-white leading-[1.1]">
-            What We Do{' '}
-            <span className="gradient-text-animated">Best</span>
+            Brands that turn{' '}
+            <span className="gradient-text-animated">heads.</span>
           </h1>
 
-          <p className="text-sm md:text-[15px] text-white/40 max-w-lg mx-auto leading-relaxed">
-            From brand identity to digital strategy — everything your brand needs to stand out and move people.
+          <p className="text-sm md:text-[15px] text-gray-400 max-w-lg mx-auto leading-relaxed mb-8">
+            We build brands people remember — from the first logo to a full creative system. Strategy-led, obsessively crafted, built to last.
           </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5"><i className="ri-check-line text-orange-500" />Custom quote in 24 hrs</span>
+            <span className="flex items-center gap-1.5"><i className="ri-check-line text-orange-500" />No hidden fees</span>
+            <span className="flex items-center gap-1.5"><i className="ri-check-line text-orange-500" />Satisfaction guaranteed</span>
+          </div>
         </div>
 
         {/* ── thin separator ── */}
@@ -254,7 +306,7 @@ export default function ServicesPage() {
             {services.map((service, index) => (
               <div
                 key={index}
-                className="group relative rounded-2xl p-7 md:p-8 overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2"
+                className="group relative rounded-2xl p-7 md:p-8 overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-2 flex flex-col"
                 style={{
                   background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
                   border: '1px solid rgba(255,255,255,0.07)',
@@ -319,79 +371,106 @@ export default function ServicesPage() {
                   {service.title}
                 </h3>
 
-                <p className="relative z-10 text-xs sm:text-[13px] text-white/40 leading-relaxed group-hover:text-white/60 transition-colors duration-400">
+                <p className="relative z-10 text-xs sm:text-[13px] text-gray-500 leading-relaxed group-hover:text-gray-400 transition-colors duration-400 flex-1">
                   {service.description}
                 </p>
 
-                <div className="relative z-10 mt-7 flex items-center gap-2 opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-300">
-                  <span className="text-xs font-semibold" style={{ color: service.accent }}>Get started</span>
-                  <i className="ri-arrow-right-line text-sm" style={{ color: service.accent }} />
+                <div className="relative z-10 mt-6 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-gray-600">
+                    {market === null ? (
+                      <span className="inline-block w-16 h-3 rounded bg-white/10 animate-pulse" />
+                    ) : (
+                      <>Starting from <span style={{ color: service.accent }}>{priceFor(service)}</span></>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0 transition-all duration-300" style={{ color: service.accent }}>
+                    Get a quote <i className="ri-arrow-right-line text-sm" />
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ── thin separator ── */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+        {/* ══ TESTIMONIALS ══ */}
+        <div className="w-full border-t border-white/5" style={{ background: '#0d1829' }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="w-8 h-px bg-[#FF6B35]/50" />
+              <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-[#FF6B35]">
+                Client Words
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white leading-tight mb-14">
+              What clients say.
+            </h2>
+
+            <div className="grid sm:grid-cols-3 gap-5 md:gap-6">
+              {testimonials.map((t, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl p-6 md:p-7 flex flex-col bg-white/3 border border-white/8"
+                >
+                  <i className="ri-double-quotes-l text-2xl mb-4" style={{ color: `${t.accent}80` }} />
+                  <p className="text-sm text-gray-400 leading-relaxed flex-1 mb-6">"{t.quote}"</p>
+                  <div>
+                    <div className="text-sm font-bold text-white">{t.author}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">{t.role}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* ══ HUNA COLLECTIVE ══ */}
-        <div className="py-16 sm:py-20 md:py-24">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="w-8 h-px bg-orange-500/50" />
-                  <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">
-                    Past Experience
-                  </span>
-                </div>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white leading-tight">
-                  The Huna <span className="gradient-text-animated">Collective.</span>
-                </h2>
-              </div>
-              <p className="text-white/30 text-xs max-w-[420px] leading-relaxed sm:text-right" style={{ textWrap: 'balance' } as React.CSSProperties}>
-                A curated collection of brands our team members have contributed to through freelance, in-house, and independent work.
-              </p>
+        {/* ══ ORANGE BREAK + COLLECTIVE ══ */}
+        <div className="relative overflow-hidden" style={{ background: '#FF6B35' }}>
+          {/* CTA text */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-12 pb-8 text-center relative">
+            <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-2">Let's get to work</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-3 leading-tight">
+              Your brand deserves to turn heads.
+            </h2>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-5">
+              <button
+                onClick={() => navigate('/contact')}
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-lg font-semibold text-sm text-[#FF6B35] bg-white hover:bg-white/90 transition-all duration-200 cursor-pointer"
+                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
+              >
+                Start a Project
+                <i className="ri-arrow-right-line text-base" />
+              </button>
+              <span className="text-white/60 text-xs">Free consultation · No commitment</span>
             </div>
           </div>
 
-          {/* 2-row marquee — full bleed */}
-          <div className="relative overflow-hidden space-y-4">
-            <div className="absolute inset-y-0 left-0 w-32 z-10 pointer-events-none" style={{ background: 'linear-gradient(to right, #0a0a0a 40%, transparent)' }} />
-            <div className="absolute inset-y-0 right-0 w-32 z-10 pointer-events-none" style={{ background: 'linear-gradient(to left, #0a0a0a 40%, transparent)' }} />
-
+          {/* Marquee */}
+          <div className="overflow-hidden space-y-3 pb-10">
             <div className="overflow-hidden">
               <div className="marquee-left">
                 {[...brandLogos.slice(0, 19), ...brandLogos.slice(0, 19)].map((src, i) => (
-                  <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
-                    <img src={src} alt={`Client brand logo — Huna Creatives portfolio`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" loading="lazy" style={{ filter: 'invert(1)' }} />
+                  <div key={i} className="flex items-center justify-center mx-5 flex-shrink-0 w-24 h-16 cursor-pointer">
+                    <img src={src} alt="Client brand logo" className="w-full h-full object-contain opacity-40 hover:opacity-80 transition-opacity duration-300" loading="lazy" style={{ filter: 'brightness(0) invert(1)' }} />
                   </div>
                 ))}
               </div>
             </div>
-
             <div className="overflow-hidden">
               <div className="marquee-right">
                 {[...brandLogos.slice(19), ...brandLogos.slice(19)].map((src, i) => (
-                  <div key={i} className="flex items-center justify-center mx-6 flex-shrink-0 w-28 h-20 cursor-pointer">
-                    <img src={src} alt={`Brand logo ${i + 20}`} className="w-full h-full object-contain opacity-30 hover:opacity-70 transition-opacity duration-300" loading="lazy" style={{ filter: 'invert(1)' }} />
+                  <div key={i} className="flex items-center justify-center mx-5 flex-shrink-0 w-24 h-16 cursor-pointer">
+                    <img src={src} alt={`Brand logo ${i + 20}`} className="w-full h-full object-contain opacity-40 hover:opacity-80 transition-opacity duration-300" loading="lazy" style={{ filter: 'brightness(0) invert(1)' }} />
                   </div>
                 ))}
               </div>
             </div>
           </div>
-
-
         </div>
-
 
       </main>
 
       {/* ── Sentro OS Spotlight ── */}
-      <section className="relative px-6 py-20 border-t border-white/5 overflow-hidden">
+      <section className="relative px-6 py-20 border-t border-white/5 overflow-hidden" style={{ background: '#080c14' }}>
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(255,107,53,0.07) 0%, transparent 70%)' }} />
         <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-10 lg:gap-16 relative">
           <div className="flex-1 min-w-0">

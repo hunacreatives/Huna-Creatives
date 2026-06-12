@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Footer from '../home/components/Footer';
 import Navigation from '../../components/feature/Navigation';
-import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { useSEO } from '../../hooks/useSEO';
 import { supabase } from '@/lib/supabase';
@@ -63,9 +62,7 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (formData.message.length > 500) return;
-    
     setStatus('sending');
-    
     try {
       const { error } = await supabase.functions.invoke('submit-contact', {
         body: {
@@ -76,12 +73,9 @@ export default function ContactPage() {
           message: formData.message,
         },
       });
-
       if (!error) {
         setStatus('success');
         setFormData({ name: '', email: '', service: '', budget: '', message: '' });
-
-        // GA4 conversion event
         if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
           (window as any).gtag('event', 'contact_form_submit', {
             event_category: 'lead',
@@ -97,290 +91,198 @@ export default function ContactPage() {
     }
   };
 
-  const selectStyle = {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: 'white',
-  };
+  const inputClass =
+    'w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:border-[#FF6B35]/50 focus:bg-white/7 transition-all';
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] font-body">
+    <div className="min-h-screen font-body" style={{ background: '#080c14' }}>
       <Navigation />
 
-      {/* ═══════════════════ HERO ═══════════════════ */}
-      <section className="relative pt-24 pb-12 md:pt-32 md:pb-16 px-4 md:px-6 bg-[#0a0a0a] overflow-hidden">
-        {/* Ambient glow blobs */}
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full bg-red-900/20 blur-[120px] pointer-events-none" />
-        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full bg-orange-900/20 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[350px] h-[350px] rounded-full bg-red-900/15 blur-[100px] pointer-events-none" />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-28 pb-20 lg:pt-32 lg:pb-28">
 
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center max-w-3xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-            >
-              <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.3em] uppercase text-orange-500 mb-4 md:mb-5 font-display">
-                <span className="w-6 h-px bg-orange-500" />
-                Get in Touch
-                <span className="w-6 h-px bg-orange-500" />
-              </span>
-              <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4 md:mb-6">
-                Let&apos;s create something
-                <br />
-                <span className="gradient-text-animated">amazing together.</span>
-              </h1>
-              <p className="text-white/40 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
-                Whether you&apos;re starting from scratch or looking to elevate your brand, we&apos;re here to help bring your vision to life.
-              </p>
-            </motion.div>
-          </div>
+        {/* Full-width header */}
+        <div className="mb-12 lg:mb-16">
+          <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">Get in touch</p>
+          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-4">
+            Let's build something<br className="hidden sm:block" /> people remember.
+          </h1>
+          <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
+            Tell us about your project and we'll get back to you within 24 hours with a custom quote.
+          </p>
         </div>
-      </section>
 
-      {/* ═══════════════════ CONTACT FORM + INFO ═══════════════════ */}
-      <section className="relative py-12 md:py-16 lg:py-20 px-4 md:px-6 bg-[#0a0a0a]">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-8 md:gap-12 lg:gap-16">
-            {/* LEFT: Contact Form */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-              className="relative rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-10"
-              style={{
-                background: '#141414',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
-              }}
-            >
-              <h2 className="font-display text-xl md:text-2xl font-bold text-white mb-2">Send us a message</h2>
-              <p className="text-white/35 text-xs md:text-sm mb-6 md:mb-8">Fill out the form below and we&apos;ll get back to you within 24 hours.</p>
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-start">
 
-              <form onSubmit={handleSubmit} data-readdy-form className="space-y-4 md:space-y-5">
-                {/* Name */}
-                <div>
-                  <label htmlFor="name" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-white placeholder-gray-500 text-xs"
-                    placeholder="Your name"
-                  />
+          {/* ── LEFT: Info ── */}
+          <div className="order-2 lg:order-1 lg:sticky lg:top-32">
+
+            {/* Contact details */}
+            <div className="space-y-5 mb-10">
+              {[
+                { icon: 'ri-mail-line', label: 'Email', value: 'contact@hunacreatives.com', href: 'mailto:contact@hunacreatives.com' },
+                { icon: 'ri-phone-line', label: 'Phone', value: '(+63) 926 751 6692', href: 'tel:+639267516692' },
+                { icon: 'ri-map-pin-line', label: 'Location', value: 'Cebu City, Philippines', href: null },
+              ].map(({ icon, label, value, href }) => (
+                <div key={label} className="flex items-start gap-4">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}
+                  >
+                    <i className={`${icon} text-[#FF6B35] text-sm`} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-0.5">{label}</p>
+                    {href ? (
+                      <a href={href} className="text-sm text-gray-300 hover:text-white transition-colors">{value}</a>
+                    ) : (
+                      <p className="text-sm text-gray-300">{value}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Schedule + Social */}
+            <div className="border-t border-white/5 pt-8">
+              <a
+                href="https://calendly.com/hunacreatives/30min"
+                target="_blank"
+                rel="nofollow noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold text-white border border-white/10 hover:border-[#FF6B35]/40 hover:bg-white/3 transition-all mb-6"
+              >
+                <i className="ri-calendar-line text-[#FF6B35]" />
+                Schedule a 30-min call
+              </a>
+
+              <div className="flex items-center gap-3">
+                {[
+                  { icon: 'ri-instagram-line', href: 'https://www.instagram.com/hunacreatives/' },
+                  { icon: 'ri-facebook-circle-line', href: 'https://www.facebook.com/hunacreatives/' },
+                  { icon: 'ri-linkedin-box-line', href: 'https://www.linkedin.com/company/huna-creatives' },
+                ].map(({ icon, href }) => (
+                  <a
+                    key={icon}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/3 border border-white/8 text-gray-500 hover:text-[#FF6B35] hover:border-[#FF6B35]/30 transition-all"
+                  >
+                    <i className={`${icon} text-sm`} />
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── RIGHT: Form ── */}
+          <div className="order-1 lg:order-2">
+            {status === 'success' ? (
+              <div
+                className="rounded-2xl p-12 text-center bg-white/3 border border-white/8"
+              >
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ background: 'rgba(255,107,53,0.15)' }}
+                >
+                  <i className="ri-check-line text-[#FF6B35] text-xl" />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">Message sent!</h3>
+                <p className="text-gray-500 text-sm">We'll get back to you within 24 hours.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] text-gray-500 uppercase tracking-widest">Name</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      placeholder="Your name"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] text-gray-500 uppercase tracking-widest">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                      placeholder="your@email.com"
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
 
-                {/* Email */}
-                <div>
-                  <label htmlFor="email" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-white placeholder-gray-500 text-xs"
-                    placeholder="your@email.com"
-                  />
-                </div>
-
-                {/* Service Dropdown */}
-                <div>
-                  <label htmlFor="service" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">
-                    What service are you looking for?
-                  </label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-gray-500 uppercase tracking-widest">Service</label>
                   <select
-                    id="service"
-                    name="service"
                     value={formData.service}
                     onChange={(e) => setFormData({ ...formData, service: e.target.value })}
                     required
-                    className="w-full px-5 py-3.5 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-xs cursor-pointer appearance-none"
-                    style={selectStyle}
+                    className={`${inputClass} cursor-pointer`}
+                    style={{ colorScheme: 'dark' }}
                   >
-                    <option value="" disabled style={{ background: '#1a1a1a' }}>Select a service...</option>
+                    <option value="" disabled style={{ background: '#0e1420' }}>Select a service...</option>
                     {SERVICE_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt} style={{ background: '#1a1a1a' }}>{opt}</option>
+                      <option key={opt} value={opt} style={{ background: '#0e1420' }}>{opt}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Budget Dropdown */}
-                <div>
-                  <label htmlFor="budget" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">
-                    Estimated Budget
-                  </label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-gray-500 uppercase tracking-widest">Budget <span className="normal-case text-gray-700">(optional)</span></label>
                   <select
-                    id="budget"
-                    name="budget"
                     value={formData.budget}
                     onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                    className="w-full px-5 py-3.5 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all text-xs cursor-pointer appearance-none"
-                    style={selectStyle}
+                    className={`${inputClass} cursor-pointer`}
+                    style={{ colorScheme: 'dark' }}
                   >
-                    <option value="" style={{ background: '#1a1a1a' }}>Select a budget range (optional)</option>
+                    <option value="" style={{ background: '#0e1420' }}>Select a range...</option>
                     {BUDGET_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt} style={{ background: '#1a1a1a' }}>{opt}</option>
+                      <option key={opt} value={opt} style={{ background: '#0e1420' }}>{opt}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Message */}
-                <div>
-                  <label htmlFor="message" className="block text-[11px] font-medium text-gray-400 mb-2 tracking-widest uppercase">
-                    Tell us about your project
-                  </label>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-gray-500 uppercase tracking-widest">Project details</label>
                   <textarea
-                    id="message"
-                    name="message"
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     required
                     maxLength={500}
                     rows={5}
-                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/60 outline-none transition-all resize-none text-white placeholder-gray-500 text-xs"
-                    placeholder="Describe your vision, goals, or any details you'd like to share..."
+                    placeholder="Tell us about your brand, goals, or anything you'd like us to know..."
+                    className={`${inputClass} resize-none`}
                   />
-                  <p className={`text-[11px] mt-2 text-right transition-colors ${formData.message.length > 480 ? 'text-red-400' : 'text-gray-500'}`}>
+                  <p className={`text-[11px] text-right ${formData.message.length > 480 ? 'text-red-400' : 'text-gray-700'}`}>
                     {formData.message.length}/500
                   </p>
                 </div>
 
-                {/* Submit */}
+                {status === 'error' && (
+                  <p className="text-xs text-red-400">
+                    Something went wrong. Try again or email us at contact@hunacreatives.com
+                  </p>
+                )}
+
                 <button
                   type="submit"
                   disabled={status === 'sending' || formData.message.length > 500}
-                  className="w-full px-8 py-4 rounded-xl text-xs font-semibold tracking-widest uppercase text-white transition-all hover:scale-[1.02] hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer"
-                  style={{
-                    background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)',
-                    boxShadow: '0 0 30px rgba(239,68,68,0.3)',
-                  }}
+                  className="w-full py-3.5 rounded-lg font-semibold text-sm text-white transition-all hover:bg-[#e55a27] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  style={{ background: '#FF6B35', boxShadow: '0 0 24px rgba(255,107,53,0.3)' }}
                 >
                   {status === 'sending' ? 'Sending...' : 'Send Message →'}
                 </button>
-
-                {status === 'success' && (
-                  <div className="p-5 bg-green-900/30 border border-green-500/30 rounded-2xl text-green-400 text-sm font-medium text-center">
-                    ✓ Message sent! We&apos;ll get back to you within 24 hours.
-                  </div>
-                )}
-                {status === 'error' && (
-                  <div className="p-5 bg-red-900/30 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium text-center">
-                    ✗ Something went wrong. Please try again or email us directly at contact@hunacreatives.com
-                  </div>
-                )}
               </form>
-            </motion.div>
-
-            {/* RIGHT: Contact Info */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-              className="space-y-6 md:space-y-8"
-            >
-              {/* Reach us directly */}
-              <div
-                className="rounded-2xl md:rounded-3xl p-6 md:p-8"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                <h3 className="font-display text-lg md:text-xl font-bold text-white mb-5 md:mb-6">Reach us directly</h3>
-                <div className="space-y-4 md:space-y-5">
-                  <div className="inline-flex flex-col gap-4 text-left">
-                    <a
-                      href="mailto:contact@hunacreatives.com"
-                      className="font-display font-semibold text-base transition-all cursor-pointer group"
-                      style={{
-                        background: 'linear-gradient(135deg, #f97316, #fb7185)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        filter: 'drop-shadow(0 0 8px rgba(249,115,22,0.3))',
-                      }}
-                      onMouseEnter={(e) => {
-                        const el = e.currentTarget as HTMLAnchorElement;
-                        el.style.filter = 'drop-shadow(0 0 12px rgba(249,115,22,0.5))';
-                      }}
-                      onMouseLeave={(e) => {
-                        const el = e.currentTarget as HTMLAnchorElement;
-                        el.style.filter = 'drop-shadow(0 0 8px rgba(249,115,22,0.3))';
-                      }}
-                    >
-                      contact@hunacreatives.com
-                    </a>
-                    <a
-                      href="tel:+6325056921"
-                      className="text-gray-300 font-medium text-base hover:text-orange-400 transition-colors cursor-pointer"
-                    >
-                      (032) 505 6921
-                    </a>
-                    <span className="text-gray-300 font-medium text-base">
-                      Cebu, Philippines, 6000
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-center gap-6 mt-8">
-                    {[
-                      { icon: 'ri-instagram-line', label: 'Instagram', href: 'https://www.instagram.com/hunacreatives/' },
-                      { icon: 'ri-facebook-circle-line', label: 'Facebook', href: 'https://www.facebook.com/hunacreatives/' },
-                      { icon: 'ri-linkedin-box-line', label: 'LinkedIn', href: 'https://www.linkedin.com/company/huna-creatives' },
-                    ].map((s) => (
-                      <a
-                        key={s.label}
-                        href={s.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 flex items-center justify-center rounded-full glass-dark text-gray-400 hover:text-orange-400 hover:border-orange-500/40 transition-all cursor-pointer text-base"
-                        aria-label={s.label}
-                      >
-                        <i className={s.icon} />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Office Hours */}
-              <div
-                className="rounded-2xl md:rounded-3xl p-6 md:p-8"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                <h3 className="font-display text-lg md:text-xl font-bold text-white mb-5 md:mb-6">Office Hours</h3>
-                <div className="space-y-3 md:space-y-4">
-                  <p className="text-white/40 text-xs md:text-sm mb-5 md:mb-6">
-                    Prefer to talk? Schedule a 30-minute consultation with our team.
-                  </p>
-                  <a
-                    href="https://calendly.com/hunacreatives/30min"
-                    target="_blank"
-                    rel="nofollow noreferrer"
-                    className="inline-flex items-center justify-center gap-2 px-6 md:px-8 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-semibold border border-orange-400/50 text-orange-400 hover:bg-orange-500/10 transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer w-full md:w-auto"
-                  >
-                    <i className="ri-calendar-line text-base" />
-                    Schedule Now
-                  </a>
-                </div>
-              </div>
-            </motion.div>
+            )}
           </div>
+
         </div>
-      </section>
+      </div>
 
       <Footer isDark />
     </div>

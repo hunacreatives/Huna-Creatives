@@ -4,14 +4,17 @@ import { useDemo } from '@/contexts/DemoContext';
 
 const navItems = [
   { to: '/hub/admin/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
+  { divider: true, label: 'People' },
   { to: '/hub/admin/contractors', label: 'Contractors', icon: 'ri-team-line' },
   { to: '/hub/admin/attendance', label: 'Attendance', icon: 'ri-time-line' },
-  { to: '/hub/admin/requests', label: 'Requests', icon: 'ri-inbox-line' },
-  { to: '/hub/admin/contact', label: 'Contact Inbox', icon: 'ri-mail-line' },
+  { to: '/hub/admin/performance', label: 'Performance', icon: 'ri-medal-line', devOnly: true },
+  { divider: true, label: 'Inbound' },
   { to: '/hub/admin/applications', label: 'Applications', icon: 'ri-user-search-line' },
+  { to: '/hub/admin/contact', label: 'Contact Inbox', icon: 'ri-mail-line' },
+  { divider: true, label: 'Approvals' },
+  { to: '/hub/admin/requests', label: 'Requests', icon: 'ri-inbox-line' },
   { to: '/hub/admin/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
   { to: '/hub/admin/overtime', label: 'Overtime', icon: 'ri-timer-flash-line' },
-  { to: '/hub/admin/performance', label: 'Performance', icon: 'ri-medal-line', devOnly: true },
   { divider: true, label: 'Finance' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
   { to: '/hub/admin/projects', label: 'Projects', icon: 'ri-folder-line' },
@@ -23,6 +26,7 @@ const navItems = [
   { to: '/hub/admin/questionnaires', label: 'Questionnaires', icon: 'ri-questionnaire-line', devOnly: true },
   { to: '/hub/admin/assets', label: 'Asset Access', icon: 'ri-key-2-line' },
   { to: '/hub/admin/credentials', label: 'Credentials Vault', icon: 'ri-lock-2-line' },
+  { divider: true, label: '' },
   { to: '/hub/admin/auditlog', label: 'Audit Log', icon: 'ri-shield-check-line' },
   { to: '/hub/admin/settings', label: 'Settings', icon: 'ri-settings-3-line' },
 ];
@@ -95,8 +99,10 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
           {visibleNavItems.map((item, idx) => {
             if ((item as any).divider) {
               return !collapsed ? (
-                <div key={idx} className="pt-4 pb-2 px-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400/70">{item.label}</p>
+                <div key={idx} className={`px-3 ${item.label ? 'pt-4 pb-2' : 'pt-3'}`}>
+                  {item.label
+                    ? <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400/70">{item.label}</p>
+                    : <div className="border-t border-gray-200/50" />}
                 </div>
               ) : <div key={idx} className="mx-3 my-3 border-t border-gray-200/50"></div>;
             }

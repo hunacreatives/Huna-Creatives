@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { name, email, subject, message } = body;
+    const { name, email, subject, service, message } = body;
 
     if (!name || !email || !message) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: cors });
@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
       name,
       email,
       subject: subject ?? '',
+      service: service ?? null,
       message,
     });
 
@@ -44,8 +45,9 @@ Deno.serve(async (req) => {
         <p style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#999;margin-bottom:24px">New Contact Form Submission</p>
         <h2 style="margin:0 0 20px;font-size:20px">${name}</h2>
         <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px">
-          <tr><td style="padding:8px 0;color:#666;width:80px">From</td><td style="padding:8px 0">${email}</td></tr>
-          <tr><td style="padding:8px 0;color:#666">Subject</td><td style="padding:8px 0">${subject || '—'}</td></tr>
+          <tr><td style="padding:8px 0;color:#666;width:100px">From</td><td style="padding:8px 0">${email}</td></tr>
+          ${service ? `<tr><td style="padding:8px 0;color:#666">Service</td><td style="padding:8px 0">${service}</td></tr>` : ''}
+          ${subject ? `<tr><td style="padding:8px 0;color:#666">Subject</td><td style="padding:8px 0">${subject}</td></tr>` : ''}
         </table>
         <div style="background:#f5f5f5;border-radius:8px;padding:16px 20px;font-size:14px;line-height:1.6;white-space:pre-wrap">${message}</div>
         <p style="margin-top:32px;font-size:11px;color:#bbb">Submitted via hunacreatives.com — view all in the Hub</p>
@@ -59,7 +61,7 @@ Deno.serve(async (req) => {
         from: FROM_EMAIL,
         to: [NOTIFY_EMAIL],
         reply_to: email,
-        subject: `New inquiry from ${name}${subject ? ` — ${subject}` : ''}`,
+        subject: `New inquiry from ${name}${service ? ` — ${service}` : subject ? ` — ${subject}` : ''}`,
         html,
       }),
     });
