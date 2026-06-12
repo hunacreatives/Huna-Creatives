@@ -242,10 +242,21 @@ Deno.serve(async (req) => {
     }
 
     // Upsert daily hours — do NOT touch overtime_hours column (managed by OT approval flow)
+    // Also never overwrite rows that were manually edited by an admin (is_manual = true)
     if (hoursUpserts.length > 0) {
-      await supabase
+      const userDatePairs = hoursUpserts.map((r: any) => `(user_id.eq.${r.user_id},date.eq.${r.date})`);
+      const { data: manualRows } = await supabase
         .from('hub_daily_hours')
-        .upsert(hoursUpserts, { onConflict: 'user_id,date' });
+        .select('user_id, date')
+        .eq('is_manual', true)
+        .or(userDatePairs.join(','));
+      const manualSet = new Set((manualRows || []).map((r: any) => `${r.user_id}::${r.date}`));
+      const safeUpserts = hoursUpserts.filter((r: any) => !manualSet.has(`${r.user_id}::${r.date}`));
+      if (safeUpserts.length > 0) {
+        await supabase
+          .from('hub_daily_hours')
+          .upsert(safeUpserts, { onConflict: 'user_id,date' });
+      }
     }
 
     if (hoursInProgress.length > 0) {
