@@ -233,6 +233,7 @@ export default function AdminProjectsPage() {
     const w = searchParams.get('w');
     return w ? parseInt(w) : null;
   });
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Project form
   const SERVICES = ['Website Design', 'Website Maintenance', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Marketing', 'Other'];
@@ -1746,11 +1747,35 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   onClick={() => {
                     const slug = (p as any).slug || slugify(p.client_name);
                     const url = `https://hunacreatives.com/hub/admin/project/${slug}`;
-                    navigator.clipboard.writeText(url);
+                    try {
+                      navigator.clipboard.writeText(url).then(() => {
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2000);
+                      }).catch(() => {
+                        const el = document.createElement('textarea');
+                        el.value = url;
+                        document.body.appendChild(el);
+                        el.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(el);
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2000);
+                      });
+                    } catch {
+                      const el = document.createElement('textarea');
+                      el.value = url;
+                      document.body.appendChild(el);
+                      el.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(el);
+                      setLinkCopied(true);
+                      setTimeout(() => setLinkCopied(false), 2000);
+                    }
                   }}
-                  title="Copy project link"
-                  className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer transition-all shadow-sm flex-shrink-0">
-                  <i className="ri-link text-base"></i>
+                  title={linkCopied ? 'Copied!' : 'Copy project link'}
+                  className={`flex items-center gap-1.5 h-8 px-2.5 rounded-xl border cursor-pointer transition-all shadow-sm flex-shrink-0 text-xs font-medium ${linkCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200'}`}>
+                  <i className={`text-base ${linkCopied ? 'ri-check-line' : 'ri-link'}`}></i>
+                  {linkCopied ? 'Copied!' : 'Copy link'}
                 </button>
               </div>
 
