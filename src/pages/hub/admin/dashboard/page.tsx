@@ -132,7 +132,7 @@ export default function AdminDashboardPage() {
   const [announcements, setAnnouncements] = useState<HubAnnouncement[]>(_cache?.announcements ?? []);
   const [pendingRequests, setPendingRequests] = useState<HubRequest[]>(_cache?.pendingRequests ?? []);
   const [pendingTimeOff, setPendingTimeOff] = useState<HubTimeOff[]>(_cache?.pendingTimeOff ?? []);
-  const [totalPayroll, setTotalPayroll] = useState(_cache?.totalPayroll ?? 0);
+  const [totalPayroll, setTotalPayroll] = useState(0);
   const [totalHours, setTotalHours] = useState(_cache?.totalHours ?? 0);
   const [totalNetProfit, setTotalNetProfit] = useState(_cache?.totalNetProfit ?? 0);
   const [totalContractValue, setTotalContractValue] = useState(_cache?.totalContractValue ?? 0);
@@ -316,7 +316,7 @@ export default function AdminDashboardPage() {
           pendingTimeOff: nextTimeOff,
           birthdays: getBirthdayAlerts(contractorsResult.data || []),
           outstandingInvoices: outstanding,
-          totalPayroll: payrollTotal,
+          totalPayroll: 0, // never cache payroll — always fetch fresh to stay in sync with payroll page
           totalHours: parseFloat(hrs.toFixed(1)),
           totalNetProfit: netProfitTotal,
           totalContractValue: contractValueTotal,

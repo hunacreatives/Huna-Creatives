@@ -251,7 +251,8 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
   ]);
 
   const contractors = (contractorsRes.data || []).filter((c: any) =>
-    !c.start_date || c.start_date <= periodEnd
+    c.payment_type !== 'project_based' &&
+    (!c.start_date || c.start_date <= periodEnd)
   );
 
   const hoursByDate: Record<string, Record<string, number>> = {};
