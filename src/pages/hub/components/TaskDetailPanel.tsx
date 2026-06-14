@@ -305,6 +305,10 @@ export default function TaskDetailPanel({
   const [activity, setActivity]     = useState<ActivityItem[]>([]);
   const [watchers, setWatchers]     = useState<string[]>([]);
 
+  // Checklist drag state
+  const [dragCheckId, setDragCheckId] = useState<string | null>(null);
+  const [dragOverCheckId, setDragOverCheckId] = useState<string | null>(null);
+
   // UI state
   const [editing, setEditing]       = useState(false);
   const [saving, setSaving]         = useState(false);
@@ -681,6 +685,22 @@ export default function TaskDetailPanel({
       await saveChecklist(updated);
     } catch {
       setChecklist(checklist);
+    }
+  };
+
+  const handleCheckDrop = async (targetId: string) => {
+    if (!dragCheckId || dragCheckId === targetId) return;
+    const from = checklist.findIndex(i => i.id === dragCheckId);
+    const to   = checklist.findIndex(i => i.id === targetId);
+    if (from < 0 || to < 0) return;
+    const reordered = [...checklist];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setChecklist(reordered);
+    setDragCheckId(null);
+    setDragOverCheckId(null);
+    if (task) {
+      try { await saveChecklist(reordered); } catch { setChecklist(checklist); }
     }
   };
 
@@ -1300,8 +1320,20 @@ export default function TaskDetailPanel({
                 </div>
                 <div className="space-y-1.5">
                   {checklist.map(item => (
-                    <div key={item.id} className="group">
+                    <div
+                      key={item.id}
+                      className={`group rounded transition-colors ${dragOverCheckId === item.id && dragCheckId !== item.id ? 'bg-orange-50 ring-1 ring-[#FF6B35]/30' : ''}`}
+                      draggable={!!(editing || canEdit)}
+                      onDragStart={() => { setDragCheckId(item.id); setDragOverCheckId(null); }}
+                      onDragOver={e => { e.preventDefault(); setDragOverCheckId(item.id); }}
+                      onDragLeave={() => setDragOverCheckId(null)}
+                      onDrop={() => handleCheckDrop(item.id)}
+                      onDragEnd={() => { setDragCheckId(null); setDragOverCheckId(null); }}
+                    >
                       <div className="flex items-center gap-2.5">
+                        {(editing || canEdit) && (
+                          <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity -ml-1" />
+                        )}
                         <button onClick={() => handleToggleCheck(item.id)} className="flex-shrink-0 cursor-pointer mt-0.5">
                           <i className={`text-base ${item.done ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-gray-400'}`}></i>
                         </button>

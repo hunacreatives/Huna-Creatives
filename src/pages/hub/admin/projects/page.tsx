@@ -126,6 +126,7 @@ interface ProjectTask {
   meta?: { custom_fields?: {id: string; label: string; value: string}[] } | null;
   archived?: boolean | null;
   archived_at?: string | null;
+  sort_order?: number | null;
 }
 
 interface ProjectActivity {
@@ -322,6 +323,8 @@ export default function AdminProjectsPage() {
   const [taskView, setTaskView] = useState<'list' | 'board'>('list');
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
   const [boardDragOver, setBoardDragOver] = useState<ProjectTask['status'] | null>(null);
+  const [listDragOverTaskId, setListDragOverTaskId] = useState<number | null>(null);
+  const [listDragOverPos, setListDragOverPos] = useState<'above' | 'below' | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskAssigneeIds, setNewTaskAssigneeIds] = useState<string[]>([]);
   const [newTaskDue, setNewTaskDue] = useState('');
@@ -379,6 +382,7 @@ export default function AdminProjectsPage() {
       supabase.from('hub_project_tasks')
         .select('*')
         .eq('project_id', projectId)
+        .order('sort_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true }),
       supabase.from('hub_project_activity')
         .select('*, hub_users(full_name, avatar_url)')
@@ -576,6 +580,31 @@ export default function AdminProjectsPage() {
   const toggleTask = async (task: ProjectTask) => {
     const next = task.status === 'done' ? 'todo' : task.status === 'todo' ? 'in_progress' : 'done';
     await updateTaskStatus(task, next);
+  };
+
+  const reorderTasks = async (orderedIds: number[]) => {
+    const orderedSet = new Set(orderedIds);
+    // Sort all current tasks by their existing sort_order / created_at
+    const currentSorted = [...tasks].sort((a, b) => {
+      if (a.sort_order != null && b.sort_order != null) return a.sort_order - b.sort_order;
+      if (a.sort_order != null) return -1;
+      if (b.sort_order != null) return 1;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+    // Non-group tasks keep their relative order; find where the group sits
+    const nonGroup = currentSorted.filter(t => !orderedSet.has(t.id));
+    const firstGroupOriginalIdx = currentSorted.findIndex(t => orderedSet.has(t.id));
+    let insertAt = 0;
+    for (const t of currentSorted.slice(0, firstGroupOriginalIdx)) {
+      if (!orderedSet.has(t.id)) insertAt++;
+    }
+    const groupTasks = orderedIds.map(id => tasks.find(t => t.id === id)!).filter(Boolean);
+    const fullOrder = [...nonGroup.slice(0, insertAt), ...groupTasks, ...nonGroup.slice(insertAt)];
+    const newTasks = fullOrder.map((t, i) => ({ ...t, sort_order: i + 1 }));
+    setTasks(newTasks);
+    await Promise.all(newTasks.map(t =>
+      supabase.from('hub_project_tasks').update({ sort_order: t.sort_order }).eq('id', t.id)
+    ));
   };
 
   const deleteTask = async (task: ProjectTask) => {
@@ -2132,7 +2161,34 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     <p className="text-xs text-gray-400">{column.empty}</p>
                                   </div>
                                 ) : (
-                                  columnTasks.map((task) => <div key={task.id}>{BoardCard(task)}</div>)
+                                  columnTasks.map((task) => {
+                                    const isBoardOver = listDragOverTaskId === task.id && draggedTaskId !== task.id;
+                                    return (
+                                      <div key={task.id} className="relative"
+                                        onDragOver={e => { e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setListDragOverTaskId(task.id); setListDragOverPos(e.clientY < r.top + r.height / 2 ? 'above' : 'below'); setBoardDragOver(null); }}
+                                        onDragLeave={() => { setListDragOverTaskId(null); setListDragOverPos(null); }}
+                                        onDrop={async e => {
+                                          e.preventDefault(); e.stopPropagation();
+                                          const fromId = Number(e.dataTransfer.getData('text/task-id') || draggedTaskId);
+                                          const pos = listDragOverPos;
+                                          setListDragOverTaskId(null); setListDragOverPos(null); setDraggedTaskId(null); setBoardDragOver(null);
+                                          if (!fromId || fromId === task.id) return;
+                                          const fromTask = tasks.find(t => t.id === fromId);
+                                          if (!fromTask) return;
+                                          if (fromTask.status !== column.key) await updateTaskStatus(fromTask, column.key);
+                                          const colIds = tasks.filter(t => t.id === fromId ? column.key : t.status === column.key).map(t => t.id);
+                                          const withoutFrom = colIds.filter(id => id !== fromId);
+                                          const insertAt = withoutFrom.indexOf(task.id) + (pos === 'below' ? 1 : 0);
+                                          withoutFrom.splice(insertAt < 0 ? withoutFrom.length : insertAt, 0, fromId);
+                                          reorderTasks(withoutFrom);
+                                        }}
+                                      >
+                                        {isBoardOver && listDragOverPos === 'above' && <div className="absolute -top-1.5 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full z-10 pointer-events-none" />}
+                                        {isBoardOver && listDragOverPos === 'below' && <div className="absolute -bottom-1.5 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full z-10 pointer-events-none" />}
+                                        {BoardCard(task)}
+                                      </div>
+                                    );
+                                  })
                                 )}
                               </div>
                             </div>
@@ -2153,11 +2209,36 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         const daysLeft = task.due_date
                           ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
                           : null;
+                        const isOver = listDragOverTaskId === task.id && draggedTaskId !== task.id;
                         return (
-                          <div key={task.id} onClick={() => openTaskDetail(task)}
-                            className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder}`}
-                            style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
+                          <div key={task.id} className="relative">
+                            {isOver && listDragOverPos === 'above' && <div className="absolute -top-1 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full z-10 pointer-events-none" />}
+                            {isOver && listDragOverPos === 'below' && <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full z-10 pointer-events-none" />}
+                            <div
+                              draggable
+                              onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/task-id', String(task.id)); setDraggedTaskId(task.id); setListDragOverTaskId(null); setListDragOverPos(null); }}
+                              onDragOver={e => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setListDragOverTaskId(task.id); setListDragOverPos(e.clientY < r.top + r.height / 2 ? 'above' : 'below'); }}
+                              onDragLeave={() => { setListDragOverTaskId(null); setListDragOverPos(null); }}
+                              onDrop={e => {
+                                e.preventDefault();
+                                const fromId = Number(e.dataTransfer.getData('text/task-id') || draggedTaskId);
+                                const pos = listDragOverPos;
+                                setListDragOverTaskId(null); setListDragOverPos(null); setDraggedTaskId(null);
+                                if (!fromId || fromId === task.id) return;
+                                const ids = wsFilteredTasks.map(t => t.id);
+                                const from = ids.indexOf(fromId); let to = ids.indexOf(task.id);
+                                if (from < 0 || to < 0) return;
+                                const reordered = ids.filter(id => id !== fromId);
+                                const insertAt = reordered.indexOf(task.id) + (pos === 'below' ? 1 : 0);
+                                reordered.splice(insertAt, 0, fromId);
+                                reorderTasks(reordered);
+                              }}
+                              onDragEnd={() => { setDraggedTaskId(null); setListDragOverTaskId(null); setListDragOverPos(null); }}
+                              onClick={() => openTaskDetail(task)}
+                              className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
+                              style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
                             <div className="flex items-start gap-2.5">
+                              <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base" onMouseDown={e => e.stopPropagation()} />
                               <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                 <i className={`${sc.icon} text-lg`}></i>
                               </button>
@@ -2203,6 +2284,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                   </div>
                                 )}
                               </div>
+                            </div>
                             </div>
                           </div>
                         );
@@ -2254,11 +2336,35 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     const tDaysLeft = task.due_date
                                       ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
                                       : null;
+                                    const isOver2 = listDragOverTaskId === task.id && draggedTaskId !== task.id;
                                     return (
-                                      <div key={task.id} onClick={() => openTaskDetail(task)}
-                                        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder}`}
+                                      <div key={task.id} className="relative">
+                                        {isOver2 && listDragOverPos === 'above' && <div className="absolute -top-1 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full z-10 pointer-events-none" />}
+                                        {isOver2 && listDragOverPos === 'below' && <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full z-10 pointer-events-none" />}
+                                        <div
+                                        draggable
+                                        onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/task-id', String(task.id)); setDraggedTaskId(task.id); setListDragOverTaskId(null); setListDragOverPos(null); }}
+                                        onDragOver={e => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setListDragOverTaskId(task.id); setListDragOverPos(e.clientY < r.top + r.height / 2 ? 'above' : 'below'); }}
+                                        onDragLeave={() => { setListDragOverTaskId(null); setListDragOverPos(null); }}
+                                        onDrop={e => {
+                                          e.preventDefault();
+                                          const fromId = Number(e.dataTransfer.getData('text/task-id') || draggedTaskId);
+                                          const pos = listDragOverPos;
+                                          setListDragOverTaskId(null); setListDragOverPos(null); setDraggedTaskId(null);
+                                          if (!fromId || fromId === task.id) return;
+                                          const ids = g.items.map(t => t.id);
+                                          if (ids.indexOf(fromId) < 0) return;
+                                          const reordered = ids.filter(id => id !== fromId);
+                                          const insertAt = reordered.indexOf(task.id) + (pos === 'below' ? 1 : 0);
+                                          reordered.splice(insertAt, 0, fromId);
+                                          reorderTasks(reordered);
+                                        }}
+                                        onDragEnd={() => { setDraggedTaskId(null); setListDragOverTaskId(null); setListDragOverPos(null); }}
+                                        onClick={() => openTaskDetail(task)}
+                                        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
                                         style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
                                         <div className="flex items-start gap-2.5">
+                                          <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base" />
                                           <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                             <i className={`${sc.icon} text-lg`}></i>
                                           </button>
@@ -2304,6 +2410,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                               </div>
                                             )}
                                           </div>
+                                        </div>
                                         </div>
                                       </div>
                                     );
