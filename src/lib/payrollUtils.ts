@@ -250,8 +250,8 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
       .lte('date', periodEnd),
     supabase
       .from('hub_payouts')
-      .select('contractor_id, status, payment_date, final_payout, adjustments')
-      .or(`cutoff_start.eq.${periodStart},and(cutoff_end.gte.${periodStart},cutoff_start.lte.${periodEnd})`),
+      .select('contractor_id, status, payment_date, overtime_pay, adjustments')
+      .eq('cutoff_start', periodStart),
   ]);
 
   const contractors = (contractorsRes.data || []).filter((c: any) =>
@@ -259,11 +259,10 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
     (!c.start_date || c.start_date <= periodEnd)
   );
 
-  // Build payout map — prefer exact cutoff_start match, fall back to overlap
+  // Build payout map keyed by contractor_id
   const payoutMap: Record<string, any> = {};
   for (const p of allPayoutsRes.data || []) {
-    const existing = payoutMap[p.contractor_id];
-    if (!existing || p.cutoff_start === periodStart) payoutMap[p.contractor_id] = p;
+    payoutMap[p.contractor_id] = p;
   }
 
   // Skip hours on or before payment_date for already-paid contractors
@@ -408,12 +407,19 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
       }
     }
 
-    // If a payout with a locked final amount exists, use it directly
+    // Use persisted overtime_pay if admin has overridden it
     const payout = payoutMap[c.id];
-    if (payout?.final_payout != null && ['submitted', 'hr_approved', 'approved', 'paid'].includes(payout.status)) {
-      const inPHP = c.currency === 'USD' ? Number(payout.final_payout) * usdRate : Number(payout.final_payout);
-      total += inPHP;
-      continue;
+    if (payout?.overtime_pay != null) {
+      const computedOTRate = (() => {
+        const monthly = (rateAtStart ?? changeInPeriod)?.monthly_rate ?? c.monthly_rate ?? 0;
+        const hourly  = (rateAtStart ?? changeInPeriod)?.hourly_rate  ?? c.hourly_rate  ?? 0;
+        const payType = c.payment_type || 'hourly';
+        return payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / 176) : hourly;
+      })();
+      const computedOTPay = hrs.overtime * computedOTRate;
+      const persistedOTPay = Number(payout.overtime_pay);
+      // Replace computed OT with persisted value; adjust total accordingly
+      pay = pay - computedOTPay + persistedOTPay;
     }
 
     const inPHP = c.currency === 'USD' ? pay * usdRate : pay;
