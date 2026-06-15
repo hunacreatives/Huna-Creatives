@@ -464,7 +464,7 @@ export default function ContractorPayoutsPage() {
       - Number(existingPayout.penalties || 0);
     return arrayTotal || legacyTotal;
   })();
-  const persistedBasePay = existingPayout?.base_pay != null ? Number(existingPayout.base_pay) : null;
+  const persistedBasePay = existingPayout?.base_pay != null && Number(existingPayout.base_pay) > 0 ? Number(existingPayout.base_pay) : null;
   const persistedOvertimePay = existingPayout?.overtime_pay != null ? Number(existingPayout.overtime_pay) : null;
   const displayBasePay = persistedBasePay ?? basePay;
   const displayOvertimePay = persistedOvertimePay ?? overtimePay;
