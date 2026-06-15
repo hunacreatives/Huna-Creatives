@@ -344,7 +344,7 @@ export default function ContractorDashboard() {
   const cutoffDeadlineDate = new Date(`${cutoffEndStr}T00:00:00`);
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const daysUntilCutoff = Math.round((cutoffDeadlineDate.getTime() - todayMidnight.getTime()) / 86400000);
-  const showPayslipBanner = daysUntilCutoff <= 3 && !['submitted','hr_approved','paid'].includes(payoutStatus ?? '');
+  const showPayslipBanner = daysUntilCutoff >= 0 && daysUntilCutoff <= 3 && !['submitted','hr_approved','paid'].includes(payoutStatus ?? '');
 
   const fetchData = async () => {
     if (isDemo) {
