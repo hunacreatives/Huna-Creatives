@@ -130,21 +130,27 @@ export default function AdminPayrollPage() {
 
   const periods = getPeriods();
   const lastPeriod = periods[periods.length - 1];
+  // If the period just rolled over today, default to the previous period so
+  // in-progress payroll work from the prior cutoff isn't hidden.
+  const todayStr = localToday();
+  const defaultPeriod = lastPeriod.start === todayStr && periods.length >= 2
+    ? periods[periods.length - 2]
+    : lastPeriod;
 
   const years = [...new Set(periods.map(p => p.start.slice(0, 4)))];
-  const [selectedYear, setSelectedYear] = useState(lastPeriod.start.slice(0, 4));
+  const [selectedYear, setSelectedYear] = useState(defaultPeriod.start.slice(0, 4));
   const [closedPeriods, setClosedPeriods] = useState<Set<string>>(new Set());
 
   const monthsInYear = [...new Set(
     periods.filter(p => p.start.startsWith(selectedYear))
       .map(p => p.start.slice(0, 7))
   )];
-  const [selectedMonth, setSelectedMonth] = useState(lastPeriod.start.slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(defaultPeriod.start.slice(0, 7));
 
   const periodsInMonth = periods.filter(p => p.start.startsWith(selectedMonth));
   const openPeriodsInMonth = periodsInMonth.filter(p => !closedPeriods.has(p.start));
   const archivedPeriodsInMonth = periodsInMonth.filter(p => closedPeriods.has(p.start));
-  const [selectedPeriod, setSelectedPeriod] = useState(lastPeriod);
+  const [selectedPeriod, setSelectedPeriod] = useState(defaultPeriod);
 
   const [rows, setRows] = useState<PayRow[]>([]);
   const [loading, setLoading] = useState(true);
