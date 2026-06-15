@@ -521,6 +521,13 @@ export default function ContractorPayoutsPage() {
   const persistedOvertimePay = existingPayout?.overtime_pay != null ? Number(existingPayout.overtime_pay) : null;
   const displayBasePay = persistedBasePay ?? basePay;
   const displayOvertimePay = persistedOvertimePay ?? overtimePay;
+  // If admin manually set overtime_pay but hub_daily_hours has no OT rows yet,
+  // derive the display hours from the saved pay value so the payslip shows correctly.
+  const displayOvertimeHours = totalOvertime > 0
+    ? totalOvertime
+    : (persistedOvertimePay != null && persistedOvertimePay > 0 && otRate > 0
+      ? parseFloat((persistedOvertimePay / otRate).toFixed(2))
+      : 0);
   const displayTotalPay = existingPayout?.final_payout != null
     ? Number(existingPayout.final_payout)
     : totalPay;
@@ -615,7 +622,7 @@ export default function ContractorPayoutsPage() {
       totalDaysWorked,
       totalHoursRaw,
       totalHoursBillable,
-      totalOvertime,
+      totalOvertime: displayOvertimeHours,
       basePay: displayBasePay,
       overtimePay: displayOvertimePay,
       totalPay: displayTotalPay,
@@ -859,7 +866,7 @@ export default function ContractorPayoutsPage() {
                   { label: 'Days Worked', value: totalDaysWorked, color: 'text-gray-900' },
                   { label: 'Hours Logged', value: `${totalHoursRaw.toFixed(1)}h`, color: 'text-gray-900' },
                   { label: 'Billable Hours', value: `${totalHoursBillable.toFixed(1)}h`, color: 'text-sky-700' },
-                  { label: 'Overtime', value: totalOvertime > 0 ? `+${totalOvertime}h` : '—', color: totalOvertime > 0 ? 'text-purple-700' : 'text-gray-400' },
+                  { label: 'Overtime', value: displayOvertimeHours > 0 ? `+${displayOvertimeHours}h` : '—', color: displayOvertimeHours > 0 ? 'text-purple-700' : 'text-gray-400' },
                 ].map(s => (
                   <div key={s.label} className="bg-gray-50 rounded-xl py-3">
                     <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
