@@ -4,6 +4,7 @@ import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { getPeriods } from '@/lib/formatUtils';
+import { getSetting } from '@/lib/settings';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF } from '@/lib/demoData';
@@ -310,11 +311,22 @@ export default function ContractorDashboard() {
   const [activeProjects, setActiveProjects] = useState<{ id: number; project_name: string; client_name: string; service: string | null; status: string; deadline: string | null; tasksDone: number; tasksTotal: number }[]>([]);
 
   const today = new Date();
-  const currentPeriod = getPeriods().at(-1) ?? {
+  const allPeriods = getPeriods();
+  const [currentPeriod, setCurrentPeriod] = useState(allPeriods.at(-1) ?? {
     label: '',
     start: today.toISOString().slice(0, 10),
     end: today.toISOString().slice(0, 10),
-  };
+  });
+
+  useEffect(() => {
+    getSetting('active_payroll_period', '').then(v => {
+      if (v) {
+        const found = allPeriods.find(p => p.start === v);
+        if (found) setCurrentPeriod(found);
+      }
+    });
+  }, []);
+
   const cutoffStartStr = currentPeriod.start;
   const cutoffEndStr = currentPeriod.end;
   const cutoffStart = new Date(`${cutoffStartStr}T00:00:00`);
@@ -501,7 +513,7 @@ export default function ContractorDashboard() {
     }
   };
 
-  useEffect(() => { fetchData(); }, [user, isDemo]);
+  useEffect(() => { fetchData(); }, [user, isDemo, cutoffStartStr]);
 
   const hour = now.getHours();
   const phTime = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true });
