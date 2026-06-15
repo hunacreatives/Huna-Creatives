@@ -325,6 +325,7 @@ export default function AdminProjectsPage() {
   const [boardDragOver, setBoardDragOver] = useState<ProjectTask['status'] | null>(null);
   const [listDragOverTaskId, setListDragOverTaskId] = useState<number | null>(null);
   const [listDragOverPos, setListDragOverPos] = useState<'above' | 'below' | null>(null);
+  const listDragFromHandle = useRef(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskAssigneeIds, setNewTaskAssigneeIds] = useState<string[]>([]);
   const [newTaskDue, setNewTaskDue] = useState('');
@@ -1597,15 +1598,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     if (taskFilter === 'all') return true;
     if (taskFilter === 'overdue') return !!wsIsOverdue(t);
     return t.status === taskFilter;
-  }).sort((a, b) => {
-    // Overdue first, then by due_date asc, undated last
-    const aOver = wsIsOverdue(a) ? 0 : 1;
-    const bOver = wsIsOverdue(b) ? 0 : 1;
-    if (aOver !== bOver) return aOver - bOver;
-    if (!a.due_date && !b.due_date) return 0;
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
-    return a.due_date.localeCompare(b.due_date);
   });
   const wsActiveTasks = tasks.filter(t => !t.archived);
   const wsDoneCt = wsActiveTasks.filter(t => t.status === 'done').length;
@@ -2161,22 +2153,49 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     <p className="text-xs text-gray-400">{column.empty}</p>
                                   </div>
                                 ) : (
-                                  columnTasks.map((task) => {
+                                  <>
+                                  {/* Top drop zone — allows inserting before the first card */}
+                                  <div className="h-2 -mb-1 relative"
+                                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); setListDragOverTaskId(-column.key.length); setListDragOverPos('above'); setBoardDragOver(null); }}
+                                    onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setListDragOverTaskId(null); setListDragOverPos(null); } }}
+                                    onDrop={async e => {
+                                      e.preventDefault(); e.stopPropagation();
+                                      const fromId = Number(e.dataTransfer.getData('text/task-id') || draggedTaskId);
+                                      setListDragOverTaskId(null); setListDragOverPos(null); setDraggedTaskId(null); setBoardDragOver(null);
+                                      if (!fromId) return;
+                                      const fromTask = tasks.find(t => t.id === fromId);
+                                      if (!fromTask) return;
+                                      if (fromTask.status !== column.key) {
+                                        await updateTaskStatus(fromTask, column.key);
+                                        return;
+                                      }
+                                      const colIds = tasks.filter(t => t.status === column.key && t.id !== fromId).map(t => t.id);
+                                      reorderTasks([fromId, ...colIds]);
+                                    }}
+                                  >
+                                    {listDragOverTaskId === -column.key.length && <div className="absolute top-0 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full pointer-events-none" />}
+                                  </div>
+                                  {columnTasks.map((task) => {
                                     const isBoardOver = listDragOverTaskId === task.id && draggedTaskId !== task.id;
                                     return (
                                       <div key={task.id} className="relative"
                                         onDragOver={e => { e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setListDragOverTaskId(task.id); setListDragOverPos(e.clientY < r.top + r.height / 2 ? 'above' : 'below'); setBoardDragOver(null); }}
-                                        onDragLeave={() => { setListDragOverTaskId(null); setListDragOverPos(null); }}
+                                        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setListDragOverTaskId(null); setListDragOverPos(null); } }}
                                         onDrop={async e => {
                                           e.preventDefault(); e.stopPropagation();
                                           const fromId = Number(e.dataTransfer.getData('text/task-id') || draggedTaskId);
-                                          const pos = listDragOverPos;
+                                          const r = e.currentTarget.getBoundingClientRect();
+                                          const pos = e.clientY < r.top + r.height / 2 ? 'above' : 'below';
                                           setListDragOverTaskId(null); setListDragOverPos(null); setDraggedTaskId(null); setBoardDragOver(null);
                                           if (!fromId || fromId === task.id) return;
                                           const fromTask = tasks.find(t => t.id === fromId);
                                           if (!fromTask) return;
-                                          if (fromTask.status !== column.key) await updateTaskStatus(fromTask, column.key);
-                                          const colIds = tasks.filter(t => t.id === fromId ? column.key : t.status === column.key).map(t => t.id);
+                                          if (fromTask.status !== column.key) {
+                                            await updateTaskStatus(fromTask, column.key);
+                                            return; // skip reorder — tasks state is stale after async status update
+                                          }
+                                          // Same-column reorder only
+                                          const colIds = tasks.filter(t => t.status === column.key).map(t => t.id);
                                           const withoutFrom = colIds.filter(id => id !== fromId);
                                           const insertAt = withoutFrom.indexOf(task.id) + (pos === 'below' ? 1 : 0);
                                           withoutFrom.splice(insertAt < 0 ? withoutFrom.length : insertAt, 0, fromId);
@@ -2188,7 +2207,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                         {BoardCard(task)}
                                       </div>
                                     );
-                                  })
+                                  })}
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -2216,29 +2236,29 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                             {isOver && listDragOverPos === 'below' && <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full z-10 pointer-events-none" />}
                             <div
                               draggable
-                              onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/task-id', String(task.id)); setDraggedTaskId(task.id); setListDragOverTaskId(null); setListDragOverPos(null); }}
+                              onDragStart={e => { if (!listDragFromHandle.current) { e.preventDefault(); return; } listDragFromHandle.current = false; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/task-id', String(task.id)); setDraggedTaskId(task.id); setListDragOverTaskId(null); setListDragOverPos(null); }}
                               onDragOver={e => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setListDragOverTaskId(task.id); setListDragOverPos(e.clientY < r.top + r.height / 2 ? 'above' : 'below'); }}
-                              onDragLeave={() => { setListDragOverTaskId(null); setListDragOverPos(null); }}
+                              onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setListDragOverTaskId(null); setListDragOverPos(null); } }}
                               onDrop={e => {
                                 e.preventDefault();
                                 const fromId = Number(e.dataTransfer.getData('text/task-id') || draggedTaskId);
-                                const pos = listDragOverPos;
+                                const r = e.currentTarget.getBoundingClientRect();
+                                const pos = e.clientY < r.top + r.height / 2 ? 'above' : 'below';
                                 setListDragOverTaskId(null); setListDragOverPos(null); setDraggedTaskId(null);
                                 if (!fromId || fromId === task.id) return;
                                 const ids = wsFilteredTasks.map(t => t.id);
-                                const from = ids.indexOf(fromId); let to = ids.indexOf(task.id);
-                                if (from < 0 || to < 0) return;
+                                if (ids.indexOf(fromId) < 0 || ids.indexOf(task.id) < 0) return;
                                 const reordered = ids.filter(id => id !== fromId);
                                 const insertAt = reordered.indexOf(task.id) + (pos === 'below' ? 1 : 0);
                                 reordered.splice(insertAt, 0, fromId);
                                 reorderTasks(reordered);
                               }}
-                              onDragEnd={() => { setDraggedTaskId(null); setListDragOverTaskId(null); setListDragOverPos(null); }}
+                              onDragEnd={() => { listDragFromHandle.current = false; setDraggedTaskId(null); setListDragOverTaskId(null); setListDragOverPos(null); }}
                               onClick={() => openTaskDetail(task)}
-                              className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
+                              className={`select-none bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
                               style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
                             <div className="flex items-start gap-2.5">
-                              <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base" onMouseDown={e => e.stopPropagation()} />
+                              <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base" onPointerDown={() => { listDragFromHandle.current = true; }} />
                               <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                 <i className={`${sc.icon} text-lg`}></i>
                               </button>
@@ -2343,13 +2363,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                         {isOver2 && listDragOverPos === 'below' && <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full z-10 pointer-events-none" />}
                                         <div
                                         draggable
-                                        onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/task-id', String(task.id)); setDraggedTaskId(task.id); setListDragOverTaskId(null); setListDragOverPos(null); }}
+                                        onDragStart={e => { if (!listDragFromHandle.current) { e.preventDefault(); return; } listDragFromHandle.current = false; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/task-id', String(task.id)); setDraggedTaskId(task.id); setListDragOverTaskId(null); setListDragOverPos(null); }}
                                         onDragOver={e => { e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); setListDragOverTaskId(task.id); setListDragOverPos(e.clientY < r.top + r.height / 2 ? 'above' : 'below'); }}
-                                        onDragLeave={() => { setListDragOverTaskId(null); setListDragOverPos(null); }}
+                                        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setListDragOverTaskId(null); setListDragOverPos(null); } }}
                                         onDrop={e => {
                                           e.preventDefault();
                                           const fromId = Number(e.dataTransfer.getData('text/task-id') || draggedTaskId);
-                                          const pos = listDragOverPos;
+                                          const r = e.currentTarget.getBoundingClientRect();
+                                          const pos = e.clientY < r.top + r.height / 2 ? 'above' : 'below';
                                           setListDragOverTaskId(null); setListDragOverPos(null); setDraggedTaskId(null);
                                           if (!fromId || fromId === task.id) return;
                                           const ids = g.items.map(t => t.id);
@@ -2359,12 +2380,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                           reordered.splice(insertAt, 0, fromId);
                                           reorderTasks(reordered);
                                         }}
-                                        onDragEnd={() => { setDraggedTaskId(null); setListDragOverTaskId(null); setListDragOverPos(null); }}
+                                        onDragEnd={() => { listDragFromHandle.current = false; setDraggedTaskId(null); setListDragOverTaskId(null); setListDragOverPos(null); }}
                                         onClick={() => openTaskDetail(task)}
-                                        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
+                                        className={`select-none bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
                                         style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
                                         <div className="flex items-start gap-2.5">
-                                          <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base" />
+                                          <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base" onPointerDown={() => { listDragFromHandle.current = true; }} />
                                           <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                             <i className={`${sc.icon} text-lg`}></i>
                                           </button>

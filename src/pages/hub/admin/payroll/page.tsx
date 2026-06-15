@@ -260,7 +260,7 @@ export default function AdminPayrollPage() {
     const adjTotal = finalAdjItems.reduce((s, i) => s + i.amount, 0);
     const finalPay = basePay + computedOTPay + adjTotal;
 
-    // Write edited OT hours back to hub_daily_hours for each day in the period
+    // Write edited OT hours back to hub_daily_hours so fetchPayroll picks them up on reload
     if (!isNaN(otH) && row && otH !== row.overtimeHours) {
       const { data: dailyRows } = await supabase
         .from('hub_daily_hours')
@@ -270,8 +270,9 @@ export default function AdminPayrollPage() {
         .lte('date', selectedPeriod.end)
         .gt('overtime_hours', 0)
         .order('date', { ascending: true });
+
       if (dailyRows && dailyRows.length > 0) {
-        // Distribute OT hours: put all on the last OT day to keep daily records meaningful
+        // Existing OT rows: put all adjusted OT on the last OT day
         const otDays = [...dailyRows];
         const lastOTDate = otDays[otDays.length - 1].date;
         const otherDays = otDays.slice(0, -1);
@@ -281,6 +282,18 @@ export default function AdminPayrollPage() {
           user_id: contractorId,
           date: lastOTDate,
           overtime_hours: lastDayOT,
+          is_manual: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,date' });
+      } else {
+        // No existing OT rows — create one on the last day of the period so fetchPayroll sees it
+        await supabase.from('hub_daily_hours').upsert({
+          user_id: contractorId,
+          date: selectedPeriod.end,
+          overtime_hours: otH,
+          hours_capped: 0,
+          hours_raw: 0,
+          is_manual: true,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id,date' });
       }
