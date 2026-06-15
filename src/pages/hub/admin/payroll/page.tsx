@@ -360,8 +360,8 @@ export default function AdminPayrollPage() {
     const [payoutsRes, batchRes] = await Promise.all([
       supabase
         .from('hub_payouts')
-        .select('id, contractor_id, status, final_payout, payment_date, batch_id, adjustments, payslip_sent_at, overtime_pay')
-        .eq('cutoff_start', selectedPeriod.start),
+        .select('id, contractor_id, status, final_payout, payment_date, batch_id, adjustments, payslip_sent_at, overtime_pay, cutoff_start')
+        .or(`cutoff_start.eq.${selectedPeriod.start},and(cutoff_end.gte.${selectedPeriod.start},cutoff_start.lte.${selectedPeriod.end})`),
       supabase
         .from('hub_payroll_batches')
         .select('*')
@@ -371,7 +371,11 @@ export default function AdminPayrollPage() {
         .maybeSingle(),
     ]);
     const map: Record<string, any> = {};
-    for (const p of payoutsRes.data || []) map[p.contractor_id] = p;
+    for (const p of payoutsRes.data || []) {
+      const existing = map[p.contractor_id];
+      // Prefer the payout whose cutoff_start exactly matches the period over overlapping hourly ones
+      if (!existing || p.cutoff_start === selectedPeriod.start) map[p.contractor_id] = p;
+    }
     setPayoutsMap(map);
     setBatch(batchRes.data ?? null);
 
