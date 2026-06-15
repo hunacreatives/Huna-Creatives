@@ -479,9 +479,7 @@ export default function ContractorPayoutsPage() {
     : (persistedOvertimePay != null && persistedOvertimePay > 0 && otRate > 0
       ? parseFloat((persistedOvertimePay / otRate).toFixed(2))
       : 0);
-  const displayTotalPay = existingPayout?.final_payout != null
-    ? Number(existingPayout.final_payout)
-    : totalPay;
+  const displayTotalPay = displayBasePay + displayOvertimePay + payoutAdjustments;
 
   const handleSubmit = async () => {
     if (!hubUser || submitting) return;
