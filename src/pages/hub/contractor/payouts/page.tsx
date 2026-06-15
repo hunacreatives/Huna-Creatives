@@ -31,6 +31,7 @@ function generatePayslipHTML(opts: {
   hourlyRate: number;
   monthlyRate: number;
   currency: string;
+  usdRate: number;
   totalDaysWorked: number;
   totalHoursRaw: number;
   totalHoursBillable: number;
@@ -41,18 +42,17 @@ function generatePayslipHTML(opts: {
   generatedDate: string;
   logoUrl: string;
 }) {
-  const { name, department, period, days, paymentType, hourlyRate, monthlyRate, currency,
+  const { name, department, period, days, paymentType, hourlyRate, monthlyRate, currency, usdRate,
     totalDaysWorked, totalHoursRaw, totalHoursBillable, totalOvertime,
     basePay, overtimePay, totalPay, generatedDate, logoUrl } = opts;
 
   const isUSD = currency === 'USD';
-  const fmt = (val: number) => isUSD
-    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
-    : new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val);
+  const toPhp = (val: number) => isUSD ? val * usdRate : val;
+  const fmt = (val: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(toPhp(val));
 
   const rateDisplay = paymentType === 'fixed'
     ? `${fmt(monthlyRate)} / month (bi-monthly disbursement of ${fmt(monthlyRate / 2)})`
-    : `${isUSD ? 'USD' : 'PHP'} ${hourlyRate}.00 per hour`;
+    : `₱${toPhp(hourlyRate).toFixed(2)} per hour`;
 
   const dayRows = days.map(d => `
     <tr>
@@ -347,6 +347,10 @@ export default function ContractorPayoutsPage() {
   const workDays = ((hubUser as any)?.work_days as string[] | null | undefined) || [];
   const currency = (hubUser as any)?.currency || 'PHP';
   const isUSD = currency === 'USD';
+  const [usdRate, setUsdRate] = useState(56);
+  useEffect(() => {
+    if (isUSD) getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v || '56')));
+  }, [isUSD]);
 
   const totalDaysWorked = days.length;
   const totalHoursRaw = days.reduce((s, d) => s + d.hours_raw, 0);
@@ -507,9 +511,8 @@ export default function ContractorPayoutsPage() {
     setSubmitting(false);
   };
 
-  const fmt = (val: number) => isUSD
-    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
-    : fmtPHP(val);
+  const toPhp = (val: number) => isUSD ? val * usdRate : val;
+  const fmt = (val: number) => fmtPHP(toPhp(val));
 
   const submitDispute = async () => {
     if (!hubUser || !existingPayout || !disputeReason.trim()) return;
@@ -537,6 +540,7 @@ export default function ContractorPayoutsPage() {
       hourlyRate: displayHourlyRate,
       monthlyRate: displayMonthlyRate,
       currency,
+      usdRate,
       totalDaysWorked,
       totalHoursRaw,
       totalHoursBillable,
@@ -633,7 +637,7 @@ export default function ContractorPayoutsPage() {
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">Rate</p>
                   <p className="text-sm font-semibold text-gray-900">
-                    {isProrated ? 'Prorated' : paymentType === 'hourly' ? `${isUSD ? '$' : '₱'}${displayHourlyRate}/hr` : `₱${displayMonthlyRate.toLocaleString()}/mo`}
+                    {isProrated ? 'Prorated' : paymentType === 'hourly' ? `₱${toPhp(displayHourlyRate).toFixed(2)}/hr` : `₱${toPhp(displayMonthlyRate).toLocaleString()}/mo`}
                   </p>
                   <p className="text-xs text-gray-400">{isProrated ? proratedLabel : paymentType}</p>
                 </div>
@@ -693,14 +697,14 @@ export default function ContractorPayoutsPage() {
                         ? `Prorated base (${proratedLabel})`
                         : paymentType !== 'hourly'
                           ? `Fixed base (${fmt(displayMonthlyRate)}/mo, earned from capped hours)`
-                          : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${displayHourlyRate})`}
+                          : `Base pay (${totalHoursBillable.toFixed(2)}h × ₱${toPhp(displayHourlyRate).toFixed(2)})`}
                     </span>
                     <span className="text-sm font-medium text-gray-800">{fmt(displayBasePay)}</span>
                   </div>
                   {displayOvertimePay > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-purple-600">
-                        Overtime ({displayOvertimeHours}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)
+                        Overtime ({displayOvertimeHours}h × ₱{toPhp(otRate).toFixed(2)}/hr)
                       </span>
                       <span className="text-sm font-medium text-purple-700">+{fmt(displayOvertimePay)}</span>
                     </div>
