@@ -319,7 +319,8 @@ export default function ContractorPayoutsPage() {
         (slackRes as any)?.data?.attendance || [],
         [hubUser.id],
         todayPHT,
-      ).map(({ user_id: _userId, ...rest }) => rest as DayRow);
+      ).map(({ user_id: _userId, ...rest }) => rest as DayRow)
+        .filter(d => d.date >= selectedPeriod.start && d.date <= selectedPeriod.end);
       setDays(mergedDays);
       setRateHistory((rateRes.data as RateEntry[]) ?? []);
       setExistingPayout(payout);

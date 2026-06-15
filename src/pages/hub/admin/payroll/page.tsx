@@ -898,6 +898,8 @@ export default function AdminPayrollPage() {
     const overtimeByDate: Record<string, Record<string, number>> = {};
     const hoursMap: Record<string, { capped: number; raw: number; overtime: number; days: number }> = {};
     for (const h of mergedHoursRows) {
+      // Skip dates outside the selected period (live Slack data can include yesterday's entries)
+      if (h.date < selectedPeriod.start || h.date > selectedPeriod.end) continue;
       // Skip hours already covered by a paid payout (on or before payment_date)
       const paymentDate = paidPaymentDateMap[h.user_id];
       if (paymentDate && h.date <= paymentDate) continue;
