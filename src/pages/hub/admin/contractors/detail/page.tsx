@@ -69,7 +69,10 @@ export default function ContractorDetailPage() {
 
   // Payslip tab state
   const allPeriods = getPeriods();
-  const [selectedPeriod, setSelectedPeriod] = useState(allPeriods[allPeriods.length - 1]);
+  const _lastP = allPeriods[allPeriods.length - 1];
+  const _defaultP = _lastP?.start === localToday() && allPeriods.length >= 2
+    ? allPeriods[allPeriods.length - 2] : _lastP;
+  const [selectedPeriod, setSelectedPeriod] = useState(_defaultP);
 
   // Attendance tab state
   const reversedPeriods = [...allPeriods].reverse();
@@ -284,9 +287,11 @@ export default function ContractorDetailPage() {
         .lte('date', selectedPeriod.end)
         .order('date', { ascending: true }),
       supabase.from('hub_payouts')
-        .select('id, status, final_payout, payment_date')
+        .select('id, status, final_payout, payment_date, overtime_pay, base_pay, adjustments')
         .eq('contractor_id', id!)
-        .eq('cutoff_start', selectedPeriod.start)
+        .or(`cutoff_start.eq.${selectedPeriod.start},and(cutoff_end.gte.${selectedPeriod.start},cutoff_start.lte.${selectedPeriod.end})`)
+        .order('cutoff_start', { ascending: false })
+        .limit(1)
         .maybeSingle(),
     ]);
     const mergedDays = mergeLiveAttendanceIntoDailyHours(
@@ -294,7 +299,8 @@ export default function ContractorDetailPage() {
       (slackRes as any)?.data?.attendance || [],
       [id!],
       today,
-    ).map(({ user_id: _userId, ...rest }) => rest as DayRow);
+    ).map(({ user_id: _userId, ...rest }) => rest as DayRow)
+      .filter(d => d.date >= selectedPeriod.start && d.date <= selectedPeriod.end);
     setPayslipDays(mergedDays);
     setPayslipPayout(payoutRes.data ?? null);
     setPayslipLoading(false);
@@ -869,6 +875,14 @@ export default function ContractorDetailPage() {
             overtimePay = totalOvertime * otRate;
           }
           const totalPay = basePay + overtimePay;
+          const persistedOvertimePay = payslipPayout?.overtime_pay != null ? Number(payslipPayout.overtime_pay) : null;
+          const displayOvertimePay = persistedOvertimePay ?? overtimePay;
+          const displayOvertimeHours = totalOvertime > 0
+            ? totalOvertime
+            : (persistedOvertimePay != null && persistedOvertimePay > 0 && otRate > 0
+              ? parseFloat((persistedOvertimePay / otRate).toFixed(2))
+              : 0);
+          const displayTotalPay = payslipPayout?.final_payout != null ? Number(payslipPayout.final_payout) : totalPay;
 
           return (
             <div className="max-w-2xl space-y-5">
@@ -931,7 +945,7 @@ export default function ContractorDetailPage() {
                         { label: 'Days Worked', value: totalDaysWorked, color: 'text-gray-900' },
                         { label: 'Hours Logged', value: `${totalHoursRaw.toFixed(1)}h`, color: 'text-gray-900' },
                         { label: 'Billable Hours', value: `${totalHoursBillable.toFixed(1)}h`, color: 'text-sky-700' },
-                        { label: 'Overtime', value: totalOvertime > 0 ? `+${totalOvertime}h` : '—', color: totalOvertime > 0 ? 'text-purple-700' : 'text-gray-400' },
+                        { label: 'Overtime', value: displayOvertimeHours > 0 ? `+${displayOvertimeHours}h` : '—', color: displayOvertimeHours > 0 ? 'text-purple-700' : 'text-gray-400' },
                       ].map(s => (
                         <div key={s.label} className="bg-gray-50 rounded-xl py-3">
                           <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
@@ -983,15 +997,15 @@ export default function ContractorDetailPage() {
                           </span>
                           <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>
                         </div>
-                        {overtimePay > 0 && (
+                        {displayOvertimePay > 0 && (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-purple-600">Overtime ({totalOvertime}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)</span>
-                            <span className="text-sm font-medium text-purple-700">+{fmt(overtimePay)}</span>
+                            <span className="text-sm text-purple-600">Overtime ({displayOvertimeHours}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)</span>
+                            <span className="text-sm font-medium text-purple-700">+{fmt(displayOvertimePay)}</span>
                           </div>
                         )}
                         <div className="flex items-center justify-between pt-3 mt-1 border-t border-gray-100">
                           <span className="font-semibold text-gray-900">Total Payout</span>
-                          <span className="text-xl font-bold text-[#FF6B35]">{fmt(totalPay)}</span>
+                          <span className="text-xl font-bold text-[#FF6B35]">{fmt(displayTotalPay)}</span>
                         </div>
                       </div>
                     </div>
