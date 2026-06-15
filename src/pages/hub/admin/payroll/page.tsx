@@ -294,16 +294,18 @@ export default function AdminPayrollPage() {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id,date' });
       } else if (otH > 0) {
-        // No existing OT rows — create one on the last day of the period
-        await supabase.from('hub_daily_hours').upsert({
-          user_id: contractorId,
-          date: selectedPeriod.end,
-          overtime_hours: otH,
-          hours_capped: 0,
-          hours_raw: 0,
-          is_manual: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,date' });
+        // No existing OT rows — update period's last day if it exists, else insert a stub.
+        // Only set overtime_hours; don't overwrite hours_capped/hours_raw so the
+        // contractor's real work hours for that day are preserved.
+        const lastDay = selectedPeriod.end;
+        const { data: lastDayRow } = await supabase.from('hub_daily_hours')
+          .select('id').eq('user_id', contractorId).eq('date', lastDay).maybeSingle();
+        if (lastDayRow) {
+          await supabase.from('hub_daily_hours').update({ overtime_hours: otH, is_manual: true, updated_at: new Date().toISOString() })
+            .eq('user_id', contractorId).eq('date', lastDay);
+        } else {
+          await supabase.from('hub_daily_hours').insert({ user_id: contractorId, date: lastDay, overtime_hours: otH, hours_capped: 0, hours_raw: 0, is_manual: true });
+        }
       }
     }
     const existing = payoutsMap[contractorId];

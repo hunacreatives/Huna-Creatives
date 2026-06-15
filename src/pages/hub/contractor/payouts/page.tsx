@@ -706,7 +706,7 @@ export default function ContractorPayoutsPage() {
                   {displayOvertimePay > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-purple-600">
-                        Overtime ({totalOvertime}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)
+                        Overtime ({displayOvertimeHours}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)
                       </span>
                       <span className="text-sm font-medium text-purple-700">+{fmt(displayOvertimePay)}</span>
                     </div>
