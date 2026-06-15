@@ -472,7 +472,8 @@ export default function ContractorDashboard() {
           estimated = totalHours * hourly + totalOT * hourly;
         }
       }
-      setEstimatedPayout(parseFloat(estimated.toFixed(2)));
+      const estimatedPHP = isUSD ? estimated * usdRate : estimated;
+      setEstimatedPayout(parseFloat(estimatedPHP.toFixed(2)));
 
       if (!slackResult.error && slackResult.data?.attendance) {
         const all: any[] = slackResult.data.attendance;
@@ -523,6 +524,10 @@ export default function ContractorDashboard() {
   const isEvening = hour >= 17 && hour < 20;
   const currency = (user as any)?.currency || 'PHP';
   const isUSD = currency === 'USD';
+  const [usdRate, setUsdRate] = useState(56);
+  useEffect(() => {
+    if (isUSD) getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v || '56')));
+  }, [isUSD]);
 
   const statusColors: Record<string, string> = {
     open: 'bg-amber-100 text-amber-700', in_review: 'bg-sky-100 text-sky-700',
@@ -712,7 +717,7 @@ export default function ContractorDashboard() {
                 </div>
                 <p className="text-xl font-bold text-white tracking-wider">
                   {showPayout
-                    ? `${isUSD ? '$' : '₱'}${estimatedPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    ? `₱${estimatedPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                     : '••••••'}
                 </p>
                 <p className="text-xs text-white/60 mt-1">{isFixed ? 'Fixed cutoff rate' : 'Based on hours logged'}</p>
