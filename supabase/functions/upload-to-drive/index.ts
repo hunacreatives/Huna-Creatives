@@ -115,6 +115,13 @@ async function getFolderForType(type: string, meta: Record<string, string>, acce
     return createOrGetFolder(year, careersFolder, accessToken);
   }
 
+  if (type === 'questionnaire_moodboard') {
+    // Sentro Root / Client Questionnaires / {client_name}
+    const parentFolder = await createOrGetFolder('Client Questionnaires', SENTRO_ROOT, accessToken);
+    const clientName = meta.client_name || 'Unknown Client';
+    return createOrGetFolder(clientName, parentFolder, accessToken);
+  }
+
   throw new Error(`Unknown upload type: ${type}`);
 }
 
@@ -195,7 +202,7 @@ Deno.serve(async (req) => {
     if (!uploadRes.ok) throw new Error(JSON.stringify(result));
 
     const fileId = result.id;
-    if (type === 'task_attachment') {
+    if (type === 'task_attachment' || type === 'questionnaire_moodboard') {
       await ensureReadablePreview(fileId, accessToken);
     }
     const url = `https://drive.google.com/file/d/${fileId}/view`;

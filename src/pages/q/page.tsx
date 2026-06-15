@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
-type QType = 'short_text' | 'paragraph' | 'single_choice' | 'multi_choice';
+type QType = 'short_text' | 'paragraph' | 'single_choice' | 'multi_choice' | 'file_upload';
 
 interface Question {
   id: string;
@@ -32,6 +32,8 @@ export default function PublicQuestionnairePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!token) { setNotFound(true); setLoading(false); return; }
@@ -51,6 +53,35 @@ export default function PublicQuestionnairePage() {
 
   const setAnswer = (id: string, value: string | string[]) =>
     setAnswers(prev => ({ ...prev, [id]: value }));
+
+  const handleFileUpload = async (questionId: string, file: File) => {
+    setUploading(prev => ({ ...prev, [questionId]: true }));
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { data, error } = await supabase.functions.invoke('upload-to-drive', {
+        body: {
+          filename: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          base64Content: base64,
+          type: 'questionnaire_moodboard',
+          meta: { client_name: q?.client_name ?? 'Unknown' },
+        },
+      });
+      if (error || data?.error) throw new Error(error?.message ?? data?.error);
+      const driveUrl: string = data.url;
+      setUploadedFiles(prev => ({ ...prev, [questionId]: file.name }));
+      setAnswer(questionId, driveUrl);
+    } catch {
+      setErrors(prev => ({ ...prev, [questionId]: 'Upload failed — try a link instead.' }));
+    } finally {
+      setUploading(prev => ({ ...prev, [questionId]: false }));
+    }
+  };
 
   const toggleMulti = (id: string, option: string) => {
     const curr = (answers[id] as string[]) ?? [];
@@ -187,6 +218,46 @@ export default function PublicQuestionnairePage() {
                     <span className="text-sm text-gray-700" onClick={() => setAnswer(question.id, opt)}>{opt}</span>
                   </label>
                 ))}
+              </div>
+            )}
+
+            {question.type === 'file_upload' && (
+              <div className="space-y-3">
+                {/* File picker */}
+                <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl px-4 py-6 cursor-pointer transition-colors ${
+                  uploading[question.id] ? 'border-[#FF6B35]/40 bg-orange-50' :
+                  uploadedFiles[question.id] ? 'border-emerald-300 bg-emerald-50' :
+                  'border-gray-200 hover:border-[#FF6B35]/50 hover:bg-orange-50/30'
+                }`}>
+                  <input type="file" className="hidden" accept="image/*,.pdf"
+                    disabled={uploading[question.id]}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(question.id, f); }} />
+                  {uploading[question.id] ? (
+                    <><i className="ri-loader-4-line animate-spin text-[#FF6B35] text-xl"></i>
+                    <span className="text-sm text-[#FF6B35] font-medium">Uploading…</span></>
+                  ) : uploadedFiles[question.id] ? (
+                    <><i className="ri-check-circle-line text-emerald-500 text-xl"></i>
+                    <span className="text-sm text-emerald-700 font-medium">{uploadedFiles[question.id]}</span>
+                    <span className="text-xs text-emerald-500">Tap to replace</span></>
+                  ) : (
+                    <><i className="ri-upload-cloud-line text-gray-300 text-2xl"></i>
+                    <span className="text-sm text-gray-500 font-medium">Click to upload a file</span>
+                    <span className="text-xs text-gray-400">Images or PDF · max 10 MB</span></>
+                  )}
+                </label>
+                {/* Link fallback */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-gray-100"></div>
+                  <span className="text-xs text-gray-400">or paste a link</span>
+                  <div className="flex-1 h-px bg-gray-100"></div>
+                </div>
+                <input
+                  type="url"
+                  value={uploadedFiles[question.id] ? '' : ((answers[question.id] as string) ?? '')}
+                  onChange={e => { setUploadedFiles(prev => { const n = {...prev}; delete n[question.id]; return n; }); setAnswer(question.id, e.target.value); }}
+                  placeholder="Pinterest, Google Drive, or any URL…"
+                  className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+                />
               </div>
             )}
 

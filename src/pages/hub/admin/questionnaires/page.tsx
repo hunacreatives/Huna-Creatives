@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type QType = 'short_text' | 'paragraph' | 'single_choice' | 'multi_choice';
+type QType = 'short_text' | 'paragraph' | 'single_choice' | 'multi_choice' | 'file_upload';
 
 interface Question {
   id: string;
@@ -34,6 +34,7 @@ interface Questionnaire {
 
 const SERVICES = [
   'Website Design',
+  'Event Website / E-vite',
   'Graphic Design / Flyer',
   'Branding & Identity',
   'Social Media Management',
@@ -45,6 +46,33 @@ const q = (id: string, type: QType, label: string, opts?: { required?: boolean; 
   ({ id, type, label, ...opts });
 
 const TEMPLATES: Record<string, Question[]> = {
+  'Event Website / E-vite': [
+    // YOUR DETAILS
+    q('fiance_name', 'short_text', "Partner / Fiancé's name (if applicable — for wedding, engagement, bridal shower)"),
+    q('instagram', 'short_text', 'Instagram handle (so we can tag you!)', { placeholder: '@yourhandle' }),
+    // EVENT DETAILS
+    q('occasion', 'single_choice', 'What milestone or occasion are we celebrating?', { required: true, options: ['Baby Shower', 'Bachelorette', 'Birthday', 'Bridal Shower', 'Engagement', 'Wedding', 'Brand Activation / Launch Event', 'Corporate', 'Others'] }),
+    q('occasion_other', 'short_text', 'If Others, please specify.'),
+    q('event_date', 'short_text', 'Event date', { required: true, placeholder: 'e.g. November 15, 2026' }),
+    q('event_location', 'short_text', 'Event location', { required: true, placeholder: 'Venue name, City' }),
+    q('guest_count', 'short_text', 'Approximate number of guests', { placeholder: 'e.g. 150' }),
+    q('planner', 'single_choice', 'Are you working with a wedding / event planner?', { options: ['Yes', 'No, not yet'] }),
+    // SERVICES & PACKAGES
+    q('design_type', 'single_choice', 'Are you enquiring about Bespoke Design or Semi-Custom?', { required: true, options: ['Bespoke Design', 'Semi-Custom'] }),
+    // BESPOKE TRACK
+    q('bespoke_services', 'multi_choice', 'Bespoke: Which services are you interested in?', { options: ['Milestone Events Website', 'Monogram', 'Digital Save the Date', 'Bespoke Stationery', 'RSVP Management'] }),
+    q('bespoke_vision', 'paragraph', 'Bespoke: What is your vision for the design? Describe any ideas, themes, or inspiration.', { placeholder: 'Colors, mood, style references, anything that feels "you"…' }),
+    // SEMI-CUSTOM TRACK
+    q('semicustom_collections', 'multi_choice', 'Semi-Custom: Which collections would you like to explore?', { options: ['Alpine', 'Classic Elegance', 'Coastal', 'Garden', 'Minimalist Polaroid', 'Tropical'] }),
+    q('semicustom_love', 'paragraph', "Semi-Custom: What drew you to the collection(s) you chose?", { placeholder: 'Typography, layout, mood, colours, overall feel…' }),
+    q('semicustom_addons', 'multi_choice', 'Semi-Custom: Would you like any optional add-ons?', { options: ['Digital Save the Date', 'RSVP Management', 'No, just the website for now'] }),
+    // SHARED
+    q('timeline', 'single_choice', 'Ideal project timeline — when would you like your website / stationery to be ready?', { required: true, options: ['3–4 weeks', '1–2 months', '2–3 months', '3+ months', 'Not sure yet'] }),
+    q('moodboard', 'file_upload', 'Design peg or mood board — upload a file or paste a link.'),
+    // ADDITIONAL
+    q('referral', 'short_text', 'How did you hear about us?', { required: true }),
+    q('other', 'paragraph', "Is there anything else you'd like us to know? Cultural touches, special considerations, design dislikes, or personal details you'd love incorporated."),
+  ],
   'Website Design': [
     q('biz_name', 'short_text', 'What is your business name?', { required: true }),
     q('biz_desc', 'paragraph', 'Describe your business and what you do.', { required: true }),
@@ -355,6 +383,12 @@ export default function QuestionnairesPage() {
                           <div className="flex flex-wrap gap-1.5">
                             {answer.map(a => <span key={a} className="text-xs bg-[#FF6B35]/10 text-[#FF6B35] px-2 py-0.5 rounded-full font-medium">{a}</span>)}
                           </div>
+                        ) : question.type === 'file_upload' && (answer as string).startsWith('http') ? (
+                          <a href={answer as string} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm text-[#FF6B35] hover:underline bg-orange-50 rounded-lg px-3 py-2">
+                            <i className="ri-external-link-line text-xs"></i>
+                            View file →
+                          </a>
                         ) : (
                           <p className="text-sm text-[#111827] bg-gray-50 rounded-lg px-3 py-2">{answer}</p>
                         )
@@ -376,6 +410,9 @@ export default function QuestionnairesPage() {
                         <p className="text-sm text-gray-700">{question.label}{question.required && <span className="text-red-400 ml-0.5">*</span>}</p>
                         {question.options && (
                           <p className="text-xs text-gray-400 mt-0.5">{question.options.join(' · ')}</p>
+                        )}
+                        {question.type === 'file_upload' && (
+                          <p className="text-xs text-gray-400 mt-0.5">File upload or link</p>
                         )}
                       </div>
                     </li>
