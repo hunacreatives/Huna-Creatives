@@ -260,8 +260,9 @@ export default function AdminPayrollPage() {
     const adjTotal = finalAdjItems.reduce((s, i) => s + i.amount, 0);
     const finalPay = basePay + computedOTPay + adjTotal;
 
-    // Write edited OT hours back to hub_daily_hours so fetchPayroll picks them up on reload
-    if (!isNaN(otH) && row && otH !== row.overtimeHours) {
+    // Write edited OT hours back to hub_daily_hours and mark them manual so Slack sync
+    // cannot overwrite them. Always write when OT > 0 (not just when value changed).
+    if (!isNaN(otH) && row) {
       const { data: dailyRows } = await supabase
         .from('hub_daily_hours')
         .select('date, overtime_hours')
@@ -272,12 +273,18 @@ export default function AdminPayrollPage() {
         .order('date', { ascending: true });
 
       if (dailyRows && dailyRows.length > 0) {
-        // Existing OT rows: put all adjusted OT on the last OT day
+        // Mark all existing OT days as manual so Slack can't overwrite them,
+        // and consolidate the adjusted total onto the last OT day.
         const otDays = [...dailyRows];
         const lastOTDate = otDays[otDays.length - 1].date;
         const otherDays = otDays.slice(0, -1);
         const otherTotal = otherDays.reduce((s: number, d: any) => s + (d.overtime_hours || 0), 0);
         const lastDayOT = Math.max(0, otH - otherTotal);
+        // Mark other OT days as manual (preserve their hours, just set flag)
+        await Promise.all(otherDays.map((d: any) =>
+          supabase.from('hub_daily_hours').update({ is_manual: true, updated_at: new Date().toISOString() })
+            .eq('user_id', contractorId).eq('date', d.date)
+        ));
         await supabase.from('hub_daily_hours').upsert({
           user_id: contractorId,
           date: lastOTDate,
@@ -285,8 +292,8 @@ export default function AdminPayrollPage() {
           is_manual: true,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id,date' });
-      } else {
-        // No existing OT rows — create one on the last day of the period so fetchPayroll sees it
+      } else if (otH > 0) {
+        // No existing OT rows — create one on the last day of the period
         await supabase.from('hub_daily_hours').upsert({
           user_id: contractorId,
           date: selectedPeriod.end,
@@ -300,20 +307,31 @@ export default function AdminPayrollPage() {
     }
     const existing = payoutsMap[contractorId];
 
-    const { error } = await supabase.from('hub_payouts').upsert({
-      ...(existing ? { id: existing.id } : {}),
+    // Use explicit UPDATE when row exists, INSERT when new — avoids PostgREST
+    // ambiguity when both an id and onConflict columns are passed together.
+    let saveError: any = null;
+    const payoutData = {
       contractor_id: contractorId,
       cutoff_start: selectedPeriod.start,
       cutoff_end: selectedPeriod.end,
       final_payout: finalPay,
       overtime_pay: computedOTPay,
-      status: existing?.status || 'pending',
-      locked: existing?.locked ?? false,
       adjustments: finalAdjItems,
-    }, { onConflict: 'contractor_id,cutoff_start' });
+    };
+    if (existing) {
+      const { error } = await supabase.from('hub_payouts')
+        .update({ ...payoutData, status: existing.status, locked: existing.locked ?? false })
+        .eq('id', existing.id);
+      saveError = error;
+    } else {
+      const { error } = await supabase.from('hub_payouts')
+        .insert({ ...payoutData, status: 'pending', locked: false });
+      saveError = error;
+    }
 
-    if (error) {
-      console.error('Failed to save payout row', error);
+    if (saveError) {
+      console.error('Failed to save payout row', saveError);
+      alert('Failed to save changes: ' + saveError.message);
       setEditSaving(false);
       return;
     }
@@ -924,7 +942,7 @@ export default function AdminPayrollPage() {
     const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
 
     // Payroll reads from hub_daily_hours, so sync Slack punches first for the live cutoff.
-    const [slackRes, contractorsRes, hoursRes, paidPayoutsRes] = await Promise.all([
+    const [slackRes, contractorsRes, hoursRes, allPayoutsRes] = await Promise.all([
       isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
       supabase
         .from('hub_users')
@@ -938,16 +956,17 @@ export default function AdminPayrollPage() {
         .lte('date', selectedPeriod.end),
       supabase
         .from('hub_payouts')
-        .select('contractor_id, payment_date')
-        .eq('cutoff_start', selectedPeriod.start)
-        .eq('status', 'paid'),
+        .select('contractor_id, payment_date, overtime_pay, status')
+        .eq('cutoff_start', selectedPeriod.start),
     ]);
 
-    // Map contractor_id → payment_date for already-paid payouts this period.
-    // Hours on or before payment_date are already settled — exclude them from the live count.
+    // Map contractor_id → payment_date for already-paid payouts (to exclude settled hours).
     const paidPaymentDateMap: Record<string, string> = {};
-    for (const p of paidPayoutsRes.data || []) {
-      if (p.payment_date) paidPaymentDateMap[p.contractor_id] = p.payment_date;
+    // Map contractor_id → saved overtime_pay for any manually edited payout.
+    const savedOTPay: Record<string, number> = {};
+    for (const p of allPayoutsRes.data || []) {
+      if (p.payment_date && p.status === 'paid') paidPaymentDateMap[p.contractor_id] = p.payment_date;
+      if (p.overtime_pay != null && p.overtime_pay > 0) savedOTPay[p.contractor_id] = p.overtime_pay;
     }
 
     const eligibleContractors = (contractorsRes.data || []).filter((c: any) =>
@@ -1132,13 +1151,20 @@ export default function AdminPayrollPage() {
       const isUSD = c.currency === 'USD';
       const payInPHP = isUSD ? pay * usdRate : pay;
 
+      // If a payout was manually saved with overtime_pay, honour that over the recalculated value
+      const calculatedOTPHP = isUSD ? overtimePay * usdRate : overtimePay;
+      const resolvedOTPHP = savedOTPay[c.id] != null ? savedOTPay[c.id] : calculatedOTPHP;
+      const resolvedOTHours = resolvedOTPHP !== calculatedOTPHP && derivedHourlyRate > 0
+        ? resolvedOTPHP / derivedHourlyRate
+        : hrs.overtime;
+
       const isAccruing = prorated && proratedNote?.includes('accruing');
       return {
         contractor: c as Contractor,
         hours: parseFloat(hrs.raw.toFixed(2)),
         cappedHours: parseFloat(hrs.capped.toFixed(2)),
-        overtimeHours: parseFloat(hrs.overtime.toFixed(2)),
-        overtimePay: parseFloat((isUSD ? overtimePay * usdRate : overtimePay).toFixed(2)),
+        overtimeHours: parseFloat(resolvedOTHours.toFixed(2)),
+        overtimePay: parseFloat(resolvedOTPHP.toFixed(2)),
         derivedHourlyRate: parseFloat(derivedHourlyRate.toFixed(2)),
         pay: payInPHP,
         payOriginalCurrency: isUSD ? parseFloat(pay.toFixed(2)) : undefined,
