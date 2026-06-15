@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -234,24 +234,31 @@ function generatePayslipHTML(opts: {
 
 export default function ContractorPayoutsPage() {
   const { hubUser } = useAuth();
-  const allPeriods = getPeriods();
-  // Only show periods on or after the contractor's start date
   const startDate = (hubUser as any)?.start_date ?? null;
-  const periods = startDate
-    ? allPeriods.filter(p => p.end >= startDate)
-    : allPeriods;
-  const lastP = periods[periods.length - 1];
-  const [selectedPeriod, setSelectedPeriod] = useState<(typeof periods)[number] | null>(lastP ?? null);
+  const periods = useMemo(() => {
+    const all = getPeriods();
+    return startDate ? all.filter((p: any) => p.end >= startDate) : all;
+  }, [startDate]);
 
-  // Use the admin-controlled active period from settings as the default
-  useEffect(() => {
-    getSetting('active_payroll_period', '').then(v => {
-      const target = v || null;
-      const found = target ? periods.find(p => p.start === target) : null;
-      setSelectedPeriod(found ?? lastP ?? null);
-    });
-  }, []);
+  const [selectedPeriod, setSelectedPeriod] = useState<(typeof periods)[number] | null>(null);
   const [days, setDays] = useState<DayRow[]>([]);
+
+  // Wait for hubUser to load, then pick the admin-controlled active period
+  // from the correctly-filtered periods list. Re-runs if start_date changes.
+  useEffect(() => {
+    if (!hubUser) return;
+    if (!periods.length) {
+      setSelectedPeriod(null);
+      setDays([]);
+      setLoading(false);
+      return;
+    }
+    getSetting('active_payroll_period', '').then(v => {
+      const found = v ? periods.find((p: any) => p.start === v) : null;
+      setSelectedPeriod((prev) => prev ?? (found ?? periods[periods.length - 1]));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hubUser?.id, periods]);
 
   // Button unlocks on the cutoff day itself (compare date only, not time)
   const todayPHT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -265,24 +272,6 @@ export default function ContractorPayoutsPage() {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSaving, setDisputeSaving] = useState(false);
   const [existingDispute, setExistingDispute] = useState<any>(null);
-
-
-  useEffect(() => {
-    if (!periods.length) {
-      setSelectedPeriod(null);
-      setDays([]);
-      setExistingPayout(null);
-      setExistingDispute(null);
-      setRateHistory([]);
-      setLoading(false);
-      return;
-    }
-
-    setSelectedPeriod((current) => {
-      if (current && periods.some((period) => period.start === current.start)) return current;
-      return periods[periods.length - 1];
-    });
-  }, [periods]);
 
   const fetchDays = async () => {
     if (!hubUser || !selectedPeriod) return;
