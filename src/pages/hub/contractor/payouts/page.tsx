@@ -806,7 +806,7 @@ export default function ContractorPayoutsPage() {
               <div className="space-y-3">
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting || days.length === 0 || !canSubmitPeriod}
+                  disabled={submitting || !canSubmitPeriod}
                   className="w-full flex items-center justify-center gap-2 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-40 text-white font-medium py-3 rounded-xl transition-colors cursor-pointer"
                 >
                   {submitting ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-send-plane-line"></i>}
