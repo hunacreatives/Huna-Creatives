@@ -237,7 +237,7 @@ export function computeSplitFixedAccrual(params: {
 }
 
 export async function fetchPayrollTotal(periodStart: string, periodEnd: string, usdRate = 56): Promise<number> {
-  const [contractorsRes, hoursRes, paidPayoutsRes] = await Promise.all([
+  const [contractorsRes, hoursRes, allPayoutsRes] = await Promise.all([
     supabase
       .from('hub_users')
       .select('id, full_name, role, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days')
@@ -250,9 +250,8 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
       .lte('date', periodEnd),
     supabase
       .from('hub_payouts')
-      .select('contractor_id, payment_date')
-      .eq('cutoff_start', periodStart)
-      .eq('status', 'paid'),
+      .select('contractor_id, status, payment_date, final_payout, adjustments')
+      .or(`cutoff_start.eq.${periodStart},and(cutoff_end.gte.${periodStart},cutoff_start.lte.${periodEnd})`),
   ]);
 
   const contractors = (contractorsRes.data || []).filter((c: any) =>
@@ -260,10 +259,17 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
     (!c.start_date || c.start_date <= periodEnd)
   );
 
-  // Mirror payroll page: skip hours on or before payment_date for already-paid contractors
+  // Build payout map — prefer exact cutoff_start match, fall back to overlap
+  const payoutMap: Record<string, any> = {};
+  for (const p of allPayoutsRes.data || []) {
+    const existing = payoutMap[p.contractor_id];
+    if (!existing || p.cutoff_start === periodStart) payoutMap[p.contractor_id] = p;
+  }
+
+  // Skip hours on or before payment_date for already-paid contractors
   const paidPaymentDateMap: Record<string, string> = {};
-  for (const p of paidPayoutsRes.data || []) {
-    if (p.payment_date) paidPaymentDateMap[p.contractor_id] = p.payment_date;
+  for (const p of allPayoutsRes.data || []) {
+    if (p.status === 'paid' && p.payment_date) paidPaymentDateMap[p.contractor_id] = p.payment_date;
   }
 
   const hoursByDate: Record<string, Record<string, number>> = {};
@@ -400,6 +406,14 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
       } else {
         pay = hrs.capped * hourly + hrs.overtime * hourly;
       }
+    }
+
+    // If a payout with a locked final amount exists, use it directly
+    const payout = payoutMap[c.id];
+    if (payout?.final_payout != null && ['submitted', 'hr_approved', 'approved', 'paid'].includes(payout.status)) {
+      const inPHP = c.currency === 'USD' ? Number(payout.final_payout) * usdRate : Number(payout.final_payout);
+      total += inPHP;
+      continue;
     }
 
     const inPHP = c.currency === 'USD' ? pay * usdRate : pay;
