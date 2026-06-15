@@ -1577,6 +1577,17 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     }
   }, [projects, searchParams]);
 
+  // Deep-link: ?task=TASK_ID — open specific task after workspace loads
+  const didInitTask = useRef(false);
+  useEffect(() => {
+    const taskParam = searchParams.get('task');
+    if (!taskParam || didInitTask.current || tasks.length === 0) return;
+    didInitTask.current = true;
+    const taskId = parseInt(taskParam);
+    const task = tasks.find(t => t.id === taskId);
+    if (task) openTaskDetail(task);
+  }, [tasks, searchParams]);
+
   const projectTags = (project: Project) => {
     const serviceTag = project.service ? [project.service] : ['General'];
     const roleTags = project.hub_project_contractors

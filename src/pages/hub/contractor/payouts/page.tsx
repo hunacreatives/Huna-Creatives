@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPeriods, fmtTime, fmtDate, fmtPHP, localToday } from '@/lib/formatUtils';
 import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { getSetting } from '@/lib/settings';
 
 interface DayRow {
   date: string;
@@ -239,13 +240,17 @@ export default function ContractorPayoutsPage() {
   const periods = startDate
     ? allPeriods.filter(p => p.end >= startDate)
     : allPeriods;
-  // If today is the first day of a new period, default to the previous one
-  const todayForDefault = localToday();
   const lastP = periods[periods.length - 1];
-  const defaultP = lastP?.start === todayForDefault && periods.length >= 2
-    ? periods[periods.length - 2]
-    : (lastP ?? null);
-  const [selectedPeriod, setSelectedPeriod] = useState<(typeof periods)[number] | null>(defaultP);
+  const [selectedPeriod, setSelectedPeriod] = useState<(typeof periods)[number] | null>(lastP ?? null);
+
+  // Use the admin-controlled active period from settings as the default
+  useEffect(() => {
+    getSetting('active_payroll_period', '').then(v => {
+      const target = v || null;
+      const found = target ? periods.find(p => p.start === target) : null;
+      setSelectedPeriod(found ?? lastP ?? null);
+    });
+  }, []);
   const [days, setDays] = useState<DayRow[]>([]);
 
   // Button unlocks on the cutoff day itself (compare date only, not time)

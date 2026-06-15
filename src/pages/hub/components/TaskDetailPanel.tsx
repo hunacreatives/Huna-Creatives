@@ -575,10 +575,12 @@ export default function TaskDetailPanel({
         if (error) throw error;
 
         // Log meaningful changes
-        if (prev.status !== status)
+        const statusChanged = prev.status !== status;
+        if (statusChanged)
           await logActivity(prev.id, 'status_change', `changed status from ${prev.status.replace('_', ' ')} to ${status.replace('_', ' ')}`);
         const previousAssigneeIds = getTaskAssigneeIds(prev);
-        if (!sameAssigneeIds(previousAssigneeIds, nextAssigneeIds)) {
+        const assigneesChanged = !sameAssigneeIds(previousAssigneeIds, nextAssigneeIds);
+        if (assigneesChanged) {
           const assigneeNames = nextAssigneeIds
             .map(id => teamMembers.find(m => m.id === id)?.full_name)
             .filter(Boolean);
@@ -595,6 +597,27 @@ export default function TaskDetailPanel({
                 assigned_by_name: currentUserName,
               },
             }).catch(() => {});
+          }
+        }
+
+        // Notify current assignees (excluding updater) when task is meaningfully changed
+        if (statusChanged || assigneesChanged) {
+          const taskLink = `/hub/contractor/projects?workspace=${prev.project_id}&task=${prev.id}`;
+          const notifBody = statusChanged
+            ? `${currentUserName} marked "${title}" as ${status.replace('_', ' ')}`
+            : `${currentUserName} updated assignments on "${title}"`;
+          const toNotify = nextAssigneeIds.filter(id => id !== currentUserId);
+          if (toNotify.length > 0) {
+            supabase.from('hub_notifications').insert(
+              toNotify.map(uid => ({
+                user_id: uid,
+                type: 'task_updated',
+                title: 'Task updated',
+                body: notifBody,
+                link: taskLink,
+                read: false,
+              }))
+            ).catch(() => {});
           }
         }
 

@@ -151,6 +151,19 @@ export default function AdminPayrollPage() {
   const openPeriodsInMonth = periodsInMonth.filter(p => !closedPeriods.has(p.start));
   const archivedPeriodsInMonth = periodsInMonth.filter(p => closedPeriods.has(p.start));
   const [selectedPeriod, setSelectedPeriod] = useState(defaultPeriod);
+  const [openingNextPeriod, setOpeningNextPeriod] = useState(false);
+
+  const openNextPeriod = async () => {
+    const idx = periods.findIndex(p => p.start === selectedPeriod.start);
+    if (idx === -1 || idx >= periods.length - 1) return;
+    const next = periods[idx + 1];
+    setOpeningNextPeriod(true);
+    await setSetting('active_payroll_period', next.start);
+    setSelectedYear(next.start.slice(0, 4));
+    setSelectedMonth(next.start.slice(0, 7));
+    setSelectedPeriod(next);
+    setOpeningNextPeriod(false);
+  };
 
   const [rows, setRows] = useState<PayRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,6 +177,19 @@ export default function AdminPayrollPage() {
 
   useEffect(() => {
     getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v)));
+    getSetting('active_payroll_period', '').then(v => {
+      if (v) {
+        const found = periods.find(p => p.start === v);
+        if (found) {
+          setSelectedYear(found.start.slice(0, 4));
+          setSelectedMonth(found.start.slice(0, 7));
+          setSelectedPeriod(found);
+        }
+      } else {
+        // First time — persist the current default so contractors see it too
+        setSetting('active_payroll_period', defaultPeriod.start).catch(() => {});
+      }
+    });
   }, []);
 
   // Payout workflow state
@@ -1360,6 +1386,22 @@ export default function AdminPayrollPage() {
                 >
                   <i className={`${refreshing ? 'ri-loader-4-line animate-spin' : 'ri-refresh-line'}`}></i>
                 </button>
+                {(() => {
+                  const idx = periods.findIndex(p => p.start === selectedPeriod.start);
+                  const nextP = idx !== -1 && idx < periods.length - 1 ? periods[idx + 1] : null;
+                  if (!nextP) return null;
+                  return (
+                    <button
+                      onClick={openNextPeriod}
+                      disabled={openingNextPeriod}
+                      title={`Open ${nextP.label} for contractors`}
+                      className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-50 text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors cursor-pointer"
+                    >
+                      {openingNextPeriod ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-arrow-right-circle-line"></i>}
+                      Open {nextP.label}
+                    </button>
+                  );
+                })()}
               </div>
 
               {/* KPIs inline */}

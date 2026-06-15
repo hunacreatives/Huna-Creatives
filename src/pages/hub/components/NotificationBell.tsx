@@ -441,6 +441,7 @@ export default function NotificationBell() {
 
     const typeIcon: Record<string, { icon: string; iconBg: string; iconColor: string }> = {
       task_assigned:         { icon: 'ri-task-line',              iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-500' },
+      task_updated:          { icon: 'ri-edit-line',              iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-500' },
       task_mention:          { icon: 'ri-at-line',                iconBg: 'bg-violet-50',  iconColor: 'text-violet-500' },
       task_due:              { icon: 'ri-alarm-line',             iconBg: 'bg-amber-50',   iconColor: 'text-amber-500' },
       payroll_batch_approved:{ icon: 'ri-money-dollar-circle-line',iconBg: 'bg-emerald-50',iconColor: 'text-emerald-500' },
@@ -529,12 +530,32 @@ export default function NotificationBell() {
     if (opening) {
       localStorage.setItem(lsKey, new Date().toISOString());
       setUnread(0);
-      // Mark all unread hub_notifications as read in DB when user opens the bell
-      if (hubUser) {
-        supabase.from('hub_notifications').update({ read: true })
-          .eq('user_id', hubUser.id).eq('read', false).then(() => {});
-      }
     }
+  };
+
+  const handleNotifClick = (n: Notif) => {
+    setOpen(false);
+    if (n.id.startsWith('hub-')) {
+      const realId = n.id.replace('hub-', '');
+      supabase.from('hub_notifications').update({ read: true }).eq('id', realId).then(() => {});
+      setNotifs(prev => prev.filter(x => x.id !== n.id));
+    }
+    if (!n.link) return;
+    let link = n.link;
+    const isAdmin = hubUser?.role === 'admin' || hubUser?.role === 'owner';
+    if (isAdmin && link.includes('/hub/contractor/projects')) {
+      try {
+        const url = new URL(link, window.location.origin);
+        const workspace = url.searchParams.get('workspace');
+        const task = url.searchParams.get('task');
+        const params = new URLSearchParams();
+        if (workspace) params.set('w', workspace);
+        params.set('ws', '1');
+        if (task) params.set('task', task);
+        link = `/hub/admin/projects?${params.toString()}`;
+      } catch {}
+    }
+    navigate(link);
   };
 
   const clearAll = async () => {
@@ -605,8 +626,8 @@ export default function NotificationBell() {
                     </div>
                   );
                   return n.link
-                    ? <button key={n.id} onClick={() => { setOpen(false); navigate(n.link!); }} className="block w-full text-left cursor-pointer">{inner}</button>
-                    : <div key={n.id}>{inner}</div>;
+                    ? <button key={n.id} onClick={() => handleNotifClick(n)} className="block w-full text-left cursor-pointer">{inner}</button>
+                    : <div key={n.id} onClick={() => handleNotifClick(n)} className="cursor-default">{inner}</div>;
                 })}
               </div>
             )}

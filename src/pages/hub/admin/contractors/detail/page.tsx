@@ -876,13 +876,20 @@ export default function ContractorDetailPage() {
           }
           const totalPay = basePay + overtimePay;
           const persistedOvertimePay = payslipPayout?.overtime_pay != null ? Number(payslipPayout.overtime_pay) : null;
+          const persistedBasePay = payslipPayout?.base_pay != null ? Number(payslipPayout.base_pay) : null;
           const displayOvertimePay = persistedOvertimePay ?? overtimePay;
+          const displayBasePay = persistedBasePay ?? basePay;
           const displayOvertimeHours = totalOvertime > 0
             ? totalOvertime
             : (persistedOvertimePay != null && persistedOvertimePay > 0 && otRate > 0
               ? parseFloat((persistedOvertimePay / otRate).toFixed(2))
               : 0);
           const displayTotalPay = payslipPayout?.final_payout != null ? Number(payslipPayout.final_payout) : totalPay;
+          const payoutAdjustments = (() => {
+            if (!payslipPayout) return 0;
+            if (!Array.isArray(payslipPayout.adjustments)) return 0;
+            return payslipPayout.adjustments.reduce((sum: number, item: any) => sum + Number(item?.amount || 0), 0);
+          })();
 
           return (
             <div className="max-w-2xl space-y-5">
@@ -966,9 +973,6 @@ export default function ContractorDetailPage() {
                               <span className="text-gray-400 text-xs w-20 flex-shrink-0 text-center">{fmtTime(d.last_off)}</span>
                               <span className="flex-1 text-right">
                                 <span className="font-medium text-gray-800">{d.hours_capped.toFixed(2)}h</span>
-                                {d.hours_raw > d.hours_capped && (
-                                  <span className="text-xs text-amber-500 ml-1.5">(raw {d.hours_raw.toFixed(2)}h)</span>
-                                )}
                               </span>
                               {d.overtime_hours > 0 && (
                                 <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-medium flex-shrink-0">+{d.overtime_hours}h OT</span>
@@ -995,12 +999,20 @@ export default function ContractorDetailPage() {
                                 ? `Fixed base (${fmt(displayMonthlyRate)}/mo, earned from capped hours)`
                                 : `Base pay (${totalHoursBillable.toFixed(2)}h × ${isUSD ? '$' : '₱'}${displayHourlyRate})`}
                           </span>
-                          <span className="text-sm font-medium text-gray-800">{fmt(basePay)}</span>
+                          <span className="text-sm font-medium text-gray-800">{fmt(displayBasePay)}</span>
                         </div>
                         {displayOvertimePay > 0 && (
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-purple-600">Overtime ({displayOvertimeHours}h × {isUSD ? '$' : '₱'}{otRate.toFixed(2)}/hr)</span>
                             <span className="text-sm font-medium text-purple-700">+{fmt(displayOvertimePay)}</span>
+                          </div>
+                        )}
+                        {payoutAdjustments !== 0 && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500">HR adjustments</span>
+                            <span className={`text-sm font-medium ${payoutAdjustments > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              {payoutAdjustments > 0 ? '+' : ''}{fmt(payoutAdjustments)}
+                            </span>
                           </div>
                         )}
                         <div className="flex items-center justify-between pt-3 mt-1 border-t border-gray-100">
