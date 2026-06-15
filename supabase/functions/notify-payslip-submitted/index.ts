@@ -14,7 +14,10 @@ const cors = {
   'Content-Type': 'application/json',
 };
 
-function fmt(val: number) {
+function fmt(val: number, currency = 'PHP') {
+  if (currency === 'USD') {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  }
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val);
 }
 
@@ -42,11 +45,13 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
 
   const { data: contractor } = await supabase
     .from('hub_users')
-    .select('full_name, department, email')
+    .select('full_name, department, email, currency')
     .eq('id', payout.contractor_id)
     .single();
 
   if (!contractor) return;
+
+  const currency = contractor.currency === 'USD' ? 'USD' : 'PHP';
 
   const periodStart = new Date(payout.cutoff_start);
   const periodEnd = new Date(payout.cutoff_end);
@@ -93,7 +98,7 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
         <tr>
           <td style="padding:14px 16px;">
             <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Amount</p>
-            <p style="margin:4px 0 0;font-size:22px;font-weight:800;color:#FF6B35;">${fmt(payout.final_payout)}</p>
+            <p style="margin:4px 0 0;font-size:22px;font-weight:800;color:#FF6B35;">${fmt(payout.final_payout, currency)}</p>
           </td>
         </tr>
       </table>
@@ -132,7 +137,7 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
         const dm = await slackPost('conversations.open', { users: ABIGAIL_SLACK_ID });
         await slackPost('chat.postMessage', {
           channel: dm.channel.id,
-          text: `🚩 *Payslip disputed* — *${contractor.full_name}* has flagged their payslip for *${periodLabel}* (${fmt(payout.final_payout)}). Review it here: ${payrollUrl}`,
+          text: `🚩 *Payslip disputed* — *${contractor.full_name}* has flagged their payslip for *${periodLabel}* (${fmt(payout.final_payout, currency)}). Review it here: ${payrollUrl}`,
         });
       } catch (slackErr) {
         console.error('Slack DM failed (dispute notification):', slackErr);
@@ -175,7 +180,7 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
         </td></tr>
         <tr><td style="padding:14px 16px;">
           <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Amount</p>
-          <p style="margin:4px 0 0;font-size:22px;font-weight:800;color:#FF6B35;">${fmt(payout.final_payout)}</p>
+          <p style="margin:4px 0 0;font-size:22px;font-weight:800;color:#FF6B35;">${fmt(payout.final_payout, currency)}</p>
         </td></tr>
       </table>
     </div>
@@ -197,7 +202,7 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
     });
   }
 
-  await pushToAdmins(supabase, 'Payslip submitted', `${contractor.full_name} submitted their payslip for ${periodLabel} (${fmt(payout.final_payout)}). Review needed.`, payrollUrl);
+  await pushToAdmins(supabase, 'Payslip submitted', `${contractor.full_name} submitted their payslip for ${periodLabel} (${fmt(payout.final_payout, currency)}). Review needed.`, payrollUrl);
 
   // Slack DM to Abigail — isolated so email success is not masked
   if (SLACK_BOT_TOKEN) {
@@ -205,7 +210,7 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
       const dm = await slackPost('conversations.open', { users: ABIGAIL_SLACK_ID });
       await slackPost('chat.postMessage', {
         channel: dm.channel.id,
-        text: `💰 *Payslip submitted* — *${contractor.full_name}* has submitted their payslip for *${periodLabel}* (${fmt(payout.final_payout)}). Review it here: ${payrollUrl}`,
+        text: `💰 *Payslip submitted* — *${contractor.full_name}* has submitted their payslip for *${periodLabel}* (${fmt(payout.final_payout, currency)}). Review it here: ${payrollUrl}`,
       });
     } catch (slackErr) {
       console.error('Slack DM failed (submit notification):', slackErr);
