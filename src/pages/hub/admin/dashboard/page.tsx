@@ -161,13 +161,24 @@ export default function AdminDashboardPage() {
   };
 
   const today = new Date();
-  const currentPeriod = getPeriods().at(-1) ?? {
+  const allPeriods = getPeriods();
+  const [currentPeriod, setCurrentPeriod] = useState(allPeriods.at(-1) ?? {
     label: '',
     start: today.toISOString().slice(0, 10),
     end: today.toISOString().slice(0, 10),
-  };
+  });
   const cutoffStart = currentPeriod.start;
   const cutoffEnd = currentPeriod.end;
+
+  // Load admin-controlled active period from settings
+  useEffect(() => {
+    getSetting('active_payroll_period', '').then(v => {
+      if (v) {
+        const found = allPeriods.find(p => p.start === v);
+        if (found) setCurrentPeriod(found);
+      }
+    });
+  }, []);
 
   // Payroll period progress
   const periodStart = new Date(cutoffStart);
@@ -328,7 +339,7 @@ export default function AdminDashboardPage() {
       }
     };
     fetchAll();
-  }, [isDemo]);
+  }, [isDemo, cutoffStart]);
 
   const counts = {
     on: attendance.filter(r => r.status === 'on').length,
