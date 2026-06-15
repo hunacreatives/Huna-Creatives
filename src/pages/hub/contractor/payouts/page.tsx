@@ -239,7 +239,13 @@ export default function ContractorPayoutsPage() {
   const periods = startDate
     ? allPeriods.filter(p => p.end >= startDate)
     : allPeriods;
-  const [selectedPeriod, setSelectedPeriod] = useState<(typeof periods)[number] | null>(periods[periods.length - 1] ?? null);
+  // If today is the first day of a new period, default to the previous one
+  const todayForDefault = localToday();
+  const lastP = periods[periods.length - 1];
+  const defaultP = lastP?.start === todayForDefault && periods.length >= 2
+    ? periods[periods.length - 2]
+    : (lastP ?? null);
+  const [selectedPeriod, setSelectedPeriod] = useState<(typeof periods)[number] | null>(defaultP);
   const [days, setDays] = useState<DayRow[]>([]);
 
   // Button unlocks on the cutoff day itself (compare date only, not time)
