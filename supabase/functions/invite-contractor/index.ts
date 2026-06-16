@@ -8,7 +8,7 @@ const ADMIN_SLACK_IDS = ['U091BL9PQ77', 'U0838LWSY4E'];
 const FROM_EMAIL = 'onboarding@hunacreatives.com';
 const HUB_SIGNUP_URL = 'https://www.hunacreatives.com/hub/signup?invite=1';
 
-async function slackDm(userId: string, text: string) {
+async function slackDm(userId: string, text: string, blocks?: object[]) {
   if (!SLACK_BOT_TOKEN) return;
   const opened = await fetch('https://slack.com/api/conversations.open', {
     method: 'POST',
@@ -20,7 +20,7 @@ async function slackDm(userId: string, text: string) {
   await fetch('https://slack.com/api/chat.postMessage', {
     method: 'POST',
     headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel, text }),
+    body: JSON.stringify({ channel, text, ...(blocks ? { blocks, unfurl_links: false, unfurl_media: false } : {}) }),
   });
 }
 
@@ -202,8 +202,27 @@ Deno.serve(async (req) => {
     });
 
     // Slack DM to admins
-    const slackMsg = `👋 *New team member added*\n*${full_name}* has been invited to Sentro Hub as a contractor.\nThey'll receive a login link by email.\n<https://www.hunacreatives.com/hub/admin/contractors|View profile →>`;
-    await Promise.all(ADMIN_SLACK_IDS.map(id => slackDm(id, slackMsg).catch(() => {})));
+    const slackBlocks = [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `👋 *New team member added*\n*${full_name}* has been invited to Sentro Hub as a contractor.\nThey'll receive a login link by email.`,
+        },
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: 'View profile →', emoji: true },
+            url: 'https://www.hunacreatives.com/hub/admin/contractors',
+            style: 'primary',
+          },
+        ],
+      },
+    ];
+    await Promise.all(ADMIN_SLACK_IDS.map(id => slackDm(id, `${full_name} has been invited as a contractor.`, slackBlocks).catch(() => {})));
 
     return new Response(JSON.stringify({ ok: true, user_id: linkData.user.id }), { headers: cors });
   } catch (err) {

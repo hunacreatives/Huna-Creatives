@@ -55,7 +55,9 @@ async function run(assignment_id: string) {
     const dmChannel = dmOpen.ok ? dmOpen.channel?.id : slackUserId;
     const dmResult = await slackPost('chat.postMessage', {
       channel: dmChannel,
-      text: `Hi ${firstName}! You have a document waiting for your signature: *${doc?.title}*. Please sign it here: ${HUB_URL}`,
+      unfurl_links: false,
+      unfurl_media: false,
+      text: `Hi ${firstName}! You have a document waiting for your signature: *${doc?.title}*.`,
       blocks: [
         {
           type: 'section',

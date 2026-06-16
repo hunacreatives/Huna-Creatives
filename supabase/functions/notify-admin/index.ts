@@ -10,7 +10,7 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function slackDm(userId: string, text: string) {
+async function slackDm(userId: string, text: string, blocks?: object[]) {
   if (!SLACK_BOT_TOKEN) return;
   const opened = await fetch('https://slack.com/api/conversations.open', {
     method: 'POST',
@@ -22,12 +22,19 @@ async function slackDm(userId: string, text: string) {
   await fetch('https://slack.com/api/chat.postMessage', {
     method: 'POST',
     headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel, text }),
+    body: JSON.stringify({ channel, text, unfurl_links: false, unfurl_media: false, ...(blocks ? { blocks } : {}) }),
   });
 }
 
-async function slackDmAdmins(text: string) {
-  await Promise.all(ADMIN_SLACK_IDS.map(id => slackDm(id, text).catch(() => {})));
+function actionBlocks(text: string, buttonLabel: string, buttonUrl: string): object[] {
+  return [
+    { type: 'section', text: { type: 'mrkdwn', text } },
+    { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: buttonLabel, emoji: true }, url: buttonUrl, style: 'primary' }] },
+  ];
+}
+
+async function slackDmAdmins(text: string, blocks?: object[]) {
+  await Promise.all(ADMIN_SLACK_IDS.map(id => slackDm(id, text, blocks).catch(() => {})));
 }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -106,13 +113,13 @@ serve(async (req) => {
         )
       );
       const daysText = days ? ` (${days} day${days !== 1 ? 's' : ''})` : '';
-      await slackDmAdmins(`📅 *Leave request*\n*${contractor_name}* is requesting ${leave_type} from ${start_date} to ${end_date}${daysText}.\n<https://www.hunacreatives.com/hub/admin/timeoff|Review request →>`);
+      await slackDmAdmins(`📅 Leave request — ${contractor_name}`, actionBlocks(`📅 *Leave request*\n*${contractor_name}* is requesting ${leave_type} from ${start_date} to ${end_date}${daysText}.`, 'Review request →', 'https://www.hunacreatives.com/hub/admin/timeoff'));
       await pushToAdmins('Leave request', `${contractor_name} is requesting ${leave_type} from ${start_date} to ${end_date}.`, 'https://hunacreatives.com/hub/admin/timeoff');
     }
 
     if (type === 'overtime') {
       const { contractor_name, hours, date } = data;
-      await slackDmAdmins(`⏱ *Overtime logged*\n*${contractor_name}* logged ${hours}h overtime on ${date}.\n<https://www.hunacreatives.com/hub/admin/attendance|Review →>`);
+      await slackDmAdmins(`⏱ Overtime logged — ${contractor_name}`, actionBlocks(`⏱ *Overtime logged*\n*${contractor_name}* logged ${hours}h overtime on ${date}.`, 'Review →', 'https://www.hunacreatives.com/hub/admin/attendance'));
       await pushToAdmins('Overtime logged', `${contractor_name} logged ${hours}h overtime on ${date}.`, 'https://hunacreatives.com/hub/admin/attendance');
     }
 
@@ -150,7 +157,7 @@ serve(async (req) => {
       );
       for (const inv of invoices) {
         const balanceFmt = '₱' + (inv.balance as number).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        await slackDmAdmins(`⚠️ *Invoice past due*\nInvoice #${inv.invoice_number} for *${inv.client_name}* (${balanceFmt}) is ${inv.days_overdue} days past due.\n<https://www.hunacreatives.com/hub/admin/invoice-log|View invoice →>`);
+        await slackDmAdmins(`⚠️ Invoice past due — ${inv.client_name}`, actionBlocks(`⚠️ *Invoice past due*\nInvoice #${inv.invoice_number} for *${inv.client_name}* (${balanceFmt}) is ${inv.days_overdue} days past due.`, 'View invoice →', 'https://www.hunacreatives.com/hub/admin/invoice-log'));
       }
       await pushToAdmins('Overdue invoices', `${invoices.length} invoice${invoices.length > 1 ? 's are' : ' is'} past due. Review needed.`, 'https://hunacreatives.com/hub/admin/invoice-log');
     }
@@ -171,7 +178,7 @@ serve(async (req) => {
         )
       );
       for (const c of contractors) {
-        await slackDmAdmins(`📋 *Contract expiring soon*\n*${c.full_name}*'s contract expires in ${c.days_until} days.\n<https://www.hunacreatives.com/hub/admin/contractors|Review →>`);
+        await slackDmAdmins(`📋 Contract expiring soon — ${c.full_name}`, actionBlocks(`📋 *Contract expiring soon*\n*${c.full_name}*'s contract expires in ${c.days_until} days.`, 'Review →', 'https://www.hunacreatives.com/hub/admin/contractors'));
       }
       await pushToAdmins('Contracts expiring soon', `${contractors.length} contract${contractors.length > 1 ? 's are' : ' is'} expiring soon. Review needed.`, 'https://hunacreatives.com/hub/admin/contractors');
     }
