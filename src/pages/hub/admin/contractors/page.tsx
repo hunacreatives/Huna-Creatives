@@ -238,6 +238,16 @@ export default function ContractorsPage() {
           </div>
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-50">
+            {/* Header row */}
+            <div className="hidden sm:grid grid-cols-[40px_minmax(0,1fr)_150px_110px_90px_56px_76px] items-center gap-4 px-5 py-2.5 bg-gray-50/60">
+              <div />
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Contractor</span>
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Dept / Rate</span>
+              <span className="hidden md:block text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Slack</span>
+              <span className="hidden lg:block text-[11px] font-semibold text-gray-400 uppercase tracking-wide text-right">Start Date</span>
+              <span className="hidden xl:block text-[11px] font-semibold text-gray-400 uppercase tracking-wide text-right">Profile</span>
+              <div />
+            </div>
             {filtered.map((c) => {
               const rateStr = c.payment_type === 'project_based' && c.project_percentage
                 ? `${c.project_percentage}% per project`
@@ -248,7 +258,7 @@ export default function ContractorsPage() {
                 : '—';
 
               return (
-                <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors cursor-pointer group"
+                <div key={c.id} className="grid grid-cols-[40px_minmax(0,1fr)_auto] sm:grid-cols-[40px_minmax(0,1fr)_150px_110px_90px_56px_76px] items-center gap-4 px-5 py-4 hover:bg-gray-50/60 transition-colors cursor-pointer group"
                   onClick={() => navigate(`/hub/admin/contractors/${c.id}`)}>
 
                   {/* Avatar */}
@@ -263,7 +273,7 @@ export default function ContractorsPage() {
                   </div>
 
                   {/* Name + email */}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold text-[#111827] truncate">{c.full_name}</p>
                       {c.status === 'pending' && (
@@ -277,17 +287,17 @@ export default function ContractorsPage() {
                   </div>
 
                   {/* Dept + rate */}
-                  <div className="hidden sm:flex flex-col items-start gap-1 min-w-[130px]">
+                  <div className="hidden sm:flex flex-col items-start gap-1 min-w-0">
                     {c.department && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${departmentColors[c.department] || 'bg-gray-100 text-gray-600'}`}>
                         {c.department}
                       </span>
                     )}
-                    <span className="text-xs text-gray-500">{rateStr}</span>
+                    <span className="text-xs text-gray-500 truncate">{rateStr}</span>
                   </div>
 
                   {/* Slack */}
-                  <div className="hidden md:flex items-center gap-1.5 min-w-[100px]">
+                  <div className="hidden md:flex items-center gap-1.5 min-w-0">
                     {c.slack_username ? (
                       <>
                         <i className="ri-slack-line text-gray-300 text-sm flex-shrink-0"></i>
@@ -299,7 +309,7 @@ export default function ContractorsPage() {
                   </div>
 
                   {/* Start date */}
-                  <div className="hidden lg:block text-xs text-gray-400 whitespace-nowrap min-w-[90px] text-right">
+                  <div className="hidden lg:block text-xs text-gray-400 whitespace-nowrap text-right">
                     {c.start_date ? new Date(c.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                   </div>
 
@@ -308,7 +318,7 @@ export default function ContractorsPage() {
                     const pct = getCompleteness(c);
                     const color = pct >= 80 ? 'bg-emerald-100 text-emerald-700' : pct >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700';
                     return (
-                      <div className="hidden xl:flex flex-col items-end gap-0.5 min-w-[56px]" title={`Profile ${pct}% complete`}>
+                      <div className="hidden xl:flex flex-col items-end gap-0.5" title={`Profile ${pct}% complete`}>
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${color}`}>{pct}%</span>
                         <div className="w-10 h-1 bg-gray-100 rounded-full overflow-hidden">
                           <div className={`h-full rounded-full ${pct >= 80 ? 'bg-emerald-400' : pct >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`} style={{ width: `${pct}%` }} />
@@ -318,7 +328,7 @@ export default function ContractorsPage() {
                   })()}
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 flex-shrink-0 justify-end" onClick={e => e.stopPropagation()}>
                     <div className="relative" ref={openMenu === c.id ? menuRef : null}>
                       <button onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)}
                         className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
