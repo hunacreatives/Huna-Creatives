@@ -32,6 +32,7 @@ interface Questionnaire {
   service_type: string;
   client_name: string;
   client_email: string;
+  cc_emails: string[] | null;
   token: string;
   status: 'draft' | 'sent' | 'submitted';
   questions: Question[];
@@ -85,17 +86,18 @@ const TEMPLATES: Record<string, Question[]> = {
     q('design_type', 'single_choice', 'Are you enquiring about Bespoke Design or Semi-Custom?', {
       required: true,
       options: ['Bespoke Design', 'Semi-Custom'],
-      description: 'Bespoke Design — A fully custom, made-from-scratch experience tailored to your wedding aesthetic.\nSemi-Custom — Based on our curated collections.',
+      description: 'Bespoke Design — fully custom, made from scratch around your story (no set pricing, scope discussed with you).\nSemi-Custom — you pick one of our ready-made designs (see our Collections) and we personalize it with your details (set packages, faster turnaround).',
     }),
     // BESPOKE BRANCH
     q('bespoke_services', 'multi_choice', 'Which bespoke services are you interested in?', {
       required: true,
-      description: 'Select all that apply',
+      description: "Select all that apply — Milestone Events Website: your custom event/wedding website (the main deliverable). Monogram: a custom symbol combining your initials, used across your designs. Digital Save the Date: a shareable online save-the-date page. Bespoke Stationery: a fully custom invitation suite. RSVP Management: we collect and track your guests' RSVPs for you.",
       options: ['Milestone Events Website', 'Monogram', 'Digital Save the Date', 'Bespoke Stationery', 'RSVP Management'],
       dependsOn: { questionId: 'design_type', equals: 'Bespoke Design' },
     }),
     q('stationery_collection', 'single_choice', 'Bespoke Stationery — which collection?', {
       required: true,
+      description: 'Our custom stationery comes in three tiers — Essential, Signature, and Bespoke — each with more pieces and customization than the last. Not sure which fits? Pick your best guess; we\'ll walk you through the options.',
       options: ['The Essential Collection', 'The Signature Collection', 'The Bespoke Collection', 'Others'],
       dependsOn: { questionId: 'bespoke_services', includes: 'Bespoke Stationery' },
     }),
@@ -119,7 +121,7 @@ const TEMPLATES: Record<string, Question[]> = {
     // SEMI-CUSTOM BRANCH
     q('semicustom_collections', 'multi_choice', 'Which collections would you like to explore?', {
       required: true,
-      description: 'You can select multiple options to explore',
+      description: 'Collections are our ready-made design themes — pick the one(s) whose look and feel you like best. You can select more than one.',
       options: ['Alpine', 'Classic Elegance', 'Coastal', 'Garden', 'Minimalist Polaroid', 'Tropical'],
       dependsOn: { questionId: 'design_type', equals: 'Semi-Custom' },
     }),
@@ -128,6 +130,7 @@ const TEMPLATES: Record<string, Question[]> = {
       dependsOn: { questionId: 'design_type', equals: 'Semi-Custom' },
     }),
     q('semicustom_addons', 'multi_choice', 'Would you like to enhance your website experience with any optional add-ons?', {
+      description: "Digital Save the Date: a shareable online save-the-date page. RSVP Management: we collect and track your guests' RSVPs for you.",
       options: ['Digital Save the Date', 'RSVP Management', 'No, just the website for now'],
       dependsOn: { questionId: 'design_type', equals: 'Semi-Custom' },
     }),
@@ -262,6 +265,7 @@ export default function QuestionnairesPage() {
   const [service, setService] = useState(SERVICES[0]);
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
+  const [ccEmails, setCcEmails] = useState('');
   const [introMsg, setIntroMsg] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -282,10 +286,13 @@ export default function QuestionnairesPage() {
 
   const activeQ = list.find(q => q.id === activeId) ?? null;
 
+  const parseCc = (raw: string) => raw.split(',').map(s => s.trim()).filter(Boolean);
+
   const openCreate = () => {
     setService(SERVICES[0]);
     setClientName('');
     setClientEmail('');
+    setCcEmails('');
     setIntroMsg('');
     setCreateError('');
     setShowCreate(true);
@@ -296,10 +303,12 @@ export default function QuestionnairesPage() {
     setCreating(true);
     setCreateError('');
     const questions = TEMPLATES[service] ?? [];
+    const cc = parseCc(ccEmails);
     const { data, error } = await supabase.from('hub_questionnaires').insert({
       service_type: service,
       client_name: clientName.trim(),
       client_email: clientEmail.trim(),
+      cc_emails: cc,
       questions,
       intro_message: introMsg.trim() || null,
       status: send ? 'sent' : 'draft',
@@ -311,6 +320,7 @@ export default function QuestionnairesPage() {
       const { data: fnData } = await supabase.functions.invoke('send-questionnaire', {
         body: {
           to: clientEmail.trim(),
+          cc,
           client_name: clientName.trim(),
           service_type: service,
           token: data.token,
@@ -331,6 +341,7 @@ export default function QuestionnairesPage() {
     const { data } = await supabase.functions.invoke('send-questionnaire', {
       body: {
         to: q.client_email,
+        cc: q.cc_emails ?? [],
         client_name: q.client_name,
         service_type: q.service_type,
         token: q.token,
@@ -412,6 +423,9 @@ export default function QuestionnairesPage() {
                   </div>
                   <p className="text-sm text-gray-500 mt-0.5">{activeQ.service_type}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{activeQ.client_email}</p>
+                  {activeQ.cc_emails && activeQ.cc_emails.length > 0 && (
+                    <p className="text-xs text-gray-400 mt-0.5">cc: {activeQ.cc_emails.join(', ')}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {activeQ.status !== 'submitted' && (
@@ -538,6 +552,14 @@ export default function QuestionnairesPage() {
                   <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="client@email.com"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
+              </div>
+
+              {/* CC */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700">CC <span className="text-gray-400 font-normal">(optional — e.g. partner/fiancé, comma-separated)</span></label>
+                <input value={ccEmails} onChange={e => setCcEmails(e.target.value)} placeholder="fiance@email.com, planner@email.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                <p className="text-[11px] text-gray-400">Everyone on this link shares the same form — once one person submits, it locks and the rest can only view the submitted answers.</p>
               </div>
 
               {/* Intro message */}

@@ -46,6 +46,7 @@ interface Questionnaire {
   token: string;
   status: 'draft' | 'sent' | 'submitted';
   questions: Question[];
+  answers: Record<string, string | string[]> | null;
   intro_message: string | null;
 }
 
@@ -65,7 +66,7 @@ export default function PublicQuestionnairePage() {
     if (!token) { setNotFound(true); setLoading(false); return; }
     supabase
       .from('hub_questionnaires')
-      .select('id, service_type, client_name, token, status, questions, intro_message')
+      .select('id, service_type, client_name, token, status, questions, answers, intro_message')
       .eq('token', token)
       .single()
       .then(({ data, error }) => {
@@ -162,17 +163,63 @@ export default function PublicQuestionnairePage() {
     </div>
   );
 
-  if (submitted) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="text-center max-w-sm">
-        <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <i className="ri-check-line text-2xl text-emerald-600"></i>
+  if (submitted && q) return (
+    <div className="min-h-screen bg-gray-50 font-sans">
+      <div className="bg-[#111827] px-6 py-5">
+        <div className="max-w-2xl mx-auto">
+          <img src="https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
+            alt="Huna Creatives" className="h-7" />
         </div>
-        <h1 className="text-lg font-bold text-gray-800 mb-2">Thank you{q?.client_name ? `, ${q.client_name.split(' ')[0]}` : ''}!</h1>
-        <p className="text-sm text-gray-500 mb-4">We've received your answers and will get back to you with a proposal soon.</p>
-        <a href="https://www.hunacreatives.com" className="text-sm text-[#FF6B35] font-medium hover:underline">
-          Visit hunacreatives.com →
-        </a>
+      </div>
+
+      <div className="bg-white border-b border-gray-100 px-6 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-2 mb-2">
+            <i className="ri-check-line text-emerald-600"></i>
+            <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Already answered</span>
+          </div>
+          <h1 className="text-2xl font-bold text-[#111827] mb-2">
+            Thanks{q.client_name ? `, ${q.client_name.split(' ')[0]}` : ''}! This questionnaire has been submitted.
+          </h1>
+          <p className="text-sm text-gray-500 leading-relaxed">
+            Someone has already answered this — it's locked from further edits. Here's what was submitted, for reference.
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-6 py-8 space-y-4">
+        {q.questions.filter(question => isVisible(question, q.answers ?? {})).map((question, i) => {
+          const answer = q.answers?.[question.id];
+          const hasAnswer = answer && (Array.isArray(answer) ? answer.length > 0 : answer.trim() !== '');
+          return (
+            <div key={question.id} className="bg-white border border-gray-100 rounded-2xl p-5">
+              <p className="text-sm font-semibold text-[#111827] mb-2">
+                <span className="text-gray-300 font-mono text-xs mr-2">{String(i + 1).padStart(2, '0')}</span>
+                {question.label}
+              </p>
+              {hasAnswer ? (
+                Array.isArray(answer) ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {answer.map(a => <span key={a} className="text-xs bg-[#FF6B35]/10 text-[#FF6B35] px-2 py-0.5 rounded-full font-medium">{a}</span>)}
+                  </div>
+                ) : question.type === 'file_upload' && (answer as string).startsWith('http') ? (
+                  <a href={answer as string} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm text-[#FF6B35] hover:underline bg-orange-50 rounded-lg px-3 py-2">
+                    <i className="ri-external-link-line text-xs"></i> View file →
+                  </a>
+                ) : (
+                  <p className="text-sm text-[#111827] bg-gray-50 rounded-lg px-3 py-2">{answer}</p>
+                )
+              ) : (
+                <p className="text-xs text-gray-300 italic">No answer</p>
+              )}
+            </div>
+          );
+        })}
+
+        <p className="text-center text-xs text-gray-400 pb-8">
+          © {new Date().getFullYear()} Huna Creatives · Your answers are shared only with the Huna Creatives team.
+        </p>
       </div>
     </div>
   );

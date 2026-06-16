@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const { to, client_name, service_type, token, intro_message, question_count } = await req.json();
+    const { to, cc, client_name, service_type, token, intro_message, question_count } = await req.json();
 
     if (!to || !client_name || !token) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 200, headers: cors });
@@ -38,9 +38,10 @@ Deno.serve(async (req) => {
           <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6;">
             ${intro_message ? intro_message : `Thank you for reaching out to Huna Creatives! To help us give you the best proposal for your <strong>${service_type}</strong> project, we'd love to learn more about your needs.`}
           </p>
-          <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
+          <p style="margin:0 0 ${Array.isArray(cc) && cc.length > 0 ? '8px' : '24px'};font-size:14px;color:#6b7280;line-height:1.6;">
             We've put together a short questionnaire (${question_count || 'a few'} questions) — it takes about 5 minutes to fill out.
           </p>
+          ${Array.isArray(cc) && cc.length > 0 ? `<p style="margin:0 0 24px;font-size:13px;color:#9ca3af;line-height:1.6;">This link is shared with everyone cc'd — once one person submits, it's locked and the rest can only view the submitted answers.</p>` : ''}
           <a href="${formUrl}" style="display:inline-block;background:#FF6B35;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:10px;text-decoration:none;">
             Fill out your questionnaire →
           </a>
@@ -70,6 +71,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: [to],
+        ...(Array.isArray(cc) && cc.length > 0 ? { cc } : {}),
         subject: `Your ${service_type} questionnaire from Huna Creatives`,
         html,
       }),
