@@ -242,14 +242,14 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
                   <input type="number" min="0" value={form.annual_pto_days} onChange={e => set('annual_pto_days', e.target.value)}
                     placeholder="e.g. 10"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  <p className="text-[11px] text-gray-400">Leave blank to use system default (15d)</p>
+                  <p className="text-[11px] text-gray-400">Leave blank to use system default (6d)</p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">SL days/year</label>
                   <input type="number" min="0" value={form.annual_sick_days} onChange={e => set('annual_sick_days', e.target.value)}
-                    placeholder="e.g. 5"
+                    placeholder="e.g. 4"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  <p className="text-[11px] text-gray-400">Leave blank to use system default (10d)</p>
+                  <p className="text-[11px] text-gray-400">Leave blank to use system default (4d)</p>
                 </div>
               </div>
             </div>
