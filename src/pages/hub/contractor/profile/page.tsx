@@ -1,5 +1,6 @@
 import { useState, useRef, FormEvent } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
+import AvatarCropModal from '@/pages/hub/components/AvatarCropModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -12,6 +13,7 @@ export default function ContractorProfilePage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [passwordForm, setPasswordForm] = useState({ newPass: '', confirm: '' });
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const u = user as any;
@@ -56,19 +58,19 @@ export default function ContractorProfilePage() {
     showMessage('success', 'Profile updated!');
   };
 
-  const handlePhotoUpload = async (file: File) => {
+  const handlePhotoUpload = async (file: Blob) => {
     if (!user) return;
     setUploadingPhoto(true);
     try {
-      const ext = file.name.split('.').pop();
-      const path = `${user.id}/avatar.${ext}`;
+      const path = `${user.id}/avatar.jpg`;
       const { error: upErr } = await supabase.storage
         .from('avatars')
-        .upload(path, file, { upsert: true });
+        .upload(path, file, { upsert: true, contentType: 'image/jpeg' });
       if (upErr) throw upErr;
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+      const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
       const { error: dbErr } = await supabase.from('hub_users')
-        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .update({ avatar_url: cacheBustedUrl, updated_at: new Date().toISOString() })
         .eq('id', user.id);
       if (dbErr) throw dbErr;
       await refreshHubUser();
@@ -77,6 +79,17 @@ export default function ContractorProfilePage() {
       showMessage('error', e.message || 'Photo upload failed');
     }
     setUploadingPhoto(false);
+  };
+
+  const handleCropCancel = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  };
+
+  const handleCropped = (blob: Blob) => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+    handlePhotoUpload(blob);
   };
 
   const savePassword = async () => {
@@ -133,7 +146,11 @@ export default function ContractorProfilePage() {
                   : <i className="ri-camera-line text-xs"></i>}
               </button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setCropSrc(URL.createObjectURL(f));
+                  e.target.value = '';
+                }} />
             </div>
             <div>
               <h2 className="text-lg font-bold text-[#111827]">{user.full_name}</h2>
@@ -251,6 +268,9 @@ export default function ContractorProfilePage() {
           </div>
         )}
       </div>
+      {cropSrc && (
+        <AvatarCropModal imageSrc={cropSrc} onCancel={handleCropCancel} onCropped={handleCropped} />
+      )}
     </ContractorLayout>
   );
 }
