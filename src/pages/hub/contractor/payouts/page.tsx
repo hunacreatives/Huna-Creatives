@@ -30,29 +30,27 @@ function generatePayslipHTML(opts: {
   paymentType: 'hourly' | 'fixed' | 'fixed_flexible';
   hourlyRate: number;
   monthlyRate: number;
-  currency: string;
-  usdRate: number;
   totalDaysWorked: number;
   totalHoursRaw: number;
   totalHoursBillable: number;
   totalOvertime: number;
   basePay: number;
   overtimePay: number;
+  adjustments: number;
   totalPay: number;
   generatedDate: string;
   logoUrl: string;
 }) {
-  const { name, department, period, days, paymentType, hourlyRate, monthlyRate, currency, usdRate,
+  // All amounts arrive already converted to PHP — no currency conversion here.
+  const { name, department, period, days, paymentType, hourlyRate, monthlyRate,
     totalDaysWorked, totalHoursRaw, totalHoursBillable, totalOvertime,
-    basePay, overtimePay, totalPay, generatedDate, logoUrl } = opts;
+    basePay, overtimePay, adjustments, totalPay, generatedDate, logoUrl } = opts;
 
-  const isUSD = currency === 'USD';
-  const toPhp = (val: number) => isUSD ? val * usdRate : val;
-  const fmt = (val: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(toPhp(val));
+  const fmt = (val: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(val);
 
   const rateDisplay = paymentType === 'fixed'
     ? `${fmt(monthlyRate)} / month (bi-monthly disbursement of ${fmt(monthlyRate / 2)})`
-    : `₱${toPhp(hourlyRate).toFixed(2)} per hour`;
+    : `₱${hourlyRate.toFixed(2)} per hour`;
 
   const dayRows = days.map(d => `
     <tr>
@@ -180,13 +178,18 @@ function generatePayslipHTML(opts: {
           <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111827;border-bottom:1px solid #f3f4f6;">${fmt(basePay)}</td>
         </tr>` : `
         <tr>
-          <td style="padding:11px 16px;color:#374151;border-bottom:1px solid #f3f4f6;">Base Pay &nbsp;<span style="color:#9ca3af;font-size:11px;">(${totalHoursBillable.toFixed(2)} billable hrs × ${isUSD ? '$' : '₱'}${hourlyRate}/hr)</span></td>
+          <td style="padding:11px 16px;color:#374151;border-bottom:1px solid #f3f4f6;">Base Pay &nbsp;<span style="color:#9ca3af;font-size:11px;">(${totalHoursBillable.toFixed(2)} billable hrs × ₱${hourlyRate}/hr)</span></td>
           <td style="padding:11px 16px;text-align:right;font-weight:600;color:#111827;border-bottom:1px solid #f3f4f6;">${fmt(basePay)}</td>
         </tr>`}
         ${totalOvertime > 0 ? `
         <tr>
-          <td style="padding:11px 16px;color:#7c3aed;border-bottom:1px solid #f3f4f6;">Overtime Compensation &nbsp;<span style="color:#9ca3af;font-size:11px;">(${totalOvertime} hrs × ${isUSD ? '$' : '₱'}${hourlyRate}/hr)</span></td>
+          <td style="padding:11px 16px;color:#7c3aed;border-bottom:1px solid #f3f4f6;">Overtime Compensation &nbsp;<span style="color:#9ca3af;font-size:11px;">(${totalOvertime} hrs × ₱${hourlyRate}/hr)</span></td>
           <td style="padding:11px 16px;text-align:right;font-weight:600;color:#7c3aed;border-bottom:1px solid #f3f4f6;">+ ${fmt(overtimePay)}</td>
+        </tr>` : ''}
+        ${adjustments !== 0 ? `
+        <tr>
+          <td style="padding:11px 16px;color:${adjustments > 0 ? '#047857' : '#e11d48'};border-bottom:1px solid #f3f4f6;">HR Adjustments</td>
+          <td style="padding:11px 16px;text-align:right;font-weight:600;color:${adjustments > 0 ? '#047857' : '#e11d48'};border-bottom:1px solid #f3f4f6;">${adjustments > 0 ? '+ ' : ''}${fmt(adjustments)}</td>
         </tr>` : ''}
         <tr style="background:#fff7f4;">
           <td style="padding:16px;font-weight:800;font-size:15px;color:#111827;">
@@ -351,6 +354,8 @@ export default function ContractorPayoutsPage() {
   useEffect(() => {
     if (isUSD) getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v || '56')));
   }, [isUSD]);
+  const toPhp = (val: number) => isUSD ? val * usdRate : val;
+  const fmt = (val: number) => fmtPHP(toPhp(val));
 
   const totalDaysWorked = days.length;
   const totalHoursRaw = days.reduce((s, d) => s + d.hours_raw, 0);
@@ -454,6 +459,9 @@ export default function ContractorPayoutsPage() {
     overtimePay = totalOvertime * otRate;
   }
   const totalPay = basePay + overtimePay;
+  // Adjustments are entered by HR directly in PHP (admin payroll page), unlike
+  // base_pay/overtime_pay which persist in the contractor's native currency — so
+  // this must NOT be run through toPhp() again at display time.
   const payoutAdjustments = (() => {
     if (!existingPayout) return 0;
     const arrayTotal = Array.isArray(existingPayout.adjustments)
@@ -479,7 +487,8 @@ export default function ContractorPayoutsPage() {
     : (persistedOvertimePay != null && persistedOvertimePay > 0 && otRate > 0
       ? parseFloat((persistedOvertimePay / otRate).toFixed(2))
       : 0);
-  const displayTotalPay = displayBasePay + displayOvertimePay + payoutAdjustments;
+  // Single source of truth for the grand total, fully converted to PHP once.
+  const displayTotalPay = toPhp(displayBasePay) + toPhp(displayOvertimePay) + payoutAdjustments;
 
   const handleSubmit = async () => {
     if (!hubUser || submitting) return;
@@ -509,9 +518,6 @@ export default function ContractorPayoutsPage() {
     setSubmitting(false);
   };
 
-  const toPhp = (val: number) => isUSD ? val * usdRate : val;
-  const fmt = (val: number) => fmtPHP(toPhp(val));
-
   const submitDispute = async () => {
     if (!hubUser || !existingPayout || !disputeReason.trim()) return;
     setDisputeSaving(true);
@@ -535,16 +541,15 @@ export default function ContractorPayoutsPage() {
       period: activePeriod,
       days,
       paymentType,
-      hourlyRate: displayHourlyRate,
-      monthlyRate: displayMonthlyRate,
-      currency,
-      usdRate,
+      hourlyRate: toPhp(displayHourlyRate),
+      monthlyRate: toPhp(displayMonthlyRate),
       totalDaysWorked,
       totalHoursRaw,
       totalHoursBillable,
       totalOvertime: displayOvertimeHours,
-      basePay: displayBasePay,
-      overtimePay: displayOvertimePay,
+      basePay: toPhp(displayBasePay),
+      overtimePay: toPhp(displayOvertimePay),
+      adjustments: payoutAdjustments,
       totalPay: displayTotalPay,
       generatedDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
       logoUrl: `${window.location.origin}/images/547b59870e776a20eb28e4f20931787c.png`,
@@ -711,13 +716,13 @@ export default function ContractorPayoutsPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">HR adjustments</span>
                       <span className={`text-sm font-medium ${payoutAdjustments > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                        {payoutAdjustments > 0 ? '+' : ''}{fmt(payoutAdjustments)}
+                        {payoutAdjustments > 0 ? '+' : ''}{fmtPHP(payoutAdjustments)}
                       </span>
                     </div>
                   )}
                   <div className="flex items-center justify-between pt-3 mt-1 border-t border-gray-100">
                     <span className="font-semibold text-gray-900">Total Payout</span>
-                    <span className="text-xl font-bold text-[#FF6B35]">{fmt(displayTotalPay)}</span>
+                    <span className="text-xl font-bold text-[#FF6B35]">{fmtPHP(displayTotalPay)}</span>
                   </div>
                 </div>
               </div>
@@ -755,7 +760,7 @@ export default function ContractorPayoutsPage() {
                       <p className="text-xs text-sky-600 mt-0.5">Approved! Payment will be sent within 2 days.</p>
                     )}
                   </div>
-                  <span className="text-sm font-bold text-gray-800">{fmt(existingPayout.final_payout)}</span>
+                  <span className="text-sm font-bold text-gray-800">{fmtPHP(displayTotalPay)}</span>
                 </div>
                 <button
                   onClick={handleDownload}
