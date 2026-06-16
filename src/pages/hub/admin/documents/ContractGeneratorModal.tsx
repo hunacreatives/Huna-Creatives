@@ -81,18 +81,20 @@ function generateCustomContractHTML(contractorName: string, effectiveDate: strin
 
 function generateContractHTML(fields: ContractFields, sigData: string, logoData: string): string {
   const {
-    contractorName, effectiveDate, role, primaryClient, responsibilities,
-    additionalSupport, hoursPerDay, workDays, shiftTime, monthlyRate,
-    hourlyRate, paymentType, paymentSchedule, tools, ptaDays, sickDays,
+    contractorName, effectiveDate, role, responsibilities,
+    additionalResponsibilities, hoursPerDay, workDays, shiftTime, monthlyRate,
+    hourlyRate, currency, paymentType, paymentSchedule, tools, ptaDays, sickDays,
     hasCommission, commissionClient, commissionPercent, termDate,
   } = fields;
 
   const isHourly = paymentType === 'hourly';
   const isFlexible = paymentType === 'hourly' || paymentType === 'fixed_flexible';
   const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const currSymbol = currency === 'USD' ? '$' : '₱';
   const rate = isHourly ? Number(hourlyRate).toLocaleString() : Number(monthlyRate).toLocaleString();
+  const rateLabel = `${currSymbol}${rate} ${currency}`;
   const respItems = responsibilities.filter(r => r.trim()).map(r => `<li>${r}</li>`).join('\n');
-  const addItems = additionalSupport.filter(r => r.trim()).map(r => `<li>${r}</li>`).join('\n');
+  const addItems = additionalResponsibilities.filter(r => r.trim()).map(r => `<li>${r}</li>`).join('\n');
   const toolItems = tools.filter(t => t.trim()).map(t => `<li>${t}</li>`).join('\n');
 
   const commissionSection = hasCommission ? `
@@ -156,15 +158,15 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
 
   <div class="section-title">1. Scope of Work</div>
   <div class="sub-title">1.1 Primary Role</div>
-  <p>The Contractor's <strong>primary role</strong> shall be to serve as <strong>${role}</strong> for <strong>${primaryClient}</strong>, a client of Huna Creatives. Responsibilities may include, but are not limited to:</p>
+  <p>The Contractor's <strong>primary role</strong> shall be to serve as <strong>${role}</strong> for <strong>Huna Creatives</strong>, providing services across the agency's client portfolio. Responsibilities may include, but are not limited to:</p>
   <ul>${respItems}</ul>
 
-  ${addItems ? `<div class="sub-title">1.2 Additional Client Support</div>
-  <p>In addition to the primary role, the Contractor may also provide creative support services for <strong>Huna Creatives and its other clients</strong>, including but not limited to:</p>
+  ${addItems ? `<div class="sub-title">1.2 Additional Responsibilities</div>
+  <p>In addition to the primary role, the Contractor may also be assigned the following additional responsibilities:</p>
   <ul>${addItems}</ul>` : ''}
 
   <div class="sub-title">${addItems ? '1.3' : '1.2'} General Duties</div>
-  <p>The Contractor agrees to perform tasks reasonably related to the scope above, consistent with the Contractor's skills, as assigned by Huna Creatives.</p>
+  <p>The Contractor agrees to perform tasks reasonably related to the scope above, consistent with the Contractor's skills, as assigned by Huna Creatives. Tasks may span multiple client accounts as directed by the agency.</p>
 
   <div class="sub-title">${addItems ? '1.4' : '1.3'} Coordination</div>
   <p>The Contractor shall coordinate directly with the Client or a designated supervisor regarding deliverables, priorities, and timelines.</p>
@@ -185,7 +187,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <div class="section-title">3. Compensation</div>
   ${isHourly ? `
   <div class="sub-title">3.1 Hourly Rate</div>
-  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall be compensated at a rate of <strong>₱${rate} PHP per hour</strong> for all approved hours rendered.</p>
+  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall be compensated at a rate of <strong>${rateLabel} per hour</strong> for all approved hours rendered.</p>
   <div class="sub-title">3.2 Hour Logging</div>
   <p>The Contractor is responsible for accurately logging all hours worked through Huna Creatives' designated attendance system. Hours must be submitted and approved prior to payment processing.</p>
   <div class="sub-title">3.3 Payment Schedule</div>
@@ -194,13 +196,13 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <p>Any changes to the hourly rate, scope of work, or engagement terms must be confirmed in writing by both parties.</p>
   ` : `
   <div class="sub-title">3.1 Monthly Service Fee</div>
-  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall receive a fixed <strong>monthly service fee of ₱${rate} PHP</strong>${paymentType === 'fixed_flexible' ? ', covering services rendered on a flexible, as-needed basis during the pay period.' : ', regardless of the number of working days in a given month.'}</p>
+  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall receive a fixed <strong>monthly service fee of ${rateLabel}</strong>${paymentType === 'fixed_flexible' ? ', covering services rendered on a flexible, as-needed basis during the pay period.' : ', regardless of the number of working days in a given month.'}</p>
   <div class="sub-title">3.2 Payment Schedule</div>
   <p>Payments shall be made on a <strong>${paymentSchedule}</strong>.</p>
   ${paymentType === 'fixed_flexible' ? '' : `
   <div class="sub-title">3.3 Absences and Deductions</div>
   <p>In the event of approved absences or non-rendered workdays, a proportional deduction may be applied based on the following formula:</p>
-  <p>₱${rate} ÷ Total Working Days in the Month = Daily Rate</p>
+  <p>${rateLabel} ÷ Total Working Days in the Month = Daily Rate</p>
   `}
   <div class="sub-title">${paymentType === 'fixed_flexible' ? '3.3' : '3.4'} Adjustments</div>
   <p>Any changes to the service fee, workload, or scope of work must be confirmed in writing by both parties.</p>
@@ -293,14 +295,14 @@ interface ContractFields {
   contractorName: string;
   effectiveDate: string;
   role: string;
-  primaryClient: string;
   responsibilities: string[];
-  additionalSupport: string[];
+  additionalResponsibilities: string[];
   hoursPerDay: string;
   workDays: string[];
   shiftTime: string;
   monthlyRate: string;
   hourlyRate: string;
+  currency: 'PHP' | 'USD';
   paymentType: 'fixed' | 'hourly' | 'fixed_flexible';
   paymentSchedule: string;
   tools: string[];
@@ -313,19 +315,92 @@ interface ContractFields {
   amendmentType: string;
 }
 
+const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
+  'Junior Graphic Designer': {
+    role: 'Junior Graphic Designer',
+    responsibilities: [
+      'Create social media graphics, marketing materials, and brand collateral',
+      'Follow brand guidelines and maintain visual consistency across deliverables',
+      'Assist with layout, typography, and design revisions as directed',
+    ],
+    tools: ['Canva Pro', 'Adobe Photoshop', 'Adobe Illustrator'],
+    ptaDays: '6', sickDays: '4',
+  },
+  'Senior Graphic Designer': {
+    role: 'Senior Graphic Designer',
+    responsibilities: [
+      'Lead visual design for client campaigns, branding projects, and marketing materials',
+      'Develop and maintain brand identities and design systems',
+      'Oversee and review work from junior designers, providing creative direction',
+    ],
+    tools: ['Canva Pro', 'Adobe Photoshop', 'Adobe Illustrator', 'Adobe InDesign'],
+    ptaDays: '10', sickDays: '5',
+  },
+  'Social Media Manager': {
+    role: 'Social Media Manager',
+    responsibilities: [
+      'Plan, create, and schedule content across social media platforms (Facebook, Instagram, TikTok)',
+      'Monitor engagement, respond to comments, and manage community interactions',
+      'Analyze performance metrics and prepare monthly reports',
+    ],
+    tools: ['Canva Pro', 'Meta Business Suite', 'Later or Buffer'],
+    ptaDays: '10', sickDays: '5',
+  },
+  'Copywriter': {
+    role: 'Copywriter',
+    responsibilities: [
+      'Write copy for social media captions, ad creatives, email campaigns, and website content',
+      'Adapt brand voice and tone guidelines across multiple client accounts',
+      'Collaborate with designers and strategists to align messaging with visual output',
+    ],
+    tools: ['Google Docs', 'Grammarly', 'Notion'],
+    ptaDays: '10', sickDays: '5',
+  },
+  'Video Editor': {
+    role: 'Video Editor',
+    responsibilities: [
+      'Edit raw footage into polished video content for social media, ads, and client presentations',
+      'Add motion graphics, subtitles, transitions, and audio as needed',
+      'Deliver videos in required formats and aspect ratios across platforms',
+    ],
+    tools: ['Adobe Premiere Pro', 'CapCut', 'Adobe After Effects'],
+    ptaDays: '10', sickDays: '5',
+  },
+  'Media Buyer': {
+    role: 'Media Buyer / Ads Specialist',
+    responsibilities: [
+      'Set up, manage, and optimize paid ad campaigns on Meta, Google, and other platforms',
+      'Monitor campaign performance, adjust budgets, and report on key metrics',
+      'Collaborate with the creative team to align ad creatives with campaign objectives',
+    ],
+    tools: ['Meta Ads Manager', 'Google Ads', 'Google Analytics'],
+    ptaDays: '10', sickDays: '5',
+  },
+  'Virtual Assistant': {
+    role: 'Virtual Assistant',
+    responsibilities: [
+      'Provide administrative and operational support to the Huna Creatives team',
+      'Manage schedules, emails, and task tracking as directed',
+      'Assist with data entry, research, and client communication as needed',
+    ],
+    tools: ['Google Workspace', 'Slack', 'Notion'],
+    ptaDays: '10', sickDays: '5',
+  },
+};
+
 const BLANK: ContractFields = {
   contractorId: '',
   contractorName: '',
   effectiveDate: new Date().toISOString().slice(0, 10),
   role: '',
-  primaryClient: '',
   responsibilities: ['', '', ''],
-  additionalSupport: [],
+  additionalResponsibilities: [],
   hoursPerDay: '8',
   workDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
   shiftTime: 'graveyard shift from 11:00 PM to 7:00 AM Philippine Time',
   monthlyRate: '',
   hourlyRate: '',
+  currency: 'PHP',
   paymentType: 'fixed',
   paymentSchedule: 'bi-monthly basis, on the 15th and the last working day of each month',
   tools: [...DEFAULT_TOOLS],
@@ -351,21 +426,27 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
   const set = (key: keyof ContractFields, val: any) =>
     setFields(prev => ({ ...prev, [key]: val }));
 
-  const setListItem = (key: 'responsibilities' | 'additionalSupport' | 'tools', idx: number, val: string) =>
+  const setListItem = (key: 'responsibilities' | 'additionalResponsibilities' | 'tools', idx: number, val: string) =>
     setFields(prev => {
       const arr = [...(prev[key] as string[])];
       arr[idx] = val;
       return { ...prev, [key]: arr };
     });
 
-  const addItem = (key: 'responsibilities' | 'additionalSupport' | 'tools') =>
+  const addItem = (key: 'responsibilities' | 'additionalResponsibilities' | 'tools') =>
     setFields(prev => ({ ...prev, [key]: [...(prev[key] as string[]), ''] }));
 
-  const removeItem = (key: 'responsibilities' | 'additionalSupport' | 'tools', idx: number) =>
+  const removeItem = (key: 'responsibilities' | 'additionalResponsibilities' | 'tools', idx: number) =>
     setFields(prev => {
       const arr = (prev[key] as string[]).filter((_, i) => i !== idx);
       return { ...prev, [key]: arr };
     });
+
+  const applyTemplate = (templateKey: string) => {
+    const t = ROLE_TEMPLATES[templateKey];
+    if (!t) return;
+    setFields(prev => ({ ...prev, ...t }));
+  };
 
   const handleContractorChange = (id: string) => {
     const c = contractors.find(x => x.id === id);
@@ -610,20 +691,25 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
               </div>
             </div>
 
-            {/* Role & Client */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Role / Title *</label>
-                <input type="text" value={fields.role} onChange={e => set('role', e.target.value)}
-                  placeholder="e.g. Graphic Designer and Admin Support"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Primary Client *</label>
-                <input type="text" value={fields.primaryClient} onChange={e => set('primaryClient', e.target.value)}
-                  placeholder="e.g. Kei Concepts"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-              </div>
+            {/* Role template picker */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Load Template <span className="text-gray-400 font-normal">(optional — pre-fills role, responsibilities & tools)</span></label>
+              <select
+                defaultValue=""
+                onChange={e => { if (e.target.value) applyTemplate(e.target.value); }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer"
+              >
+                <option value="">Choose a role template…</option>
+                {Object.keys(ROLE_TEMPLATES).map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Role / Title *</label>
+              <input type="text" value={fields.role} onChange={e => set('role', e.target.value)}
+                placeholder="e.g. Junior Graphic Designer"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
             </div>
 
             {/* Responsibilities */}
@@ -648,22 +734,22 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
               </div>
             </div>
 
-            {/* Additional support */}
+            {/* Additional responsibilities */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-gray-600">Additional Client Support <span className="text-gray-400 font-normal">(optional)</span></label>
-                <button onClick={() => addItem('additionalSupport')} className="text-xs text-[#FF6B35] cursor-pointer hover:underline">+ Add</button>
+                <label className="text-xs font-medium text-gray-600">Additional Responsibilities <span className="text-gray-400 font-normal">(optional)</span></label>
+                <button onClick={() => addItem('additionalResponsibilities')} className="text-xs text-[#FF6B35] cursor-pointer hover:underline">+ Add</button>
               </div>
-              {fields.additionalSupport.length === 0 ? (
+              {fields.additionalResponsibilities.length === 0 ? (
                 <p className="text-xs text-gray-400">None added.</p>
               ) : (
                 <div className="space-y-2">
-                  {fields.additionalSupport.map((r, i) => (
+                  {fields.additionalResponsibilities.map((r, i) => (
                     <div key={i} className="flex gap-2">
-                      <input type="text" value={r} onChange={e => setListItem('additionalSupport', i, e.target.value)}
+                      <input type="text" value={r} onChange={e => setListItem('additionalResponsibilities', i, e.target.value)}
                         placeholder={`Additional duty ${i + 1}`}
                         className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                      <button onClick={() => removeItem('additionalSupport', i)} className="text-gray-300 hover:text-red-400 cursor-pointer flex-shrink-0">
+                      <button onClick={() => removeItem('additionalResponsibilities', i)} className="text-gray-300 hover:text-red-400 cursor-pointer flex-shrink-0">
                         <i className="ri-close-line"></i>
                       </button>
                     </div>
@@ -739,21 +825,25 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
             {/* Compensation */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                {fields.paymentType !== 'hourly' ? (
-                  <>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Monthly Rate (₱) *</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  {fields.paymentType !== 'hourly' ? 'Monthly Rate *' : 'Hourly Rate *'}
+                </label>
+                <div className="flex gap-2">
+                  <select value={fields.currency} onChange={e => set('currency', e.target.value)}
+                    className="border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none bg-white cursor-pointer w-20 flex-shrink-0">
+                    <option value="PHP">₱ PHP</option>
+                    <option value="USD">$ USD</option>
+                  </select>
+                  {fields.paymentType !== 'hourly' ? (
                     <input type="number" value={fields.monthlyRate} onChange={e => set('monthlyRate', e.target.value)}
                       placeholder="55000"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  </>
-                ) : (
-                  <>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Hourly Rate (₱) *</label>
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  ) : (
                     <input type="number" value={fields.hourlyRate} onChange={e => set('hourlyRate', e.target.value)}
                       placeholder="250"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  </>
-                )}
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Payment Schedule</label>
@@ -842,7 +932,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
               onClick={handlePreview}
               disabled={contractMode === 'custom'
                 ? !fields.contractorId || !customBody.trim() || !fields.effectiveDate
-                : !fields.contractorId || !fields.role || !fields.primaryClient || !(fields.paymentType === 'hourly' ? fields.hourlyRate : fields.monthlyRate) || !fields.effectiveDate}
+                : !fields.contractorId || !fields.role || !(fields.paymentType === 'hourly' ? fields.hourlyRate : fields.monthlyRate) || !fields.effectiveDate}
               className="flex-1 bg-[#111827] text-white rounded-lg py-2 text-sm font-medium hover:bg-gray-800 cursor-pointer disabled:opacity-40"
             >
               Preview Contract →

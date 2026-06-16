@@ -34,6 +34,8 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
     bank_account_number: contractor.bank_account_number || '',
     bank_account_type: contractor.bank_account_type || '',
     notes: contractor.notes || '',
+    annual_pto_days: contractor.annual_pto_days?.toString() || '',
+    annual_sick_days: contractor.annual_sick_days?.toString() || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -50,6 +52,8 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
       hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
       monthly_rate: form.monthly_rate ? parseFloat(form.monthly_rate) : null,
       project_percentage: form.project_percentage ? parseFloat(form.project_percentage) : null,
+      annual_pto_days: form.annual_pto_days ? parseInt(form.annual_pto_days) : null,
+      annual_sick_days: form.annual_sick_days ? parseInt(form.annual_sick_days) : null,
       updated_at: new Date().toISOString(),
     }).eq('id', contractor.id);
     setLoading(false);
@@ -225,6 +229,27 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
                   <input value={form.bank_account_number} onChange={(e) => set('bank_account_number', e.target.value)}
                     placeholder="Account number"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+              </div>
+            </div>
+
+            {/* Leave entitlements */}
+            <div className="col-span-2 pt-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Leave Entitlements</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">VL days/year</label>
+                  <input type="number" min="0" value={form.annual_pto_days} onChange={e => set('annual_pto_days', e.target.value)}
+                    placeholder="e.g. 10"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  <p className="text-[11px] text-gray-400">Leave blank to use system default (15d)</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">SL days/year</label>
+                  <input type="number" min="0" value={form.annual_sick_days} onChange={e => set('annual_sick_days', e.target.value)}
+                    placeholder="e.g. 5"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                  <p className="text-[11px] text-gray-400">Leave blank to use system default (10d)</p>
                 </div>
               </div>
             </div>
