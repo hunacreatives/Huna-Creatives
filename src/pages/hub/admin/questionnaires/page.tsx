@@ -5,7 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type QType = 'short_text' | 'paragraph' | 'single_choice' | 'multi_choice' | 'file_upload';
+type QType = 'short_text' | 'paragraph' | 'single_choice' | 'multi_choice' | 'file_upload' | 'date';
+
+interface QuestionCondition {
+  questionId: string;
+  equals?: string;
+  includes?: string;
+}
 
 interface Question {
   id: string;
@@ -14,6 +20,11 @@ interface Question {
   required?: boolean;
   options?: string[];
   placeholder?: string;
+  description?: string;
+  // Only shown to the client if the referenced question's answer matches.
+  dependsOn?: QuestionCondition;
+  // Becomes required only if the referenced question's answer is one of `values`.
+  requiredIf?: { questionId: string; values: string[] };
 }
 
 interface Questionnaire {
@@ -42,36 +53,92 @@ const SERVICES = [
   'Custom Hub / Web App',
 ];
 
-const q = (id: string, type: QType, label: string, opts?: { required?: boolean; options?: string[]; placeholder?: string }): Question =>
-  ({ id, type, label, ...opts });
+const q = (id: string, type: QType, label: string, opts?: {
+  required?: boolean;
+  options?: string[];
+  placeholder?: string;
+  description?: string;
+  dependsOn?: QuestionCondition;
+  requiredIf?: { questionId: string; values: string[] };
+}): Question => ({ id, type, label, ...opts });
 
 const TEMPLATES: Record<string, Question[]> = {
   'Event Website / E-vite': [
     // YOUR DETAILS
-    q('fiance_name', 'short_text', "Partner / Fiancé's name (if applicable — for wedding, engagement, bridal shower)"),
-    q('instagram', 'short_text', 'Instagram handle (so we can tag you!)', { placeholder: '@yourhandle' }),
+    q('your_name', 'short_text', 'Your Name', { required: true }),
+    q('fiance_name', 'short_text', "Fiancé's Name", {
+      placeholder: 'Required for wedding & engagement events',
+      requiredIf: { questionId: 'occasion', values: ['Wedding', 'Engagement'] },
+    }),
+    q('email', 'short_text', 'Email Address', { required: true, placeholder: 'you@email.com' }),
+    q('instagram', 'short_text', 'Instagram Handle', { placeholder: '@yourhandle — so we can tag you!' }),
     // EVENT DETAILS
-    q('occasion', 'single_choice', 'What milestone or occasion are we celebrating?', { required: true, options: ['Baby Shower', 'Bachelorette', 'Birthday', 'Bridal Shower', 'Engagement', 'Wedding', 'Brand Activation / Launch Event', 'Corporate', 'Others'] }),
-    q('occasion_other', 'short_text', 'If Others, please specify.'),
-    q('event_date', 'short_text', 'Event date', { required: true, placeholder: 'e.g. November 15, 2026' }),
-    q('event_location', 'short_text', 'Event location', { required: true, placeholder: 'Venue name, City' }),
+    q('occasion', 'single_choice', 'What milestone or occasion are we celebrating?', {
+      required: true,
+      options: ['Baby Shower', 'Bachelorette', 'Birthday', 'Bridal Shower', 'Engagement', 'Wedding', 'Brand Activations & Launch Events', 'Corporate', 'Others'],
+    }),
+    q('event_date', 'date', 'Event date', { required: true }),
+    q('event_location', 'short_text', 'Event Location', { required: true, placeholder: 'Venue name, City' }),
     q('guest_count', 'short_text', 'Approximate number of guests', { placeholder: 'e.g. 150' }),
-    q('planner', 'single_choice', 'Are you working with a wedding / event planner?', { options: ['Yes', 'No, not yet'] }),
-    // SERVICES & PACKAGES
-    q('design_type', 'single_choice', 'Are you enquiring about Bespoke Design or Semi-Custom?', { required: true, options: ['Bespoke Design', 'Semi-Custom'] }),
-    // BESPOKE TRACK
-    q('bespoke_services', 'multi_choice', 'Bespoke: Which services are you interested in?', { options: ['Milestone Events Website', 'Monogram', 'Digital Save the Date', 'Bespoke Stationery', 'RSVP Management'] }),
-    q('bespoke_vision', 'paragraph', 'Bespoke: What is your vision for the design? Describe any ideas, themes, or inspiration.', { placeholder: 'Colors, mood, style references, anything that feels "you"…' }),
-    // SEMI-CUSTOM TRACK
-    q('semicustom_collections', 'multi_choice', 'Semi-Custom: Which collections would you like to explore?', { options: ['Alpine', 'Classic Elegance', 'Coastal', 'Garden', 'Minimalist Polaroid', 'Tropical'] }),
-    q('semicustom_love', 'paragraph', "Semi-Custom: What drew you to the collection(s) you chose?", { placeholder: 'Typography, layout, mood, colours, overall feel…' }),
-    q('semicustom_addons', 'multi_choice', 'Semi-Custom: Would you like any optional add-ons?', { options: ['Digital Save the Date', 'RSVP Management', 'No, just the website for now'] }),
-    // SHARED
-    q('timeline', 'single_choice', 'Ideal project timeline — when would you like your website / stationery to be ready?', { required: true, options: ['3–4 weeks', '1–2 months', '2–3 months', '3+ months', 'Not sure yet'] }),
-    q('moodboard', 'file_upload', 'Design peg or mood board — upload a file or paste a link.'),
-    // ADDITIONAL
+    q('planner', 'single_choice', 'Are you working with a wedding planner?', { options: ['Yes', 'No, not yet'] }),
+    // SERVICES AND PACKAGES
+    q('design_type', 'single_choice', 'Are you enquiring about Bespoke Design or Semi-Custom?', {
+      required: true,
+      options: ['Bespoke Design', 'Semi-Custom'],
+      description: 'Bespoke Design — A fully custom, made-from-scratch experience tailored to your wedding aesthetic.\nSemi-Custom — Based on our curated collections.',
+    }),
+    // BESPOKE BRANCH
+    q('bespoke_services', 'multi_choice', 'Which bespoke services are you interested in?', {
+      required: true,
+      description: 'Select all that apply',
+      options: ['Milestone Events Website', 'Monogram', 'Digital Save the Date', 'Bespoke Stationery', 'RSVP Management'],
+      dependsOn: { questionId: 'design_type', equals: 'Bespoke Design' },
+    }),
+    q('stationery_collection', 'single_choice', 'Bespoke Stationery — which collection?', {
+      required: true,
+      options: ['The Essential Collection', 'The Signature Collection', 'The Bespoke Collection', 'Others'],
+      dependsOn: { questionId: 'bespoke_services', includes: 'Bespoke Stationery' },
+    }),
+    q('stationery_collection_other', 'short_text', 'Please specify', {
+      dependsOn: { questionId: 'stationery_collection', equals: 'Others' },
+    }),
+    q('bespoke_timeline', 'single_choice', 'Ideal project timeline', {
+      required: true,
+      description: 'When would you ideally like your website / stationery to be ready?',
+      options: ['3–4 weeks', '1–2 months', '2–3 months', '3+ months', 'Not Sure Yet'],
+      dependsOn: { questionId: 'design_type', equals: 'Bespoke Design' },
+    }),
+    q('bespoke_vision', 'paragraph', 'What is your vision for the bespoke design?', {
+      required: true,
+      description: 'Please describe any ideas, themes, or inspiration you have for your wedding website and stationery.',
+      dependsOn: { questionId: 'design_type', equals: 'Bespoke Design' },
+    }),
+    q('moodboard', 'file_upload', 'If you have a design peg, mood board, please upload it below.', {
+      dependsOn: { questionId: 'design_type', equals: 'Bespoke Design' },
+    }),
+    // SEMI-CUSTOM BRANCH
+    q('semicustom_collections', 'multi_choice', 'Which collections would you like to explore?', {
+      required: true,
+      description: 'You can select multiple options to explore',
+      options: ['Alpine', 'Classic Elegance', 'Coastal', 'Garden', 'Minimalist Polaroid', 'Tropical'],
+      dependsOn: { questionId: 'design_type', equals: 'Semi-Custom' },
+    }),
+    q('semicustom_love', 'paragraph', 'What do you love about the collection you chose?', {
+      description: 'Share what drew you to it — typography, layout, mood, colours, overall feel.',
+      dependsOn: { questionId: 'design_type', equals: 'Semi-Custom' },
+    }),
+    q('semicustom_addons', 'multi_choice', 'Would you like to enhance your website experience with any optional add-ons?', {
+      options: ['Digital Save the Date', 'RSVP Management', 'No, just the website for now'],
+      dependsOn: { questionId: 'design_type', equals: 'Semi-Custom' },
+    }),
+    q('addon_notes', 'short_text', 'Notes', {
+      dependsOn: { questionId: 'design_type', equals: 'Semi-Custom' },
+    }),
+    // CLOSING
     q('referral', 'short_text', 'How did you hear about us?', { required: true }),
-    q('other', 'paragraph', "Is there anything else you'd like us to know? Cultural touches, special considerations, design dislikes, or personal details you'd love incorporated."),
+    q('other', 'paragraph', "Is there anything else you'd like us to know?", {
+      description: "Tell us about any important cultural touches, special considerations, preferred aesthetics, design dislikes, or personal details you'd love incorporated into your event.",
+    }),
   ],
   'Website Design': [
     q('biz_name', 'short_text', 'What is your business name?', { required: true }),
@@ -166,6 +233,13 @@ const TEMPLATES: Record<string, Question[]> = {
     q('other', 'paragraph', 'Anything else we should know?'),
   ],
 };
+
+function dependencyNote(question: Question, all: Question[]): string | null {
+  if (!question.dependsOn) return null;
+  const parent = all.find(p => p.id === question.dependsOn!.questionId);
+  const value = question.dependsOn.equals ?? question.dependsOn.includes ?? '';
+  return `Shown only if "${parent?.label ?? question.dependsOn.questionId}" = ${value}`;
+}
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -414,6 +488,9 @@ export default function QuestionnairesPage() {
                         {question.type === 'file_upload' && (
                           <p className="text-xs text-gray-400 mt-0.5">File upload or link</p>
                         )}
+                        {dependencyNote(question, activeQ.questions) && (
+                          <p className="text-[11px] text-[#FF6B35]/70 mt-0.5 italic">{dependencyNote(question, activeQ.questions)}</p>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -478,7 +555,12 @@ export default function QuestionnairesPage() {
                   {questions.map((q, i) => (
                     <li key={q.id} className="flex gap-2 text-xs text-gray-500">
                       <span className="text-gray-300 font-mono flex-shrink-0">{i + 1}.</span>
-                      <span>{q.label}{q.required && <span className="text-red-300 ml-0.5">*</span>}</span>
+                      <span>
+                        {q.label}{q.required && <span className="text-red-300 ml-0.5">*</span>}
+                        {dependencyNote(q, questions) && (
+                          <span className="block text-[11px] text-[#FF6B35]/70 italic">{dependencyNote(q, questions)}</span>
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ol>

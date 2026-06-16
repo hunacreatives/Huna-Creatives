@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
-type QType = 'short_text' | 'paragraph' | 'single_choice' | 'multi_choice' | 'file_upload';
+type QType = 'short_text' | 'paragraph' | 'single_choice' | 'multi_choice' | 'file_upload' | 'date';
+
+interface QuestionCondition {
+  questionId: string;
+  equals?: string;
+  includes?: string;
+}
 
 interface Question {
   id: string;
@@ -11,6 +17,26 @@ interface Question {
   required?: boolean;
   options?: string[];
   placeholder?: string;
+  description?: string;
+  dependsOn?: QuestionCondition;
+  requiredIf?: { questionId: string; values: string[] };
+}
+
+function isConditionMet(condition: QuestionCondition, answers: Record<string, string | string[]>): boolean {
+  const answer = answers[condition.questionId];
+  if (condition.includes) return Array.isArray(answer) && answer.includes(condition.includes);
+  if (condition.equals) return answer === condition.equals;
+  return true;
+}
+
+function isVisible(question: Question, answers: Record<string, string | string[]>): boolean {
+  return !question.dependsOn || isConditionMet(question.dependsOn, answers);
+}
+
+function isRequired(question: Question, answers: Record<string, string | string[]>): boolean {
+  if (question.required) return true;
+  if (question.requiredIf) return question.requiredIf.values.includes(answers[question.requiredIf.questionId] as string);
+  return false;
 }
 
 interface Questionnaire {
@@ -92,7 +118,7 @@ export default function PublicQuestionnairePage() {
     if (!q) return false;
     const errs: Record<string, string> = {};
     q.questions.forEach(question => {
-      if (!question.required) return;
+      if (!isVisible(question, answers) || !isRequired(question, answers)) return;
       const a = answers[question.id];
       if (!a || (Array.isArray(a) ? a.length === 0 : a.trim() === '')) {
         errs[question.id] = 'This question is required.';
@@ -178,13 +204,25 @@ export default function PublicQuestionnairePage() {
 
       {/* Questions */}
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-        {q.questions.map((question, i) => (
+        {q.questions.filter(question => isVisible(question, answers)).map((question, i) => (
           <div key={question.id} className="bg-white border border-gray-100 rounded-2xl p-5">
-            <label className="block text-sm font-semibold text-[#111827] mb-3">
+            <label className={`block text-sm font-semibold text-[#111827] ${question.description ? 'mb-1' : 'mb-3'}`}>
               <span className="text-gray-300 font-mono text-xs mr-2">{String(i + 1).padStart(2, '0')}</span>
               {question.label}
-              {question.required && <span className="text-red-400 ml-1">*</span>}
+              {isRequired(question, answers) && <span className="text-red-400 ml-1">*</span>}
             </label>
+            {question.description && (
+              <p className="text-xs text-gray-400 mb-3 whitespace-pre-line">{question.description}</p>
+            )}
+
+            {question.type === 'date' && (
+              <input
+                type="date"
+                value={(answers[question.id] as string) ?? ''}
+                onChange={e => setAnswer(question.id, e.target.value)}
+                className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+              />
+            )}
 
             {question.type === 'short_text' && (
               <input
