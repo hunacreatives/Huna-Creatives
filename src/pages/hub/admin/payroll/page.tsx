@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +22,11 @@ interface Contractor {
   monthly_rate: number | null;
   start_date: string | null;
   work_days: string[] | null;
+  payment_method?: string | null;
+  bank_name?: string | null;
+  bank_account_name?: string | null;
+  bank_account_number?: string | null;
+  bank_account_type?: string | null;
 }
 
 interface RateEntry {
@@ -192,6 +197,12 @@ export default function AdminPayrollPage() {
     });
   }, []);
 
+  // Guards against out-of-order async responses (e.g. the initial render firing fetches
+  // with default settings, then again with the real persisted settings) overwriting fresh
+  // data with stale data — only the response from the latest call gets applied.
+  const payrollSeqRef = useRef(0);
+  const workflowSeqRef = useRef(0);
+
   // Payout workflow state
   const [payoutsMap, setPayoutsMap] = useState<Record<string, any>>({});
   const [batch, setBatch] = useState<any>(null);
@@ -203,6 +214,9 @@ export default function AdminPayrollPage() {
   const [disputesMap, setDisputesMap] = useState<Record<string, any>>({});
   // Notes input per dispute (dispute_id → note text)
   const [disputeNotesMap, setDisputeNotesMap] = useState<Record<string, string>>({});
+
+  // Bank details lookup modal
+  const [bankInfoContractor, setBankInfoContractor] = useState<Contractor | null>(null);
 
   // Row edit overrides (before approval)
   const [editRowId, setEditRowId] = useState<string | null>(null);
@@ -385,6 +399,7 @@ export default function AdminPayrollPage() {
   };
 
   const fetchWorkflow = async () => {
+    const mySeq = ++workflowSeqRef.current;
     const [payoutsRes, batchRes] = await Promise.all([
       supabase
         .from('hub_payouts')
@@ -401,6 +416,7 @@ export default function AdminPayrollPage() {
         .limit(1)
         .maybeSingle(),
     ]);
+    if (mySeq !== workflowSeqRef.current) return; // a newer call already started — discard this stale response
     const map: Record<string, any> = {};
     for (const p of payoutsRes.data || []) {
       const existing = map[p.contractor_id];
@@ -418,6 +434,7 @@ export default function AdminPayrollPage() {
         .select('id, payout_id, reason, status, admin_notes')
         .in('payout_id', payoutIds)
         .eq('status', 'open');
+      if (mySeq !== workflowSeqRef.current) return;
       const dm: Record<string, any> = {};
       for (const d of disputes || []) dm[d.payout_id] = d;
       setDisputesMap(dm);
@@ -882,6 +899,7 @@ export default function AdminPayrollPage() {
   }, [isDemo, selectedPeriod, usdRate]);
 
   const fetchPayroll = async () => {
+    const mySeq = ++payrollSeqRef.current;
     setLoading(true);
     try {
     const today = localToday();
@@ -892,7 +910,7 @@ export default function AdminPayrollPage() {
       isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
       supabase
         .from('hub_users')
-        .select('id, full_name, role, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days')
+        .select('id, full_name, role, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days, payment_method, bank_name, bank_account_name, bank_account_number, bank_account_type')
         .eq('status', 'active')
         .in('role', ['contractor', 'admin']),
       supabase
@@ -1127,10 +1145,11 @@ export default function AdminPayrollPage() {
     });
 
     result.sort((a, b) => b.pay - a.pay);
+    if (mySeq !== payrollSeqRef.current) return; // a newer call superseded this one — discard
     setRows(result);
     } catch (_e) {
     } finally {
-      setLoading(false);
+      if (mySeq === payrollSeqRef.current) setLoading(false);
     }
   };
 
@@ -1576,6 +1595,9 @@ export default function AdminPayrollPage() {
                         {c.department && <><span className="text-gray-200">·</span><span className="text-xs text-gray-400">{c.department}</span></>}
                       </div>
                     </div>
+                    <button onClick={() => setBankInfoContractor(c)} title="View bank details" className="text-gray-300 hover:text-[#FF6B35] cursor-pointer flex-shrink-0">
+                      <i className="ri-bank-line text-sm"></i>
+                    </button>
                     <button onClick={() => openEditRow(r)} className="text-gray-300 hover:text-[#FF6B35] cursor-pointer flex-shrink-0">
                       <i className="ri-edit-line text-sm"></i>
                     </button>
@@ -1823,6 +1845,13 @@ export default function AdminPayrollPage() {
                         {/* Status + Action */}
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setBankInfoContractor(c)}
+                              title="View bank details"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#FF6B35] hover:bg-orange-50 transition-colors cursor-pointer flex-shrink-0"
+                            >
+                              <i className="ri-bank-line text-sm"></i>
+                            </button>
                             <button
                               onClick={() => openEditRow(r)}
                               title="Edit payroll"
@@ -2236,6 +2265,49 @@ export default function AdminPayrollPage() {
                     {editSaving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+      {/* Bank Details Modal — read-only lookup, independent of payout status */}
+      {bankInfoContractor && (() => {
+        const c = bankInfoContractor;
+        const detailRows: { label: string; value: string }[] = [
+          { label: 'Payment method', value: c.payment_method ?? '' },
+          { label: 'Bank', value: c.bank_name ?? '' },
+          { label: 'Account name', value: c.bank_account_name ?? '' },
+          { label: 'Account number', value: c.bank_account_number ?? '' },
+          { label: 'Account type', value: c.bank_account_type ?? '' },
+        ].filter(r => r.value);
+        const hasBankDetails = !!(c.bank_name || c.bank_account_number);
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setBankInfoContractor(null)}>
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <Avatar name={c.full_name} avatar_url={c.avatar_url} />
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#111827]">{c.full_name}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Bank details</p>
+                  </div>
+                </div>
+                <button onClick={() => setBankInfoContractor(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 px-5 py-4">
+                {hasBankDetails ? (
+                  <div className="space-y-3">
+                    {detailRows.map(r => (
+                      <div key={r.label} className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-gray-400 flex-shrink-0">{r.label}</span>
+                        <span className="text-sm text-[#111827] font-medium text-right">{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 text-center py-4">No bank details on file for this employee.</p>
+                )}
               </div>
             </div>
           </div>
