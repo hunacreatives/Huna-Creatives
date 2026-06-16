@@ -729,7 +729,10 @@ export default function ContractorPayoutsPage() {
             </div>
 
             {/* Status + actions */}
-            {existingPayout ? (
+            {/* Admin can pre-create/edit a payout row (e.g. to add an adjustment) before
+                the contractor submits — that leaves status='pending' with no submitted_at.
+                Only treat it as "submitted" once the contractor has actually submitted. */}
+            {existingPayout && existingPayout.status !== 'pending' ? (
               <div className="space-y-3">
                 <div className={`rounded-xl px-4 py-3.5 flex items-center gap-3 ${
                   existingPayout.status === 'paid' ? 'bg-emerald-50 border border-emerald-100' :
