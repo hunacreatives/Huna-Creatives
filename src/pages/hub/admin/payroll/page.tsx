@@ -389,7 +389,10 @@ export default function AdminPayrollPage() {
       supabase
         .from('hub_payouts')
         .select('id, contractor_id, status, final_payout, payment_date, batch_id, adjustments, payslip_sent_at, overtime_pay, cutoff_start')
-        .or(`cutoff_start.eq.${selectedPeriod.start},and(cutoff_end.gte.${selectedPeriod.start},cutoff_start.lte.${selectedPeriod.end})`),
+        // Exact-period rows always show; overlapping rows from old (pre-unification) cutoffs only
+        // show while still unpaid/actionable, so already-settled one-off rows stop bleeding into
+        // later periods once they're done.
+        .or(`cutoff_start.eq.${selectedPeriod.start},and(cutoff_end.gte.${selectedPeriod.start},cutoff_start.lte.${selectedPeriod.end},status.neq.paid)`),
       supabase
         .from('hub_payroll_batches')
         .select('*')
