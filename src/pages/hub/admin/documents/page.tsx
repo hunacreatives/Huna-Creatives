@@ -18,6 +18,33 @@ const DOC_TYPES = [
   'Work Completion Certificate', 'Client Assignment Letter', 'Clearance Certificate', 'Other',
 ];
 
+function buildSignedHtml(content: string, signedName: string, signedAt: string): string {
+  const dateLabel = new Date(signedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const dom = new DOMParser().parseFromString(content, 'text/html');
+  const link = dom.createElement('link');
+  link.setAttribute('href', 'https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap');
+  link.setAttribute('rel', 'stylesheet');
+  dom.head.appendChild(link);
+  const signatureLabel = dom.querySelector('p.sig-label[style*="margin-top"]');
+  if (signatureLabel) {
+    const blankDiv = signatureLabel.previousElementSibling as HTMLElement;
+    if (blankDiv) {
+      blankDiv.style.borderBottom = 'none';
+      blankDiv.style.display = 'flex';
+      blankDiv.style.alignItems = 'flex-end';
+      blankDiv.style.paddingBottom = '4pt';
+      blankDiv.innerHTML = `<p style="font-family:'Dancing Script',cursive;font-size:26pt;color:#111;margin:0;line-height:1;">${signedName}</p>`;
+    }
+    signatureLabel.remove();
+  }
+  dom.querySelectorAll('p.sig-label:not([style])').forEach(p => {
+    if (p.innerHTML.trim().endsWith('Date')) {
+      p.innerHTML = `${signedName} &nbsp;|&nbsp; ${dateLabel}`;
+    }
+  });
+  return dom.documentElement.outerHTML;
+}
+
 function ReviewModal({ req, onClose, onSaved }: { req: HubDocRequest; onClose: () => void; onSaved: () => void }) {
   const [status, setStatus] = useState(req.status);
   const [adminNotes, setAdminNotes] = useState(req.admin_notes || '');
@@ -662,9 +689,16 @@ export default function AdminDocumentsPage() {
             </div>
             <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <a
-                href={selectedDoc.is_generated && selectedDoc.content
-                  ? URL.createObjectURL(new Blob([selectedDoc.content], { type: 'text/html' }))
-                  : selectedDoc.file_url!}
+                href={(() => {
+                  if (selectedDoc.is_generated && selectedDoc.content) {
+                    const signed = assignments.find(a => a.status === 'signed' && a.signed_name && a.signed_at);
+                    const html = signed
+                      ? buildSignedHtml(selectedDoc.content, signed.signed_name!, signed.signed_at!)
+                      : selectedDoc.content;
+                    return URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+                  }
+                  return selectedDoc.file_url!;
+                })()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
