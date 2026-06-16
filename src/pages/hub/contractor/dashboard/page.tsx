@@ -341,6 +341,13 @@ export default function ContractorDashboard() {
   const maxHours = daysElapsed * 8;
   const hoursProgress = maxHours > 0 ? Math.min((hoursThisCutoff / maxHours) * 100, 100) : 0;
 
+  const currency = (user as any)?.currency || 'PHP';
+  const isUSD = currency === 'USD';
+  const [usdRate, setUsdRate] = useState(56);
+  useEffect(() => {
+    if (isUSD) getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v || '56')));
+  }, [isUSD]);
+
   const cutoffDeadlineDate = new Date(`${cutoffEndStr}T00:00:00`);
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const daysUntilCutoff = Math.round((cutoffDeadlineDate.getTime() - todayMidnight.getTime()) / 86400000);
@@ -524,7 +531,7 @@ export default function ContractorDashboard() {
     }
   };
 
-  useEffect(() => { fetchData(); }, [user, isDemo, cutoffStartStr]);
+  useEffect(() => { fetchData(); }, [user, isDemo, cutoffStartStr, usdRate]);
 
   const hour = now.getHours();
   const phTime = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', hour12: true });
@@ -532,12 +539,6 @@ export default function ContractorDashboard() {
   const isNight = hour >= 20 || hour < 5;
   const isMorning = hour >= 5 && hour < 12;
   const isEvening = hour >= 17 && hour < 20;
-  const currency = (user as any)?.currency || 'PHP';
-  const isUSD = currency === 'USD';
-  const [usdRate, setUsdRate] = useState(56);
-  useEffect(() => {
-    if (isUSD) getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v || '56')));
-  }, [isUSD]);
 
   const statusColors: Record<string, string> = {
     open: 'bg-amber-100 text-amber-700', in_review: 'bg-sky-100 text-sky-700',
