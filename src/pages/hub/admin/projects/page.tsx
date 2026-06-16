@@ -16,6 +16,15 @@ import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeTaskAssigneePayload } from '@/lib/taskAssignments';
 
+// Stored receipt URLs are Drive "view" page links (https://drive.google.com/file/d/{id}/view),
+// not direct image URLs — convert to the thumbnail API for use in <img src>.
+function getDriveThumbnailUrl(url: string | null | undefined, size = 400) {
+  if (!url) return url ?? '';
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (!match) return url;
+  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w${size}`;
+}
+
 // ── SVG progress ring ──────────────────────────────────────────────────────
 function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
   const r = (size / 2) - 10;
@@ -3466,7 +3475,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     </div>
                                     {pp.receipt_url && (
                                       <button onClick={() => setLightboxUrl(pp.receipt_url)} className="mt-1.5 cursor-pointer">
-                                        <img src={pp.receipt_url} alt="receipt" className="h-8 w-14 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
+                                        <img src={getDriveThumbnailUrl(pp.receipt_url)} alt="receipt" className="h-8 w-14 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
                                       </button>
                                     )}
                                   </div>
@@ -3779,7 +3788,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     {pp.notes && <span className="text-gray-400">· {pp.notes}</span>}
                                     {pp.receipt_url && (
                                       <button onClick={() => setLightboxUrl(pp.receipt_url)} className="cursor-pointer flex-shrink-0">
-                                        <img src={pp.receipt_url} alt="receipt" className="h-6 w-9 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
+                                        <img src={getDriveThumbnailUrl(pp.receipt_url)} alt="receipt" className="h-6 w-9 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity" />
                                       </button>
                                     )}
                                   </div>
@@ -4336,7 +4345,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
               {sendReceiptModal.payment.receipt_url && (
                 <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
-                  <img src={sendReceiptModal.payment.receipt_url} alt="receipt" className="h-10 w-14 object-cover rounded border border-gray-200 flex-shrink-0" />
+                  <img src={getDriveThumbnailUrl(sendReceiptModal.payment.receipt_url)} alt="receipt" className="h-10 w-14 object-cover rounded border border-gray-200 flex-shrink-0" />
                   <p className="text-xs text-gray-500">Receipt image will be included in the email.</p>
                 </div>
               )}
@@ -4362,7 +4371,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       {lightboxUrl && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
           <div className="relative max-w-3xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
-            <img src={lightboxUrl} alt="Receipt" className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl" />
+            <img src={getDriveThumbnailUrl(lightboxUrl, 1600)} alt="Receipt" className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl" />
             <button onClick={() => setLightboxUrl(null)} className="absolute top-2 right-2 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black cursor-pointer">
               <i className="ri-close-line text-sm"></i>
             </button>

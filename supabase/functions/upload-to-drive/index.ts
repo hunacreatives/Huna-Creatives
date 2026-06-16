@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
     if (!uploadRes.ok) throw new Error(JSON.stringify(result));
 
     const fileId = result.id;
-    if (type === 'task_attachment' || type === 'questionnaire_moodboard') {
+    if (type === 'task_attachment' || type === 'questionnaire_moodboard' || type === 'payout_receipt' || type === 'payment_proof') {
       await ensureReadablePreview(fileId, accessToken);
     }
     const url = `https://drive.google.com/file/d/${fileId}/view`;
