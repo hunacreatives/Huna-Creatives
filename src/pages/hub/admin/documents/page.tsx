@@ -281,6 +281,7 @@ export default function AdminDocumentsPage() {
 
   const openDetail = async (doc: HubSignDocument) => {
     setSelectedDoc(doc);
+    setAssignments([]);
     const { data } = await supabase
       .from('hub_sign_assignments')
       .select('*, hub_users(full_name, avatar_url), drive_file_id')
