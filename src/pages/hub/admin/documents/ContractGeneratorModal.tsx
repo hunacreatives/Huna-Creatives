@@ -621,9 +621,9 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
               <label className="block text-xs font-medium text-gray-600 mb-2">Payment Structure *</label>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { key: 'fixed',          label: 'Fixed Monthly Rate',    icon: 'ri-calendar-line',  desc: 'Set monthly fee, fixed schedule' },
-                  { key: 'fixed_flexible', label: 'Fixed + Flexible',      icon: 'ri-shield-line',    desc: 'Set monthly fee, flexible schedule' },
-                  { key: 'hourly',         label: 'Hourly / Flexible',     icon: 'ri-time-line',      desc: 'Paid per approved hour logged' },
+                  { key: 'fixed',          label: 'Fixed Monthly',      icon: 'ri-calendar-line',  desc: 'Same pay every month' },
+                  { key: 'fixed_flexible', label: 'Fixed, Open Schedule', icon: 'ri-shield-line',    desc: 'Fixed pay, hours vary by project' },
+                  { key: 'hourly',         label: 'Hourly',               icon: 'ri-time-line',      desc: 'Paid per approved hour logged' },
                 ] as const).map(t => (
                   <button
                     key={t.key}
