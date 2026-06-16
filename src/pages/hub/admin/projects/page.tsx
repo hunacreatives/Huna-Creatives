@@ -1072,13 +1072,15 @@ export default function AdminProjectsPage() {
     });
     setCtxPaySaving(p => ({ ...p, [pcId]: false }));
     if (error) { setCtxPayError(p => ({ ...p, [pcId]: error.message })); return; }
-    setCtxPayForm(p => ({ ...p, [pcId]: { amount: '', date: localToday(), notes: '', receipt: null, notify: true } }));
-    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'project_payout', description: `Logged payout of ₱${form.amount} to ${contractorName}` });
 
     // auto-mark paid if fully paid
     const pc = projects.flatMap(p => p.hub_project_contractors).find(x => x.id === pcId);
     const prev = pc?.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0) ?? 0;
     const newTotal = prev + amount;
+    const remaining = Math.max(cut - newTotal, 0);
+    setCtxPayForm(p => ({ ...p, [pcId]: { amount: remaining > 0 ? remaining.toFixed(2) : '', date: localToday(), notes: '', receipt: null, notify: true } }));
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'project_payout', description: `Logged payout of ₱${form.amount} to ${contractorName}` });
+
     if (pc && newTotal >= cut) {
       await supabase.from('hub_project_contractors').update({ payout_status: 'paid', paid_at: new Date().toISOString() }).eq('id', pcId);
     }
@@ -3688,7 +3690,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       const totalPaidOut = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
                       const paidPct = cut > 0 ? Math.min((totalPaidOut / cut) * 100, 100) : 0;
                       const isFullyPaid = totalPaidOut >= cut && cut > 0;
-                      const pf = ctxPayForm[pc.id] ?? { amount: '', date: localToday(), notes: '', receipt: null, notify: true };
+                      const pf = ctxPayForm[pc.id] ?? { amount: cut > 0 ? String((cut - totalPaidOut).toFixed(2)) : '', date: localToday(), notes: '', receipt: null, notify: true };
                       const setPf = (patch: Partial<typeof pf>) => setCtxPayForm(prev => ({ ...prev, [pc.id]: { ...pf, ...patch } }));
                       return (
                         <div key={pc.id} className="border border-gray-100 bg-white rounded-xl overflow-hidden">
