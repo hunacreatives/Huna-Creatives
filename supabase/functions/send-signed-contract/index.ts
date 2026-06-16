@@ -11,27 +11,20 @@ const cors = {
   'Content-Type': 'application/json',
 };
 
-function buildSignedHtml(content: string, signedName: string, signedAt: string): string {
-  const dateLabel = new Date(signedAt).toLocaleDateString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric',
+async function getGoogleAccessToken(): Promise<string> {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: Deno.env.get('GOOGLE_CLIENT_ID')!,
+      client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET')!,
+      refresh_token: Deno.env.get('GOOGLE_REFRESH_TOKEN')!,
+      grant_type: 'refresh_token',
+    }),
   });
-
-  let result = content.replace(
-    '</head>',
-    `<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet"></head>`
-  );
-
-  return result
-    .replace(
-      /<div style="height:44pt;margin-top:16pt;border-bottom:1pt solid #111;"><\/div>\s*<p class="sig-label" style="margin-top:4pt;">Signature<\/p>/,
-      `<div style="height:44pt;margin-top:16pt;display:flex;align-items:flex-end;padding-bottom:4pt;">
-        <p style="font-family:'Dancing Script',cursive;font-size:26pt;color:#111;margin:0;line-height:1;">${signedName}</p>
-       </div>`
-    )
-    .replace(
-      /(<p class="sig-label">)([^<]+ &nbsp;\|&nbsp; Date)(<\/p>)(?![\s\S]*<p class="sig-label">Francis)/,
-      `$1${signedName} &nbsp;|&nbsp; ${dateLabel}$3`
-    );
+  const data = await res.json();
+  if (!data.access_token) throw new Error('OAuth failed: ' + JSON.stringify(data));
+  return data.access_token;
 }
 
 async function run(assignment_id: string) {
@@ -66,10 +59,27 @@ async function run(assignment_id: string) {
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
-  // Build the signed HTML if this is a generated contract
-  let signedHtmlAttachment: string | null = null;
+  // For generated contracts, upload to Drive first (creates a Google Doc), then export that as a PDF
+  let pdfAttachment: Uint8Array | null = null;
   if (doc?.is_generated && doc?.content) {
-    signedHtmlAttachment = buildSignedHtml(doc.content, assignment.signed_name, assignment.signed_at);
+    try {
+      const { data: driveResult } = await supabase.functions.invoke('sync-contract-to-drive', { body: { assignment_id } });
+      const fileId = driveResult?.fileId;
+      if (fileId) {
+        const accessToken = await getGoogleAccessToken();
+        const exportRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/pdf`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (exportRes.ok) {
+          pdfAttachment = new Uint8Array(await exportRes.arrayBuffer());
+        } else {
+          console.error('Drive PDF export failed:', exportRes.status, await exportRes.text());
+        }
+      }
+    } catch (e) {
+      console.error('Drive upload/export error:', e);
+    }
   }
 
   const contractLink = doc?.is_generated ? null : doc?.file_url;
@@ -97,8 +107,8 @@ async function run(assignment_id: string) {
         <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Date: <strong style="color:#374151;">${dateLabel}</strong></p>
       </div>
       <p style="font-size:13px;color:#6b7280;line-height:1.7;margin:0;">
-        ${signedHtmlAttachment
-          ? 'Your signed copy is attached as an HTML file. Open it in any browser to view or print.'
+        ${pdfAttachment
+          ? 'Your signed copy is attached as a PDF.'
           : contractLink
             ? `You can view the original document <a href="${contractLink}" style="color:#FF6B35;">here</a>.`
             : 'Please keep this email for your records.'}
@@ -107,9 +117,9 @@ async function run(assignment_id: string) {
 
     <div style="padding:24px 36px;background:#fafafa;">
       <p style="font-size:12px;color:#9ca3af;margin:0 0 4px;line-height:1.6;">
-        If you have any questions about this agreement, please reach out to HR on Slack or reply to this email.
+        Questions about this agreement? Reach out to HR on Slack.
       </p>
-      <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
+      <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">This email is not monitored — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
       <p style="font-size:11px;color:#d1d5db;margin:0;">© ${new Date().getFullYear()} Huna Creatives · hr@hunacreatives.com</p>
     </div>
 
@@ -124,10 +134,12 @@ async function run(assignment_id: string) {
     html: emailHtml,
   };
 
-  if (signedHtmlAttachment) {
+  if (pdfAttachment) {
+    let binary = '';
+    for (let i = 0; i < pdfAttachment.length; i++) binary += String.fromCharCode(pdfAttachment[i]);
     payload.attachments = [{
-      filename: `${doc.title.replace(/[^a-zA-Z0-9 _-]/g, '')}.html`,
-      content: btoa(unescape(encodeURIComponent(signedHtmlAttachment))),
+      filename: `${doc.title.replace(/[^a-zA-Z0-9 _-]/g, '')}.pdf`,
+      content: btoa(binary),
     }];
   }
 
@@ -146,12 +158,6 @@ async function run(assignment_id: string) {
   } else {
     console.log('Signed contract email sent:', result.id, '→', contractor.email);
   }
-
-  // Auto-upload signed contract to Google Drive
-  const supabaseForDrive = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  supabaseForDrive.functions.invoke('sync-contract-to-drive', { body: { assignment_id } }).catch((e: unknown) => {
-    console.error('Drive upload error:', e);
-  });
 }
 
 Deno.serve(async (req) => {
