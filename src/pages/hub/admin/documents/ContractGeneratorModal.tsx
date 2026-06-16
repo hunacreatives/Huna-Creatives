@@ -320,12 +320,10 @@ const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
     role: 'Junior Graphic Designer',
     responsibilities: [
       'Create social media graphics, marketing materials, and brand collateral',
-      'Design and iterate on website UI mockups and layouts for client web projects',
-      'Develop brand identities including logos, color palettes, and typography systems',
-      'Follow brand guidelines and maintain visual consistency across all deliverables',
+      'Follow brand guidelines and maintain visual consistency across deliverables',
       'Assist with layout, typography, and design revisions as directed',
     ],
-    tools: ['Canva Pro', 'Adobe Photoshop', 'Adobe Illustrator', 'Figma'],
+    tools: ['Canva Pro', 'Adobe Photoshop', 'Adobe Illustrator'],
     ptaDays: '6', sickDays: '4',
   },
   'Senior Graphic Designer': {
