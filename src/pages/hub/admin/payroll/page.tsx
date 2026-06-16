@@ -478,7 +478,7 @@ export default function AdminPayrollPage() {
   const approveAll = async () => {
     const toApprove = rows.filter(r => {
       const p = payoutsMap[r.contractor.id];
-      return !isAutoPayrollContractor(r.contractor) && !batch && (!p || p.status === 'pending' || p.status === 'submitted');
+      return !batch && (!p || p.status === 'pending' || p.status === 'submitted');
     });
     if (toApprove.length === 0) return;
     setWorkflowLoading(true);
@@ -532,7 +532,7 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(true);
     const approved = rows.filter(r => {
       const p = payoutsMap[r.contractor.id];
-      return !isAutoPayrollContractor(r.contractor) && p?.status === 'hr_approved';
+      return p?.status === 'hr_approved';
     });
     if (approved.length === 0) {
       setWorkflowLoading(false);
@@ -1608,7 +1608,6 @@ export default function AdminPayrollPage() {
                   {/* Action row */}
                   <div className="flex items-center justify-between pt-3 border-t border-gray-50">
                     {(() => {
-                      if (isAutoPayrollContractor(c)) return <span className="text-xs text-emerald-600 font-medium">Auto Included</span>;
                       if (!effectivePayout || effectivePayout.status === 'pending') return <span className="text-xs text-gray-400">Pending</span>;
                       const cfg = {
                         submitted:   { label: 'Submitted',   cls: 'bg-amber-100 text-amber-700' },
@@ -1636,14 +1635,13 @@ export default function AdminPayrollPage() {
                         </>
                       ) : (
                         <>
-                          {!isAutoPayrollContractor(c) && effectivePayout && effectivePayout.status !== 'pending' && (
+                          {effectivePayout && effectivePayout.status !== 'pending' && (
                             <button onClick={() => setConfirmCancelId(c.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer">
                               <i className="ri-arrow-go-back-line text-sm"></i>
                             </button>
                           )}
                           {(() => {
                             const batchApproved = batch?.status === 'owner_approved';
-                            if (isAutoPayrollContractor(c)) return null;
                             if (effectivePayout?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                             if (batchApproved && effectivePayout?.status === 'hr_approved') return (
                               <button onClick={() => markPaid(c.id)} disabled={workflowLoading || batch?.status === 'closed'} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
@@ -1664,7 +1662,7 @@ export default function AdminPayrollPage() {
               <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-700">Total</span>
                 <div className="flex items-center gap-3">
-                  {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !isAutoPayrollContractor(r.contractor) && (!p || p.status === 'pending' || p.status === 'submitted'); }) && (
+                  {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
                     <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
                       Approve All
                     </button>
@@ -1840,7 +1838,6 @@ export default function AdminPayrollPage() {
                             ) : (
                               <>
                                 {(() => {
-                                  if (isAutoPayrollContractor(c)) return <span className="text-xs text-emerald-600 font-medium whitespace-nowrap">Auto Included</span>;
                                   if (!effectivePayout || effectivePayout.status === 'pending') return <span className="text-xs text-gray-400 font-medium">Pending</span>;
                                   const cfg = {
                                     submitted:   { label: 'Submitted',   cls: 'bg-amber-100 text-amber-700' },
@@ -1861,7 +1858,6 @@ export default function AdminPayrollPage() {
                                 })()}
                                 {(() => {
                                   const batchApproved = batch?.status === 'owner_approved';
-                                  if (isAutoPayrollContractor(c)) return null;
                                   if (effectivePayout?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                                   if (batchApproved && effectivePayout?.status === 'hr_approved') {
                                     return (
@@ -1881,7 +1877,7 @@ export default function AdminPayrollPage() {
                                   }
                                   return null;
                                 })()}
-                                {!isAutoPayrollContractor(c) && effectivePayout && effectivePayout.status !== 'pending' && (
+                                {effectivePayout && effectivePayout.status !== 'pending' && (
                                   <button onClick={() => setConfirmCancelId(c.id)} title="Undo"
                                     className="text-gray-200 hover:text-rose-400 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">
                                     <i className="ri-arrow-go-back-line text-sm"></i>
@@ -1903,7 +1899,7 @@ export default function AdminPayrollPage() {
                       <td className="px-5 py-3.5"></td>
                       <td className="px-5 py-3.5 font-bold text-gray-900">{fmt(displayTotalPay, 'PHP')}</td>
                       <td className="px-5 py-3.5 text-right">
-                        {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !isAutoPayrollContractor(r.contractor) && (!p || p.status === 'pending' || p.status === 'submitted'); }) && (
+                        {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
                           <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
                             Approve All
                           </button>
@@ -1921,7 +1917,7 @@ export default function AdminPayrollPage() {
         {/* Fund Transfer Workflow */}
         {!loading && (() => {
           const approvedCount = rows.filter(r =>
-            !isAutoPayrollContractor(r.contractor) && payoutsMap[r.contractor.id]?.status === 'hr_approved'
+            payoutsMap[r.contractor.id]?.status === 'hr_approved'
           ).length;
           const paidCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'paid').length;
           const isClosed = batch?.status === 'closed';
