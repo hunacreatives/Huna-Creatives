@@ -99,16 +99,16 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
 
   const commissionSection = hasCommission ? `
   <hr class="divider" />
-  <div class="section-title">10. Performance-Based Commission – ${commissionClient}</div>
-  <p>10.1 In recognition of the Contractor's role with <strong>${commissionClient}</strong>, the Contractor shall be entitled to a <strong>${commissionPercent}% commission</strong> derived from <strong>performance-based commissions actually received by Huna Creatives</strong> under its agreement with ${commissionClient}.</p>
-  <p>10.2 The commission shall be calculated <strong>solely on amounts received by Huna Creatives</strong>, and not on gross sales, gross revenue, or client-side net profit.</p>
-  <p>10.3 The Contractor shall have <strong>no direct contractual relationship or claim</strong> against ${commissionClient}.</p>
-  <p>10.4 Commission eligibility applies only while the Contractor is <strong>actively engaged</strong> with Huna Creatives and providing services related to ${commissionClient}.</p>
-  <p>10.5 Commission payouts shall be settled on a <strong>monthly basis</strong>, aligned with Huna Creatives' receipt of commission payments.</p>
-  <p>10.6 No commission shall be due on refunded, reversed, disputed, unpaid, or cancelled transactions, or after termination of this Agreement.</p>
-  <p>10.7 This commission is a <strong>performance-based incentive</strong> and does not form part of the Contractor's guaranteed compensation.</p>` : '';
+  <div class="section-title">11. Performance-Based Commission – ${commissionClient}</div>
+  <p>11.1 In recognition of the Contractor's role with <strong>${commissionClient}</strong>, the Contractor shall be entitled to a <strong>${commissionPercent}% commission</strong> derived from <strong>performance-based commissions actually received by Huna Creatives</strong> under its agreement with ${commissionClient}.</p>
+  <p>11.2 The commission shall be calculated <strong>solely on amounts received by Huna Creatives</strong>, and not on gross sales, gross revenue, or client-side net profit.</p>
+  <p>11.3 The Contractor shall have <strong>no direct contractual relationship or claim</strong> against ${commissionClient}.</p>
+  <p>11.4 Commission eligibility applies only while the Contractor is <strong>actively engaged</strong> with Huna Creatives and providing services related to ${commissionClient}.</p>
+  <p>11.5 Commission payouts shall be settled on a <strong>monthly basis</strong>, aligned with Huna Creatives' receipt of commission payments.</p>
+  <p>11.6 No commission shall be due on refunded, reversed, disputed, unpaid, or cancelled transactions, or after termination of this Agreement.</p>
+  <p>11.7 This commission is a <strong>performance-based incentive</strong> and does not form part of the Contractor's guaranteed compensation.</p>` : '';
 
-  const sectionNum = (n: number) => hasCommission ? n : n >= 11 ? n - 1 : n;
+  const sectionNum = (n: number) => hasCommission ? n + 1 : n;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -224,7 +224,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <p>6.3 The Contractor must notify the Client or designated supervisor <strong>as early as possible</strong> on the day of absence, or in advance when foreseeable.</p>
   <p>6.4 Huna Creatives may request reasonable documentation (e.g., a medical certificate) for sick leave absences exceeding two (2) consecutive days.</p>
   <p>6.5 Unused sick leave credits do not carry over and automatically expire at the end of each calendar year.</p>
-  <p>6.6 Sick leave taken beyond the allotted days will be treated as unpaid leave or deducted proportionally from the Contractor's monthly service fee.</p>
+  <p>6.6 Sick leave taken beyond the allotted days will be treated as unpaid leave${isHourly ? '.' : ' or deducted proportionally from the Contractor\'s monthly service fee.'}</p>
   <hr class="divider" />
 
   <div class="section-title">7. Confidentiality</div>
