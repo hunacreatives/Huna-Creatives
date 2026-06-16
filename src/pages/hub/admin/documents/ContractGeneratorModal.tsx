@@ -97,18 +97,19 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   const addItems = additionalResponsibilities.filter(r => r.trim()).map(r => `<li>${r}</li>`).join('\n');
   const toolItems = tools.filter(t => t.trim()).map(t => `<li>${t}</li>`).join('\n');
 
+  // Dynamic section numbering — commission inserts as section 19, shifting 19+ up by 1
+  const s = (base: number) => hasCommission ? base + 1 : base;
+
   const commissionSection = hasCommission ? `
   <hr class="divider" />
-  <div class="section-title">11. Performance-Based Commission – ${commissionClient}</div>
-  <p>11.1 In recognition of the Contractor's role with <strong>${commissionClient}</strong>, the Contractor shall be entitled to a <strong>${commissionPercent}% commission</strong> derived from <strong>performance-based commissions actually received by Huna Creatives</strong> under its agreement with ${commissionClient}.</p>
-  <p>11.2 The commission shall be calculated <strong>solely on amounts received by Huna Creatives</strong>, and not on gross sales, gross revenue, or client-side net profit.</p>
-  <p>11.3 The Contractor shall have <strong>no direct contractual relationship or claim</strong> against ${commissionClient}.</p>
-  <p>11.4 Commission eligibility applies only while the Contractor is <strong>actively engaged</strong> with Huna Creatives and providing services related to ${commissionClient}.</p>
-  <p>11.5 Commission payouts shall be settled on a <strong>monthly basis</strong>, aligned with Huna Creatives' receipt of commission payments.</p>
-  <p>11.6 No commission shall be due on refunded, reversed, disputed, unpaid, or cancelled transactions, or after termination of this Agreement.</p>
-  <p>11.7 This commission is a <strong>performance-based incentive</strong> and does not form part of the Contractor's guaranteed compensation.</p>` : '';
-
-  const sectionNum = (n: number) => hasCommission ? n + 1 : n;
+  <div class="section-title">19. Performance-Based Commission – ${commissionClient}</div>
+  <p>19.1 In recognition of the Contractor's role in supporting <strong>${commissionClient}</strong>, the Contractor shall be entitled to a <strong>${commissionPercent}% commission</strong> derived from <strong>performance-based commissions actually received by Huna Creatives</strong> under its agreement with ${commissionClient}.</p>
+  <p>19.2 The commission shall be calculated <strong>solely on amounts received by Huna Creatives</strong>, and not on gross sales, gross revenue, or client-side net profit.</p>
+  <p>19.3 The Contractor shall have <strong>no direct contractual relationship or claim</strong> against ${commissionClient}.</p>
+  <p>19.4 Commission eligibility applies only while the Contractor is <strong>actively engaged</strong> with Huna Creatives.</p>
+  <p>19.5 Commission payouts shall be settled on a <strong>monthly basis</strong>, aligned with Huna Creatives' receipt of commission payments.</p>
+  <p>19.6 No commission shall be due on refunded, reversed, disputed, unpaid, or cancelled transactions, or after termination of this Agreement.</p>
+  <p>19.7 This commission is a <strong>performance-based incentive</strong> and does not form part of the Contractor's guaranteed compensation.</p>` : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -151,31 +152,29 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <hr class="header-rule" />
 
   <div class="doc-title">Independent Contractor Agreement</div>
-  <p>This Independent Contractor Agreement ("Agreement") is made and entered into effective <strong>${fmt(effectiveDate)}</strong>, by and between:</p>
-  <p><strong>Huna Creatives</strong>, represented by <strong>Francis Fiel Roble</strong> ("Client"),</p>
-  <p>and <strong>${contractorName}</strong> ("Contractor").</p>
+  <p>This Independent Contractor Agreement ("Agreement") is entered into effective <strong>${fmt(effectiveDate)}</strong>, by and between <strong>Huna Creatives</strong>, a creative agency represented by <strong>Francis Fiel Roble</strong>, with principal address at Cebu, Philippines ("Client"), and <strong>${contractorName}</strong> ("Contractor"). Both parties agree to be bound by the following terms and conditions.</p>
   <hr class="divider" />
 
   <div class="section-title">1. Scope of Work</div>
   <div class="sub-title">1.1 Primary Role</div>
-  <p>The Contractor's <strong>primary role</strong> shall be to serve as <strong>${role}</strong> for <strong>Huna Creatives</strong>, providing services across the agency's client portfolio. Responsibilities may include, but are not limited to:</p>
+  <p>The Contractor is engaged to serve as <strong>${role}</strong> for <strong>Huna Creatives</strong>, providing services across the agency's client portfolio. Responsibilities include, but are not limited to:</p>
   <ul>${respItems}</ul>
-
   ${addItems ? `<div class="sub-title">1.2 Additional Responsibilities</div>
-  <p>In addition to the primary role, the Contractor may also be assigned the following additional responsibilities:</p>
+  <p>The Contractor may also be assigned the following additional responsibilities:</p>
   <ul>${addItems}</ul>` : ''}
-
   <div class="sub-title">${addItems ? '1.3' : '1.2'} General Duties</div>
-  <p>The Contractor agrees to perform tasks reasonably related to the scope above, consistent with the Contractor's skills, as assigned by Huna Creatives. Tasks may span multiple client accounts as directed by the agency.</p>
-
-  <div class="sub-title">${addItems ? '1.4' : '1.3'} Coordination</div>
-  <p>The Contractor shall coordinate directly with the Client or a designated supervisor regarding deliverables, priorities, and timelines.</p>
+  <p>The Contractor agrees to perform tasks reasonably related to the scope above, consistent with the Contractor's skills and expertise, as directed by Huna Creatives. Assignments may span multiple client accounts at the agency's discretion.</p>
+  <div class="sub-title">${addItems ? '1.4' : '1.3'} Deliverable Standards</div>
+  <p>All deliverables must meet the quality standards, brand guidelines, and specifications communicated by Huna Creatives. The Contractor shall promptly revise work that does not meet agreed standards upon receiving written feedback. Persistent failure to meet quality expectations may constitute grounds for termination under Section ${s(20)} of this Agreement.</p>
+  <div class="sub-title">${addItems ? '1.5' : '1.4'} No Subcontracting</div>
+  <p>The Contractor shall perform all services personally and shall <strong>not subcontract, delegate, or outsource</strong> any portion of the work to any third party without prior written consent from Huna Creatives. Any unauthorized subcontracting shall constitute a material breach of this Agreement.</p>
   <hr class="divider" />
 
   <div class="section-title">2. Work Schedule &amp; Availability</div>
   <p>2.1 The Contractor shall be <strong>primarily available</strong> to render services for up to <strong>${hoursPerDay} hours per day</strong>, <strong>${workDays.length} days per week</strong> (${workDays.join(', ')}), based on agreed priorities and deliverables.</p>
   <p>2.2 Standard working hours shall follow the <strong>${shiftTime}</strong>, unless otherwise agreed in writing.</p>
-  ${isFlexible ? `<p>2.3 As an hourly engagement, the Contractor's actual hours logged may vary. The schedule above reflects expected availability windows and does not constitute a guaranteed minimum number of hours.</p>` : `<p>2.3 The Contractor is expected to remain responsive and available during scheduled working hours.</p>`}
+  ${isFlexible ? `<p>2.3 As an hourly engagement, actual hours logged may vary based on project requirements. The schedule above reflects expected availability windows and does not constitute a guaranteed minimum number of hours per period.</p>` : `<p>2.3 The Contractor is expected to remain responsive and available during scheduled working hours.</p>`}
+  <p>2.4 <strong>Unexcused Absence / AWOL.</strong> If the Contractor fails to report for work or communicate for <strong>three (3) consecutive business days</strong> without prior notice or approval, Huna Creatives may treat such absence as voluntary abandonment of the engagement and may effect immediate termination without the notice period required under Section ${s(20)}.2. Any unpaid compensation for work actually rendered remains due and payable.</p>
   <hr class="divider" />
 
   <div class="section-title">3. Compensation</div>
@@ -183,85 +182,168 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
   <div class="sub-title">3.1 Hourly Rate</div>
   <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall be compensated at a rate of <strong>${rateLabel} per hour</strong> for all approved hours rendered.</p>
   <div class="sub-title">3.2 Hour Logging</div>
-  <p>The Contractor is responsible for accurately logging all hours worked through Huna Creatives' designated attendance system. Hours must be submitted and approved prior to payment processing.</p>
+  <p>The Contractor is responsible for accurately logging all hours worked through Huna Creatives' designated attendance and time-tracking system. Hours must be submitted and approved by a designated supervisor prior to payment processing. Falsification of time records shall constitute grounds for immediate termination and recovery of any overpayment.</p>
   <div class="sub-title">3.3 Payment Schedule</div>
   <p>Payments shall be made on a <strong>${paymentSchedule}</strong>, based on approved hours logged during the pay period.</p>
-  <div class="sub-title">3.4 Adjustments</div>
-  <p>Any changes to the hourly rate, scope of work, or engagement terms must be confirmed in writing by both parties.</p>
+  <div class="sub-title">3.4 Disputed Hours</div>
+  <p>Any dispute regarding logged hours must be raised in writing within five (5) business days of receiving a payment summary. Huna Creatives reserves the right to withhold payment for hours that cannot be verified or are found to be inaccurate.</p>
+  <div class="sub-title">3.5 Adjustments</div>
+  <p>Any changes to the hourly rate, scope of work, or engagement terms must be confirmed in writing by both parties prior to taking effect.</p>
   ` : `
   <div class="sub-title">3.1 Monthly Service Fee</div>
-  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall receive a fixed <strong>monthly service fee of ${rateLabel}</strong>${paymentType === 'fixed_flexible' ? ', covering services rendered on a flexible, as-needed basis during the pay period.' : ', regardless of the number of working days in a given month.'}</p>
+  <p>Effective <strong>${fmt(effectiveDate)}</strong>, the Contractor shall receive a fixed <strong>monthly service fee of ${rateLabel}</strong>${paymentType === 'fixed_flexible' ? ', covering services rendered on a flexible, as-needed basis during the pay period.' : ', regardless of the number of working days in a given month, subject to the deductions outlined herein.'}</p>
   <div class="sub-title">3.2 Payment Schedule</div>
   <p>Payments shall be made on a <strong>${paymentSchedule}</strong>.</p>
   ${paymentType === 'fixed_flexible' ? '' : `
   <div class="sub-title">3.3 Absences and Deductions</div>
-  <p>In the event of approved absences or non-rendered workdays, a proportional deduction may be applied based on the following formula:</p>
-  <p>${rateLabel} ÷ Total Working Days in the Month = Daily Rate</p>
+  <p>In the event of unapproved absences or non-rendered workdays beyond allotted leave entitlements, a proportional deduction shall be applied as follows: ${rateLabel} ÷ Total Scheduled Working Days in the Month = Daily Rate per absent day.</p>
   `}
   <div class="sub-title">${paymentType === 'fixed_flexible' ? '3.3' : '3.4'} Adjustments</div>
-  <p>Any changes to the service fee, workload, or scope of work must be confirmed in writing by both parties.</p>
+  <p>Any changes to the service fee, workload, or scope of work must be confirmed in writing by both parties and shall take effect no earlier than the following billing period.</p>
   `}
   <hr class="divider" />
 
   <div class="section-title">4. Tools &amp; Resources</div>
-  <p>Huna Creatives shall provide the Contractor with access to necessary tools and subscriptions required for work, which may include but are not limited to:</p>
+  <p>4.1 Huna Creatives shall provide the Contractor with access to necessary tools and subscriptions required for work, which may include but are not limited to:</p>
   <ul>${toolItems}</ul>
-  <p>All tools remain the property of Huna Creatives and are to be used solely for authorized work purposes.</p>
+  <p>4.2 All tools, software licenses, accounts, and subscriptions provided by Huna Creatives remain the sole property of Huna Creatives and must be used exclusively for authorized work purposes. Personal use is strictly prohibited.</p>
+  <p>4.3 The Contractor shall not share login credentials, grant third-party access, or use any provided accounts in a manner inconsistent with Huna Creatives' policies. Upon termination of this Agreement, the Contractor must cease all use immediately, and access will be revoked in accordance with Section 17.</p>
   <hr class="divider" />
 
   <div class="section-title">5. Discretionary Paid Time Away (PTA)</div>
   <p>5.1 As a <strong>courtesy benefit voluntarily extended by Huna Creatives</strong>, the Contractor may be granted up to <strong>${ptaDays} days of Paid Time Away (PTA) per calendar year</strong>, effective after <strong>six (6) months</strong> of continuous engagement.</p>
-  <p>5.2 PTA is <strong>not an entitlement</strong>, does not form part of the Contractor's service fee, and is provided solely as a goodwill benefit at the discretion of Huna Creatives.</p>
-  <p>5.3 PTA may be taken in increments, provided that <strong>no more than three (3) PTA days may be used within any rolling two-month period</strong>. PTA may not be taken consecutively beyond this limit unless expressly approved in writing.</p>
-  <p>5.4 PTA requests must be submitted at least <strong>one (1) week in advance</strong>, except in cases of emergency or illness, and remain subject to approval based on operational needs.</p>
-  <p>5.5 Unused PTA credits do not carry over and automatically expire at the end of each calendar year.</p>
-  <p>5.6 Huna Creatives reserves the right to modify, suspend, or withdraw this discretionary benefit at any time.</p>
+  <p>5.2 PTA is <strong>not a statutory entitlement</strong>, does not form part of the Contractor's service fee, and is provided solely as a goodwill benefit at the discretion of Huna Creatives. It shall not be construed as evidence of an employer-employee relationship.</p>
+  <p>5.3 PTA may be taken in increments; however, <strong>no more than three (3) consecutive PTA days</strong> may be taken without prior written approval from Huna Creatives.</p>
+  <p>5.4 PTA requests must be submitted at least <strong>one (1) week in advance</strong>, except in emergencies, and remain subject to operational approval.</p>
+  <p>5.5 Unused PTA credits do not carry over and automatically expire at the end of each calendar year with no cash conversion.</p>
+  <p>5.6 Huna Creatives reserves the right to modify, suspend, or withdraw this discretionary benefit at any time with reasonable notice.</p>
   <hr class="divider" />
 
   <div class="section-title">6. Sick Leave</div>
-  <p>6.1 The Contractor is entitled to <strong>${sickDays} days of paid sick leave per calendar year</strong>, effective upon the start of engagement.</p>
-  <p>6.2 Sick leave is intended for use when the Contractor is genuinely ill or unwell and unable to render services. It is <strong>not interchangeable with PTA</strong> or other leave types.</p>
-  <p>6.3 The Contractor must notify the Client or designated supervisor <strong>as early as possible</strong> on the day of absence, or in advance when foreseeable.</p>
+  <p>6.1 The Contractor is entitled to <strong>${sickDays} days of paid sick leave per calendar year</strong>, effective from the start of engagement.</p>
+  <p>6.2 Sick leave is intended solely for use when the Contractor is genuinely ill or unwell and unable to perform services. It is <strong>not interchangeable with PTA</strong> or any other leave type.</p>
+  <p>6.3 The Contractor must notify the designated supervisor <strong>as early as possible</strong> on the day of absence, or in advance when foreseeable, via the designated communication channel.</p>
   <p>6.4 Huna Creatives may request reasonable documentation (e.g., a medical certificate) for sick leave absences exceeding two (2) consecutive days.</p>
-  <p>6.5 Unused sick leave credits do not carry over and automatically expire at the end of each calendar year.</p>
-  <p>6.6 Sick leave taken beyond the allotted days will be treated as unpaid leave${isHourly ? '.' : ' or deducted proportionally from the Contractor\'s monthly service fee.'}</p>
+  <p>6.5 Unused sick leave credits do not carry over and automatically expire at the end of each calendar year with no cash conversion.</p>
+  <p>6.6 Sick leave taken beyond the allotted days will be treated as unpaid leave${isHourly ? ', and no compensation shall be due for those hours.' : ' and deducted proportionally from the Contractor\'s monthly service fee.'}</p>
   <hr class="divider" />
 
-  <div class="section-title">7. Confidentiality</div>
-  <p>The Contractor agrees to maintain strict confidentiality over all proprietary, sensitive, and client-related information obtained during the engagement. No materials, strategies, files, or information may be shared or reused without prior written consent from Huna Creatives.</p>
+  <div class="section-title">7. Representations &amp; Warranties</div>
+  <p>The Contractor represents and warrants that:</p>
+  <p>7.1 The Contractor has the full right, power, and authority to enter into and perform this Agreement, and that doing so does not violate any other agreement, obligation, or legal restriction to which the Contractor is subject.</p>
+  <p>7.2 The Contractor is not currently engaged in, and will not during the term of this Agreement enter into, any employment or contractor agreement that conflicts with or creates a conflict of interest with the Contractor's obligations to Huna Creatives.</p>
+  <p>7.3 All work, deliverables, and creative output produced under this Agreement shall be <strong>original</strong>, created solely by the Contractor (unless otherwise disclosed and approved), and shall not infringe upon the intellectual property rights, moral rights, privacy rights, or any other rights of any third party.</p>
+  <p>7.4 The Contractor has not and will not introduce any malware, unauthorized code, or harmful content into any systems, files, or platforms used by Huna Creatives.</p>
+  <p>7.5 The Contractor shall promptly disclose to Huna Creatives any circumstances that arise during the engagement that may affect the accuracy of the above representations.</p>
   <hr class="divider" />
 
-  <div class="section-title">8. Non-Compete &amp; Conflict of Interest</div>
-  <p>The Contractor agrees not to engage in work for <strong>direct competitors of Huna Creatives</strong> or participate in activities that create a conflict of interest during the term of this Agreement, without prior written approval.</p>
+  <div class="section-title">8. Confidentiality</div>
+  <p>8.1 <strong>Scope.</strong> The Contractor acknowledges that during the course of this engagement, the Contractor will have access to confidential and proprietary information of Huna Creatives and its clients, including but not limited to: client identities, campaign strategies, creative briefs, pricing structures, business plans, financial data, internal processes, login credentials, and any other information designated as confidential or that a reasonable person would understand to be confidential ("Confidential Information").</p>
+  <p>8.2 <strong>Obligation.</strong> The Contractor agrees to: (a) hold all Confidential Information in strict confidence; (b) not disclose, share, publish, or communicate Confidential Information to any third party without prior written consent from Huna Creatives; (c) use Confidential Information solely for the purpose of performing services under this Agreement; and (d) take all reasonable precautions to prevent unauthorized access or disclosure.</p>
+  <p>8.3 <strong>Duration.</strong> These confidentiality obligations shall survive the termination or expiry of this Agreement for a period of <strong>three (3) years</strong>, or indefinitely for trade secrets and client data.</p>
+  <p>8.4 <strong>Exceptions.</strong> The obligations above shall not apply to information that: (a) is or becomes publicly known through no breach of this Agreement; (b) was independently known to the Contractor prior to disclosure; or (c) is required to be disclosed by law or court order, provided the Contractor gives Huna Creatives prompt written notice to seek a protective order.</p>
+  <p>8.5 <strong>Breach.</strong> The Contractor acknowledges that any breach of this section may cause irreparable harm to Huna Creatives and its clients for which monetary damages would be inadequate, and that Huna Creatives shall be entitled to seek injunctive relief in addition to any other available remedies.</p>
   <hr class="divider" />
 
-  <div class="section-title">9. Ownership of Work</div>
-  <p>9.1 All creative output, designs, content, and materials produced during this engagement shall be the <strong>exclusive property of Huna Creatives and/or its clients</strong>.</p>
-  <p>9.2 The Contractor may not use, repurpose, or redistribute such materials without prior written consent from Huna Creatives.</p>
+  <div class="section-title">9. Data Privacy</div>
+  <p>9.1 In performing services under this Agreement, the Contractor may process personal data of Huna Creatives' clients, employees, or end users. The Contractor agrees to handle all such data in full compliance with Republic Act No. 10173, otherwise known as the <strong>Data Privacy Act of 2012</strong>, its Implementing Rules and Regulations, and applicable issuances by the National Privacy Commission.</p>
+  <p>9.2 The Contractor shall: (a) process personal data only to the extent necessary to perform the agreed services; (b) not retain, copy, transfer, or use personal data beyond the scope of this Agreement; (c) implement reasonable organizational and technical security measures to protect personal data from unauthorized access, loss, or disclosure; and (d) promptly notify Huna Creatives of any actual or suspected data breach involving personal data accessed under this Agreement.</p>
+  <p>9.3 Upon termination of this Agreement, the Contractor shall immediately delete or return to Huna Creatives all personal data in the Contractor's possession.</p>
   <hr class="divider" />
 
-  <div class="section-title">10. Communication &amp; Remote Work Expectations</div>
-  <p>The Contractor shall remain active and responsive during scheduled working hours via Slack, email, or other designated platforms and must promptly notify the Client if unavailable.</p>
+  <div class="section-title">10. Non-Compete &amp; Conflict of Interest</div>
+  <p>10.1 <strong>During Engagement.</strong> Throughout the term of this Agreement, the Contractor shall not, directly or indirectly, provide services to, be employed by, or have a financial interest in any business that is a <strong>direct competitor of Huna Creatives</strong> — defined as any entity offering digital marketing, creative design, social media management, or related agency services targeting the same market segments — without prior written approval from Huna Creatives.</p>
+  <p>10.2 <strong>Post-Termination.</strong> For a period of <strong>twelve (12) months</strong> following the termination of this Agreement, the Contractor shall not directly solicit, approach, or accept work from any client that the Contractor served or had material knowledge of during the engagement with Huna Creatives, in a capacity that directly competes with services offered by Huna Creatives.</p>
+  <p>10.3 The Contractor shall promptly disclose any existing or potential conflict of interest to Huna Creatives upon becoming aware of it.</p>
+  <hr class="divider" />
+
+  <div class="section-title">11. Non-Solicitation</div>
+  <p>11.1 <strong>Clients.</strong> During the term of this Agreement and for a period of <strong>twelve (12) months</strong> thereafter, the Contractor shall not, directly or indirectly, solicit, contact, or enter into any business arrangement with any client of Huna Creatives for the purpose of providing services similar to those offered by Huna Creatives, without the prior written consent of Huna Creatives.</p>
+  <p>11.2 <strong>Team Members.</strong> During the term of this Agreement and for a period of <strong>twelve (12) months</strong> thereafter, the Contractor shall not solicit, recruit, hire, or encourage any other contractor, employee, or team member of Huna Creatives to leave or reduce their engagement with Huna Creatives.</p>
+  <p>11.3 The Contractor acknowledges that these restrictions are reasonable and necessary to protect the legitimate business interests of Huna Creatives, and that any breach may entitle Huna Creatives to seek injunctive relief without the need to post a bond.</p>
+  <hr class="divider" />
+
+  <div class="section-title">12. Intellectual Property &amp; Ownership of Work</div>
+  <p>12.1 <strong>Work for Hire.</strong> All creative output, designs, artworks, written content, code, strategies, reports, and other materials produced by the Contractor in the course of this engagement ("Work Product") shall be considered work made for hire and shall be the <strong>sole and exclusive property of Huna Creatives and/or its designated clients</strong> from the moment of creation.</p>
+  <p>12.2 <strong>Assignment.</strong> To the extent any Work Product does not qualify as work made for hire under applicable law, the Contractor hereby irrevocably assigns to Huna Creatives all rights, title, and interest in and to such Work Product, including all intellectual property rights therein, worldwide and in perpetuity, without additional compensation.</p>
+  <p>12.3 <strong>Moral Rights Waiver.</strong> In accordance with Republic Act No. 8293 (Intellectual Property Code of the Philippines), to the fullest extent permitted by law, the Contractor hereby waives any and all moral rights in and to the Work Product, including the right of attribution and the right to object to modifications, and agrees not to assert such rights against Huna Creatives, its clients, or their respective licensees.</p>
+  <p>12.4 <strong>Pre-Existing Materials.</strong> If the Contractor incorporates any pre-existing materials, tools, or third-party assets into any Work Product, the Contractor warrants that Huna Creatives has or will have the right to use such materials without restriction, and the Contractor shall disclose any such use prior to delivery.</p>
+  <p>12.5 <strong>Further Assistance.</strong> The Contractor agrees to execute such documents and take such further actions as Huna Creatives may reasonably request to perfect, record, or enforce Huna Creatives' rights in the Work Product.</p>
+  <hr class="divider" />
+
+  <div class="section-title">13. Portfolio &amp; Social Media Policy</div>
+  <p>13.1 The Contractor shall <strong>not publicly display, post, publish, or otherwise disclose</strong> any Work Product, client names, campaign details, or project outcomes on personal websites, social media profiles, portfolio platforms, or any other public medium without the prior written consent of Huna Creatives.</p>
+  <p>13.2 Where Huna Creatives grants consent for portfolio use, such use shall be limited to the specific materials and context approved, shall not disclose any confidential client information, and shall credit Huna Creatives as the agency of record.</p>
+  <p>13.3 The Contractor shall not make any public statements — whether online, in print, or verbally — that identify, reference, or comment on Huna Creatives' clients, internal operations, or business strategies without prior written approval.</p>
+  <hr class="divider" />
+
+  <div class="section-title">14. Non-Disparagement</div>
+  <p>14.1 During the term of this Agreement and at all times thereafter, the Contractor agrees not to make, publish, or communicate any false, misleading, or disparaging statements about Huna Creatives, its owners, team members, clients, services, or business practices — whether in person, in writing, or through any online platform, social media channel, review site, or other medium.</p>
+  <p>14.2 This obligation survives the termination of this Agreement and is a material term hereof. Huna Creatives reserves the right to seek damages for any breach of this section.</p>
+  <hr class="divider" />
+
+  <div class="section-title">15. Communication &amp; Remote Work Expectations</div>
+  <p>15.1 The Contractor shall remain active and responsive during scheduled working hours via Slack, email, or other designated platforms, and must promptly notify the Client if unavailable for any reason.</p>
+  <p>15.2 The Contractor is expected to respond to messages from Huna Creatives within <strong>two (2) hours</strong> during scheduled working hours, unless prior notice of unavailability has been given.</p>
+  <p>15.3 The Contractor shall attend all required team meetings, briefings, and check-ins as scheduled, whether synchronous or asynchronous.</p>
+  <p>15.4 All work-related communications, files, and deliverables must be conducted and stored through Huna Creatives' designated platforms and shall not be shared via personal or unauthorized channels.</p>
+  <hr class="divider" />
+
+  <div class="section-title">16. Indemnification</div>
+  <p>16.1 The Contractor shall <strong>indemnify, defend, and hold harmless</strong> Huna Creatives, its owners, officers, agents, and clients from and against any and all claims, damages, losses, liabilities, costs, and expenses (including reasonable legal fees) arising out of or related to: (a) any breach by the Contractor of this Agreement or any representation or warranty contained herein; (b) any infringement of third-party intellectual property rights by the Contractor's work; (c) any negligent or wrongful act or omission by the Contractor in performing services hereunder; or (d) any violation of applicable law by the Contractor.</p>
+  <p>16.2 Huna Creatives shall promptly notify the Contractor of any claim for which indemnification may be sought and shall cooperate reasonably in the defense thereof.</p>
+  <hr class="divider" />
+
+  <div class="section-title">17. Return of Assets &amp; Access Revocation</div>
+  <p>17.1 Upon termination or expiry of this Agreement for any reason, the Contractor shall, within <strong>24 hours</strong>: (a) cease all use of Huna Creatives' tools, accounts, platforms, and systems; (b) return or permanently delete all Confidential Information, Work Product drafts, client files, and company data in the Contractor's possession; and (c) confirm in writing that all such materials have been returned or destroyed.</p>
+  <p>17.2 Huna Creatives shall revoke all access credentials and permissions provided to the Contractor upon or before the effective date of termination.</p>
+  <p>17.3 The Contractor's failure to comply with this section shall entitle Huna Creatives to withhold any outstanding payment until compliance is confirmed, without prejudice to any other remedies available.</p>
+  <hr class="divider" />
+
+  <div class="section-title">18. Force Majeure</div>
+  <p>18.1 Neither party shall be liable for any delay or failure to perform its obligations under this Agreement to the extent caused by circumstances beyond its reasonable control, including but not limited to: acts of God, natural disasters, pandemics, war, civil unrest, government action, or failure of third-party infrastructure ("Force Majeure Event").</p>
+  <p>18.2 The party affected by a Force Majeure Event shall notify the other party in writing as soon as reasonably practicable and shall use reasonable efforts to mitigate the impact and resume performance.</p>
+  <p>18.3 If a Force Majeure Event continues for more than <strong>thirty (30) consecutive days</strong>, either party may terminate this Agreement by written notice, without liability, except for payment of amounts due for work already completed.</p>
 
   ${commissionSection}
 
   <hr class="divider" />
-  <div class="section-title">${sectionNum(11)}. Term &amp; Termination</div>
-  <p>${sectionNum(11)}.1 This Agreement shall commence on <strong>${fmt(termDate || effectiveDate)}</strong>, and continue on a <strong>month-to-month basis</strong>.</p>
-  <p>${sectionNum(11)}.2 Either party may terminate this Agreement with <strong>thirty (30) days' written notice</strong>.</p>
-  <p>${sectionNum(11)}.3 Immediate termination may occur in cases of misconduct, breach of this Agreement, or failure to deliver agreed services.</p>
+  <div class="section-title">${s(19)}. Dispute Resolution</div>
+  <p>${s(19)}.1 The parties agree to attempt to resolve any dispute arising from or relating to this Agreement through <strong>good-faith negotiation</strong> within fifteen (15) days of written notice of the dispute.</p>
+  <p>${s(19)}.2 If negotiation fails, the parties shall submit the dispute to non-binding <strong>mediation</strong> before a mutually agreed mediator prior to initiating any formal legal proceedings.</p>
+  <p>${s(19)}.3 Any unresolved disputes shall be subject to the jurisdiction of the courts of Cebu City, Philippines.</p>
   <hr class="divider" />
 
-  <div class="section-title">${sectionNum(12)}. Independent Contractor Status</div>
-  <p>The Contractor is engaged as an independent contractor and not as an employee, agent, or partner of Huna Creatives. The Contractor is solely responsible for all applicable taxes, government contributions, and other obligations arising from this engagement. Nothing in this Agreement shall be construed to create an employer-employee relationship.</p>
+  <div class="section-title">${s(20)}. Term &amp; Termination</div>
+  <p>${s(20)}.1 This Agreement shall commence on <strong>${fmt(termDate || effectiveDate)}</strong> and shall continue on a <strong>month-to-month basis</strong> until terminated in accordance with this section.</p>
+  <p>${s(20)}.2 <strong>Notice Period.</strong> Either party may terminate this Agreement by providing <strong>thirty (30) days' written notice</strong> to the other party. During the notice period, the Contractor is expected to continue performing services and complete any outstanding deliverables, and Huna Creatives shall continue to pay compensation for work rendered.</p>
+  <p>${s(20)}.3 <strong>Immediate Termination.</strong> Huna Creatives may terminate this Agreement immediately and without notice in the event of: (a) material breach of any provision of this Agreement by the Contractor; (b) unauthorized disclosure of Confidential Information; (c) violation of the intellectual property, non-solicitation, or non-disparagement provisions; (d) falsification of time records or submission of fraudulent work; (e) gross negligence or willful misconduct; or (f) AWOL as defined in Section 2.4.</p>
+  <p>${s(20)}.4 <strong>Final Payment.</strong> Upon termination, Huna Creatives shall pay the Contractor for all approved work actually completed and delivered up to the effective date of termination, less any amounts owed to Huna Creatives for overpayments, damages, or unreturned assets.</p>
   <hr class="divider" />
 
-  <div class="section-title">${sectionNum(13)}. Governing Law</div>
-  <p>This Agreement shall be governed by the laws of the Republic of the Philippines. Any disputes arising from this Agreement shall first be resolved through good-faith negotiation between the parties.</p>
+  <div class="section-title">${s(21)}. Post-Termination Survival</div>
+  <p>The following provisions shall survive the termination or expiry of this Agreement and remain in full force and effect: Section 8 (Confidentiality), Section 9 (Data Privacy), Section 10 (Non-Compete, post-termination period), Section 11 (Non-Solicitation), Section 12 (Intellectual Property), Section 13 (Portfolio &amp; Social Media Policy), Section 14 (Non-Disparagement), Section 16 (Indemnification), Section 17 (Return of Assets), and Section ${s(19)} (Dispute Resolution).</p>
+  <hr class="divider" />
+
+  <div class="section-title">${s(22)}. Independent Contractor Status</div>
+  <p>${s(22)}.1 The Contractor is engaged solely as an independent contractor. Nothing in this Agreement shall be construed to create an employer-employee relationship, partnership, joint venture, or agency between the parties.</p>
+  <p>${s(22)}.2 The Contractor is solely responsible for all applicable taxes, SSS, PhilHealth, Pag-IBIG, and other government contributions or obligations arising from compensation received under this Agreement. Huna Creatives shall not withhold taxes or make contributions on behalf of the Contractor.</p>
+  <p>${s(22)}.3 The Contractor shall not represent themselves as an employee of Huna Creatives to any third party.</p>
+  <hr class="divider" />
+
+  <div class="section-title">${s(23)}. Entire Agreement &amp; Severability</div>
+  <p>${s(23)}.1 This Agreement constitutes the entire agreement between the parties with respect to its subject matter and supersedes all prior negotiations, representations, warranties, and understandings, whether oral or written.</p>
+  <p>${s(23)}.2 This Agreement may be amended only by a written instrument signed by both parties.</p>
+  <p>${s(23)}.3 If any provision of this Agreement is found to be invalid, illegal, or unenforceable under applicable law, such provision shall be modified to the minimum extent necessary to make it enforceable, and the remaining provisions shall continue in full force and effect.</p>
+  <p>${s(23)}.4 The failure of either party to enforce any provision of this Agreement shall not constitute a waiver of that party's right to enforce such provision in the future.</p>
+  <hr class="divider" />
+
+  <div class="section-title">${s(24)}. Governing Law</div>
+  <p>This Agreement shall be governed by and construed in accordance with the laws of the Republic of the Philippines. Any disputes not resolved through the process described in Section ${s(19)} shall be subject to the exclusive jurisdiction of the appropriate courts of Cebu City, Philippines.</p>
   <hr class="divider" />
 
   <div class="section-title">Signatures</div>
-  <p>By signing below, both parties acknowledge that they have read, understood, and agreed to the terms of this Agreement.</p>
+  <p>By signing below, both parties acknowledge that they have read, understood, and agree to be bound by all terms and conditions of this Agreement.</p>
   <div class="sig-grid">
     <div>
       <p><strong>Huna Creatives</strong><br />("Client")</p>

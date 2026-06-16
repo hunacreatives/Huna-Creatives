@@ -263,7 +263,13 @@ export default function AdminDocumentsPage() {
     }
 
     const rows = selectedContractors.map(cid => ({ document_id: doc.id, contractor_id: cid }));
-    await supabase.from('hub_sign_assignments').insert(rows);
+    const { data: insertedAssignments } = await supabase.from('hub_sign_assignments').insert(rows).select('id');
+
+    if (insertedAssignments) {
+      for (const a of insertedAssignments) {
+        supabase.functions.invoke('notify-contract-assigned', { body: { assignment_id: a.id } }).catch(() => {});
+      }
+    }
 
     setUploading(false);
     setShowUpload(false);
