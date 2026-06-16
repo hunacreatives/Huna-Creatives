@@ -130,7 +130,7 @@ export default function PublicQuestionnairePage() {
   };
 
   const submit = async () => {
-    if (!validate() || !q) return;
+    if (submitting || !validate() || !q) return;
     setSubmitting(true);
     const { error } = await supabase
       .from('hub_questionnaires')
@@ -375,9 +375,9 @@ export default function PublicQuestionnairePage() {
         <button
           onClick={submit}
           disabled={submitting}
-          className="w-full py-3.5 bg-[#FF6B35] text-white font-semibold rounded-xl hover:bg-[#e55a27] transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+          className="w-full py-3.5 bg-[#FF6B35] text-white font-semibold rounded-xl hover:bg-[#e55a27] transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
         >
-          {submitting ? <><i className="ri-loader-4-line animate-spin"></i> Submitting…</> : 'Submit Questionnaire →'}
+          {submitting ? <><i className="ri-loader-4-line animate-spin text-base"></i> Submitting…</> : 'Submit Questionnaire →'}
         </button>
 
         <p className="text-center text-xs text-gray-400 pb-8">
