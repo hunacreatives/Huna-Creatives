@@ -49,6 +49,17 @@ export default function HubLoginPage() {
     }
   }, [loading, authLoading, hubUser]);
 
+  // While the session is still rehydrating, an already-authenticated visitor
+  // (hard refresh, or PWA cold-launch landing on start_url) would otherwise
+  // see the full login form for a moment before the redirect effect above fires.
+  if (authLoading) {
+    return (
+      <div className="min-h-screen min-h-dvh flex items-center justify-center bg-[#0a0608]">
+        <i className="ri-loader-4-line animate-spin text-2xl text-white/30"></i>
+      </div>
+    );
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
