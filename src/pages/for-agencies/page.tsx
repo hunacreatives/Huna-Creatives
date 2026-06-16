@@ -11,6 +11,8 @@ const FEATURES = [
   { icon: 'ri-inbox-line', title: 'Requests & Approvals', desc: 'Leave requests, overtime, and resource requests flow through a single approval queue. No more chasing people on chat.' },
   { icon: 'ri-building-line', title: 'Client & Project Tracking', desc: 'Assign staff to clients and projects. See who is working on what, track progress, and log payouts per project.' },
   { icon: 'ri-questionnaire-line', title: 'Intake Forms & Questionnaires', desc: 'Send branded intake forms to new clients or leads. Responses come straight into your dashboard — ready for action.' },
+  { icon: 'ri-user-search-line', title: 'Careers & Applications', desc: 'Post openings, collect applications, and review candidates without ever leaving your hub.' },
+  { icon: 'ri-shield-keyhole-line', title: 'Credentials & Asset Vault', desc: 'Securely store logins, software licenses, and shared assets your team needs — access controlled by role.' },
 ];
 
 const PLANS = [
@@ -49,26 +51,23 @@ const SCREENS = [
 function HubPreview({ activeScreen, setActiveScreen }: { activeScreen: number; setActiveScreen: (i: number) => void }) {
   const screen = SCREENS[activeScreen];
 
-  const mainNav = [
+  const peopleNav = [
     { icon: 'ri-layout-grid-line', label: 'Dashboard', screen: 0 },
-    { icon: 'ri-user-line', label: 'Contractors', screen: -1 },
+    { icon: 'ri-team-line', label: 'Contractors', screen: -1 },
     { icon: 'ri-time-line', label: 'Attendance', screen: 2 },
-    { icon: 'ri-inbox-line', label: 'Requests', screen: -1 },
-    { icon: 'ri-calendar-line', label: 'Time-Off', screen: -1 },
-    { icon: 'ri-timer-flash-line', label: 'Overtime', screen: -1 },
   ];
   const financeNav = [
-    { icon: 'ri-money-dollar-circle-line', label: 'Payroll', screen: 1 },
+    { icon: 'ri-bar-chart-2-line', label: 'Payroll', screen: 1 },
     { icon: 'ri-folder-line', label: 'Projects', screen: 3 },
-    { icon: 'ri-file-list-3-line', label: 'Doc Requests', screen: -1 },
-    { icon: 'ri-draft-line', label: 'Contracts', screen: -1 },
+    { icon: 'ri-bill-line', label: 'Invoice Log', screen: -1 },
+    { icon: 'ri-file-text-line', label: 'Documents', screen: -1 },
   ];
   const contentNav = [
+    { icon: 'ri-user-search-line', label: 'Applications', screen: -1 },
     { icon: 'ri-book-open-line', label: 'SOP Library', screen: -1 },
-    { icon: 'ri-megaphone-line', label: 'Announcements', screen: -1 },
-    { icon: 'ri-questionnaire-line', label: 'Questionnaires', screen: -1 },
-    { icon: 'ri-shield-keyhole-line', label: 'Credentials Vault', screen: -1 },
-    { icon: 'ri-bar-chart-line', label: 'Audit Log', screen: -1 },
+    { icon: 'ri-key-2-line', label: 'Asset Access', screen: -1 },
+    { icon: 'ri-lock-2-line', label: 'Credentials Vault', screen: -1 },
+    { icon: 'ri-shield-check-line', label: 'Audit Log', screen: -1 },
   ];
 
   const NavItem = ({ icon, label, screenIdx }: { icon: string; label: string; screenIdx: number }) => {
@@ -76,12 +75,12 @@ function HubPreview({ activeScreen, setActiveScreen }: { activeScreen: number; s
     const clickable = screenIdx >= 0;
     return (
       <div
-        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg mb-0.5 transition-colors ${clickable ? 'cursor-pointer' : ''} ${!active && clickable ? 'hover:bg-white/5' : ''}`}
-        style={active ? { background: '#FF6B35' } : {}}
+        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg mb-0.5 transition-colors ${clickable ? 'cursor-pointer' : ''} ${!active && clickable ? 'hover:bg-white/50' : ''}`}
+        style={active ? { background: 'rgba(255,255,255,0.7)', boxShadow: '0 1px 4px rgba(255,107,53,0.15)' } : {}}
         onClick={() => clickable && setActiveScreen(screenIdx)}
       >
-        <i className={`${icon} ${active ? 'text-white' : 'text-gray-500'}`} style={{ fontSize: 9 }}></i>
-        <span className={`text-[9px] font-medium ${active ? 'text-white' : 'text-gray-400'}`}>{label}</span>
+        <i className={`${icon} ${active ? 'text-[#FF6B35]' : 'text-gray-400'}`} style={{ fontSize: 9 }}></i>
+        <span className={`text-[9px] font-medium ${active ? 'text-[#FF6B35]' : 'text-gray-500'}`}>{label}</span>
       </div>
     );
   };
@@ -95,48 +94,49 @@ function HubPreview({ activeScreen, setActiveScreen }: { activeScreen: number; s
         <div className="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
         <span className="ml-2 text-[11px] text-gray-400 font-mono">{screen.url}</span>
       </div>
-      <div className="flex bg-white" style={{ height: 520 }}>
+      <div className="flex p-2 gap-2" style={{ height: 520, background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
         {/* Sidebar */}
-        <div className="w-36 bg-[#111827] flex flex-col flex-shrink-0">
-          <div className="px-3 py-2 border-b border-white/5 flex items-center gap-1.5">
+        <div className="w-36 rounded-2xl flex flex-col flex-shrink-0 overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.75)', boxShadow: '0 4px 16px rgba(99,120,200,0.10)' }}>
+          <div className="px-3 py-2.5 border-b border-white/60 flex items-center gap-1.5">
             <div className="w-5 h-5 bg-[#FF6B35] rounded-md flex items-center justify-center flex-shrink-0">
-              <i className="ri-home-heart-line text-white" style={{ fontSize: 8 }}></i>
-            </div>
-            <span className="text-[9px] font-black text-white tracking-tight">SENTRO HUB</span>
-          </div>
-          <div className="px-1.5 py-1 border-b border-white/5">
-            <span className="text-[8px] px-2 py-0.5 rounded font-bold text-[#FF6B35]" style={{ background: 'rgba(255,107,53,0.12)' }}>Owner</span>
-          </div>
-          <nav className="flex-1 py-1.5 px-1.5 overflow-y-auto min-h-0">
-            {mainNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
-            <p className="text-[7px] font-bold text-gray-600 uppercase tracking-wider px-2 pt-1.5 pb-1">Finance</p>
-            {financeNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
-            <p className="text-[7px] font-bold text-gray-600 uppercase tracking-wider px-2 pt-1.5 pb-1">Content</p>
-            {contentNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
-          </nav>
-          <div className="px-3 py-2 border-t border-white/5 flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-[#FF6B35]/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-[7px] font-bold text-[#FF6B35]">M</span>
+              <img src="/s-logo.png" alt="S" className="w-3 h-3 object-contain" style={{ filter: 'invert(1)' }} />
             </div>
             <div className="min-w-0">
-              <p className="text-[9px] font-medium text-white truncate">Miguel Santos</p>
-              <p className="text-[7px] text-gray-500 truncate">miguelsan@gm...</p>
+              <p className="text-[6px] uppercase tracking-widest text-gray-400 font-semibold truncate">Huna Ops</p>
+              <p className="text-[9px] font-semibold text-gray-800 leading-none">Sentro</p>
+            </div>
+          </div>
+          <nav className="flex-1 py-1.5 px-1.5 overflow-y-auto min-h-0">
+            {peopleNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
+            <p className="text-[7px] font-bold text-gray-400/80 uppercase tracking-wider px-2 pt-1.5 pb-1">Finance</p>
+            {financeNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
+            <p className="text-[7px] font-bold text-gray-400/80 uppercase tracking-wider px-2 pt-1.5 pb-1">Content</p>
+            {contentNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
+          </nav>
+          <div className="px-3 py-2 border-t border-white/60 flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
+              <span className="text-[7px] font-bold text-white">M</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] font-medium text-gray-800 truncate">Miguel Santos</p>
+              <p className="text-[7px] text-gray-400 truncate capitalize">owner</p>
             </div>
           </div>
         </div>
 
         {/* Main */}
-        <div className="flex-1 flex flex-col min-w-0 bg-gray-50">
-          <div className="bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between flex-shrink-0">
-            <span className="text-[12px] font-bold text-gray-900">{screen.label}</span>
-            <div className="flex items-center gap-2">
-              <i className="ri-notification-3-line text-gray-400 text-sm"></i>
-              <div className="w-px h-4 bg-gray-200 mx-0.5"></div>
-              <div className="w-5 h-5 rounded-full bg-[#FF6B35]/10 flex items-center justify-center">
-                <span className="text-[7px] font-bold text-[#FF6B35]">M</span>
+        <div className="flex-1 flex flex-col min-w-0 rounded-2xl overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.75)' }}>
+          <div className="border-b border-white/60 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
+            <span className="text-[12px] font-semibold text-gray-900">{screen.label}</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-md bg-white/70 border border-gray-200/60 flex items-center justify-center">
+                <i className="ri-search-line text-gray-400" style={{ fontSize: 8 }}></i>
               </div>
-              <span className="text-[9px] text-gray-600 font-medium">Miguel Santos</span>
-              <span className="text-[8px] px-1.5 py-0.5 bg-[#FF6B35]/10 text-[#FF6B35] rounded font-bold">Owner</span>
+              <div className="w-5 h-5 rounded-md bg-white/70 border border-gray-200/60 flex items-center justify-center">
+                <i className="ri-notification-3-line text-gray-400" style={{ fontSize: 8 }}></i>
+              </div>
             </div>
           </div>
           <div className="flex-1 overflow-auto min-h-0">
@@ -731,7 +731,7 @@ function MobileDashboard() {
     ? 'linear-gradient(160deg,#7c2d12,#9333ea,#1e1b4b)'
     : 'linear-gradient(160deg,#020617,#0f172a,#1e1b4b)';
   return (
-    <div className="h-full bg-gray-50 flex flex-col pb-12 overflow-hidden">
+    <div className="h-full flex flex-col pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
       <div className="relative px-4 pt-2 pb-3 flex-shrink-0" style={{ background: skyBg }}>
         <div className="absolute top-2 right-4">
           {isDay
@@ -784,8 +784,8 @@ function MobileDashboard() {
 
 function MobilePayroll() {
   return (
-    <div className="h-full bg-gray-50 flex flex-col pb-12 overflow-hidden">
-      <div className="bg-white px-4 py-2.5 border-b border-gray-100 flex-shrink-0">
+    <div className="h-full flex flex-col pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
+      <div className="px-4 py-2.5 border-b border-white/60 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)' }}>
         <p className="text-[12px] font-black text-gray-900">Payroll</p>
         <div className="flex gap-1.5 mt-1.5">
           <div className="rounded-lg px-2 py-0.5 bg-gray-100"><span className="text-[7px] text-gray-400">May 1–15</span></div>
@@ -832,8 +832,8 @@ function MobilePayroll() {
 
 function MobileAttendance() {
   return (
-    <div className="h-full bg-gray-50 flex flex-col pb-12 overflow-hidden">
-      <div className="bg-white px-4 py-2.5 border-b border-gray-100 flex-shrink-0">
+    <div className="h-full flex flex-col pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
+      <div className="px-4 py-2.5 border-b border-white/60 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)' }}>
         <p className="text-[12px] font-black text-gray-900">Attendance</p>
         <p className="text-[7px] text-gray-400 mt-0.5">Saturday, May 23 · Last updated 9:12 AM</p>
       </div>
@@ -882,8 +882,8 @@ function MobileAttendance() {
 
 function MobileProjects() {
   return (
-    <div className="h-full bg-gray-50 flex flex-col pb-12 overflow-hidden">
-      <div className="bg-white px-4 py-2.5 border-b border-gray-100 flex-shrink-0">
+    <div className="h-full flex flex-col pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
+      <div className="px-4 py-2.5 border-b border-white/60 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)' }}>
         <p className="text-[12px] font-black text-gray-900">Projects</p>
       </div>
       <div className="grid grid-cols-2 gap-1.5 px-3 py-2 flex-shrink-0">
@@ -1003,8 +1003,9 @@ export default function ForAgenciesPage() {
           'Leave & Overtime Approval Workflows',
           'Client & Project Tracking',
           'Intake Forms & Client Questionnaires',
+          'Careers & Applications Pipeline',
           'SOP Library',
-          'Credentials Vault',
+          'Credentials & Shared Asset Vault',
           'Audit Log',
         ],
       },
@@ -1223,9 +1224,14 @@ export default function ForAgenciesPage() {
         style={{ opacity: pageVisible ? 1 : 0, transition: 'opacity 0.8s ease-out' }}
       >
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex flex-col leading-none">
-            <span className="text-xl font-black text-white tracking-tight">Sentro OS</span>
-            <span className="text-[10px] text-gray-600">by Huna Creatives</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
+              <img src="/s-logo.png" alt="Sentro" className="w-5 h-5 object-contain" style={{ filter: 'invert(1)' }} />
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="text-xl font-black text-white tracking-tight">Sentro OS</span>
+              <span className="text-[10px] text-gray-600">by Huna Creatives</span>
+            </div>
           </div>
           <div className="flex items-center gap-6">
             <a href="#features" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">Features</a>
@@ -1333,6 +1339,7 @@ export default function ForAgenciesPage() {
               { icon: 'ri-timer-flash-line',         label: 'Overtime tracking' },
               { icon: 'ri-settings-3-line',          label: 'Custom workflow' },
               { icon: 'ri-shield-keyhole-line',      label: 'Credentials vault' },
+              { icon: 'ri-user-search-line',         label: 'Careers & applications' },
               { icon: 'ri-book-open-line',           label: 'SOP library' },
               { icon: 'ri-megaphone-line',           label: 'Announcements' },
             ].flatMap((item, i) => [
