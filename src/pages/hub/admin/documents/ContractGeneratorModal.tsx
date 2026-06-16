@@ -526,8 +526,17 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
 
   const handleContractorChange = (id: string) => {
     const c = contractors.find(x => x.id === id);
-    set('contractorId', id);
-    set('contractorName', c?.full_name ?? '');
+    setFields(prev => ({
+      ...prev,
+      contractorId: id,
+      contractorName: c?.full_name ?? '',
+      ...(c?.payment_type && c.payment_type !== 'project_based' ? {
+        paymentType: c.payment_type as 'fixed' | 'hourly' | 'fixed_flexible',
+        monthlyRate: c.payment_type !== 'hourly' && c.monthly_rate ? String(c.monthly_rate) : prev.monthlyRate,
+        hourlyRate: c.payment_type === 'hourly' && c.hourly_rate ? String(c.hourly_rate) : prev.hourlyRate,
+        currency: (c.currency === 'USD' || c.currency === 'PHP') ? c.currency : prev.currency,
+      } : {}),
+    }));
   };
 
   const handlePreview = () => {
