@@ -334,7 +334,7 @@ const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
       'Oversee and review work from junior designers, providing creative direction',
     ],
     tools: ['Canva Pro', 'Adobe Photoshop', 'Adobe Illustrator', 'Adobe InDesign'],
-    ptaDays: '10', sickDays: '5',
+    ptaDays: '6', sickDays: '4',
   },
   'Social Media Manager': {
     role: 'Social Media Manager',
@@ -344,7 +344,7 @@ const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
       'Analyze performance metrics and prepare monthly reports',
     ],
     tools: ['Canva Pro', 'Meta Business Suite', 'Later or Buffer'],
-    ptaDays: '10', sickDays: '5',
+    ptaDays: '6', sickDays: '4',
   },
   'Copywriter': {
     role: 'Copywriter',
@@ -354,7 +354,7 @@ const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
       'Collaborate with designers and strategists to align messaging with visual output',
     ],
     tools: ['Google Docs', 'Grammarly', 'Notion'],
-    ptaDays: '10', sickDays: '5',
+    ptaDays: '6', sickDays: '4',
   },
   'Video Editor': {
     role: 'Video Editor',
@@ -364,7 +364,7 @@ const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
       'Deliver videos in required formats and aspect ratios across platforms',
     ],
     tools: ['Adobe Premiere Pro', 'CapCut', 'Adobe After Effects'],
-    ptaDays: '10', sickDays: '5',
+    ptaDays: '6', sickDays: '4',
   },
   'Media Buyer': {
     role: 'Media Buyer / Ads Specialist',
@@ -374,7 +374,7 @@ const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
       'Collaborate with the creative team to align ad creatives with campaign objectives',
     ],
     tools: ['Meta Ads Manager', 'Google Ads', 'Google Analytics'],
-    ptaDays: '10', sickDays: '5',
+    ptaDays: '6', sickDays: '4',
   },
   'Virtual Assistant': {
     role: 'Virtual Assistant',
@@ -384,7 +384,7 @@ const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
       'Assist with data entry, research, and client communication as needed',
     ],
     tools: ['Google Workspace', 'Slack', 'Notion'],
-    ptaDays: '10', sickDays: '5',
+    ptaDays: '6', sickDays: '4',
   },
 };
 
@@ -404,8 +404,8 @@ const BLANK: ContractFields = {
   paymentType: 'fixed',
   paymentSchedule: 'bi-monthly basis, on the 15th and the last working day of each month',
   tools: [...DEFAULT_TOOLS],
-  ptaDays: '10',
-  sickDays: '5',
+  ptaDays: '6',
+  sickDays: '4',
   hasCommission: false,
   commissionClient: '',
   commissionPercent: '1',

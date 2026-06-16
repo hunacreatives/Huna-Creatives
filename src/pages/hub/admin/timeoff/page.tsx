@@ -88,8 +88,8 @@ export default function AdminTimeOffPage() {
       Math.ceil((new Date(b).getTime() - new Date(a).getTime()) / 86400000) + 1;
 
     const result = (usersRes.data || []).map((u: any) => {
-      const ptoLimit = u.annual_pto_days ?? 15;
-      const sickLimit = u.annual_sick_days ?? 10;
+      const ptoLimit = u.annual_pto_days ?? 6;
+      const sickLimit = u.annual_sick_days ?? 4;
       const leaves = leavesByUser[u.id] || [];
       const ptoUsed = leaves.filter((l: any) => l.type === 'pto' || l.type === 'vacation')
         .reduce((s: number, l: any) => s + (l.half_day ? 0.5 : daysBetween(l.start_date, l.end_date)), 0);
