@@ -399,7 +399,7 @@ export default function ContractorDashboard() {
           .lte('effective_date', periodEndStr)
           .order('effective_date', { ascending: true }),
         supabase.from('hub_payouts')
-          .select('status')
+          .select('status, adjustments, bonus, incentives, reimbursements, deductions, advances, penalties')
           .eq('contractor_id', user.id)
           .eq('cutoff_start', periodStartStr)
           .maybeSingle(),
@@ -473,7 +473,17 @@ export default function ContractorDashboard() {
         }
       }
       const estimatedPHP = isUSD ? estimated * usdRate : estimated;
-      setEstimatedPayout(parseFloat(estimatedPHP.toFixed(2)));
+      // HR adjustments are entered directly in PHP on the admin payroll page,
+      // so add them after conversion rather than before (same rule as the
+      // contractor payouts page).
+      const payout = payoutRes.data as any;
+      const adjustmentsTotal = payout
+        ? (Array.isArray(payout.adjustments) && payout.adjustments.length
+          ? payout.adjustments.reduce((sum: number, item: any) => sum + Number(item?.amount || 0), 0)
+          : Number(payout.bonus || 0) + Number(payout.incentives || 0) + Number(payout.reimbursements || 0)
+            - Number(payout.deductions || 0) - Number(payout.advances || 0) - Number(payout.penalties || 0))
+        : 0;
+      setEstimatedPayout(parseFloat((estimatedPHP + adjustmentsTotal).toFixed(2)));
 
       if (!slackResult.error && slackResult.data?.attendance) {
         const all: any[] = slackResult.data.attendance;
