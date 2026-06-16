@@ -79,7 +79,7 @@ function generateCustomContractHTML(contractorName: string, effectiveDate: strin
 </html>`;
 }
 
-function generateContractHTML(fields: ContractFields, sigData: string, logoData: string): string {
+export function generateContractHTML(fields: ContractFields, sigData: string, logoData: string): string {
   const {
     contractorName, effectiveDate, role, responsibilities,
     additionalResponsibilities, hoursPerDay, workDays, shiftTime, monthlyRate,
@@ -366,7 +366,7 @@ function generateContractHTML(fields: ContractFields, sigData: string, logoData:
 </html>`;
 }
 
-interface ContractFields {
+export interface ContractFields {
   contractorId: string;
   contractorName: string;
   effectiveDate: string;
@@ -391,7 +391,7 @@ interface ContractFields {
   amendmentType: string;
 }
 
-const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
+export const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
   'Junior Graphic Designer': {
     role: 'Junior Graphic Designer',
     responsibilities: [
@@ -464,7 +464,7 @@ const ROLE_TEMPLATES: Record<string, Partial<ContractFields>> = {
   },
 };
 
-const BLANK: ContractFields = {
+export const BLANK: ContractFields = {
   contractorId: '',
   contractorName: '',
   effectiveDate: new Date().toISOString().slice(0, 10),

@@ -3,7 +3,24 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
+const ADMIN_SLACK_IDS = ['U091BL9PQ77', 'U0838LWSY4E'];
 const FROM_EMAIL = 'onboarding@hunacreatives.com';
+
+async function slackDm(userId: string, text: string, blocks: object[]) {
+  if (!SLACK_BOT_TOKEN) return;
+  const opened = await fetch('https://slack.com/api/conversations.open', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ users: userId }),
+  });
+  const { ok, channel } = await opened.json();
+  await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel: ok ? channel?.id : userId, text, blocks, unfurl_links: false, unfurl_media: false }),
+  });
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -100,7 +117,7 @@ Deno.serve(async (req) => {
 
     const { data: contractor, error: fetchErr } = await supabase
       .from('hub_users')
-      .select('email, full_name')
+      .select('email, full_name, status, slack_id')
       .eq('id', contractor_id)
       .maybeSingle();
 
@@ -152,6 +169,16 @@ Deno.serve(async (req) => {
         html,
       }),
     });
+
+    // If this was a first-time invite for a pending contractor, activate + notify Slack
+    if (!isReset && contractor.status === 'pending') {
+      await supabase.from('hub_users').update({ status: 'active' }).eq('id', contractor_id);
+      const slackBlocks = [
+        { type: 'section', text: { type: 'mrkdwn', text: `👋 *New team member added*\n*${full_name}* has been invited to Sentro Hub as a contractor.\nThey'll receive a login link by email.` } },
+        { type: 'actions', elements: [{ type: 'button', text: { type: 'plain_text', text: 'View profile →', emoji: true }, url: 'https://www.hunacreatives.com/hub/admin/contractors', style: 'primary' }] },
+      ];
+      await Promise.all(ADMIN_SLACK_IDS.map(id => slackDm(id, `${full_name} has been invited as a contractor.`, slackBlocks).catch(() => {})));
+    }
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {

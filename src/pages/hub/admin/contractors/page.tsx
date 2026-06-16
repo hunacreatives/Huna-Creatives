@@ -266,7 +266,10 @@ export default function ContractorsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold text-[#111827] truncate">{c.full_name}</p>
-                      {!c.onboarding_completed && (
+                      {c.status === 'pending' && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded-full font-medium flex-shrink-0">not invited yet</span>
+                      )}
+                      {c.status === 'active' && !c.onboarding_completed && (
                         <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium flex-shrink-0">pending invite</span>
                       )}
                     </div>

@@ -46,10 +46,16 @@ async function run(assignment_id: string) {
 
   if (!contractor?.email) { console.error('[notify-contract-assigned] no contractor email'); return; }
 
-  // If the contractor hasn't accepted their Hub invite yet, skip the email —
-  // they already received the invite email directing them to the hub, and
-  // the contract will be waiting when they log in for the first time.
-  const skipEmail = contractor.status === 'invited';
+  // If the contractor hasn't been invited yet (status = pending), skip everything —
+  // the invite hasn't been sent, so they have no access and no need to be notified yet.
+  // The contract will be waiting when they log in after receiving the invite.
+  if (contractor.status === 'pending') {
+    console.log('[notify-contract-assigned] skipping — contractor not yet invited');
+    return;
+  }
+
+  // If status is 'invited' (legacy: invite sent but not logged in), skip email only.
+  const skipEmail = false;
 
   const firstName = contractor.full_name?.split(' ')[0] ?? contractor.full_name;
 

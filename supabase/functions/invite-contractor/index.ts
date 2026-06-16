@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
       email, full_name, role = 'contractor', department, start_date,
       payment_type, hourly_rate, monthly_rate, project_percentage, currency = 'PHP',
       shift_start, shift_end, work_days, slack_id,
+      skip_invite = false,
     } = await req.json();
 
     if (!email || !full_name) {
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
       email: email.toLowerCase(),
       full_name,
       role,
-      status: 'active',
+      status: skip_invite ? 'pending' : 'active',
       department: department || null,
       start_date: start_date || null,
       payment_type: payment_type || null,
@@ -105,6 +106,11 @@ Deno.serve(async (req) => {
     if (insertErr) {
       await supabase.auth.admin.deleteUser(linkData.user.id);
       return new Response(JSON.stringify({ error: insertErr.message }), { status: 200, headers: cors });
+    }
+
+    // If skip_invite, return early — email & Slack sent later via resend-invite
+    if (skip_invite) {
+      return new Response(JSON.stringify({ ok: true, user_id: linkData.user.id }), { headers: cors });
     }
 
     // Send branded welcome email via Resend

@@ -16,7 +16,7 @@ export interface HubUser {
   slack_username?: string;
   department?: string;
   start_date?: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'pending';
   payment_type?: 'hourly' | 'fixed' | 'fixed_flexible' | 'project_based';
   project_percentage?: number;
   hourly_rate?: number;
