@@ -32,7 +32,7 @@ async function run(assignment_id: string) {
 
   const { data: assignment, error: aErr } = await supabase
     .from('hub_sign_assignments')
-    .select('*, hub_sign_documents(title), hub_users!contractor_id(full_name, email, slack_id)')
+    .select('*, hub_sign_documents(title), hub_users!contractor_id(full_name, email, slack_id, status)')
     .eq('id', assignment_id)
     .single();
 
@@ -42,9 +42,14 @@ async function run(assignment_id: string) {
   const contractor = (assignment as any).hub_users;
   const doc = (assignment as any).hub_sign_documents;
 
-  console.log('[notify-contract-assigned] contractor:', contractor?.full_name, contractor?.email);
+  console.log('[notify-contract-assigned] contractor:', contractor?.full_name, contractor?.email, 'status:', contractor?.status);
 
   if (!contractor?.email) { console.error('[notify-contract-assigned] no contractor email'); return; }
+
+  // If the contractor hasn't accepted their Hub invite yet, skip the email —
+  // they already received the invite email directing them to the hub, and
+  // the contract will be waiting when they log in for the first time.
+  const skipEmail = contractor.status === 'invited';
 
   const firstName = contractor.full_name?.split(' ')[0] ?? contractor.full_name;
 
@@ -88,7 +93,10 @@ async function run(assignment_id: string) {
     console.log('[notify-contract-assigned] chat.postMessage result:', JSON.stringify(dmResult));
   }
 
-  // --- Email ---
+  // --- Email (skipped for new invitees — they already got the Hub invite email) ---
+  if (skipEmail) {
+    console.log('[notify-contract-assigned] skipping email — contractor status is invited');
+  } else {
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -131,6 +139,7 @@ async function run(assignment_id: string) {
     }),
   }).then(r => r.json());
   console.log('[notify-contract-assigned] email result:', JSON.stringify(emailResult));
+  } // end skipEmail
 
   await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
     method: 'POST',
