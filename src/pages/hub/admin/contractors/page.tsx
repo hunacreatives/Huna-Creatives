@@ -101,7 +101,7 @@ export default function ContractorsPage() {
     const fields = [
       c.avatar_url, c.phone, c.birthday, c.department,
       c.shift_start, c.shift_end, c.work_days?.length,
-      c.bank_account_number, c.emergency_contact, c.contract_expiry_date,
+      c.bank_account_number, c.emergency_contact_name, c.contract_expiry_date,
     ];
     const filled = fields.filter(Boolean).length;
     return Math.round((filled / fields.length) * 100);
