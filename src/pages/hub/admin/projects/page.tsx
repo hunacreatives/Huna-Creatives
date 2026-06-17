@@ -330,7 +330,7 @@ export default function AdminProjectsPage() {
   // Tasks
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [commentCounts, setCommentCounts] = useState<Record<number,number>>({});
-  const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done' | 'overdue'>('all');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'mine' | 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done' | 'overdue'>('all');
   const [showArchivedTasks, setShowArchivedTasks] = useState(false);
   const [taskView, setTaskView] = useState<'list' | 'board'>('list');
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
@@ -1640,6 +1640,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   const wsArchivedTasks = tasks.filter(t => !!t.archived);
   const wsFilteredTasks = tasks.filter(t => !t.archived).filter(t => {
     if (taskFilter === 'all') return true;
+    if (taskFilter === 'mine') return getTaskAssigneeIds(t).includes(hubUser?.id ?? '');
     if (taskFilter === 'overdue') return !!wsIsOverdue(t);
     return t.status === taskFilter;
   });
@@ -2031,21 +2032,25 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       </div>
                     </div>
                     <div className={`flex gap-1 flex-wrap ${taskView === 'board' ? 'lg:hidden' : ''}`}>
-                      {(['all', 'todo', 'in_progress', 'in_review', 'blocked', 'done', 'overdue'] as const).map(f => {
-                        const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'Active', in_review: 'Review', blocked: 'Blocked', done: 'Done', overdue: 'Overdue' };
+                      {(['all', 'mine', 'todo', 'in_progress', 'in_review', 'blocked', 'done', 'overdue'] as const).map(f => {
+                        const labels: Record<string, string> = { all: 'All', mine: 'Mine', todo: 'To Do', in_progress: 'Active', in_review: 'Review', blocked: 'Blocked', done: 'Done', overdue: 'Overdue' };
+                        const myId = hubUser?.id ?? '';
+                        const activeTasks = tasks.filter(t => !t.archived);
                         const counts: Record<string, number> = {
-                          all: tasks.length,
-                          todo: tasks.filter(t => t.status === 'todo').length,
-                          in_progress: tasks.filter(t => t.status === 'in_progress').length,
-                          in_review: tasks.filter(t => t.status === 'in_review').length,
-                          blocked: tasks.filter(t => t.status === 'blocked').length,
-                          done: tasks.filter(t => t.status === 'done').length,
-                          overdue: tasks.filter(t => !!wsIsOverdue(t)).length,
+                          all: activeTasks.length,
+                          mine: activeTasks.filter(t => getTaskAssigneeIds(t).includes(myId)).length,
+                          todo: activeTasks.filter(t => t.status === 'todo').length,
+                          in_progress: activeTasks.filter(t => t.status === 'in_progress').length,
+                          in_review: activeTasks.filter(t => t.status === 'in_review').length,
+                          blocked: activeTasks.filter(t => t.status === 'blocked').length,
+                          done: activeTasks.filter(t => t.status === 'done').length,
+                          overdue: activeTasks.filter(t => !!wsIsOverdue(t)).length,
                         };
-                        if (f !== 'all' && counts[f] === 0) return null;
+                        if (f !== 'all' && f !== 'mine' && counts[f] === 0) return null;
+                        if (f === 'mine' && counts.mine === 0) return null;
                         return (
                           <button key={f} onClick={() => setTaskFilter(f)}
-                            className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${taskFilter === f ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                            className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${taskFilter === f ? (f === 'mine' ? 'bg-[#FF6B35] text-white' : 'bg-[#111827] text-white') : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                             {labels[f]}{f !== 'all' && <span className="ml-1 opacity-60">{counts[f]}</span>}
                           </button>
                         );
@@ -2269,6 +2274,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
                         const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
                         const assignees = getWorkspaceTaskAssignees(task);
+                        const isMyTask = getTaskAssigneeIds(task).includes(hubUser?.id ?? '');
                         const commentCount = commentCounts[task.id] ?? 0;
                         const daysLeft = task.due_date
                           ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
@@ -2307,7 +2313,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                 <i className={`${sc.icon} text-lg`}></i>
                               </button>
                               <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+                                  {isMyTask && <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-[#FF6B35]" title="Assigned to you" />}
+                                </div>
                                 {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
                               </div>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
