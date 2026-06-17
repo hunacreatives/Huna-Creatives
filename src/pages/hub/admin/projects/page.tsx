@@ -2703,7 +2703,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">My Tasks</p>
                 <span className="text-[10px] font-bold text-[#FF6B35]">{myTasks.length}</span>
               </div>
-              <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50 overflow-hidden">
+              <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50">
                 {myTasks.map(t => {
                   const isOverdue = t.due_date && t.due_date < today;
                   const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
@@ -2718,7 +2718,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       ) : (
                         <div className="relative flex-shrink-0 group/status">
                           <button className={`w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0 cursor-pointer ${sc.dot}`} title="Change status" />
-                          <div className="absolute left-0 top-6 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[130px] hidden group-hover/status:block">
+                          <div className="absolute left-0 top-6 z-30 bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[140px] hidden group-hover/status:block">
                             {STATUS_OPTIONS.map(opt => (
                               <button key={opt.value} onClick={() => updateMyTaskStatus(t.id, opt.value)}
                                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer text-left transition-colors ${t.status === opt.value ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>
@@ -2903,9 +2903,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
                 {/* ── One-time Projects ── */}
                 {filtered.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Projects <span className="font-normal text-gray-300">({filtered.length})</span></p>
-                    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-50">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2.5">Projects <span className="font-normal text-gray-300 ml-0.5">{filtered.length}</span></p>
+                    <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50/80">
                       {(activeId ? filtered.filter(p => p.id === activeId) : filtered).map(p => {
                         const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                         const dl = deadlineStatus(p.deadline, p.status);
@@ -2914,30 +2914,33 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         const pal = getServicePalette(p.service);
                         const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                         const isSelected = activeId === p.id;
+                        const badge = dl ?? cfg;
                         return (
                           <button key={p.id}
                             onClick={() => { setActiveClientId(null); setActiveId(prev => prev === p.id ? null : p.id); }}
-                            className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors group cursor-pointer ${isSelected ? 'bg-orange-50/60' : 'hover:bg-gray-50/60'}`}>
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: pal.from }} />
+                            className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-colors group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/80'}`}>
+                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-4 ring-white" style={{ background: pal.from }} />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
-                              <p className="text-[11px] text-gray-400 truncate mt-0.5">{p.project_type === 'internal' ? 'Internal' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
+                              <p className="text-sm font-semibold text-[#111827] truncate">{p.project_name}</p>
+                              <p className="text-xs text-gray-400 truncate mt-0.5">{p.project_type === 'internal' ? 'Internal' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                             </div>
-                            <div className="hidden sm:flex -space-x-1.5 flex-shrink-0">
-                              {team.slice(0, 3).map((u: any, i: number) => (
+                            <div className="hidden sm:flex -space-x-2 flex-shrink-0">
+                              {team.slice(0, 4).map((u: any, i: number) => (
                                 u?.avatar_url
-                                  ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-6 h-6 rounded-full object-cover object-top border-2 border-white" />
-                                  : <div key={i} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
+                                  ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white shadow-sm" />
+                                  : <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
                               ))}
-                              {team.length === 0 && <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center"><i className="ri-user-line text-[9px] text-gray-300"></i></div>}
                             </div>
-                            <span className="hidden lg:block text-[11px] text-gray-400 flex-shrink-0 w-14 text-right">
-                              {pTasks.length > 0 ? `${pTasksDone}/${pTasks.length}` : '—'}
-                            </span>
-                            <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${dl ? dl.cls : cfg.cls}`}>
-                              {dl ? dl.label : cfg.label}
-                            </span>
-                            <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-base flex-shrink-0" />
+                            {pTasks.length > 0 && (
+                              <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
+                                <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((pTasksDone / pTasks.length) * 100)}%` }} />
+                                </div>
+                                <span className="text-[11px] text-gray-400">{pTasksDone}/{pTasks.length}</span>
+                              </div>
+                            )}
+                            <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${badge.cls}`}>{badge.label}</span>
+                            <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-600 transition-colors text-lg flex-shrink-0" />
                           </button>
                         );
                       })}
@@ -2965,37 +2968,34 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   const totalCount = sortedRetainers.length + sortedIntl.length;
                   if (totalCount === 0) return null;
                   return (
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Retainer Clients <span className="font-normal text-gray-300">({totalCount})</span></p>
-                      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden divide-y divide-gray-50">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2.5">Retainer Clients <span className="font-normal text-gray-300 ml-0.5">{totalCount}</span></p>
+                      <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50/80">
                         {(activeId ? sortedRetainers.filter(p => p.id === activeId) : sortedRetainers).map(p => {
                           const pal = getServicePalette(p.service);
                           const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
-                          const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                           const isSelected = activeId === p.id;
                           return (
                             <button key={p.id} onClick={() => { setActiveClientId(null); setActiveId(prev => prev === p.id ? null : p.id); }}
-                              className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors group cursor-pointer ${isSelected ? 'bg-orange-50/60' : 'hover:bg-gray-50/60'}`}>
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: pal.from }} />
+                              className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-colors group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/80'}`}>
+                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-4 ring-white" style={{ background: pal.from }} />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
-                                <p className="text-[11px] text-gray-400 truncate mt-0.5">{p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
+                                <p className="text-sm font-semibold text-[#111827] truncate">{p.project_name}</p>
+                                <p className="text-xs text-gray-400 truncate mt-0.5">{p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                               </div>
-                              <div className="hidden sm:flex -space-x-1.5 flex-shrink-0">
-                                {team.slice(0, 3).map((u: any, i: number) => (
+                              <div className="hidden sm:flex -space-x-2 flex-shrink-0">
+                                {team.slice(0, 4).map((u: any, i: number) => (
                                   u?.avatar_url
-                                    ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-6 h-6 rounded-full object-cover object-top border-2 border-white" />
-                                    : <div key={i} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
+                                    ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white shadow-sm" />
+                                    : <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
                                 ))}
-                                {team.length === 0 && <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center"><i className="ri-user-line text-[9px] text-gray-300"></i></div>}
                               </div>
                               {isOwner && p.monthly_rate ? (
-                                <span className="text-xs font-semibold text-gray-600 flex-shrink-0">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
+                                <span className="text-xs font-semibold text-gray-700 flex-shrink-0">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
                               ) : (
-                                <span className="text-[11px] text-gray-400 flex-shrink-0">Retainer</span>
+                                <span className="text-xs text-gray-400 flex-shrink-0">Retainer</span>
                               )}
-                              <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${cfg.cls}`}>{cfg.label}</span>
-                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-base flex-shrink-0" />
+                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-600 transition-colors text-lg flex-shrink-0" />
                             </button>
                           );
                         })}
@@ -3003,21 +3003,21 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           const pal = getServicePalette(c.platform);
                           return (
                             <button key={c.id} onClick={() => openClientWorkspace(c)} disabled={openingWorkspace}
-                              className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors group cursor-pointer hover:bg-gray-50/60">
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: pal.from }} />
+                              className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors group cursor-pointer hover:bg-gray-50/80">
+                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-4 ring-white" style={{ background: pal.from }} />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-[#111827] truncate leading-snug">{c.client_name}</p>
-                                <p className="text-[11px] text-gray-400 truncate mt-0.5">{c.platform ?? 'Client'}{c.notes ? ` · ${c.notes}` : ''}</p>
+                                <p className="text-sm font-semibold text-[#111827] truncate">{c.client_name}</p>
+                                <p className="text-xs text-gray-400 truncate mt-0.5">{c.platform ?? 'Client'}{c.notes ? ` · ${c.notes}` : ''}</p>
                               </div>
-                              <div className="hidden sm:flex -space-x-1.5 flex-shrink-0">
-                                {c.assignments.slice(0, 3).map((a, i) => (
+                              <div className="hidden sm:flex -space-x-2 flex-shrink-0">
+                                {c.assignments.slice(0, 4).map((a, i) => (
                                   a.hub_users?.avatar_url
-                                    ? <img key={i} src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-6 h-6 rounded-full object-cover object-top border-2 border-white" />
-                                    : <div key={i} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500">{a.hub_users?.full_name?.[0]}</div>
+                                    ? <img key={i} src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white shadow-sm" />
+                                    : <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{a.hub_users?.full_name?.[0]}</div>
                                 ))}
                               </div>
                               <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${c.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{c.status}</span>
-                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-base flex-shrink-0" />
+                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-600 transition-colors text-lg flex-shrink-0" />
                             </button>
                           );
                         })}
