@@ -233,7 +233,7 @@ export default function AdminProjectsPage() {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('ongoing');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [pageView, setPageView] = useState<'projects' | 'tasks'>('projects');
   const [allTasks, setAllTasks] = useState<any[]>([]);
