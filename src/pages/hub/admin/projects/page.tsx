@@ -1754,7 +1754,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-gray-900 truncate leading-tight">{p.project_name}</p>
-                  <p className="text-xs text-gray-400 truncate">{internalProject ? 'Internal Project' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                 </div>
                 <button
                   onClick={() => {
