@@ -2671,56 +2671,43 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       )}
 
       {!workspaceOpen && (
-      <div className="space-y-4">
+      <div className="space-y-5">
 
-        {/* My Tasks widget */}
+        {/* ── My Tasks ── */}
         {myTasks.length > 0 && (() => {
           const today = localToday();
-          const statusCfg: Record<string, { label: string; dot: string }> = {
-            todo:        { label: 'To Do',       dot: 'bg-gray-400' },
-            in_progress: { label: 'In Progress', dot: 'bg-sky-500' },
-            in_review:   { label: 'In Review',   dot: 'bg-violet-500' },
-            blocked:     { label: 'Blocked',     dot: 'bg-rose-500' },
-          };
-          const priorityCls: Record<string, string> = {
-            high: 'text-rose-500', medium: 'text-amber-500', low: 'text-gray-400',
+          const statusDot: Record<string, string> = {
+            todo: 'bg-gray-300', in_progress: 'bg-sky-400', in_review: 'bg-violet-400', blocked: 'bg-rose-400',
           };
           return (
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-[#FF6B35]/10 flex items-center justify-center">
-                    <i className="ri-user-line text-[#FF6B35] text-xs"></i>
-                  </div>
-                  <p className="text-sm font-semibold text-[#111827]">My Tasks</p>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF6B35]/10 text-[#FF6B35]">{myTasks.length}</span>
-                </div>
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">My Tasks</p>
+                <span className="text-[10px] font-bold text-[#FF6B35]">{myTasks.length}</span>
               </div>
-              <div className="space-y-2">
+              <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50 overflow-hidden">
                 {myTasks.map(t => {
                   const isOverdue = t.due_date && t.due_date < today;
                   const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
-                  const sc = statusCfg[t.status] ?? { label: t.status, dot: 'bg-gray-400' };
+                  const priorityAccent: Record<string, string> = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-gray-300' };
                   return (
                     <button
                       key={t.id}
                       onClick={() => { const p = projects.find(p => p.id === t.project_id); if (p) { setActiveId(p.id); setWorkspaceOpen(true); setTimeout(() => openTaskDetail({ ...t, description: null, assigned_to: null, assignee_ids: null, sort_order: 0, color: null, start_date: null, archived: false, archived_at: null, attachments: null, project_id: t.project_id } as any), 400); } }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left cursor-pointer group"
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50/70 transition-colors text-left cursor-pointer group"
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sc.dot}`} />
+                      <span className={`w-1 h-8 rounded-full flex-shrink-0 ${priorityAccent[t.priority] ?? 'bg-gray-200'}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDot[t.status] ?? 'bg-gray-300'}`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate leading-snug">{t.title}</p>
-                        <p className="text-[11px] text-gray-400 truncate">{t.project_name}{t.client_name ? ` · ${t.client_name}` : ''}</p>
+                        <p className="text-sm font-medium text-gray-800 truncate">{t.title}</p>
+                        <p className="text-[11px] text-gray-400 truncate mt-0.5">{t.project_name}{t.client_name ? ` · ${t.client_name}` : ''}</p>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {t.due_date && (
-                          <span className={`text-[10px] font-medium ${isOverdue ? 'text-rose-500' : daysLeft === 0 ? 'text-amber-500' : 'text-gray-400'}`}>
-                            {isOverdue ? `${Math.abs(daysLeft!)}d overdue` : daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                        <i className={`ri-flag-line text-xs ${priorityCls[t.priority] ?? 'text-gray-300'}`} />
-                        <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-sm" />
-                      </div>
+                      {t.due_date && (
+                        <span className={`text-[11px] font-medium flex-shrink-0 ${isOverdue ? 'text-rose-500' : daysLeft === 0 ? 'text-amber-500' : 'text-gray-400'}`}>
+                          {isOverdue ? `${Math.abs(daysLeft!)}d overdue` : daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                      <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-base" />
                     </button>
                   );
                 })}
@@ -2731,9 +2718,9 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
         <section className="space-y-3">
 
+          {/* ── Toolbar ── */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Status tabs */}
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto">
+            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-xl overflow-x-auto flex-shrink-0">
               {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
                 <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -2741,33 +2728,29 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </button>
               ))}
             </div>
-            {/* Type dropdown */}
             <select value={projectTypeFilter} onChange={e => setProjectTypeFilter(e.target.value as any)}
               className="px-3 py-1.5 text-xs border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none cursor-pointer">
               <option value="all">All Types</option>
               <option value="client">Fixed Contract</option>
               <option value="internal">Internal</option>
             </select>
-            {/* Service dropdown */}
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
               className="px-3 py-1.5 text-xs border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none cursor-pointer">
               <option value="all">All Services</option>
               {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <div className="flex-1" />
-            <button onClick={() => { setEditingProject(null); setForm({ ...emptyForm, project_type: 'retainer' }); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors cursor-pointer whitespace-nowrap">
-              <i className="ri-add-line text-sm"></i>
-              <span className="hidden sm:inline">Add Client</span>
-            </button>
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-              <button onClick={() => setPageView('projects')} className={`px-3 py-2 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${pageView === 'projects' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}><i className="ri-folder-line text-sm"></i><span className="hidden sm:inline">Projects</span></button>
-              <button onClick={() => { setPageView('tasks'); fetchAllTasks(); }} className={`px-3 py-2 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${pageView === 'tasks' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}><i className="ri-task-line text-sm"></i><span className="hidden sm:inline">All Tasks</span></button>
+            <div className="flex rounded-xl border border-gray-200 overflow-hidden flex-shrink-0">
+              <button onClick={() => setPageView('projects')} className={`px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${pageView === 'projects' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}><i className="ri-folder-line text-sm"></i><span className="hidden sm:inline">Projects</span></button>
+              <button onClick={() => { setPageView('tasks'); fetchAllTasks(); }} className={`px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 border-l border-gray-200 ${pageView === 'tasks' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}><i className="ri-task-line text-sm"></i><span className="hidden sm:inline">All Tasks</span></button>
             </div>
+            <button onClick={() => { setEditingProject(null); setForm({ ...emptyForm, project_type: 'retainer' }); setShowForm(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-50 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
+              <i className="ri-add-line text-sm"></i>Add Client
+            </button>
             <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
-              <i className="ri-add-line text-sm"></i>
-              <span className="hidden sm:inline">New Project</span>
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-xl hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
+              <i className="ri-add-line text-sm"></i>New Project
             </button>
           </div>
 
