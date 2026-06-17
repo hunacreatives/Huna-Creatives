@@ -1841,8 +1841,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     )}
                   </div>
 
-                  {/* Right: Drive — fills remaining width */}
-                  <div className="lg:flex-1 lg:min-w-0">
+                  {/* Right: Drive — hidden on mobile */}
+                  <div className="hidden lg:block lg:flex-1 lg:min-w-0">
                     {(() => {
                       const driveUrl = (p as any).drive_url as string | null;
                       const folderIdMatch = driveUrl?.match(/folders\/([a-zA-Z0-9_-]+)/);
@@ -1889,19 +1889,22 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
             <div className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
               {/* ── Stats row ── */}
-              <div id="ws-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* Mobile: compact inline row / Desktop: 4-column grid */}
+              <div id="ws-stats" className="sm:grid sm:grid-cols-4 sm:gap-3 flex gap-2 overflow-x-auto pb-0.5">
                 {[
                   { label: 'Total', value: tasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
                   { label: 'Done', value: tasks.filter(t => t.status === 'done').length, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
                   { label: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', iconBg: 'bg-sky-100', iconClr: 'text-sky-600', valClr: 'text-sky-700' },
                   { label: 'Overdue', value: tasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', iconBg: 'bg-rose-100', iconClr: 'text-rose-500', valClr: 'text-rose-600' },
                 ].map(s => (
-                  <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
-                    <div className={`w-8 h-8 rounded-xl ${s.iconBg} flex items-center justify-center mb-3`}>
+                  <div key={s.label} className="bg-white rounded-2xl shadow-sm border border-gray-100/80 sm:p-4 flex-shrink-0 sm:flex-shrink flex items-center gap-2.5 px-3 py-2.5 sm:flex-col sm:items-start sm:gap-0 sm:px-4 sm:py-4 min-w-[90px] sm:min-w-0">
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl ${s.iconBg} flex items-center justify-center sm:mb-3 flex-shrink-0`}>
                       <i className={`${s.icon} ${s.iconClr} text-sm`}></i>
                     </div>
-                    <p className={`text-2xl font-bold ${s.valClr} leading-none`}>{s.value}</p>
-                    <p className="text-[11px] text-gray-400 mt-1">{s.label}</p>
+                    <div>
+                      <p className={`text-lg sm:text-2xl font-bold ${s.valClr} leading-none`}>{s.value}</p>
+                      <p className="text-[10px] sm:text-[11px] text-gray-400 mt-0.5 sm:mt-1">{s.label}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2680,8 +2683,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         <section className="space-y-3">
 
           {/* ── Toolbar ── */}
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-xl flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-xl flex-shrink-0 overflow-x-auto max-w-full">
               {statusTabs.filter(t => t.key !== 'all').map(tab => (
                 <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -2692,7 +2695,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             <div className="flex-1" />
             <button onClick={() => { setPageView(pageView === 'tasks' ? 'projects' : 'tasks'); if (pageView !== 'tasks') fetchAllTasks(); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border transition-colors cursor-pointer flex-shrink-0 ${pageView === 'tasks' ? 'bg-[#111827] text-white border-[#111827]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-              <i className="ri-task-line text-sm"></i>All Tasks
+              <i className="ri-task-line text-sm"></i><span className="hidden sm:inline">All Tasks</span>
             </button>
             <div className="relative group/more flex-shrink-0">
               <button className="flex items-center justify-center w-8 h-8 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors cursor-pointer">
@@ -3164,6 +3167,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     ))}
                   </div>
                   {/* Actions */}
+                  <button onClick={() => { setWorkspaceOpen(true); }}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF6B35] text-white text-sm font-semibold rounded-xl cursor-pointer">
+                    <i className="ri-layout-grid-line"></i> Open Workspace
+                  </button>
                   <div className="flex gap-2">
                     {!internalProject && <button onClick={() => navigate(`/hub/admin/invoices/${activeProject.id}`)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">

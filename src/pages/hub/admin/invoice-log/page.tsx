@@ -156,7 +156,14 @@ export default function InvoiceLogPage() {
         supabase.from('hub_payment_proof_submissions').select('*').order('id', { ascending: false }),
         supabase.from('hub_payment_receipt_log').select('*').order('id', { ascending: false }),
       ]);
-      setInvoices((iRes.data as InvoiceLog[]) ?? []);
+      const seen = new Set<string>();
+      const deduped = ((iRes.data as InvoiceLog[]) ?? []).filter(inv => {
+        const key = `${inv.invoice_number}__${inv.project_id ?? ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setInvoices(deduped);
       setScheduled((sRes.data as ScheduledInvoice[]) ?? []);
       setProofs((pRes.data as PaymentProof[]) ?? []);
       setReceipts((rRes.data as ReceiptLog[]) ?? []);
