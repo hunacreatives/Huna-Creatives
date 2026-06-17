@@ -1,11 +1,13 @@
 import { useState, FormEvent, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getHubHomePath } from '@/lib/hubAuth';
 
 export default function HubLoginPage() {
   const { signIn, hubUser, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from as string | undefined;
   const [searchParams] = useSearchParams();
   const justSignedUp = searchParams.get('welcome') === '1';
   const [email, setEmail] = useState('');
@@ -39,8 +41,8 @@ export default function HubLoginPage() {
   useEffect(() => {
     if (!hubUser) return;
     setLoading(false);
-    navigate(getHubHomePath(hubUser.role), { replace: true });
-  }, [hubUser, navigate]);
+    navigate(from ?? getHubHomePath(hubUser.role), { replace: true });
+  }, [hubUser, navigate, from]);
 
   useEffect(() => {
     if (!loading) return;
@@ -72,7 +74,7 @@ export default function HubLoginPage() {
         return;
       }
       if (nextHubUser) {
-        navigate(getHubHomePath(nextHubUser.role), { replace: true });
+        navigate(from ?? getHubHomePath(nextHubUser.role), { replace: true });
         return;
       }
       setError('Sign-in completed, but your workspace profile could not be loaded.');
