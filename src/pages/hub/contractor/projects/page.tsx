@@ -43,6 +43,7 @@ interface ProjectRow {
   fixed_amount: number | null;
   payout_status: string;
   paid_at: string | null;
+  exclude_from_payout: boolean;
   hub_project_contractor_payouts: ContractorPayout[];
   hub_projects: {
     id: number;
@@ -535,6 +536,11 @@ function ProjectDetail({ row, tasks, team, onClose, onReceiptClick }: {
                   <p className="text-sm font-bold text-gray-900 leading-none">{isRetainer ? 'Retainer' : 'Internal'}</p>
                   <p className="text-[11px] text-gray-400">Ongoing engagement</p>
                 </div>
+              ) : row.exclude_from_payout ? (
+                <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Payout</p>
+                  <p className="text-sm text-gray-400 italic">Not applicable</p>
+                </div>
               ) : (
                 <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-2">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Your Payout</p>
@@ -691,7 +697,7 @@ function ProjectCard({ row, projectTasks, onClick }: {
   const totalPaidOut = payouts.reduce((s, x) => s + x.amount, 0);
   const isFullyPaid = totalPaidOut >= myCut && myCut > 0;
   const isRetainerProject = p.project_type === 'retainer';
-  const showPayout = !internalProject && !isRetainerProject && myCut > 0;
+  const showPayout = !internalProject && !isRetainerProject && myCut > 0 && !row.exclude_from_payout;
 
   const daysLeft = p.deadline
     ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000)
@@ -1236,7 +1242,7 @@ export default function ContractorProjectsPage() {
         // 1. contractor's assignments + project_ids in one query
         const { data: pcData, error: pcErr } = await supabase
           .from('hub_project_contractors')
-          .select('id, project_id, percentage, payout_type, fixed_amount, payout_status, paid_at')
+          .select('id, project_id, percentage, payout_type, fixed_amount, payout_status, paid_at, exclude_from_payout')
           .eq('contractor_id', hubUser.id);
         if (pcErr) throw pcErr;
         if (!pcData?.length) { setLoading(false); return; }
@@ -2411,7 +2417,7 @@ export default function ContractorProjectsPage() {
                 </div>
 
                 {/* Payout */}
-                {!wsIsInternal && wsProject?.project_type !== 'retainer' && (() => {
+                {!wsIsInternal && wsProject?.project_type !== 'retainer' && !workspaceRow?.exclude_from_payout && (() => {
                   const totalCosts = wsProject.hub_project_costs.reduce((s, x) => s + x.amount, 0);
                   const netProfit = wsProject.contract_price - totalCosts;
                   const isFixed = workspaceRow!.payout_type === 'fixed';
