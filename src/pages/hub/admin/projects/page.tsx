@@ -217,6 +217,7 @@ export default function AdminProjectsPage() {
   useEffect(() => { getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v))); }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [myTasks, setMyTasks] = useState<{ id: number; title: string; status: string; priority: string; due_date: string | null; project_id: number; project_name: string; client_name: string }[]>([]);
   const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; contract_value: number | null; contract_currency: string | null; assignments: { id: number; contractor_id: string; role: string | null; hub_users: { id: string; full_name: string; avatar_url: string | null; department: string | null } | null }[] }[]>([]);
   const [activeClientId, setActiveClientId] = useState<number | null>(null);
   const [clientForm, setClientForm] = useState({ client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' });
@@ -656,6 +657,23 @@ export default function AdminProjectsPage() {
       supabase.from('hub_clients').select('id, client_name, platform, status, notes, contract_value, contract_currency, hub_client_assignments(id, contractor_id, role, hub_users(id, full_name, avatar_url, department))').order('client_name'),
     ]);
     setProjects((pRes.data as Project[]) ?? []);
+
+    if (hubUser?.id) {
+      const uid = hubUser.id;
+      const { data: mtData } = await supabase
+        .from('hub_project_tasks')
+        .select('id, title, status, priority, due_date, project_id, hub_projects(project_name, client_name)')
+        .or(`assigned_to.eq.${uid},assignee_ids.cs.{${uid}}`)
+        .neq('status', 'done')
+        .not('archived', 'is', true)
+        .order('due_date', { ascending: true, nullsFirst: false });
+      setMyTasks((mtData ?? []).map((t: any) => ({
+        id: t.id, title: t.title, status: t.status, priority: t.priority, due_date: t.due_date,
+        project_id: t.project_id,
+        project_name: t.hub_projects?.project_name ?? 'Unknown',
+        client_name: t.hub_projects?.client_name ?? '',
+      })));
+    }
     setContractors((cRes.data as Contractor[]) ?? []);
     setIntlClients((clientRes.data ?? []).map((c: any) => ({
       id: c.id, client_name: c.client_name, platform: c.platform, status: c.status,
@@ -2655,6 +2673,61 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       {!workspaceOpen && (
       <div className="space-y-4">
 
+        {/* My Tasks widget */}
+        {myTasks.length > 0 && (() => {
+          const today = localToday();
+          const statusCfg: Record<string, { label: string; dot: string }> = {
+            todo:        { label: 'To Do',       dot: 'bg-gray-400' },
+            in_progress: { label: 'In Progress', dot: 'bg-sky-500' },
+            in_review:   { label: 'In Review',   dot: 'bg-violet-500' },
+            blocked:     { label: 'Blocked',     dot: 'bg-rose-500' },
+          };
+          const priorityCls: Record<string, string> = {
+            high: 'text-rose-500', medium: 'text-amber-500', low: 'text-gray-400',
+          };
+          return (
+            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-[#FF6B35]/10 flex items-center justify-center">
+                    <i className="ri-user-line text-[#FF6B35] text-xs"></i>
+                  </div>
+                  <p className="text-sm font-semibold text-[#111827]">My Tasks</p>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FF6B35]/10 text-[#FF6B35]">{myTasks.length}</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {myTasks.map(t => {
+                  const isOverdue = t.due_date && t.due_date < today;
+                  const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
+                  const sc = statusCfg[t.status] ?? { label: t.status, dot: 'bg-gray-400' };
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => { const p = projects.find(p => p.id === t.project_id); if (p) { setActiveId(p.id); setWorkspaceOpen(true); setTimeout(() => openTaskDetail({ ...t, description: null, assigned_to: null, assignee_ids: null, sort_order: 0, color: null, start_date: null, archived: false, archived_at: null, attachments: null, project_id: t.project_id } as any), 400); } }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left cursor-pointer group"
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sc.dot}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate leading-snug">{t.title}</p>
+                        <p className="text-[11px] text-gray-400 truncate">{t.project_name}{t.client_name ? ` · ${t.client_name}` : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {t.due_date && (
+                          <span className={`text-[10px] font-medium ${isOverdue ? 'text-rose-500' : daysLeft === 0 ? 'text-amber-500' : 'text-gray-400'}`}>
+                            {isOverdue ? `${Math.abs(daysLeft!)}d overdue` : daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                        <i className={`ri-flag-line text-xs ${priorityCls[t.priority] ?? 'text-gray-300'}`} />
+                        <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-sm" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         <section className="space-y-3">
 
