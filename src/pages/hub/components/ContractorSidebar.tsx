@@ -5,16 +5,13 @@ import { useHubAuth } from '@/hooks/useHubAuth';
 const baseNavItems = [
   { to: '/hub/contractor/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
   { to: '/hub/contractor/attendance', label: 'My Attendance', icon: 'ri-time-line' },
-  { to: '/hub/contractor/requests', label: 'Requests', icon: 'ri-inbox-line' },
-  { to: '/hub/contractor/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
-  { to: '/hub/contractor/overtime', label: 'Overtime', icon: 'ri-timer-flash-line' },
+  { to: '/hub/contractor/my-requests', label: 'My Requests', icon: 'ri-inbox-line' },
   { divider: true, label: 'Finance & Docs' },
   { to: '/hub/contractor/payouts', label: 'My Payouts', icon: 'ri-money-dollar-circle-line' },
   { to: '/hub/contractor/documents', label: 'Documents', icon: 'ri-file-list-3-line' },
   { to: '/hub/contractor/credentials', label: 'Credentials', icon: 'ri-lock-2-line' },
   { divider: true, label: 'Resources' },
   { to: '/hub/contractor/sop', label: 'SOP Library', icon: 'ri-book-open-line' },
-  { to: '/hub/contractor/announcements', label: 'Announcements', icon: 'ri-megaphone-line' },
   { to: '/hub/contractor/profile', label: 'My Profile', icon: 'ri-user-line' },
 ];
 
@@ -31,7 +28,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
 
   const isProjectBased = hubUser?.payment_type === 'project_based';
   const filteredBase = isProjectBased
-    ? baseNavItems.filter(i => !['My Attendance', 'Time-Off', 'Overtime', 'Requests'].includes((i as any).label))
+    ? baseNavItems.filter(i => !['My Attendance', 'My Requests'].includes((i as any).label))
     : baseNavItems;
   const dividerIdx = filteredBase.findIndex(i => (i as any).divider);
   const navItems = [
