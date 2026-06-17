@@ -827,8 +827,9 @@ export default function ContractorProjectsPage() {
   const taskAttachmentRef = useRef<HTMLInputElement>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [completingTaskIds, setCompletingTaskIds] = useState<Set<number>>(new Set());
+  const [completingTaskIds, setCompletingTaskIds] = useState<Map<number, string>>(new Map());
   const [hiddenDoneIds, setHiddenDoneIds] = useState<Set<number>>(new Set());
+  const completingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const [search, setSearch] = useState('');
   const [taskSearch, setTaskSearch] = useState('');
   const [wsSearch, setWsSearch] = useState('');
@@ -894,16 +895,28 @@ export default function ContractorProjectsPage() {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
     const newStatus = next[task.status];
     if (newStatus === 'done') {
-      setCompletingTaskIds(prev => new Set(prev).add(task.id));
+      const prevStatus = task.status;
+      setCompletingTaskIds(prev => { const m = new Map(prev); m.set(task.id, prevStatus); return m; });
       await updateTaskStatus(task, newStatus);
-      setTimeout(() => {
-        setCompletingTaskIds(prev => { const s = new Set(prev); s.delete(task.id); return s; });
+      const timer = setTimeout(() => {
+        setCompletingTaskIds(prev => { const m = new Map(prev); m.delete(task.id); return m; });
         setHiddenDoneIds(prev => new Set(prev).add(task.id));
-      }, 1800);
+        completingTimers.current.delete(task.id);
+      }, 5000);
+      completingTimers.current.set(task.id, timer);
     } else {
       setHiddenDoneIds(prev => { const s = new Set(prev); s.delete(task.id); return s; });
       await updateTaskStatus(task, newStatus);
     }
+  };
+
+  const undoDashboardTask = async (task: ProjectTask) => {
+    const prevStatus = completingTaskIds.get(task.id) as ProjectTask['status'] | undefined;
+    const timer = completingTimers.current.get(task.id);
+    if (timer) { clearTimeout(timer); completingTimers.current.delete(task.id); }
+    setCompletingTaskIds(prev => { const m = new Map(prev); m.delete(task.id); return m; });
+    setHiddenDoneIds(prev => { const s = new Set(prev); s.delete(task.id); return s; });
+    await updateTaskStatus(task, prevStatus ?? 'todo');
   };
 
   const openAddTask = () => {
@@ -1456,6 +1469,7 @@ export default function ContractorProjectsPage() {
     ...myTasks.filter(t => t.status === 'blocked' && !(t.due_date && t.due_date < today)),
     ...myTasks.filter(t => t.status === 'todo' && !(t.due_date && t.due_date < today)),
     ...myTasks.filter(t => t.status === 'done' && completingTaskIds.has(t.id)),
+
   ];
 
   const featuredTasks = todayDueTasks.length > 0 ? todayDueTasks
@@ -2816,7 +2830,13 @@ export default function ContractorProjectsPage() {
                           {taskStatusIcon(t.status)}
                         </button>
                         {isCompleting ? (
-                          <p className="flex-1 text-[13px] font-medium text-emerald-600">Task completed</p>
+                          <>
+                            <p className="flex-1 text-[13px] font-medium text-emerald-600">Task completed</p>
+                            <button type="button" onClick={() => undoDashboardTask(t)}
+                              className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-2 py-0.5 rounded-md flex-shrink-0 cursor-pointer transition-colors">
+                              Undo
+                            </button>
+                          </>
                         ) : (
                           <>
                             <button type="button" onClick={() => openTaskFromDashboard(t)} className="flex-1 min-w-0 text-left cursor-pointer">

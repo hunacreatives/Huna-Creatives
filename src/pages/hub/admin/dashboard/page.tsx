@@ -303,10 +303,18 @@ export default function AdminDashboardPage() {
         const key = `${lnk.invoice_number}__${lnk.project_id}`;
         if (!(key in dueDateMap)) dueDateMap[key] = lnk.due_date ?? null;
       }
-      const outstanding: OutstandingInvoice[] = ((invResult.data as any[]) ?? []).map((inv: any) => ({
-        ...inv,
-        due_date: dueDateMap[`${inv.invoice_number}__${inv.project_id}`] ?? null,
-      }));
+      const seen = new Set<string>();
+      const outstanding: OutstandingInvoice[] = ((invResult.data as any[]) ?? [])
+        .filter((inv: any) => {
+          const key = `${inv.invoice_number}__${inv.project_id}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .map((inv: any) => ({
+          ...inv,
+          due_date: dueDateMap[`${inv.invoice_number}__${inv.project_id}`] ?? null,
+        }));
       setOutstandingInvoices(outstanding);
 
       const nextAnnouncements = (annResult.data as HubAnnouncement[]) ?? [];
