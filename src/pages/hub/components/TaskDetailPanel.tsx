@@ -1314,7 +1314,7 @@ export default function TaskDetailPanel({
                     }
                   }}
                   data-placeholder="Add a description… (paste images directly)"
-                  className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[120px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                  className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[120px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1"
                 />
               </div>
             ) : (
