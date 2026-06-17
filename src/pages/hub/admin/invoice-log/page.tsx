@@ -64,26 +64,6 @@ interface ReceiptLog {
   sent_at: string;
 }
 
-interface ScheduledInvoice {
-  id: number;
-  invoice_number: string;
-  client_name: string;
-  project_name: string;
-  project_id: number | null;
-  to_email: string;
-  cc_email: string | null;
-  subject: string | null;
-  scheduled_for: string;
-  due_date: string | null;
-  status: string;
-  sent_at: string | null;
-  cancelled_at: string | null;
-  last_error: string | null;
-  line_items: { description: string; amount: string }[] | null;
-  payments: { amount: number; paid_at: string; notes: string | null }[] | null;
-  show_payments: boolean;
-  amount_requested: number | null;
-}
 
 interface PaymentProof {
   id: number;
@@ -103,13 +83,13 @@ interface PaymentProof {
   verified_at: string | null;
 }
 
-type Tab = 'invoices' | 'scheduled' | 'proofs' | 'receipts';
+type Tab = 'invoices' | 'proofs' | 'receipts';
 
 export default function InvoiceLogPage() {
   const { isDemo } = useDemo();
   const [tab, setTab] = useState<Tab>('invoices');
   const [invoices, setInvoices] = useState<InvoiceLog[]>([]);
-  const [scheduled, setScheduled] = useState<ScheduledInvoice[]>([]);
+
   const [proofs, setProofs] = useState<PaymentProof[]>([]);
   const [receipts, setReceipts] = useState<ReceiptLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,9 +132,8 @@ export default function InvoiceLogPage() {
     }
     const fetch = async () => {
       setLoading(true);
-      const [iRes, sRes, pRes, rRes] = await Promise.all([
+      const [iRes, pRes, rRes] = await Promise.all([
         supabase.from('hub_invoice_log').select('*').order('id', { ascending: false }),
-        supabase.from('hub_scheduled_invoices').select('*').order('id', { ascending: false }),
         supabase.from('hub_payment_proof_submissions').select('*').order('id', { ascending: false }),
         supabase.from('hub_payment_receipt_log').select('*').order('id', { ascending: false }),
       ]);
@@ -166,7 +145,7 @@ export default function InvoiceLogPage() {
         return true;
       });
       setInvoices(deduped);
-      setScheduled((sRes.data as ScheduledInvoice[]) ?? []);
+
       setProofs((pRes.data as PaymentProof[]) ?? []);
       setReceipts((rRes.data as ReceiptLog[]) ?? []);
       setLoading(false);
@@ -194,12 +173,6 @@ export default function InvoiceLogPage() {
     p.invoice_number.includes(q) ||
     p.payer_name.toLowerCase().includes(q) ||
     (p.payer_email || '').toLowerCase().includes(q)
-  );
-  const filteredScheduled = scheduled.filter(s =>
-    s.client_name.toLowerCase().includes(q) ||
-    s.project_name.toLowerCase().includes(q) ||
-    s.invoice_number.includes(q) ||
-    s.to_email.toLowerCase().includes(q)
   );
 
   const fmtDate = (s: string) =>
@@ -517,46 +490,6 @@ export default function InvoiceLogPage() {
     setInvoices(prev => prev.filter(i => i.id !== id));
   };
 
-  const cancelScheduledInvoice = async (id: number) => {
-    await supabase.from('hub_scheduled_invoices').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', id).eq('status', 'pending');
-    setScheduled(prev => prev.map(item => item.id === id ? { ...item, status: 'cancelled', cancelled_at: new Date().toISOString() } : item));
-  };
-
-  const resendScheduledInvoice = async (inv: ScheduledInvoice) => {
-    if (!window.confirm(`Send invoice #${inv.invoice_number.padStart(4, '0')} to ${inv.to_email} now?`)) return;
-    setResending(prev => new Set(prev).add(inv.id));
-    try {
-      const { data, error } = await supabase.functions.invoke('send-invoice', {
-        body: {
-          to: inv.to_email,
-          cc: inv.cc_email || undefined,
-          subject: inv.subject || undefined,
-          client_name: inv.client_name,
-          project_name: inv.project_name,
-          payments: inv.payments ?? [],
-          show_payments: inv.show_payments,
-          line_items: inv.line_items ?? [],
-          invoice_number: inv.invoice_number,
-          project_id: inv.project_id,
-          amount_requested: inv.amount_requested ?? undefined,
-          app_base_url: 'https://hunacreatives.com',
-        },
-      });
-      if (error || data?.error) {
-        const msg = data?.error || error?.message || 'Unknown error';
-        await supabase.from('hub_scheduled_invoices').update({ status: 'failed', last_error: msg }).eq('id', inv.id);
-        setScheduled(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'failed', last_error: msg } : i));
-        alert('Failed to send: ' + msg);
-      } else {
-        const sent_at = new Date().toISOString();
-        await supabase.from('hub_scheduled_invoices').update({ status: 'sent', sent_at, last_error: null }).eq('id', inv.id);
-        setScheduled(prev => prev.map(i => i.id === inv.id ? { ...i, status: 'sent', sent_at } : i));
-        alert(`Invoice sent to ${inv.to_email}`);
-      }
-    } finally {
-      setResending(prev => { const s = new Set(prev); s.delete(inv.id); return s; });
-    }
-  };
 
   return (
     <AdminLayout title="Invoice Log">
@@ -571,13 +504,7 @@ export default function InvoiceLogPage() {
                 Invoices
                 <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{invoices.length}</span>
               </button>
-              <button
-                onClick={() => setTab('scheduled')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'scheduled' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Scheduled
-                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{scheduled.filter(s => s.status === 'pending').length}</span>
-              </button>
+
               <button
                 onClick={() => setTab('receipts')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'receipts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
@@ -821,116 +748,6 @@ export default function InvoiceLogPage() {
                   )}
                 </div>
               )}
-            </div>
-          )
-        ) : tab === 'scheduled' ? (
-          filteredScheduled.length === 0 ? (
-            <div className="text-sm text-gray-400 py-12 text-center">No scheduled invoices found</div>
-          ) : (
-            <div className="space-y-2">
-              {filteredScheduled.map(inv => {
-                const statusCls = inv.status === 'sent'
-                  ? 'bg-emerald-50 text-emerald-600'
-                  : inv.status === 'cancelled'
-                    ? 'bg-gray-100 text-gray-500'
-                    : inv.status === 'failed'
-                      ? 'bg-rose-50 text-rose-500'
-                      : 'bg-amber-50 text-amber-600';
-                return (
-                  <div key={inv.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <button
-                      className="w-full text-left px-4 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => setExpanded(expanded === 100000 + inv.id ? null : 100000 + inv.id)}
-                    >
-                      <span className="text-xs font-mono font-bold text-[#FF6B35] bg-orange-50 px-2 py-1 rounded flex-shrink-0">
-                        #{inv.invoice_number.padStart(4, '0')}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{inv.project_name}</p>
-                        <p className="text-xs text-gray-500 truncate">{inv.client_name}</p>
-                        <p className="text-xs text-gray-400 hidden sm:block">{inv.to_email}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0 hidden sm:block">
-                        <p className="text-xs text-gray-400">Scheduled</p>
-                        <p className="text-sm font-semibold text-gray-900">{fmtDateTime(inv.scheduled_for)}</p>
-                      </div>
-                      <span className={`text-[11px] px-2 py-1 rounded-full font-medium flex-shrink-0 ${statusCls}`}>{inv.status}</span>
-                      <i className={`ri-arrow-${expanded === 100000 + inv.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
-                    </button>
-                    {expanded === 100000 + inv.id && (
-                      <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-3">
-                        {inv.subject && (
-                          <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Subject</p>
-                            <p className="text-sm text-gray-700">{inv.subject}</p>
-                          </div>
-                        )}
-                        {inv.cc_email && (
-                          <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">CC</p>
-                            <p className="text-sm text-gray-700">{inv.cc_email}</p>
-                          </div>
-                        )}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Scheduled For</p>
-                            <p className="font-semibold text-gray-900">{fmtDateTime(inv.scheduled_for)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Due Date</p>
-                            <p className="font-semibold text-gray-900">{inv.due_date ? fmtDate(inv.due_date) : '—'}</p>
-                          </div>
-                        </div>
-                        {inv.last_error && (
-                          <div className="bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
-                            <p className="text-xs text-rose-500">{inv.last_error}</p>
-                          </div>
-                        )}
-                        {inv.line_items && inv.line_items.length > 0 && (
-                          <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1.5">Line Items</p>
-                            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                              {inv.line_items.map((item, i) => (
-                                <div key={i} className="flex justify-between px-4 py-2.5 text-sm border-b border-gray-100 last:border-0">
-                                  <span className="text-gray-700">{item.description}</span>
-                                  <span className="font-semibold text-gray-900">{fmt(parseFloat(item.amount) || 0)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-gray-400">
-                            {inv.status === 'sent' && inv.sent_at ? `Sent ${fmtDateTime(inv.sent_at)}` : inv.status === 'cancelled' && inv.cancelled_at ? `Cancelled ${fmtDateTime(inv.cancelled_at)}` : 'Waiting to be sent automatically'}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            {(inv.status === 'cancelled' || inv.status === 'failed') && (
-                              <button
-                                onClick={() => resendScheduledInvoice(inv)}
-                                disabled={resending.has(inv.id)}
-                                className="flex items-center gap-1 px-3 py-1.5 text-xs text-[#FF6B35] border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer disabled:opacity-50"
-                              >
-                                {resending.has(inv.id)
-                                  ? <><i className="ri-loader-4-line animate-spin"></i> Sending…</>
-                                  : <><i className="ri-send-plane-line"></i> Send Now</>
-                                }
-                              </button>
-                            )}
-                            {inv.status === 'pending' && (
-                              <button
-                                onClick={() => cancelScheduledInvoice(inv.id)}
-                                className="px-3 py-1.5 text-xs text-rose-500 border border-rose-200 rounded-lg hover:bg-rose-50 cursor-pointer"
-                              >
-                                Cancel Schedule
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
             </div>
           )
         ) : tab === 'proofs' ? (
