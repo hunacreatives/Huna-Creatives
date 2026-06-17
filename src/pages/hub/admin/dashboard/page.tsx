@@ -263,8 +263,10 @@ export default function AdminDashboardPage() {
         const costs = ((p.hub_project_costs as any[]) || []).reduce((s: number, c: any) => s + c.amount, 0);
         const collected = ((p.hub_project_payments as any[]) || []).reduce((s: number, x: any) => s + x.amount, 0);
         netProfitTotal += p.contract_price - costs;
-        contractValueTotal += p.contract_price;
-        collectedTotal += collected;
+        if (p.project_type === 'client') {
+          contractValueTotal += p.contract_price ?? 0;
+          collectedTotal += collected;
+        }
         if (p.status === 'ongoing') {
           activeCount++;
           if (p.deadline && p.deadline < todayStr) {

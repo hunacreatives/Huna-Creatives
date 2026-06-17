@@ -482,6 +482,7 @@ export default function InvoiceLogPage() {
           project_id: inv.project_id,
           amount_requested: inv.balance,
           app_base_url: 'https://hunacreatives.com',
+          existing_invoice_log_id: inv.id,
         },
       });
       if (error || data?.error) {
