@@ -24,6 +24,8 @@ interface InvoiceLog {
   sent_at: string;
   settled: boolean;
   settled_at: string | null;
+  source: 'invoice' | 'payment_reminder';
+  pay_link_token: string | null;
 }
 
 interface InvoiceEditSource {
@@ -232,7 +234,7 @@ export default function InvoiceLogPage() {
   };
 
   const openEditInvoice = async (inv: InvoiceLog) => {
-    if (inv.settled) return;
+    if (inv.settled || inv.source === 'payment_reminder') return;
     setEditingInvoice(inv);
     setEditLoading(true);
     setEditError(null);
@@ -618,8 +620,8 @@ export default function InvoiceLogPage() {
                       className="flex-1 min-w-0 flex items-center gap-3 text-left cursor-pointer"
                       onClick={() => setExpanded(expanded === inv.id ? null : inv.id)}
                     >
-                      <span className="text-xs font-mono font-bold text-[#FF6B35] bg-orange-50 px-2 py-1 rounded flex-shrink-0">
-                        #{inv.invoice_number.padStart(4, '0')}
+                      <span className={`text-xs font-mono font-bold px-2 py-1 rounded flex-shrink-0 ${inv.source === 'payment_reminder' ? 'text-violet-600 bg-violet-50' : 'text-[#FF6B35] bg-orange-50'}`}>
+                        {inv.source === 'payment_reminder' ? 'REMIND' : `#${inv.invoice_number.padStart(4, '0')}`}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{inv.project_name}</p>
@@ -627,7 +629,11 @@ export default function InvoiceLogPage() {
                         <p className="text-xs text-gray-400 hidden sm:block">{inv.sent_to}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-gray-900">{fmt(inv.contract_price)}</p>
+                        {inv.source === 'payment_reminder' && inv.balance != null ? (
+                          <p className="text-sm font-bold text-violet-700">{fmt(inv.balance)}</p>
+                        ) : (
+                          <p className="text-sm font-bold text-gray-900">{fmt(inv.contract_price)}</p>
+                        )}
                         {inv.balance != null && (
                           <p className={`text-xs font-medium ${inv.balance <= 0 ? 'text-emerald-600' : 'text-orange-500'}`}>
                             {inv.balance <= 0 ? 'Paid' : `${fmt(inv.balance)} due`}
@@ -637,6 +643,10 @@ export default function InvoiceLogPage() {
                       {inv.settled ? (
                         <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-shrink-0">
                           <i className="ri-check-double-line"></i> <span className="hidden sm:inline">Settled</span>
+                        </span>
+                      ) : inv.source === 'payment_reminder' ? (
+                        <span className="flex items-center gap-1 text-xs font-medium text-violet-600 bg-violet-50 border border-violet-200 px-2 py-1 rounded-full flex-shrink-0">
+                          <i className="ri-alarm-line"></i> <span className="hidden sm:inline">Reminder</span>
                         </span>
                       ) : (
                         <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full flex-shrink-0">
@@ -656,14 +666,16 @@ export default function InvoiceLogPage() {
                           <i className="ri-check-double-line"></i>
                           <span className="hidden sm:inline">Settle</span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => void openEditInvoice(inv)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-sky-600 border border-sky-200 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer flex-shrink-0"
-                        >
-                          <i className="ri-edit-line"></i>
-                          <span className="hidden sm:inline">Re-edit</span>
-                        </button>
+                        {inv.source !== 'payment_reminder' && (
+                          <button
+                            type="button"
+                            onClick={() => void openEditInvoice(inv)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs text-sky-600 border border-sky-200 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer flex-shrink-0"
+                          >
+                            <i className="ri-edit-line"></i>
+                            <span className="hidden sm:inline">Re-edit</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -708,9 +720,22 @@ export default function InvoiceLogPage() {
                           <p className={`font-semibold ${(inv.balance ?? 1) <= 0 ? 'text-emerald-600' : 'text-orange-500'}`}>{inv.balance != null && inv.balance <= 0 ? 'Paid ✓' : fmt(inv.balance)}</p>
                         </div>
                       </div>
+                      {inv.source === 'payment_reminder' && inv.pay_link_token && (
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Client Payment Link</p>
+                          <a
+                            href={`/pay/${inv.pay_link_token}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-violet-600 border border-violet-200 rounded-lg hover:bg-violet-50 transition-colors"
+                          >
+                            <i className="ri-external-link-line"></i> Open pay page
+                          </a>
+                        </div>
+                      )}
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs text-gray-400">
-                          Payments history {inv.show_payments ? 'shown' : 'hidden'} · Sent {fmtDateTime(inv.sent_at)}
+                          {inv.source === 'payment_reminder' ? 'Reminder' : `Payments history ${inv.show_payments ? 'shown' : 'hidden'}`} · Sent {fmtDateTime(inv.sent_at)}
                           {inv.settled && inv.settled_at && <> · <span className="text-emerald-600">Settled {fmtDateTime(inv.settled_at)}</span></>}
                         </p>
                         <div className="flex items-center gap-2">

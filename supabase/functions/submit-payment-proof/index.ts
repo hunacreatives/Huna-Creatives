@@ -41,6 +41,38 @@ async function notifySlack(clientName: string, projectName: string, channel: str
   }));
 }
 
+async function uploadToDrive(file: File, clientName: string): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const base64Content = btoa(binary);
+
+  const year = String(new Date().getFullYear());
+  const safeClient = clientName.replace(/[^a-zA-Z0-9 _-]/g, '').trim() || 'Client';
+  const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
+  const filename = `${safeClient} - Payment Proof - ${Date.now()}.${ext || 'jpg'}`;
+
+  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/upload-to-drive`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+    },
+    body: JSON.stringify({
+      filename,
+      mimeType: file.type || 'image/jpeg',
+      base64Content,
+      type: 'payment_proof',
+      meta: { year, client_name: safeClient },
+    }),
+  });
+
+  const data = await res.json();
+  if (!data.success || !data.url) throw new Error(data.error || 'Drive upload failed');
+  return data.url;
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -79,18 +111,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Proof of payment has already been submitted for this invoice.' }), { status: 200, headers: cors });
     }
 
-    const ext = proof.name.includes('.') ? proof.name.split('.').pop() : 'jpg';
-    const safeExt = (ext || 'jpg').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
-    const path = `${link.id}/${Date.now()}.${safeExt}`;
-    const { error: uploadError } = await supabase.storage
-      .from('payment-proofs')
-      .upload(path, proof, { upsert: true, contentType: proof.type || undefined });
-
-    if (uploadError) {
-      return new Response(JSON.stringify({ error: uploadError.message }), { status: 200, headers: cors });
+    // Upload to Google Drive instead of Supabase Storage
+    let proofUrl: string;
+    try {
+      proofUrl = await uploadToDrive(proof, link.client_name);
+    } catch (err) {
+      return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });
     }
 
-    const { data: publicUrlData } = supabase.storage.from('payment-proofs').getPublicUrl(path);
     const amount = amountRaw ? parseFloat(amountRaw) : null;
 
     const { error: insertError } = await supabase.from('hub_payment_proof_submissions').insert({
@@ -105,7 +133,7 @@ Deno.serve(async (req) => {
       amount: Number.isFinite(amount as number) ? amount : null,
       reference_number: referenceNumber || null,
       notes: notes || null,
-      proof_url: publicUrlData.publicUrl,
+      proof_url: proofUrl,
     });
 
     if (insertError) {
@@ -119,7 +147,7 @@ Deno.serve(async (req) => {
 
     notifySlack(link.client_name, link.project_name, paymentChannel, Number.isFinite(amount as number) ? amount : null).catch(() => {});
 
-    return new Response(JSON.stringify({ ok: true, proof_url: publicUrlData.publicUrl }), { headers: cors });
+    return new Response(JSON.stringify({ ok: true, proof_url: proofUrl }), { headers: cors });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });
   }

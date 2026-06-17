@@ -23,6 +23,7 @@ Deno.serve(async (req) => {
       notes,
       total_paid,
       contract_price,
+      pay_token,
     } = await req.json();
 
     if (!to || !client_name || !project_name) {
@@ -110,6 +111,18 @@ Deno.serve(async (req) => {
               <div style="margin-top:6px;height:4px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
                 <div style="height:4px;background:#059669;border-radius:999px;width:${Math.min(Math.round((totalPaidSoFar / contractTotal) * 100), 100)}%;"></div>
               </div>
+            </td>
+          </tr>` : ''}
+
+          ${pay_token ? `
+          <!-- Submit proof button -->
+          <tr>
+            <td style="padding:24px 40px 0;text-align:center;">
+              <a href="https://hunacreatives.com/pay/${pay_token}" target="_blank"
+                style="display:inline-block;background:#FF6B35;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:12px;">
+                Submit Proof of Payment →
+              </a>
+              <p style="margin:10px 0 0;font-size:11px;color:#9ca3af;">Tap above after paying to send us your receipt</p>
             </td>
           </tr>` : ''}
 
