@@ -40,6 +40,13 @@ interface Questionnaire {
   intro_message: string | null;
   submitted_at: string | null;
   created_at: string;
+  project_id?: number | null;
+}
+
+interface Project {
+  id: number;
+  project_name: string;
+  client_name: string;
 }
 
 // ─── Service templates ────────────────────────────────────────────────────────
@@ -272,6 +279,8 @@ export default function QuestionnairesPage() {
 
   const [sending, setSending] = useState<number | null>(null);
   const [sendMsg, setSendMsg] = useState<Record<number, string>>({});
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [linking, setLinking] = useState(false);
 
   const fetchAll = async () => {
     const { data } = await supabase
@@ -282,7 +291,23 @@ export default function QuestionnairesPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  const fetchProjects = async () => {
+    const { data } = await supabase
+      .from('hub_projects')
+      .select('id, project_name, client_name')
+      .in('status', ['ongoing', 'paused'])
+      .order('client_name', { ascending: true });
+    setProjects((data as Project[]) ?? []);
+  };
+
+  useEffect(() => { fetchAll(); fetchProjects(); }, []);
+
+  const linkToProject = async (qId: number, projectId: number | null) => {
+    setLinking(true);
+    await supabase.from('hub_questionnaires').update({ project_id: projectId }).eq('id', qId);
+    setList(prev => prev.map(q => q.id === qId ? { ...q, project_id: projectId } : q));
+    setLinking(false);
+  };
 
   const activeQ = list.find(q => q.id === activeId) ?? null;
 
@@ -454,6 +479,43 @@ export default function QuestionnairesPage() {
                   <p className="text-xs text-gray-500 italic">{activeQ.intro_message}</p>
                 </div>
               )}
+
+              {/* Link to project */}
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
+                <i className="ri-links-line text-gray-300 text-sm flex-shrink-0"></i>
+                {activeQ.project_id ? (
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <i className="ri-folder-line text-[#FF6B35] text-xs"></i>
+                    <span className="text-xs text-gray-700 truncate font-medium">
+                      {projects.find(p => p.id === activeQ.project_id)?.project_name ?? 'Project'}
+                    </span>
+                    <span className="text-xs text-gray-400 truncate hidden sm:inline">
+                      · {projects.find(p => p.id === activeQ.project_id)?.client_name}
+                    </span>
+                    <button
+                      onClick={() => linkToProject(activeQ.id, null)}
+                      disabled={linking}
+                      className="ml-auto text-[11px] text-gray-400 hover:text-rose-400 cursor-pointer disabled:opacity-40 flex-shrink-0"
+                    >
+                      Unlink
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <select
+                      defaultValue=""
+                      disabled={linking}
+                      onChange={e => e.target.value && linkToProject(activeQ.id, Number(e.target.value))}
+                      className="flex-1 text-xs px-2 py-1 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] min-w-0 text-gray-500 cursor-pointer disabled:opacity-40"
+                    >
+                      <option value="" disabled>Link to a project…</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.client_name} — {p.project_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Responses or Questions preview */}

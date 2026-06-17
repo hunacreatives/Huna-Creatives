@@ -153,6 +153,8 @@ interface ProjectActivity {
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
 }
 
+interface WsQuestionnaireRow { id: number; client_name: string; service_type: string; status: string; submitted_at: string | null; questions: { id: string; label: string; type: string; required?: boolean }[]; answers: Record<string, string | string[]> | null; }
+
 function normalizeTaskActivityDescription(row: { actor_name: string; type: string; description: string; task_title?: string | null }) {
   const title = row.task_title ? `"${row.task_title}"` : 'this task';
   switch (row.type) {
@@ -353,6 +355,10 @@ export default function AdminProjectsPage() {
 
   // Activity
   const [activity, setActivity] = useState<ProjectActivity[]>([]);
+
+  // Workspace questionnaires
+  const [wsQuestionnaires, setWsQuestionnaires] = useState<WsQuestionnaireRow[]>([]);
+  const [wsQModal, setWsQModal] = useState<WsQuestionnaireRow | null>(null);
 
   // Workspace overlay
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
@@ -1534,8 +1540,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   }, [filtered, activeId]);
 
   useEffect(() => {
-    if (activeId && !isDemo) fetchTasks(activeId);
-    else if (!activeId) { setTasks([]); setActivity([]); setCommentCounts({}); }
+    if (activeId && !isDemo) {
+      fetchTasks(activeId);
+      supabase.from('hub_questionnaires').select('id, client_name, service_type, status, submitted_at, questions, answers').eq('project_id', activeId).order('created_at', { ascending: false })
+        .then(({ data }) => setWsQuestionnaires((data as WsQuestionnaire[]) ?? []));
+    }
+    else if (!activeId) { setTasks([]); setActivity([]); setCommentCounts({}); setWsQuestionnaires([]); }
     if (openWorkspaceOnLoad.current) { setWorkspaceOpen(true); openWorkspaceOnLoad.current = false; }
     else { setWorkspaceOpen(false); }
     setOpenSections({});
@@ -2568,6 +2578,32 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     </div>
                   )}
 
+                  {/* Questionnaires card */}
+                  {wsQuestionnaires.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                      <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Questionnaires</p>
+                      <div className="space-y-2">
+                        {wsQuestionnaires.map(q => (
+                          <button key={q.id} onClick={() => setWsQModal(q)}
+                            className="w-full text-left rounded-xl border border-gray-100 p-3 hover:border-[#FF6B35]/40 hover:bg-orange-50/40 transition-all cursor-pointer">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-gray-700 truncate">{q.client_name}</p>
+                                <p className="text-[11px] text-gray-400 truncate">{q.service_type}</p>
+                              </div>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${q.status === 'submitted' ? 'bg-emerald-100 text-emerald-700' : q.status === 'sent' ? 'bg-sky-100 text-sky-700' : 'bg-gray-100 text-gray-500'}`}>
+                                {q.status === 'submitted' ? 'Submitted' : q.status === 'sent' ? 'Sent' : 'Draft'}
+                              </span>
+                            </div>
+                            {q.submitted_at && (
+                              <p className="text-[10px] text-gray-400 mt-1">{new Date(q.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Finance strip card — client + retainer projects */}
                   {!internalProject && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
@@ -2620,6 +2656,53 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           </div>
         );
       })()}
+
+      {/* Questionnaire answers modal */}
+      {wsQModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setWsQModal(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 flex-shrink-0">
+              <div>
+                <h3 className="text-sm font-bold text-[#111827]">{wsQModal.client_name}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{wsQModal.service_type}</p>
+              </div>
+              <button onClick={() => setWsQModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer mt-0.5"><i className="ri-close-line text-lg"></i></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+              {wsQModal.status === 'submitted' && wsQModal.answers ? (
+                wsQModal.questions.map(question => {
+                  const answer = wsQModal.answers![question.id];
+                  const hasAnswer = answer && (Array.isArray(answer) ? answer.length > 0 : String(answer).trim() !== '');
+                  return (
+                    <div key={question.id} className="space-y-1.5">
+                      <p className="text-xs font-medium text-gray-700">{question.label}{question.required && <span className="text-red-400 ml-0.5">*</span>}</p>
+                      {hasAnswer ? (
+                        Array.isArray(answer) ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {answer.map(a => <span key={a} className="text-xs bg-[#FF6B35]/10 text-[#FF6B35] px-2 py-0.5 rounded-full font-medium">{a}</span>)}
+                          </div>
+                        ) : question.type === 'file_upload' && (answer as string).startsWith('http') ? (
+                          <a href={answer as string} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm text-[#FF6B35] hover:underline bg-orange-50 rounded-lg px-3 py-2">
+                            <i className="ri-external-link-line text-xs"></i> View file →
+                          </a>
+                        ) : (
+                          <p className="text-sm text-[#111827] bg-gray-50 rounded-lg px-3 py-2">{answer}</p>
+                        )
+                      ) : (
+                        <p className="text-xs text-gray-300 italic">No answer</p>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-8">No responses yet — questionnaire is {wsQModal.status}.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {!workspaceOpen && (
       <div className="space-y-4">
 
