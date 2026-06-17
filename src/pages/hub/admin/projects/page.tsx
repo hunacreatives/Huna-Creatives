@@ -766,6 +766,12 @@ export default function AdminProjectsPage() {
       const { data, error } = await supabase.from('hub_projects').insert(payload).select('id').single();
       if (error) { setFormError(error.message); setFormSaving(false); return; }
       logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'project', description: `Created ${isRetainer ? 'retainer' : isInternal ? 'internal' : 'client'} project "${form.project_name}"` });
+      // Auto-create Google Drive folder (fire and forget — don't block save)
+      if (data && !(payload as any).drive_url) {
+        supabase.functions.invoke('create-project-drive-folder', {
+          body: { project_id: data.id, client_name: payload.client_name, project_name: payload.project_name },
+        }).catch(() => {});
+      }
       // Auto-assign the creator (owner/admin) to the new project
       if (data && hubUser?.id) {
         await supabase.from('hub_project_contractors').insert({

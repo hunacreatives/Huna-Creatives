@@ -1283,6 +1283,7 @@ export default function ContractorProjectsPage() {
             fixed_amount: pc.fixed_amount,
             payout_status: pc.payout_status,
             paid_at: pc.paid_at,
+            exclude_from_payout: !!pc.exclude_from_payout,
             hub_project_contractor_payouts: payoutsByPc[pc.id] ?? [],
             hub_projects: {
               ...project,
