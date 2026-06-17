@@ -617,7 +617,7 @@ export default function TaskDetailPanel({
                 link: taskLink,
                 read: false,
               }))
-            ).catch(() => {});
+            ).then(() => {}).catch(() => {});
           }
         }
 
