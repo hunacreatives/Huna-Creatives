@@ -112,6 +112,7 @@ interface Project {
     id: number; percentage: number; payout_type: string; fixed_amount: number | null;
     payout_status: string; paid_at: string | null; notes: string | null;
     project_role?: string | null;
+    exclude_from_payout: boolean;
     hub_users: { id: string; full_name: string; avatar_url: string | null; email: string | null };
     hub_project_contractor_payouts: ContractorPayout[];
   }[];
@@ -651,7 +652,7 @@ export default function AdminProjectsPage() {
   const fetchAll = async () => {
     const [pRes, cRes, clientRes] = await Promise.all([
       supabase.from('hub_projects')
-        .select('*, hub_project_payments(id, amount, paid_at, notes, receipt_url), hub_project_costs(id, label, amount, date), hub_payment_reminders(id, send_date, amount_due, notes, status, sent_at), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
+        .select('*, hub_project_payments(id, amount, paid_at, notes, receipt_url), hub_project_costs(id, label, amount, date), hub_payment_reminders(id, send_date, amount_due, notes, status, sent_at), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, exclude_from_payout, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
@@ -1062,6 +1063,11 @@ export default function AdminProjectsPage() {
 
   const removeContractor = async (id: number) => {
     await supabase.from('hub_project_contractors').delete().eq('id', id);
+    fetchAll();
+  };
+
+  const toggleExcludeFromPayout = async (pcId: number, current: boolean) => {
+    await supabase.from('hub_project_contractors').update({ exclude_from_payout: !current }).eq('id', pcId);
     fetchAll();
   };
 
@@ -3777,7 +3783,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         [pc.id]: { ...configForm, ...patch },
                       }));
                       const isFixed = pc.payout_type === 'fixed';
-                      const hasConfiguredPayout = isFixed ? (pc.fixed_amount ?? 0) > 0 : pc.percentage > 0;
+                      const excluded = !!pc.exclude_from_payout;
+                      const hasConfiguredPayout = !excluded && (isFixed ? (pc.fixed_amount ?? 0) > 0 : pc.percentage > 0);
                       const cut = hasConfiguredPayout ? (isFixed ? (pc.fixed_amount ?? 0) : d.netProfit * (pc.percentage / 100)) : 0;
                       const totalPaidOut = pc.hub_project_contractor_payouts.reduce((s, x) => s + x.amount, 0);
                       const paidPct = cut > 0 ? Math.min((totalPaidOut / cut) * 100, 100) : 0;
@@ -3806,7 +3813,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                 ) : (
                                   <span className="text-xs text-gray-400">{pc.percentage}% → <strong className="text-[#111827]">{fmt(cut)}</strong></span>
                                 )}
-                                {!internalProject && hasConfiguredPayout && (isFullyPaid
+                                {!internalProject && excluded && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 font-medium">No payout</span>
+                                )}
+                                {!internalProject && !excluded && hasConfiguredPayout && (isFullyPaid
                                   ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Paid in full</span>
                                   : totalPaidOut > 0
                                     ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{fmt(totalPaidOut)} paid</span>
@@ -3819,10 +3829,19 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                 </div>
                               )}
                             </div>
+                            {!internalProject && (
+                              <button
+                                onClick={() => toggleExcludeFromPayout(pc.id, excluded)}
+                                title={excluded ? 'Click to include in payout' : 'Exclude from payout'}
+                                className={`text-xs px-2 py-1 rounded-lg border cursor-pointer transition-colors flex-shrink-0 ${excluded ? 'border-gray-200 text-gray-400 bg-gray-50 hover:bg-white' : 'border-gray-200 text-gray-400 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50'}`}
+                              >
+                                {excluded ? <><i className="ri-eye-line mr-1"></i>Include</> : <><i className="ri-eye-off-line mr-1"></i>Exclude</>}
+                              </button>
+                            )}
                             <button onClick={() => removeContractor(pc.id)} className="text-gray-300 hover:text-rose-400 cursor-pointer flex-shrink-0"><i className="ri-delete-bin-line text-xs"></i></button>
                           </div>
 
-                          {!internalProject && <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
+                          {!internalProject && !excluded && <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
                             <div className="flex items-center justify-between gap-2 flex-wrap">
                               <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Payout Setup</p>
                               <span className="text-[11px] text-gray-400">Net profit basis: <strong className="text-emerald-600">{fmt(d.netProfit)}</strong></span>
@@ -3860,7 +3879,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           </div>}
 
                           {/* Payout history */}
-                          {!internalProject && hasConfiguredPayout && pc.hub_project_contractor_payouts.length > 0 && (
+                          {!internalProject && !excluded && hasConfiguredPayout && pc.hub_project_contractor_payouts.length > 0 && (
                             <div className="px-3 py-2 space-y-1.5 border-t border-gray-100">
                               {pc.hub_project_contractor_payouts.map(pp => (
                                 <div key={pp.id} className="flex items-center justify-between gap-2 text-xs">
@@ -3882,7 +3901,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           )}
 
                           {/* Log payout form */}
-                          {!internalProject && hasConfiguredPayout && !isFullyPaid && (
+                          {!internalProject && !excluded && hasConfiguredPayout && !isFullyPaid && (
                             <div className="px-3 py-2.5 border-t border-gray-100 bg-white space-y-2">
                               <div className="flex gap-2">
                                 <div className="flex-1 flex gap-1">
