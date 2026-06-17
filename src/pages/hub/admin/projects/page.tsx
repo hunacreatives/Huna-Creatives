@@ -2672,87 +2672,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       )}
 
       {!workspaceOpen && (
-      <div className="space-y-5">
+      <div className="flex items-stretch gap-5 min-h-screen">
 
-        {/* ── My Tasks ── */}
-        {myTasks.length > 0 && (() => {
-          const today = localToday();
-          const STATUS_OPTIONS = [
-            { value: 'todo',        label: 'To Do',       dot: 'bg-gray-300' },
-            { value: 'in_progress', label: 'In Progress', dot: 'bg-sky-400' },
-            { value: 'in_review',   label: 'In Review',   dot: 'bg-violet-400' },
-            { value: 'blocked',     label: 'Blocked',     dot: 'bg-rose-400' },
-            { value: 'done',        label: 'Done',        dot: 'bg-emerald-400' },
-          ];
-          const updateMyTaskStatus = async (taskId: number, newStatus: string) => {
-            if (newStatus === 'done') {
-              setMyTaskCompleting(taskId);
-              await supabase.from('hub_project_tasks').update({ status: 'done' }).eq('id', taskId);
-              setTimeout(() => {
-                setMyTasks(prev => prev.filter(t => t.id !== taskId));
-                setMyTaskCompleting(null);
-              }, 1800);
-            } else {
-              await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', taskId);
-              setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-            }
-          };
-          return (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">My Tasks</p>
-                <span className="text-[10px] font-bold text-[#FF6B35]">{myTasks.length}</span>
-              </div>
-              <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50">
-                {myTasks.map(t => {
-                  const isOverdue = t.due_date && t.due_date < today;
-                  const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
-                  const priorityAccent: Record<string, string> = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-gray-300' };
-                  const sc = STATUS_OPTIONS.find(s => s.value === t.status) ?? STATUS_OPTIONS[0];
-                  const completing = myTaskCompleting === t.id;
-                  return (
-                    <div key={t.id} className={`flex items-center gap-3 px-4 py-3 transition-all ${completing ? 'bg-emerald-50' : 'hover:bg-gray-50/70'}`}>
-                      <span className={`w-1 h-8 rounded-full flex-shrink-0 ${priorityAccent[t.priority] ?? 'bg-gray-200'}`} />
-                      {completing ? (
-                        <i className="ri-checkbox-circle-fill text-emerald-500 text-lg flex-shrink-0" />
-                      ) : (
-                        <div className="relative flex-shrink-0 group/status">
-                          <button className={`w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0 cursor-pointer ${sc.dot}`} title="Change status" />
-                          <div className="absolute left-0 top-6 z-30 bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[140px] hidden group-hover/status:block">
-                            {STATUS_OPTIONS.map(opt => (
-                              <button key={opt.value} onClick={() => updateMyTaskStatus(t.id, opt.value)}
-                                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer text-left transition-colors ${t.status === opt.value ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${opt.dot}`} />
-                                {opt.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {completing ? (
-                        <p className="flex-1 text-sm font-medium text-emerald-600 line-through">Task completed</p>
-                      ) : (
-                        <button
-                          onClick={() => { const p = projects.find(p => p.id === t.project_id); if (p) { setActiveId(p.id); setWorkspaceOpen(true); setTimeout(() => openTaskDetail({ ...t, description: null, assigned_to: null, assignee_ids: null, sort_order: 0, color: null, start_date: null, archived: false, archived_at: null, attachments: null, project_id: t.project_id } as any), 400); } }}
-                          className="flex-1 min-w-0 text-left cursor-pointer group"
-                        >
-                          <p className="text-sm font-medium text-gray-800 truncate">{t.title}</p>
-                          <p className="text-[11px] text-gray-400 truncate mt-0.5">{t.project_name}{t.client_name ? ` · ${t.client_name}` : ''}</p>
-                        </button>
-                      )}
-                      {!completing && t.due_date && (
-                        <span className={`text-[11px] font-medium flex-shrink-0 ${isOverdue ? 'text-rose-500' : daysLeft === 0 ? 'text-amber-500' : 'text-gray-400'}`}>
-                          {isOverdue ? `${Math.abs(daysLeft!)}d overdue` : daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      )}
-                      {!completing && <i className="ri-arrow-right-s-line text-gray-200 text-base flex-shrink-0" />}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
+        {/* ── Left: projects list ── */}
+        <div className="flex-1 min-w-0 space-y-3">
 
         <section className="space-y-3">
 
@@ -2904,8 +2827,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 {/* ── One-time Projects ── */}
                 {filtered.length > 0 && (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2.5">Projects <span className="font-normal text-gray-300 ml-0.5">{filtered.length}</span></p>
-                    <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50/80">
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Projects</p>
+                      <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{filtered.length}</span>
+                    </div>
+                    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
                       {(activeId ? filtered.filter(p => p.id === activeId) : filtered).map(p => {
                         const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                         const dl = deadlineStatus(p.deadline, p.status);
@@ -2914,33 +2840,41 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         const pal = getServicePalette(p.service);
                         const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                         const isSelected = activeId === p.id;
-                        const badge = dl ?? cfg;
+                        const badge = dl ?? (p.status !== 'ongoing' ? cfg : null);
                         return (
                           <button key={p.id}
                             onClick={() => { setActiveClientId(null); setActiveId(prev => prev === p.id ? null : p.id); }}
-                            className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-colors group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/80'}`}>
-                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-4 ring-white" style={{ background: pal.from }} />
+                            className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/60'}`}>
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                              style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
+                              <span className="text-[13px] font-bold text-white">{p.project_name.charAt(0).toUpperCase()}</span>
+                            </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-[#111827] truncate">{p.project_name}</p>
+                              <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
                               <p className="text-xs text-gray-400 truncate mt-0.5">{p.project_type === 'internal' ? 'Internal' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                             </div>
                             <div className="hidden sm:flex -space-x-2 flex-shrink-0">
                               {team.slice(0, 4).map((u: any, i: number) => (
                                 u?.avatar_url
                                   ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white shadow-sm" />
-                                  : <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
+                                  : <div key={i} className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
                               ))}
+                              {team.length === 0 && <div className="w-7 h-7 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center"><i className="ri-user-line text-[9px] text-gray-300"></i></div>}
                             </div>
                             {pTasks.length > 0 && (
-                              <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0">
-                                <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${Math.round((pTasksDone / pTasks.length) * 100)}%` }} />
+                              <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+                                <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((pTasksDone / pTasks.length) * 100)}%`, background: pal.from }} />
                                 </div>
-                                <span className="text-[11px] text-gray-400">{pTasksDone}/{pTasks.length}</span>
+                                <span className="text-[11px] text-gray-400 w-8">{pTasksDone}/{pTasks.length}</span>
                               </div>
                             )}
-                            <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${badge.cls}`}>{badge.label}</span>
-                            <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-600 transition-colors text-lg flex-shrink-0" />
+                            {badge ? (
+                              <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${badge.cls}`}>{badge.label}</span>
+                            ) : (
+                              <span className="text-[11px] text-gray-400 flex-shrink-0">Active</span>
+                            )}
+                            <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
                           </button>
                         );
                       })}
@@ -2969,33 +2903,40 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   if (totalCount === 0) return null;
                   return (
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2.5">Retainer Clients <span className="font-normal text-gray-300 ml-0.5">{totalCount}</span></p>
-                      <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50/80">
+                      <div className="flex items-center gap-2 mb-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Retainer Clients</p>
+                        <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{totalCount}</span>
+                      </div>
+                      <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
                         {(activeId ? sortedRetainers.filter(p => p.id === activeId) : sortedRetainers).map(p => {
                           const pal = getServicePalette(p.service);
                           const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                           const isSelected = activeId === p.id;
                           return (
                             <button key={p.id} onClick={() => { setActiveClientId(null); setActiveId(prev => prev === p.id ? null : p.id); }}
-                              className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-colors group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/80'}`}>
-                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-4 ring-white" style={{ background: pal.from }} />
+                              className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/60'}`}>
+                              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                                style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
+                                <span className="text-[13px] font-bold text-white">{p.project_name.charAt(0).toUpperCase()}</span>
+                              </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-[#111827] truncate">{p.project_name}</p>
+                                <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
                                 <p className="text-xs text-gray-400 truncate mt-0.5">{p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                               </div>
                               <div className="hidden sm:flex -space-x-2 flex-shrink-0">
                                 {team.slice(0, 4).map((u: any, i: number) => (
                                   u?.avatar_url
                                     ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white shadow-sm" />
-                                    : <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
+                                    : <div key={i} className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
                                 ))}
+                                {team.length === 0 && <div className="w-7 h-7 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center"><i className="ri-user-line text-[9px] text-gray-300"></i></div>}
                               </div>
                               {isOwner && p.monthly_rate ? (
-                                <span className="text-xs font-semibold text-gray-700 flex-shrink-0">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
+                                <span className="text-xs font-semibold text-gray-700 tabular-nums flex-shrink-0">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}<span className="text-[10px] font-normal text-gray-400">/mo</span></span>
                               ) : (
-                                <span className="text-xs text-gray-400 flex-shrink-0">Retainer</span>
+                                <span className="text-[11px] text-gray-400 flex-shrink-0">Retainer</span>
                               )}
-                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-600 transition-colors text-lg flex-shrink-0" />
+                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
                             </button>
                           );
                         })}
@@ -3003,21 +2944,24 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           const pal = getServicePalette(c.platform);
                           return (
                             <button key={c.id} onClick={() => openClientWorkspace(c)} disabled={openingWorkspace}
-                              className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors group cursor-pointer hover:bg-gray-50/80">
-                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-4 ring-white" style={{ background: pal.from }} />
+                              className="w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer hover:bg-gray-50/60">
+                              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                                style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
+                                <span className="text-[13px] font-bold text-white">{c.client_name.charAt(0).toUpperCase()}</span>
+                              </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-[#111827] truncate">{c.client_name}</p>
+                                <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{c.client_name}</p>
                                 <p className="text-xs text-gray-400 truncate mt-0.5">{c.platform ?? 'Client'}{c.notes ? ` · ${c.notes}` : ''}</p>
                               </div>
                               <div className="hidden sm:flex -space-x-2 flex-shrink-0">
                                 {c.assignments.slice(0, 4).map((a, i) => (
                                   a.hub_users?.avatar_url
                                     ? <img key={i} src={a.hub_users.avatar_url} alt={a.hub_users.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white shadow-sm" />
-                                    : <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{a.hub_users?.full_name?.[0]}</div>
+                                    : <div key={i} className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{a.hub_users?.full_name?.[0]}</div>
                                 ))}
                               </div>
-                              <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${c.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{c.status}</span>
-                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-600 transition-colors text-lg flex-shrink-0" />
+                              <span className="text-[11px] text-gray-400 capitalize flex-shrink-0">{c.status}</span>
+                              <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
                             </button>
                           );
                         })}
@@ -3897,6 +3841,126 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             </div>
           </div>
         )}
+        </div>{/* end left column */}
+
+        {/* ── Right: My Tasks panel ── */}
+        {myTasks.length > 0 && (() => {
+          const today = localToday();
+          const overdueCount = myTasks.filter(t => t.due_date && t.due_date < today).length;
+          const dateLabel = new Date(today + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' }).toUpperCase();
+          const STATUS_OPTIONS = [
+            { value: 'todo',        label: 'To Do',       dot: 'bg-gray-300' },
+            { value: 'in_progress', label: 'In Progress', dot: 'bg-sky-400' },
+            { value: 'in_review',   label: 'In Review',   dot: 'bg-violet-400' },
+            { value: 'blocked',     label: 'Blocked',     dot: 'bg-rose-400' },
+            { value: 'done',        label: 'Done',        dot: 'bg-emerald-400' },
+          ];
+          const statusIcon = (status: string, completing: boolean) => {
+            if (completing) return <i className="ri-checkbox-circle-fill text-emerald-500 text-xl flex-shrink-0" />;
+            if (status === 'done') return <i className="ri-checkbox-circle-fill text-emerald-400 text-xl flex-shrink-0" />;
+            if (status === 'in_progress') return <i className="ri-loader-4-line animate-spin text-sky-400 text-xl flex-shrink-0" />;
+            if (status === 'blocked') return <i className="ri-close-circle-line text-rose-400 text-xl flex-shrink-0" />;
+            if (status === 'in_review') return <i className="ri-eye-line text-violet-400 text-xl flex-shrink-0" />;
+            return <i className="ri-circle-line text-gray-300 text-xl flex-shrink-0" />;
+          };
+          const updateMyTaskStatus = async (taskId: number, newStatus: string) => {
+            if (newStatus === 'done') {
+              setMyTaskCompleting(taskId);
+              await supabase.from('hub_project_tasks').update({ status: 'done' }).eq('id', taskId);
+              setTimeout(() => {
+                setMyTasks(prev => prev.filter(t => t.id !== taskId));
+                setMyTaskCompleting(null);
+              }, 1800);
+            } else {
+              await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', taskId);
+              setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+            }
+          };
+          return (
+            <div className="hidden lg:flex flex-col w-72 flex-shrink-0 px-3 relative overflow-hidden"
+              style={{
+                marginTop: '-1.5rem',
+                marginBottom: '-6rem',
+                marginRight: '-1.5rem',
+                paddingBottom: '6rem',
+                background: 'rgba(232,237,248,0.30)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                borderLeft: '1px solid rgba(200,210,230,0.35)',
+              }}>
+              {/* ambient color blobs */}
+              <div className="absolute pointer-events-none inset-0 overflow-hidden">
+                <div className="absolute -top-16 -right-16 w-80 h-80 rounded-full opacity-30" style={{ background: 'radial-gradient(circle, #FF6B35 0%, transparent 65%)', filter: 'blur(40px)' }} />
+                <div className="absolute top-16 -left-16 w-72 h-72 rounded-full opacity-25" style={{ background: 'radial-gradient(circle, #f59e0b 0%, transparent 65%)', filter: 'blur(36px)' }} />
+                <div className="absolute top-1/3 right-0 w-72 h-72 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 65%)', filter: 'blur(40px)' }} />
+                <div className="absolute top-1/2 left-0 w-80 h-80 rounded-full opacity-25" style={{ background: 'radial-gradient(circle, #FF6B35 0%, transparent 65%)', filter: 'blur(44px)' }} />
+                <div className="absolute bottom-16 right-0 w-72 h-72 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #f59e0b 0%, transparent 65%)', filter: 'blur(36px)' }} />
+                <div className="absolute -bottom-16 left-8 w-80 h-80 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 65%)', filter: 'blur(44px)' }} />
+              </div>
+              <div className="bg-white/80 rounded-2xl shadow-sm border border-white/60 sticky top-0 mt-4 md:mt-6"
+                style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+                {/* Header */}
+                <div className="px-5 pt-5 pb-4">
+                  <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase mb-1">{dateLabel}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xl font-bold text-[#111827]">My Tasks</p>
+                    {overdueCount > 0 && (
+                      <span className="text-xs font-semibold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex-shrink-0">
+                        {overdueCount} overdue
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Task list */}
+                <div className="px-3 pb-4 space-y-1">
+                  {myTasks.map(t => {
+                    const isOverdue = t.due_date && t.due_date < today;
+                    const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
+                    const completing = myTaskCompleting === t.id;
+                    const isDone = t.status === 'done';
+                    return (
+                      <div key={t.id}
+                        className={`flex items-start gap-3 px-2 py-2.5 rounded-xl transition-all ${completing ? 'bg-emerald-50' : isDone ? 'opacity-40' : 'hover:bg-gray-50'}`}>
+                        <div className="relative flex-shrink-0 group/status mt-0.5">
+                          <button onClick={() => {}} className="cursor-pointer" title="Change status">
+                            {statusIcon(t.status, completing)}
+                          </button>
+                          {!completing && (
+                            <div className="absolute left-0 top-7 z-30 bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[140px] hidden group-hover/status:block">
+                              {STATUS_OPTIONS.map(opt => (
+                                <button key={opt.value} onClick={() => updateMyTaskStatus(t.id, opt.value)}
+                                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer text-left transition-colors ${t.status === opt.value ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${opt.dot}`} />
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {completing ? (
+                          <p className="flex-1 text-sm font-medium text-emerald-600 line-through pt-0.5">Task completed</p>
+                        ) : (
+                          <button
+                            onClick={() => { const p = projects.find(p => p.id === t.project_id); if (p) { setActiveId(p.id); setWorkspaceOpen(true); setTimeout(() => openTaskDetail({ ...t, description: null, assigned_to: null, assignee_ids: null, sort_order: 0, color: null, start_date: null, archived: false, archived_at: null, attachments: null, project_id: t.project_id } as any), 400); } }}
+                            className="flex-1 min-w-0 text-left cursor-pointer"
+                          >
+                            <div className="flex items-start gap-2 flex-wrap">
+                              <p className={`text-sm font-semibold leading-snug ${isDone ? 'line-through text-gray-400' : 'text-[#111827]'}`}>{t.title}</p>
+                              {isOverdue && !isDone && <span className="text-[10px] font-semibold text-rose-500 flex-shrink-0 mt-0.5">Late</span>}
+                            </div>
+                            <p className="text-xs text-gray-400 mt-0.5">{t.project_name}</p>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
       </div>
       )}
 
