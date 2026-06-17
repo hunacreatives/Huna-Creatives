@@ -16,6 +16,7 @@ const navItems = [
   { to: '/hub/admin/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
   { to: '/hub/admin/overtime', label: 'Overtime', icon: 'ri-timer-flash-line' },
   { divider: true, label: 'Finance' },
+  { to: '/hub/admin/revenue', label: 'Revenue', icon: 'ri-line-chart-line' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
   { to: '/hub/admin/projects', label: 'Projects', icon: 'ri-folder-line' },
   { to: '/hub/admin/invoice-log', label: 'Invoice Log', icon: 'ri-bill-line' },

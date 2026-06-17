@@ -217,9 +217,6 @@ export default function AdminProjectsPage() {
   useEffect(() => { getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v))); }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [statsPeriod, setStatsPeriod] = useState<'month' | 'year' | 'all'>('all');
-  const [statsDateFrom, setStatsDateFrom] = useState('');
-  const [statsDateTo, setStatsDateTo] = useState('');
   const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; contract_value: number | null; contract_currency: string | null; assignments: { id: number; contractor_id: string; role: string | null; hub_users: { id: string; full_name: string; avatar_url: string | null; department: string | null } | null }[] }[]>([]);
   const [activeClientId, setActiveClientId] = useState<number | null>(null);
   const [clientForm, setClientForm] = useState({ client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' });
@@ -1502,36 +1499,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     return null;
   };
 
-  const summaryTotals = (() => {
-    const now = new Date();
-    const filterPayment = (paid_at: string) => {
-      if (statsPeriod === 'month') {
-        const m = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        return paid_at.startsWith(m);
-      }
-      if (statsPeriod === 'year') return paid_at.startsWith(String(now.getFullYear()));
-      if (statsPeriod === 'custom') {
-        if (statsDateFrom && paid_at < statsDateFrom) return false;
-        if (statsDateTo && paid_at > statsDateTo) return false;
-      }
-      return true;
-    };
-    let contractValue = 0, costs = 0, collected = 0, mrr = 0;
-    for (const p of projects.filter(p => p.project_type !== 'internal')) {
-      if (p.project_type === 'retainer') {
-        const rate = p.monthly_rate ?? 0;
-        mrr += (p as any).monthly_rate_currency === 'USD' ? rate * usdRate : rate;
-      } else {
-        contractValue += p.contract_price;
-      }
-      costs += p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
-      collected += p.hub_project_payments.filter(x => filterPayment(x.paid_at)).reduce((s, x) => s + x.amount, 0);
-    }
-    const netProfit = contractValue - costs;
-    const collectionPct = contractValue > 0 ? Math.min((collected / contractValue) * 100, 100) : 0;
-    return { contractValue, costs, netProfit, collected, collectionPct, mrr };
-  })();
-
   const statusTabs = [
     { key: 'all' as const, label: 'All', icon: 'ri-apps-2-line', count: projects.length },
     { key: 'ongoing' as const, label: 'Active', icon: 'ri-flashlight-line', count: projects.filter(p => p.status === 'ongoing').length },
@@ -1666,45 +1633,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     { key: 'blocked', label: 'Blocked', icon: 'ri-indeterminate-circle-line', chip: 'bg-rose-100 text-rose-700', empty: 'No blocked work' },
     { key: 'done', label: 'Done', icon: 'ri-checkbox-circle-fill', chip: 'bg-emerald-100 text-emerald-700', empty: 'Nothing completed yet' },
   ];
-
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const firstName = hubUser?.full_name?.split(' ')[0] ?? 'there';
-
-  const monthlyCollections = (() => {
-    const now = new Date();
-    const months: { key: string; label: string; total: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('en-US', { month: 'short' });
-      months.push({ key, label, total: 0 });
-    }
-    for (const p of projects) {
-      for (const pay of p.hub_project_payments) {
-        const k = pay.paid_at.slice(0, 7);
-        const mo = months.find(m => m.key === k);
-        if (mo) mo.total += pay.amount;
-      }
-    }
-    return months;
-  })();
-
-  const serviceBreakdown = (() => {
-    const map: Record<string, number> = {};
-    for (const p of projects.filter(p => p.project_type !== 'internal')) {
-      const key = p.service || 'General';
-      const value = p.project_type === 'retainer'
-        ? ((p as any).monthly_rate_currency === 'USD' ? (p.monthly_rate ?? 0) * usdRate : (p.monthly_rate ?? 0))
-        : p.contract_price;
-      map[key] = (map[key] ?? 0) + value;
-    }
-    const total = Object.values(map).reduce((s, v) => s + v, 0) || 1;
-    return Object.entries(map)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, value]) => ({ name, value, pct: Math.round((value / total) * 100) }));
-  })();
 
   const BoardCard = (task: ProjectTask) => {
     const overdue = !!wsIsOverdue(task);
@@ -2727,108 +2655,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       {!workspaceOpen && (
       <div className="space-y-4">
 
-        {/* Dashboard header */}
-        {!loading && projects.length > 0 && (
-          <div className="space-y-3 pb-2">
-            <div>
-              <h2 className="text-[22px] font-bold text-[#111827]">{greeting}, {firstName}!</h2>
-              <p className="text-sm text-gray-400 mt-0.5">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
-            </div>
-
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <div className="flex gap-1 bg-gray-100 p-0.5 rounded-xl">
-                {(['month', 'year', 'all'] as const).map(p => (
-                  <button key={p} onClick={() => setStatsPeriod(p)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${statsPeriod === p ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                    {p === 'month' ? 'This Month' : p === 'year' ? 'This Year' : 'All Time'}
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setStatsPeriod('custom' as any)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium border cursor-pointer transition-all ${statsPeriod === 'custom' ? 'bg-[#111827] text-white border-[#111827]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                Custom
-              </button>
-              {(statsPeriod as string) === 'custom' && (
-                <div className="flex items-center gap-1.5">
-                  <input type="date" value={statsDateFrom} onChange={e => setStatsDateFrom(e.target.value)}
-                    className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                  <span className="text-xs text-gray-400">to</span>
-                  <input type="date" value={statsDateTo} onChange={e => setStatsDateTo(e.target.value)}
-                    className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
-                </div>
-              )}
-              {(statsPeriod as string) !== 'all' && <p className="text-[11px] text-gray-400 ml-1">Filtering Collected by payment date</p>}
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' }}>
-                <p className="text-[11px] text-blue-200 uppercase tracking-widest font-semibold">Project Value</p>
-                <p className="text-[22px] font-bold text-white mt-1.5 leading-none">{fmt(summaryTotals.contractValue)}</p>
-                <p className="text-xs text-blue-200 mt-1.5">{projects.filter(p => p.project_type === 'client').length} one-time project{projects.filter(p => p.project_type === 'client').length !== 1 ? 's' : ''}</p>
-              </div>
-              {isOwner && (
-                <div className="rounded-2xl p-5" style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)' }}>
-                  <p className="text-[11px] text-violet-200 uppercase tracking-widest font-semibold">Monthly Retainer</p>
-                  <p className="text-[22px] font-bold text-white mt-1.5 leading-none">{fmt(summaryTotals.mrr)}</p>
-                  <p className="text-xs text-violet-200 mt-1.5">{projects.filter(p => p.project_type === 'retainer' && p.status === 'ongoing').length} active client{projects.filter(p => p.project_type === 'retainer' && p.status === 'ongoing').length !== 1 ? 's' : ''}</p>
-                </div>
-              )}
-              <div className="rounded-2xl p-5 bg-white border border-gray-100">
-                <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Active</p>
-                <p className="text-[22px] font-bold text-[#111827] mt-1.5 leading-none">{projects.filter(p => p.status === 'ongoing').length}</p>
-                <p className="text-xs text-gray-400 mt-1.5">Projects + retainers</p>
-              </div>
-              <div className="rounded-2xl p-5 bg-white border border-gray-100">
-                <p className="text-[11px] text-gray-400 uppercase tracking-widest font-semibold">Collected</p>
-                <p className="text-[22px] font-bold text-emerald-600 mt-1.5 leading-none">{fmt(summaryTotals.collected)}</p>
-                <p className="text-xs text-gray-400 mt-1.5">{summaryTotals.collectionPct.toFixed(0)}% of one-time contracts</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-5">
-                <p className="text-sm font-semibold text-[#111827] mb-4">Monthly Collections</p>
-                {(() => {
-                  const maxVal = Math.max(...monthlyCollections.map(m => m.total), 1);
-                  return (
-                    <div className="flex items-end gap-2 h-28">
-                      {monthlyCollections.map(m => (
-                        <div key={m.key} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
-                          <span className="text-[9px] text-gray-400 font-medium">{m.total > 0 ? `₱${(m.total / 1000).toFixed(0)}k` : ''}</span>
-                          <div className="w-full rounded-t-lg transition-all" style={{ height: `${Math.max((m.total / maxVal) * 80, m.total > 0 ? 6 : 2)}px`, background: m.total > 0 ? '#2563eb' : '#e5e7eb' }} />
-                          <span className="text-[10px] text-gray-400">{m.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
-              <div className="bg-white border border-gray-100 rounded-2xl p-5">
-                <p className="text-sm font-semibold text-[#111827] mb-4">By Service</p>
-                {serviceBreakdown.length === 0 ? (
-                  <p className="text-xs text-gray-300 italic">No services set</p>
-                ) : (
-                  <div className="space-y-3">
-                    {serviceBreakdown.map((s, i) => {
-                      const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
-                      return (
-                        <div key={s.name}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[11px] text-gray-600 font-medium truncate">{s.name}</span>
-                            <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0">{s.pct}%</span>
-                          </div>
-                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full transition-all" style={{ width: `${s.pct}%`, background: colors[i % colors.length] }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         <section className="space-y-3">
 
