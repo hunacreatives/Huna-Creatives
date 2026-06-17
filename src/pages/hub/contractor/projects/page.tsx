@@ -810,6 +810,8 @@ export default function ContractorProjectsPage() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [workspaceRow, setWorkspaceRow] = useState<ProjectRow | null>(null);
   const [clientWorkspace, setClientWorkspace] = useState<typeof clientEntries[0] | null>(null);
+  const [wsQuestionnaires, setWsQuestionnaires] = useState<{ id: number; service_type: string; submitted_at: string | null; questions: { id: string; label: string; type: string; required?: boolean }[]; answers: Record<string, string | string[]> }[]>([]);
+  const [wsQModal, setWsQModal] = useState<typeof wsQuestionnaires[0] | null>(null);
   const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done' | 'overdue'>('all');
   const [showArchivedTasks, setShowArchivedTasks] = useState(false);
   const [taskView, setTaskView] = useState<'list' | 'board'>('list');
@@ -1507,6 +1509,15 @@ export default function ContractorProjectsPage() {
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
   // wsTeam must be declared before wsFiltered — wsFiltered references wsTeam
   const [wsTeamDirect, setWsTeamDirect] = useState<TeamMember[]>([]);
+  useEffect(() => {
+    if (!wsProject?.id) { setWsTeamDirect([]); setWsQuestionnaires([]); return; }
+    supabase.from('hub_questionnaires')
+      .select('id, service_type, submitted_at, questions, answers')
+      .eq('project_id', wsProject.id)
+      .eq('status', 'submitted')
+      .order('submitted_at', { ascending: false })
+      .then(({ data }) => setWsQuestionnaires((data as any[]) ?? []));
+  }, [wsProject?.id]);
   useEffect(() => {
     if (!wsProject?.id) { setWsTeamDirect([]); return; }
     // Use SECURITY DEFINER RPC to bypass RLS on hub_project_contractors
@@ -2469,7 +2480,67 @@ export default function ContractorProjectsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Questionnaires */}
+                {wsQuestionnaires.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Questionnaires</p>
+                    <div className="space-y-2">
+                      {wsQuestionnaires.map(q => (
+                        <button key={q.id} onClick={() => setWsQModal(q)}
+                          className="w-full text-left rounded-xl border border-gray-100 p-3 hover:border-[#FF6B35]/40 hover:bg-orange-50/40 transition-all cursor-pointer">
+                          <p className="text-xs font-medium text-gray-700 truncate">{q.service_type}</p>
+                          {q.submitted_at && (
+                            <p className="text-[10px] text-gray-400 mt-0.5">{new Date(q.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Questionnaire answers modal */}
+      {wsQModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setWsQModal(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 flex-shrink-0">
+              <div>
+                <h3 className="text-sm font-bold text-[#111827]">{wsQModal.service_type}</h3>
+                {wsQModal.submitted_at && <p className="text-xs text-gray-400 mt-0.5">Submitted {new Date(wsQModal.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>}
+              </div>
+              <button onClick={() => setWsQModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer mt-0.5"><i className="ri-close-line text-lg"></i></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+              {wsQModal.questions.map(question => {
+                const answer = wsQModal.answers[question.id];
+                const hasAnswer = answer && (Array.isArray(answer) ? answer.length > 0 : String(answer).trim() !== '');
+                return (
+                  <div key={question.id} className="space-y-1.5">
+                    <p className="text-xs font-medium text-gray-700">{question.label}</p>
+                    {hasAnswer ? (
+                      Array.isArray(answer) ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {answer.map(a => <span key={a} className="text-xs bg-[#FF6B35]/10 text-[#FF6B35] px-2 py-0.5 rounded-full font-medium">{a}</span>)}
+                        </div>
+                      ) : question.type === 'file_upload' && (answer as string).startsWith('http') ? (
+                        <a href={answer as string} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-[#FF6B35] hover:underline bg-orange-50 rounded-lg px-3 py-2">
+                          <i className="ri-external-link-line text-xs"></i> View file →
+                        </a>
+                      ) : (
+                        <p className="text-sm text-[#111827] bg-gray-50 rounded-lg px-3 py-2">{answer}</p>
+                      )
+                    ) : (
+                      <p className="text-xs text-gray-300 italic">No answer</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
