@@ -218,6 +218,7 @@ export default function AdminProjectsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [myTasks, setMyTasks] = useState<{ id: number; title: string; status: string; priority: string; due_date: string | null; project_id: number; project_name: string; client_name: string }[]>([]);
+  const [myTaskCompleting, setMyTaskCompleting] = useState<number | null>(null);
   const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; contract_value: number | null; contract_currency: string | null; assignments: { id: number; contractor_id: string; role: string | null; hub_users: { id: string; full_name: string; avatar_url: string | null; department: string | null } | null }[] }[]>([]);
   const [activeClientId, setActiveClientId] = useState<number | null>(null);
   const [clientForm, setClientForm] = useState({ client_name: '', platform: '', status: 'active', notes: '', contract_value: '', contract_currency: 'PHP' });
@@ -2676,8 +2677,25 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         {/* ── My Tasks ── */}
         {myTasks.length > 0 && (() => {
           const today = localToday();
-          const statusDot: Record<string, string> = {
-            todo: 'bg-gray-300', in_progress: 'bg-sky-400', in_review: 'bg-violet-400', blocked: 'bg-rose-400',
+          const STATUS_OPTIONS = [
+            { value: 'todo',        label: 'To Do',       dot: 'bg-gray-300' },
+            { value: 'in_progress', label: 'In Progress', dot: 'bg-sky-400' },
+            { value: 'in_review',   label: 'In Review',   dot: 'bg-violet-400' },
+            { value: 'blocked',     label: 'Blocked',     dot: 'bg-rose-400' },
+            { value: 'done',        label: 'Done',        dot: 'bg-emerald-400' },
+          ];
+          const updateMyTaskStatus = async (taskId: number, newStatus: string) => {
+            if (newStatus === 'done') {
+              setMyTaskCompleting(taskId);
+              await supabase.from('hub_project_tasks').update({ status: 'done' }).eq('id', taskId);
+              setTimeout(() => {
+                setMyTasks(prev => prev.filter(t => t.id !== taskId));
+                setMyTaskCompleting(null);
+              }, 1800);
+            } else {
+              await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', taskId);
+              setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+            }
           };
           return (
             <div>
@@ -2690,25 +2708,45 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   const isOverdue = t.due_date && t.due_date < today;
                   const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
                   const priorityAccent: Record<string, string> = { high: 'bg-rose-400', medium: 'bg-amber-400', low: 'bg-gray-300' };
+                  const sc = STATUS_OPTIONS.find(s => s.value === t.status) ?? STATUS_OPTIONS[0];
+                  const completing = myTaskCompleting === t.id;
                   return (
-                    <button
-                      key={t.id}
-                      onClick={() => { const p = projects.find(p => p.id === t.project_id); if (p) { setActiveId(p.id); setWorkspaceOpen(true); setTimeout(() => openTaskDetail({ ...t, description: null, assigned_to: null, assignee_ids: null, sort_order: 0, color: null, start_date: null, archived: false, archived_at: null, attachments: null, project_id: t.project_id } as any), 400); } }}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50/70 transition-colors text-left cursor-pointer group"
-                    >
+                    <div key={t.id} className={`flex items-center gap-3 px-4 py-3 transition-all ${completing ? 'bg-emerald-50' : 'hover:bg-gray-50/70'}`}>
                       <span className={`w-1 h-8 rounded-full flex-shrink-0 ${priorityAccent[t.priority] ?? 'bg-gray-200'}`} />
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDot[t.status] ?? 'bg-gray-300'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{t.title}</p>
-                        <p className="text-[11px] text-gray-400 truncate mt-0.5">{t.project_name}{t.client_name ? ` · ${t.client_name}` : ''}</p>
-                      </div>
-                      {t.due_date && (
+                      {completing ? (
+                        <i className="ri-checkbox-circle-fill text-emerald-500 text-lg flex-shrink-0" />
+                      ) : (
+                        <div className="relative flex-shrink-0 group/status">
+                          <button className={`w-4 h-4 rounded-full border-2 border-white shadow-sm flex-shrink-0 cursor-pointer ${sc.dot}`} title="Change status" />
+                          <div className="absolute left-0 top-6 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[130px] hidden group-hover/status:block">
+                            {STATUS_OPTIONS.map(opt => (
+                              <button key={opt.value} onClick={() => updateMyTaskStatus(t.id, opt.value)}
+                                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 cursor-pointer text-left transition-colors ${t.status === opt.value ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${opt.dot}`} />
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {completing ? (
+                        <p className="flex-1 text-sm font-medium text-emerald-600 line-through">Task completed</p>
+                      ) : (
+                        <button
+                          onClick={() => { const p = projects.find(p => p.id === t.project_id); if (p) { setActiveId(p.id); setWorkspaceOpen(true); setTimeout(() => openTaskDetail({ ...t, description: null, assigned_to: null, assignee_ids: null, sort_order: 0, color: null, start_date: null, archived: false, archived_at: null, attachments: null, project_id: t.project_id } as any), 400); } }}
+                          className="flex-1 min-w-0 text-left cursor-pointer group"
+                        >
+                          <p className="text-sm font-medium text-gray-800 truncate">{t.title}</p>
+                          <p className="text-[11px] text-gray-400 truncate mt-0.5">{t.project_name}{t.client_name ? ` · ${t.client_name}` : ''}</p>
+                        </button>
+                      )}
+                      {!completing && t.due_date && (
                         <span className={`text-[11px] font-medium flex-shrink-0 ${isOverdue ? 'text-rose-500' : daysLeft === 0 ? 'text-amber-500' : 'text-gray-400'}`}>
                           {isOverdue ? `${Math.abs(daysLeft!)}d overdue` : daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       )}
-                      <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-base" />
-                    </button>
+                      {!completing && <i className="ri-arrow-right-s-line text-gray-200 text-base flex-shrink-0" />}
+                    </div>
                   );
                 })}
               </div>
@@ -2719,35 +2757,49 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         <section className="space-y-3">
 
           {/* ── Toolbar ── */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-xl overflow-x-auto flex-shrink-0">
-              {statusTabs.filter(tab => tab.key !== 'all').map(tab => (
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-xl flex-shrink-0">
+              {statusTabs.filter(t => t.key !== 'all').map(tab => (
                 <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                   {tab.label}
                 </button>
               ))}
             </div>
-            <select value={projectTypeFilter} onChange={e => setProjectTypeFilter(e.target.value as any)}
-              className="px-3 py-1.5 text-xs border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none cursor-pointer">
-              <option value="all">All Types</option>
-              <option value="client">Fixed Contract</option>
-              <option value="internal">Internal</option>
-            </select>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none cursor-pointer">
-              <option value="all">All Services</option>
-              {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
             <div className="flex-1" />
-            <div className="flex rounded-xl border border-gray-200 overflow-hidden flex-shrink-0">
-              <button onClick={() => setPageView('projects')} className={`px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${pageView === 'projects' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}><i className="ri-folder-line text-sm"></i><span className="hidden sm:inline">Projects</span></button>
-              <button onClick={() => { setPageView('tasks'); fetchAllTasks(); }} className={`px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 border-l border-gray-200 ${pageView === 'tasks' ? 'bg-[#111827] text-white' : 'text-gray-500 hover:bg-gray-50'}`}><i className="ri-task-line text-sm"></i><span className="hidden sm:inline">All Tasks</span></button>
-            </div>
-            <button onClick={() => { setEditingProject(null); setForm({ ...emptyForm, project_type: 'retainer' }); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-50 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
-              <i className="ri-add-line text-sm"></i>Add Client
+            <button onClick={() => { setPageView(pageView === 'tasks' ? 'projects' : 'tasks'); if (pageView !== 'tasks') fetchAllTasks(); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border transition-colors cursor-pointer flex-shrink-0 ${pageView === 'tasks' ? 'bg-[#111827] text-white border-[#111827]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+              <i className="ri-task-line text-sm"></i>All Tasks
             </button>
+            <div className="relative group/more flex-shrink-0">
+              <button className="flex items-center justify-center w-8 h-8 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors cursor-pointer">
+                <i className="ri-more-line text-sm"></i>
+              </button>
+              <div className="absolute right-0 top-9 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[160px] hidden group-hover/more:block">
+                <div className="px-3 py-1.5 border-b border-gray-50">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Filter by</p>
+                </div>
+                <div className="px-3 py-2 space-y-1.5">
+                  <select value={projectTypeFilter} onChange={e => setProjectTypeFilter(e.target.value as any)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none cursor-pointer">
+                    <option value="all">All Types</option>
+                    <option value="client">Fixed Contract</option>
+                    <option value="internal">Internal</option>
+                  </select>
+                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none cursor-pointer">
+                    <option value="all">All Services</option>
+                    {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="border-t border-gray-50 pt-1">
+                  <button onClick={() => { setEditingProject(null); setForm({ ...emptyForm, project_type: 'retainer' }); setShowForm(true); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors">
+                    <i className="ri-add-line text-sm"></i>Add Client
+                  </button>
+                </div>
+              </div>
+            </div>
             <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-xl hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
               <i className="ri-add-line text-sm"></i>New Project
