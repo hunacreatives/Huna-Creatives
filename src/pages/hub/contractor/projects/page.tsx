@@ -1935,10 +1935,7 @@ export default function ContractorProjectsPage() {
             className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
             <i className="ri-arrow-left-s-line text-base"></i>
           </button>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-gray-900 truncate leading-tight">{wsProject.project_name}</p>
-            <p className="text-xs text-gray-400 truncate">{wsIsInternal ? 'Internal Project' : wsProject.client_name}{wsProject.service ? ` · ${wsProject.service}` : ''}</p>
-          </div>
+          <p className="text-sm font-bold text-gray-900 truncate leading-tight min-w-0 flex-1">{wsProject.project_name}</p>
           <button
             onClick={() => {
               const slug = wsProject.slug || slugify(wsProject.client_name);
@@ -2157,12 +2154,15 @@ export default function ContractorProjectsPage() {
 
             {/* Questionnaire banner — mobile only, shown when questionnaires exist */}
             {wsQuestionnaires.length > 0 && !wsFocusSection && (
-              <div className="lg:hidden flex gap-2 flex-wrap">
+              <div className="lg:hidden flex flex-col gap-2">
                 {wsQuestionnaires.map(q => (
                   <button key={q.id} onClick={() => setWsQModal(q)}
-                    className="flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-100 rounded-xl text-xs font-medium text-violet-700 cursor-pointer hover:bg-violet-100 transition-colors">
-                    <i className="ri-questionnaire-line text-sm"></i>
-                    {q.service_type}
+                    className="flex items-center justify-between gap-3 w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm">
+                    <div className="flex items-center gap-2.5">
+                      <i className="ri-questionnaire-line text-base text-indigo-500"></i>
+                      <span>{q.service_type} Questionnaire</span>
+                    </div>
+                    <i className="ri-arrow-right-s-line text-base text-gray-400"></i>
                   </button>
                 ))}
               </div>
@@ -2558,8 +2558,8 @@ export default function ContractorProjectsPage() {
 
       {/* Questionnaire answers modal */}
       {wsQModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setWsQModal(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4 pb-16 sm:pb-0" onClick={() => setWsQModal(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[80vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 flex-shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-[#111827]">{wsQModal.service_type}</h3>

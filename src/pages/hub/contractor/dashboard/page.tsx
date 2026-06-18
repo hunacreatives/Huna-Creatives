@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
-import { getPeriods } from '@/lib/formatUtils';
+import { getPeriods, slugify } from '@/lib/formatUtils';
 import { getSetting } from '@/lib/settings';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
@@ -308,7 +308,8 @@ export default function ContractorDashboard() {
   const [teamStatus, setTeamStatus] = useState<SlackTeamRecord[]>([]);
   const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeProjects, setActiveProjects] = useState<{ id: number; project_name: string; client_name: string; service: string | null; status: string; deadline: string | null; tasksDone: number; tasksTotal: number }[]>([]);
+  const [activeProjects, setActiveProjects] = useState<{ id: number; project_name: string; client_name: string; service: string | null; status: string; deadline: string | null; tasksDone: number; tasksTotal: number; project_type: string | null; slug: string | null }[]>([]);
+  const [activeClients, setActiveClients] = useState<{ id: string; name: string; platform: string | null; role: string | null; status: string }[]>([]);
 
   const today = new Date();
   const allPeriods = getPeriods();
@@ -373,7 +374,7 @@ export default function ContractorDashboard() {
       // Fetch active projects
       supabase
         .from('hub_project_contractors')
-        .select('hub_projects(id, project_name, client_name, service, status, deadline)')
+        .select('hub_projects(id, project_name, client_name, service, status, deadline, project_type, slug)')
         .eq('contractor_id', user.id)
         .then(async ({ data }) => {
           const projects = ((data ?? []) as any[])
@@ -384,10 +385,26 @@ export default function ContractorDashboard() {
           const { data: tasks } = await supabase.from('hub_project_tasks').select('project_id, status').in('project_id', projectIds);
           setActiveProjects(projects.map((p: any) => {
             const pts = (tasks ?? []).filter((t: any) => t.project_id === p.id);
-            return { id: p.id, project_name: p.project_name, client_name: p.client_name, service: p.service, status: p.status, deadline: p.deadline, tasksDone: pts.filter((t: any) => t.status === 'done').length, tasksTotal: pts.length };
+            return { id: p.id, project_name: p.project_name, client_name: p.client_name, service: p.service, status: p.status, deadline: p.deadline, project_type: p.project_type ?? null, slug: p.slug ?? null, tasksDone: pts.filter((t: any) => t.status === 'done').length, tasksTotal: pts.length };
           }));
         })
         .catch(() => setActiveProjects([]));
+
+      // Fetch active clients
+      supabase
+        .from('hub_client_assignments')
+        .select('id, role, hub_clients(id, client_name, platform, status)')
+        .eq('contractor_id', user.id)
+        .then(({ data }) => {
+          const clients = ((data ?? []) as any[])
+            .map((a: any) => {
+              const cl = Array.isArray(a.hub_clients) ? a.hub_clients[0] : a.hub_clients;
+              return { id: `assign-${a.id}`, name: cl?.client_name ?? '', platform: cl?.platform ?? null, role: a.role ?? null, status: cl?.status ?? 'active' };
+            })
+            .filter(c => c.name && c.status === 'active');
+          setActiveClients(clients);
+        })
+        .catch(() => setActiveClients([]));
 
       const [attResult, annResult, reqResult, toResult, slackResult, rateRes, payoutRes] = await Promise.all([
         supabase
@@ -735,66 +752,69 @@ export default function ContractorDashboard() {
               </div>
             </div>
 
-            {/* Active Projects */}
-            {activeProjects.length > 0 && (() => {
-              const PALETTE = [
-                { from: '#6366f1', to: '#8b5cf6', light: 'rgba(99,102,241,0.08)', bar: '#6366f1' },
-                { from: '#0ea5e9', to: '#6366f1', light: 'rgba(14,165,233,0.08)', bar: '#0ea5e9' },
-                { from: '#10b981', to: '#0ea5e9', light: 'rgba(16,185,129,0.08)', bar: '#10b981' },
-                { from: '#f59e0b', to: '#ef4444', light: 'rgba(245,158,11,0.08)', bar: '#f59e0b' },
-                { from: '#ec4899', to: '#8b5cf6', light: 'rgba(236,72,153,0.08)', bar: '#ec4899' },
-                { from: '#14b8a6', to: '#6366f1', light: 'rgba(20,184,166,0.08)', bar: '#14b8a6' },
+            {/* Active Projects + My Clients */}
+            {(() => {
+              const getColor = (service: string | null) => {
+                const s = (service ?? '').toLowerCase();
+                if (s.includes('website design'))      return { from: '#6366f1', to: '#8b5cf6' };
+                if (s.includes('website maintenance')) return { from: '#0ea5e9', to: '#6366f1' };
+                if (s.includes('branding'))            return { from: '#ec4899', to: '#f97316' };
+                if (s.includes('graphic'))             return { from: '#f97316', to: '#f59e0b' };
+                if (s.includes('social media'))        return { from: '#10b981', to: '#0ea5e9' };
+                if (s.includes('content'))             return { from: '#14b8a6', to: '#6366f1' };
+                if (s.includes('seo'))                 return { from: '#84cc16', to: '#10b981' };
+                if (s.includes('ads'))                 return { from: '#f59e0b', to: '#ef4444' };
+                if (s.includes('email'))               return { from: '#8b5cf6', to: '#ec4899' };
+                if (s.includes('marketing'))           return { from: '#f97316', to: '#f59e0b' };
+                return                                        { from: '#94a3b8', to: '#64748b' };
+              };
+              const projectItems = activeProjects.filter(p => p.project_type !== 'retainer');
+              const clientItems: { id: string; name: string; sub: string | null; tag: string | null; slug: string | null }[] = [
+                ...activeProjects.filter(p => p.project_type === 'retainer').map(p => ({ id: `p-${p.id}`, name: p.project_name, sub: p.client_name, tag: p.service, slug: p.slug || slugify(p.client_name) })),
+                ...activeClients.map(c => ({ id: c.id, name: c.name, sub: c.platform, tag: c.role, slug: null })),
               ];
               return (
-                <div className="space-y-2.5">
-                  <h3 className="text-sm font-semibold text-[#111827]">Active Projects</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {activeProjects.map((p, idx) => {
-                      const pal = PALETTE[idx % PALETTE.length];
-                      const pct = p.tasksTotal > 0 ? Math.round((p.tasksDone / p.tasksTotal) * 100) : 0;
-                      const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date().getTime()) / 86400000) : null;
-                      const isOverdue = daysLeft !== null && daysLeft < 0;
-                      const isDueSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
-                      return (
-                        <button key={p.id} onClick={() => navigate('/hub/contractor/projects')}
-                          className="text-left rounded-2xl p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer space-y-3 overflow-hidden"
-                          style={{ background: `linear-gradient(135deg, ${pal.light} 0%, rgba(255,255,255,0.9) 100%)`, border: `1px solid rgba(255,255,255,0.8)`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              {p.service && (
-                                <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: pal.from }}>{p.service}</p>
-                              )}
-                              <p className="font-bold text-gray-900 text-sm leading-snug truncate">{p.project_name}</p>
-                              <p className="text-xs text-gray-400 truncate mt-0.5">{p.client_name}</p>
-                            </div>
-                            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
-                              <i className="ri-folder-line text-white text-sm"></i>
-                            </div>
-                          </div>
-                          {p.tasksTotal > 0 ? (
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between text-[11px]">
-                                <span className="text-gray-500">{p.tasksDone}/{p.tasksTotal} tasks</span>
-                                <span className="font-bold" style={{ color: pct === 100 ? '#10b981' : pal.from }}>{pct}%</span>
-                              </div>
-                              <div className="h-1.5 bg-black/5 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? '#10b981' : `linear-gradient(90deg, ${pal.from}, ${pal.to})` }} />
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-[11px] text-gray-400 italic">No tasks yet</p>
-                          )}
-                          {daysLeft !== null && (
-                            <p className={`text-[11px] font-semibold ${isOverdue ? 'text-rose-500' : isDueSoon ? 'text-amber-600' : 'text-gray-400'}`}>
-                              {isOverdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
-                              {p.deadline && !isOverdue && ` · ${new Date(p.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                            </p>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <>
+                  {projectItems.length > 0 && (
+                    <div className="space-y-2.5">
+                      <h3 className="text-sm font-semibold text-[#111827]">Active Projects</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {projectItems.map((p) => {
+                          const pal = getColor(p.service);
+                          const light = pal.from + '14';
+                          const pct = p.tasksTotal > 0 ? Math.round((p.tasksDone / p.tasksTotal) * 100) : 0;
+                          const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date().getTime()) / 86400000) : null;
+                          const isOverdue = daysLeft !== null && daysLeft < 0;
+                          const isDueSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
+                          return (
+                            <button key={p.id} onClick={() => navigate(`/hub/contractor/project/${p.slug || slugify(p.client_name)}`)}
+                              className="text-left rounded-2xl p-3.5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer space-y-1 overflow-hidden h-full flex flex-col justify-center"
+                              style={{ background: `linear-gradient(135deg, ${light} 0%, rgba(255,255,255,0.9) 100%)`, border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                              <p className="font-semibold text-gray-900 text-sm truncate">{p.project_name}</p>
+                              <p className="text-xs text-gray-400 truncate">{p.client_name}</p>
+                              {p.service && <p className="text-[11px] font-medium truncate" style={{ color: pal.from }}>{p.service}</p>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {clientItems.length > 0 && (
+                    <div className="space-y-2.5">
+                      <h3 className="text-sm font-semibold text-[#111827]">My Clients</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {clientItems.map((c) => (
+                          <button key={c.id} onClick={() => navigate(c.slug ? `/hub/contractor/project/${c.slug}` : '/hub/contractor/projects')}
+                            className="text-left rounded-2xl p-3.5 bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all cursor-pointer space-y-1 overflow-hidden h-full flex flex-col justify-center">
+                            <p className="font-semibold text-gray-900 text-sm truncate">{c.name}</p>
+                            {c.sub && <p className="text-xs text-gray-400 truncate">{c.sub}</p>}
+                            {c.tag && <p className="text-[11px] text-[#FF6B35] font-medium truncate">{c.tag}</p>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               );
             })()}
 
@@ -884,7 +904,7 @@ export default function ContractorDashboard() {
           <div className="space-y-4">
 
             {/* World Clock */}
-            <div className="bg-white border border-gray-100 rounded-xl p-4">
+            <div className="hidden sm:block bg-white border border-gray-100 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-6 h-6 bg-[#111827] rounded-md flex items-center justify-center flex-shrink-0">
                   <i className="ri-earth-line text-white text-xs"></i>

@@ -8,7 +8,7 @@ import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { getSetting } from '@/lib/settings';
 import { getPeriods } from '@/lib/formatUtils';
 import { DEMO_ATTENDANCE, DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_INVOICES, DEMO_DASHBOARD } from '@/lib/demoData';
-import { mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { mergeLiveAttendanceIntoDailyHours, fetchPayrollTotal } from '@/lib/payrollUtils';
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -226,7 +226,15 @@ export default function AdminDashboardPage() {
         supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
       ]);
       const cacheResult = await supabase.from('hub_payroll_cache').select('computed_total').eq('period_start', cutoffStart).maybeSingle();
-      const payrollTotal = cacheResult.data?.computed_total != null ? Number(cacheResult.data.computed_total) : 0;
+      let payrollTotal = cacheResult.data?.computed_total != null ? Number(cacheResult.data.computed_total) : null;
+      if (payrollTotal === null) {
+        const usdRate = parseFloat(usdRateStr) || 56;
+        payrollTotal = await fetchPayrollTotal(cutoffStart, cutoffEnd, usdRate);
+        supabase.from('hub_payroll_cache').upsert(
+          { period_start: cutoffStart, computed_total: payrollTotal, updated_at: new Date().toISOString() },
+          { onConflict: 'period_start' }
+        ).then(() => {});
+      }
 
       if (!slackResult.error && slackResult.data?.attendance) {
         setAttendance(slackResult.data.attendance);
