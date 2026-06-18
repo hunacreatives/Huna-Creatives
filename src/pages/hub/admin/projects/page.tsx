@@ -1908,6 +1908,22 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 ))}
               </div>
 
+              {/* Questionnaire quick-access — mobile only */}
+              {wsQuestionnaires.filter(q => q.status === 'submitted').length > 0 && (
+                <div className="lg:hidden flex flex-col gap-2">
+                  {wsQuestionnaires.filter(q => q.status === 'submitted').map(q => (
+                    <button key={q.id} onClick={() => setWsQModal(q)}
+                      className="flex items-center justify-between gap-3 w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm">
+                      <div className="flex items-center gap-2.5">
+                        <i className="ri-questionnaire-line text-base text-indigo-500"></i>
+                        <span>{q.service_type} Questionnaire</span>
+                      </div>
+                      <i className="ri-arrow-right-s-line text-base text-gray-400"></i>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* ── Calendar / Timeline ── */}
               <div id="ws-timeline">
                 <GanttTimeline
@@ -2629,8 +2645,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
       {/* Questionnaire answers modal */}
       {wsQModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setWsQModal(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4 pb-16 sm:pb-0" onClick={() => setWsQModal(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[80vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 flex-shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-[#111827]">{wsQModal.client_name}</h3>
