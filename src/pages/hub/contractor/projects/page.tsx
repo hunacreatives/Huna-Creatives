@@ -1637,8 +1637,10 @@ export default function ContractorProjectsPage() {
 
   const wsSearchActions = workspaceRow && wsProject ? (
     <div className="relative" ref={wsSearchRef}>
-      <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 w-9 sm:w-52 transition-all ${wsSearchOpen ? 'border-indigo-300 ring-2 ring-indigo-100 !w-44 sm:!w-52' : 'border-gray-200'}`}>
-        <i className="ri-search-line text-gray-400 text-sm flex-shrink-0"></i>
+      <div className={`flex items-center gap-2 bg-white/70 backdrop-blur-sm border rounded-xl px-3 py-2 transition-all ${wsSearchOpen ? 'border-indigo-300 ring-2 ring-indigo-100 w-44 sm:w-52' : 'border-gray-200 w-9 sm:w-52'}`}>
+        <button onClick={() => setWsSearchOpen(true)} className="flex-shrink-0 cursor-pointer sm:pointer-events-none">
+          <i className="ri-search-line text-gray-400 text-sm"></i>
+        </button>
         <input
           type="text"
           value={wsSearch}
@@ -1652,7 +1654,7 @@ export default function ContractorProjectsPage() {
             }
           }}
           placeholder="Search…"
-          className="flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0 hidden sm:block"
+          className={`flex-1 text-sm bg-transparent outline-none placeholder-gray-400 text-gray-700 min-w-0 ${wsSearchOpen ? 'block' : 'hidden sm:block'}`}
         />
         {wsSearch
           ? <button onClick={() => { setWsSearch(''); setWsSearchOpen(false); }} className="text-gray-400 hover:text-gray-600 cursor-pointer flex-shrink-0"><i className="ri-close-line text-sm"></i></button>
