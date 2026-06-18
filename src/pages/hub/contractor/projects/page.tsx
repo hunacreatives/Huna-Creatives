@@ -1605,7 +1605,9 @@ export default function ContractorProjectsPage() {
     { label: 'Notes & Dates', description: `${wsProject.project_name} · Start & deadline`, icon: 'ri-sticky-note-line', id: 'ws-sidebar', iconCls: 'bg-amber-50 text-amber-500', keywords: ['notes', 'brief', 'description', 'info', 'details', 'start', 'due', 'date', 'deadline'] },
   ].concat(wsProject.project_type === 'internal' ? [] : [
     { label: 'Payout', description: `${wsProject.project_name} · Your earnings`, icon: 'ri-money-dollar-circle-line', id: 'ws-sidebar', iconCls: 'bg-orange-50 text-[#FF6B35]', keywords: ['payout', 'payment', 'earnings', 'salary', 'money', 'fee', 'income', 'receive'] },
-  ]) : [];
+  ]).concat(wsQuestionnaires.length > 0 ? [
+    { label: 'Questionnaires', description: `${wsProject.project_name} · Client answers`, icon: 'ri-questionnaire-line', id: 'ws-sidebar', iconCls: 'bg-violet-50 text-violet-500', keywords: ['questionnaire', 'answers', 'client', 'form', 'brief', 'responses'] },
+  ] : []) : [];
 
   const WS_FILTERS = [
     { label: 'Overdue Tasks', filter: 'overdue' as const, icon: 'ri-alarm-warning-line', cls: 'bg-rose-50 text-rose-500', count: wsTasks.filter(t => !!wsIsOverdue(t)).length, keywords: ['overdue', 'late', 'past due', 'missed'] },
@@ -2375,7 +2377,7 @@ export default function ContractorProjectsPage() {
               </div>
 
               {/* Right: project info */}
-                <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'hidden lg:flex'} flex-col gap-4 w-64 flex-shrink-0 ${wsFocusSection && wsFocusSection !== 'ws-sidebar' ? 'hidden' : ''}`}>
+                <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : wsFocusSection === 'ws-sidebar' ? 'flex' : 'hidden lg:flex'} flex-col gap-4 w-64 flex-shrink-0 ${wsFocusSection && wsFocusSection !== 'ws-sidebar' ? 'hidden' : ''}`}>
                 {/* Dates + notes card */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                   {(wsProject.start_date || wsProject.deadline) && (
