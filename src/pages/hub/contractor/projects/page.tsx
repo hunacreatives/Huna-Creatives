@@ -2155,6 +2155,19 @@ export default function ContractorProjectsPage() {
               </div>
             )}
 
+            {/* Questionnaire banner — mobile only, shown when questionnaires exist */}
+            {wsQuestionnaires.length > 0 && !wsFocusSection && (
+              <div className="lg:hidden flex gap-2 flex-wrap">
+                {wsQuestionnaires.map(q => (
+                  <button key={q.id} onClick={() => setWsQModal(q)}
+                    className="flex items-center gap-2 px-3 py-2 bg-violet-50 border border-violet-100 rounded-xl text-xs font-medium text-violet-700 cursor-pointer hover:bg-violet-100 transition-colors">
+                    <i className="ri-questionnaire-line text-sm"></i>
+                    {q.service_type}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Stats */}
             <div id="ws-stats" className={`grid grid-cols-4 gap-2 sm:gap-3 ${wsFocusSection && wsFocusSection !== 'ws-stats' ? 'hidden' : ''}`}>
               {[
