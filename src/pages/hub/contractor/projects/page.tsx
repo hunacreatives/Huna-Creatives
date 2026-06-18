@@ -2156,19 +2156,19 @@ export default function ContractorProjectsPage() {
             )}
 
             {/* Stats */}
-            <div id="ws-stats" className={`grid grid-cols-2 sm:grid-cols-4 gap-3 ${wsFocusSection && wsFocusSection !== 'ws-stats' ? 'hidden' : ''}`}>
+            <div id="ws-stats" className={`grid grid-cols-4 gap-2 sm:gap-3 ${wsFocusSection && wsFocusSection !== 'ws-stats' ? 'hidden' : ''}`}>
               {[
                 { label: 'Total', value: wsTasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
                 { label: 'Done', value: wsDone, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
                 { label: 'In Progress', value: wsTasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', iconBg: 'bg-sky-100', iconClr: 'text-sky-600', valClr: 'text-sky-700' },
                 { label: 'Overdue', value: wsTasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', iconBg: 'bg-rose-100', iconClr: 'text-rose-500', valClr: 'text-rose-600' },
               ].map(s => (
-                <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
-                  <div className={`w-8 h-8 rounded-xl ${s.iconBg} flex items-center justify-center mb-3`}>
-                    <i className={`${s.icon} ${s.iconClr} text-sm`}></i>
+                <div key={s.label} className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100/80">
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl ${s.iconBg} flex items-center justify-center mb-2 sm:mb-3`}>
+                    <i className={`${s.icon} ${s.iconClr} text-xs sm:text-sm`}></i>
                   </div>
-                  <p className={`text-2xl font-bold ${s.valClr} leading-none`}>{s.value}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">{s.label}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${s.valClr} leading-none`}>{s.value}</p>
+                  <p className="text-[10px] sm:text-[11px] text-gray-400 mt-1 leading-tight">{s.label}</p>
                 </div>
               ))}
             </div>
