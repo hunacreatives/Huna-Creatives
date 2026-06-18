@@ -392,14 +392,14 @@ export default function ContractorLayout({ children, title, titleContent, action
             {BOTTOM_NAV.map(item => (
               <NavLink key={item.to} to={item.to}
                 className={({ isActive }) =>
-                  `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all cursor-pointer min-w-[56px] ${
+                  `flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all cursor-pointer min-w-[68px] ${
                     isActive
                       ? 'bg-[#FF6B35]/10 text-[#FF6B35]'
                       : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100/60'
                   }`
                 }>
-                <i className={`${item.icon} text-[22px] leading-none`}></i>
-                <span className="text-[10px] font-medium leading-none whitespace-nowrap">{item.label}</span>
+                <i className={`${item.icon} text-[26px] leading-none`}></i>
+                <span className="text-[11px] font-medium leading-none whitespace-nowrap">{item.label}</span>
               </NavLink>
             ))}
           </div>
