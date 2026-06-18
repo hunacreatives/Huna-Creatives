@@ -54,6 +54,10 @@ const HubAdminInvoiceLog = lazy(() => import('../pages/hub/admin/invoice-log/pag
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
 const HubAdminApplications = lazy(() => import('../pages/hub/admin/applications/page'));
 const HubAdminContact = lazy(() => import('../pages/hub/admin/contact/page'));
+const HubAdminProposalBuilder = lazy(() => import('../pages/hub/admin/proposals/page'));
+const PublicProposalPage = lazy(() => import('../pages/p/page'));
+const ProposalCapuCoffee = lazy(() => import('../pages/p/capu-coffee/page'));
+const ProposalCapuCoffeeApprove = lazy(() => import('../pages/p/capu-coffee/approve/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
@@ -166,7 +170,11 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/questionnaires', element: withAdminGate(<HubAdminQuestionnaires />) },
   { path: '/hub/admin/applications', element: withAdminGate(<HubAdminApplications />) },
   { path: '/hub/admin/contact', element: withAdminGate(<HubAdminContact />) },
+  { path: '/hub/admin/proposals/:id', element: withAdminGate(<HubAdminProposalBuilder />) },
   { path: '/hub/demo', element: <HubDemoPage /> },
+  { path: '/p/capu-coffee', element: <ProposalCapuCoffee /> },
+  { path: '/p/capu-coffee/approve', element: <ProposalCapuCoffeeApprove /> },
+  { path: '/p/:slug', element: <PublicProposalPage /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },
   {
