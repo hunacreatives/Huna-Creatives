@@ -241,6 +241,9 @@ const translations = {
   studio_team_ana_name: 'Ana Lim',
   studio_team_ana_title: '建筑师',
   studio_team_ana_bio: 'Ana 于2019年加入工作室，迅速成为重要的创意声音。她在山坡住宅和海岸度假村项目上的工作因其敏锐与精准而广受认可。',
+  studio_team_jesse_name: 'Jesse Keane Catedral',
+  studio_team_jesse_title: '初级平面设计师',
+  studio_team_jesse_bio: 'Jesse 是一位充满热情的平面设计师，以清晰的意图在创意与媒介之间穿梭。他打造数字产品、塑造品牌形象，并设计吸引人的体验。',
 
   // Design Process
   studio_process_eyebrow: '我们的工作方式',

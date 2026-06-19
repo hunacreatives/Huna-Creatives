@@ -66,6 +66,12 @@ export const TEAM_MEMBERS: TeamMember[] = [
     slackName: 'Bing',
   },
   {
+    name: 'Jesse Keane Catedral',
+    title: 'Junior Graphic Designer',
+    department: 'Creative',
+    avatar: '/images/team-jesse-catedral.png',
+  },
+  {
     name: 'Dan',
     title: 'Web Designer',
     department: 'Tech',

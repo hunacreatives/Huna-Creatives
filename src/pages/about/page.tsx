@@ -63,6 +63,13 @@ const teamMembers = [
     hasPhoto: true,
   },
   {
+    name: 'Jesse Keane Catedral',
+    role: 'Junior Graphic Designer',
+    bio: 'Jesse is a passionate graphic designer who moves between ideas and mediums with clarity and intention. He builds digital products, shapes brand identities, and designs experiences that draw people in.',
+    image: '/images/team-jesse-catedral.png',
+    hasPhoto: true,
+  },
+  {
     name: 'Dan',
     role: 'Web Designer',
     bio: 'Dan brings digital experiences to life through thoughtful web design that balances aesthetics with functionality.',

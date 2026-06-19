@@ -241,6 +241,9 @@ const translations = {
   studio_team_ana_name: 'Ana Lim',
   studio_team_ana_title: 'Architect',
   studio_team_ana_bio: 'Ana joined the studio in 2019 and has quickly established herself as a key creative voice. Her work on the Hillside Residences and Coastal Resort projects has been widely recognised for its sensitivity and precision.',
+  studio_team_jesse_name: 'Jesse Keane Catedral',
+  studio_team_jesse_title: 'Junior Graphic Designer',
+  studio_team_jesse_bio: 'Jesse is a passionate graphic designer who moves between ideas and mediums with clarity and intention. He builds digital products, shapes brand identities, and designs experiences that draw people in.',
 
   // Design Process
   studio_process_eyebrow: 'How We Work',

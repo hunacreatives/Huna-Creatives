@@ -50,6 +50,14 @@ const TEAM = [
     img: '/images/1593ed2e-a95b-4107-8a6f-a5e435817b29_20.png',
     imgShift: '0%',
   },
+  {
+    key: 'jesse',
+    nameKey: 'studio_team_jesse_name',
+    titleKey: 'studio_team_jesse_title',
+    bioKey: 'studio_team_jesse_bio',
+    img: '/images/team-jesse-catedral.png',
+    imgShift: '0%',
+  },
 ];
 
 const COLS = 4;
