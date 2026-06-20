@@ -1728,6 +1728,21 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
         const isDeadlineOver = daysLeft !== null && daysLeft < 0 && p.status !== 'completed';
         const d = derived(p);
+        // Color palette matching task list border colors
+        const ADMIN_PALETTE = [
+          { bar: '#ddd6fe', barText: '#4c1d95' },
+          { bar: '#bae6fd', barText: '#0c4a6e' },
+          { bar: '#a7f3d0', barText: '#064e3b' },
+          { bar: '#fde68a', barText: '#78350f' },
+          { bar: '#fbcfe8', barText: '#831843' },
+          { bar: '#fed7aa', barText: '#7c2d12' },
+          { bar: '#99f6e4', barText: '#134e4a' },
+          { bar: '#c7d2fe', barText: '#312e81' },
+          { bar: '#fecdd3', barText: '#881337' },
+          { bar: '#d9f99d', barText: '#365314' },
+        ];
+        const taskColorMap = Object.fromEntries(tasks.map((t, i) => [t.id, ADMIN_PALETTE[i % ADMIN_PALETTE.length]]));
+
         // Map tasks for GanttTimeline (admin tasks have assignee_id, no start_date — compatible via any cast)
         const ganttTasks = tasks.map(t => ({
           id: t.id,
@@ -1792,56 +1807,56 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </button>
               </div>
 
-              {/* Info card — matches contractor workspace layout */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 shadow-sm px-5 py-5">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
+              {/* Info card */}
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/80 shadow-sm px-4 py-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-5">
 
                   {/* Left: project identity */}
-                  <div className="min-w-0 lg:max-w-[320px] lg:flex-shrink-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[p.status] ?? statusColors.ongoing}`}>
+                  <div className="min-w-0 lg:max-w-[280px] lg:flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[p.status] ?? statusColors.ongoing}`}>
                         {statusLabels[p.status] ?? p.status}
                       </span>
                       {internalProject && <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Internal</span>}
                       {p.service && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getServiceCfg(p.service).badge}`}>{p.service}</span>}
                     </div>
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{p.project_name}</h2>
-                    <p className="text-sm text-gray-400 mt-0.5">{internalProject ? 'Internal Project' : p.client_name}</p>
+                    <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">{p.project_name}</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">{internalProject ? 'Internal Project' : p.client_name}</p>
 
-                    {wsTeam.length > 0 && (
-                      <div className="flex items-center gap-2 mt-3">
-                        <div className="flex -space-x-2">
-                          {wsTeam.slice(0, 5).map(m => (
-                            m.avatar_url
-                              ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white object-cover object-top shadow-sm" />
-                              : <div key={m.id} title={m.full_name} className="w-6 h-6 rounded-full border-2 border-white bg-indigo-400 flex items-center justify-center text-[9px] font-bold text-white shadow-sm">{m.full_name[0]}</div>
-                          ))}
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      {wsTeam.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex -space-x-1.5">
+                            {wsTeam.slice(0, 5).map(m => (
+                              m.avatar_url
+                                ? <img key={m.id} src={m.avatar_url} alt={m.full_name} title={m.full_name} className="w-5 h-5 rounded-full border-2 border-white object-cover object-top shadow-sm" />
+                                : <div key={m.id} title={m.full_name} className="w-5 h-5 rounded-full border-2 border-white bg-indigo-400 flex items-center justify-center text-[8px] font-bold text-white shadow-sm">{m.full_name[0]}</div>
+                            ))}
+                          </div>
+                          <span className="text-[11px] text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
                         </div>
-                        <span className="text-xs text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
-                      </div>
-                    )}
+                      )}
 
-                    {daysLeft !== null && (
-                      <div className="mt-3">
-                        {isDeadlineOver ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full font-medium">
-                            <i className="ri-alarm-warning-line text-xs"></i>{Math.abs(daysLeft)}d overdue
+                      {daysLeft !== null && (
+                        isDeadlineOver ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full font-medium">
+                            <i className="ri-alarm-warning-line text-[10px]"></i>{Math.abs(daysLeft)}d overdue
                           </span>
                         ) : daysLeft === 0 ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
-                            <i className="ri-time-line text-xs"></i>Due today
+                          <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                            <i className="ri-time-line text-[10px]"></i>Due today
                           </span>
                         ) : (
-                          <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${daysLeft <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-500 bg-gray-50 border-gray-200'}`}>
-                            <i className="ri-calendar-line text-xs"></i>
+                          <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium ${daysLeft <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-500 bg-gray-50 border-gray-200'}`}>
+                            <i className="ri-calendar-line text-[10px]"></i>
                             {daysLeft}d left · {new Date(p.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
-                        )}
-                      </div>
-                    )}
+                        )
+                      )}
+                    </div>
                   </div>
 
-                  {/* Right: Drive — hidden on mobile */}
+                  {/* Right: Drive */}
                   <div className="hidden lg:block lg:flex-1 lg:min-w-0">
                     {(() => {
                       const driveUrl = (p as any).drive_url as string | null;
@@ -1849,11 +1864,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       const folderId = folderIdMatch?.[1];
                       const embedUrl = folderId ? `https://drive.google.com/embeddedfolderview?id=${folderId}#grid` : null;
                       return embedUrl && driveUrl ? (
-                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-[#f1f3f7] shadow-sm">
-                          <div className="flex items-center justify-end border-b border-gray-200/80 px-3 py-2">
+                        <div className="overflow-hidden rounded-xl border border-gray-200 bg-[#f1f3f7] shadow-sm">
+                          <div className="flex items-center justify-end border-b border-gray-200/80 px-3 py-1.5">
                             <a href={driveUrl} target="_blank" rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 rounded-full bg-white/90 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 hover:text-blue-600 transition-colors">
-                              <svg viewBox="0 0 87.3 78" className="h-3.5 w-3.5 flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
+                              className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                              <svg viewBox="0 0 87.3 78" className="h-3 w-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg">
                                 <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
                                 <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
                                 <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
@@ -1861,19 +1876,19 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                 <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
                                 <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
                               </svg>
-                              Open Drive <i className="ri-external-link-line text-[11px]"></i>
+                              Open Drive <i className="ri-external-link-line text-[10px]"></i>
                             </a>
                           </div>
-                          <div className="h-[150px] overflow-hidden">
+                          <div className="h-[110px] overflow-hidden">
                             <iframe src={embedUrl} className="bg-[#f1f3f7]"
-                              style={{ width: '200%', height: 300, border: 'none', transform: 'scale(0.5)', transformOrigin: 'top left' }}
+                              style={{ width: '200%', height: 220, border: 'none', transform: 'scale(0.5)', transformOrigin: 'top left' }}
                               title="Project Files" />
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4">
-                          <div className="w-10 h-10 rounded-2xl bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-                            <i className="ri-folder-line text-gray-300 text-lg"></i>
+                        <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-3">
+                          <div className="w-8 h-8 rounded-xl bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+                            <i className="ri-folder-line text-gray-300 text-base"></i>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-gray-500">No Drive folder linked</p>
@@ -1889,21 +1904,20 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
 
             <div className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
               {/* ── Stats row ── */}
-              {/* Mobile: compact inline row / Desktop: 4-column grid */}
-              <div id="ws-stats" className="sm:grid sm:grid-cols-4 sm:gap-3 flex gap-2 overflow-x-auto pb-0.5">
+              <div id="ws-stats" className="grid grid-cols-4 gap-2">
                 {[
                   { label: 'Total', value: tasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
                   { label: 'Done', value: tasks.filter(t => t.status === 'done').length, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
                   { label: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', iconBg: 'bg-sky-100', iconClr: 'text-sky-600', valClr: 'text-sky-700' },
                   { label: 'Overdue', value: tasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', iconBg: 'bg-rose-100', iconClr: 'text-rose-500', valClr: 'text-rose-600' },
                 ].map(s => (
-                  <div key={s.label} className="bg-white rounded-2xl shadow-sm border border-gray-100/80 sm:p-4 flex-shrink-0 sm:flex-shrink flex items-center gap-2.5 px-3 py-2.5 sm:flex-col sm:items-start sm:gap-0 sm:px-4 sm:py-4 min-w-[90px] sm:min-w-0">
-                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl ${s.iconBg} flex items-center justify-center sm:mb-3 flex-shrink-0`}>
-                      <i className={`${s.icon} ${s.iconClr} text-sm`}></i>
+                  <div key={s.label} className="bg-white rounded-xl px-3 py-2.5 shadow-sm border border-gray-100/80 flex items-center gap-2.5">
+                    <div className={`w-7 h-7 rounded-lg ${s.iconBg} flex items-center justify-center flex-shrink-0`}>
+                      <i className={`${s.icon} ${s.iconClr} text-xs`}></i>
                     </div>
                     <div>
-                      <p className={`text-lg sm:text-2xl font-bold ${s.valClr} leading-none`}>{s.value}</p>
-                      <p className="text-[10px] sm:text-[11px] text-gray-400 mt-0.5 sm:mt-1">{s.label}</p>
+                      <p className={`text-lg font-bold ${s.valClr} leading-none`}>{s.value}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{s.label}</p>
                     </div>
                   </div>
                 ))}
@@ -1932,6 +1946,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   projectStart={p.start_date}
                   projectEnd={p.deadline}
                   today={wsToday}
+                  colorMap={taskColorMap}
                   onTaskUpdate={async (taskId, updates) => {
                     await supabase.from('hub_project_tasks').update({
                       ...(updates.due_date !== undefined && { due_date: updates.due_date }),

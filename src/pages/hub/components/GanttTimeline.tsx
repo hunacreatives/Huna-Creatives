@@ -25,12 +25,13 @@ const dateStr = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(
 const addDays = (s: string, n: number) => { const d = new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return dateStr(d); };
 const diffDays = (a: string, b: string) => Math.round((new Date(b+'T00:00:00').getTime() - new Date(a+'T00:00:00').getTime()) / 86400000);
 
-export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUpdate }: {
+export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUpdate, colorMap: externalColorMap }: {
   tasks: ProjectTask[];
   projectStart: string | null;
   projectEnd: string | null;
   today: string;
   onTaskUpdate?: (taskId: number, updates: { due_date?: string | null; start_date?: string | null }) => void;
+  colorMap?: Record<number, { bar: string; barText?: string }>;
 }) {
   void projectStart; void projectEnd;
 
@@ -71,35 +72,27 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
     }
   }
 
-  const PALETTE = [
-    { chip: 'bg-violet-100 text-violet-700', dot: 'bg-violet-400' },
-    { chip: 'bg-sky-100 text-sky-700',       dot: 'bg-sky-400' },
-    { chip: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400' },
-    { chip: 'bg-amber-100 text-amber-700',   dot: 'bg-amber-400' },
-    { chip: 'bg-pink-100 text-pink-700',     dot: 'bg-pink-400' },
-    { chip: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
-    { chip: 'bg-teal-100 text-teal-700',     dot: 'bg-teal-400' },
-    { chip: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-400' },
-    { chip: 'bg-lime-100 text-lime-700',     dot: 'bg-lime-400' },
-    { chip: 'bg-rose-100 text-rose-700',     dot: 'bg-rose-400' },
+  const FALLBACK_PALETTE: { bar: string; barText: string }[] = [
+    { bar: '#ddd6fe', barText: '#4c1d95' },
+    { bar: '#bae6fd', barText: '#0c4a6e' },
+    { bar: '#a7f3d0', barText: '#064e3b' },
+    { bar: '#fde68a', barText: '#78350f' },
+    { bar: '#fbcfe8', barText: '#831843' },
+    { bar: '#fed7aa', barText: '#7c2d12' },
+    { bar: '#99f6e4', barText: '#134e4a' },
+    { bar: '#c7d2fe', barText: '#312e81' },
+    { bar: '#d9f99d', barText: '#365314' },
+    { bar: '#fecdd3', barText: '#881337' },
   ];
-  const colorMap = Object.fromEntries(tasks.map((t, i) => [t.id, PALETTE[i % PALETTE.length]]));
+  const colorMap: Record<number, { bar: string; barText?: string }> = externalColorMap
+    ?? Object.fromEntries(tasks.map((t, i) => [t.id, FALLBACK_PALETTE[i % FALLBACK_PALETTE.length]]));
 
-  const chipStyle = (t: ProjectTask): React.CSSProperties | undefined => {
-    if ((t as any).color && t.status !== 'done' && !(t.due_date && t.due_date < today)) {
-      return { background: (t as any).color, color: '#fff' };
-    }
-    return undefined;
-  };
-  const chipCls = (t: ProjectTask) => {
-    if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-100 text-rose-600';
-    if ((t as any).color) return '';
-    return colorMap[t.id]?.chip ?? 'bg-indigo-100 text-indigo-700';
-  };
-  const dotCls = (t: ProjectTask) => {
-    if (t.due_date && t.due_date < today && t.status !== 'done') return 'bg-rose-400';
-    if ((t as any).color) return 'bg-white/70';
-    return colorMap[t.id]?.dot ?? 'bg-indigo-400';
+  const getBarStyle = (t: ProjectTask): React.CSSProperties => {
+    const customColor = (t as any).color as string | null | undefined;
+    if (customColor) return { background: customColor, color: '#fff' };
+    const entry = colorMap[t.id];
+    if (entry) return { background: entry.bar, color: entry.barText ?? '#1e1b4b' };
+    return { background: '#c7d2fe', color: '#312e81' };
   };
 
   // ── Drag handlers ──
@@ -254,13 +247,12 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                       draggable={draggable && isStart}
                       onDragStart={draggable && isStart ? e => handleDragStart(e, t, 'move') : undefined}
                       onDragEnd={handleDragEnd}
-                      style={chipStyle(t)}
+                      style={getBarStyle(t)}
                       className={[
-                        'flex items-center text-[10px] font-medium truncate select-none group',
-                        chipCls(t),
+                        'h-6 flex items-center text-[10px] font-medium overflow-hidden select-none group',
                         hasRange
-                          ? `${isStart ? 'rounded-l-md rounded-r-none pl-0 pr-0' : isEnd ? 'rounded-r-md rounded-l-none pl-0 pr-0' : 'rounded-none px-0'} py-0.5`
-                          : 'px-1 py-0.5 rounded',
+                          ? isStart ? 'rounded-l-md ml-1 -mr-px' : isEnd ? 'rounded-r-md -ml-px mr-1' : '-mx-px'
+                          : 'rounded-md mx-1',
                         draggable && isStart ? 'cursor-grab active:cursor-grabbing' : '',
                       ].filter(Boolean).join(' ')}
                     >
@@ -274,8 +266,7 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                           title="Drag to extend start"
                         ><i className="ri-arrow-left-s-line text-[8px]"></i></span>
                       )}
-                      {isStart && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mx-1 ${dotCls(t)}`}></span>}
-                      {isStart && <span className="truncate flex-1">{t.title}</span>}
+                      {isStart && <span className="truncate flex-1 pl-2 leading-none">{t.title}</span>}
                       {/* Right resize handle — on end cell of range OR on single-day tasks */}
                       {draggable && isEnd && (
                         <span
