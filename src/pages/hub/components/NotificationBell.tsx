@@ -554,6 +554,11 @@ export default function NotificationBell() {
         if (task) params.set('task', task);
         link = `/hub/admin/projects?${params.toString()}`;
       } catch {}
+    } else if (link.startsWith('http')) {
+      try {
+        const url = new URL(link);
+        link = url.pathname + url.search + url.hash;
+      } catch {}
     }
     navigate(link);
   };

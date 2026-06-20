@@ -292,6 +292,7 @@ export default function TaskDetailPanel({
   const [expandedCheckItems, setExpandedCheckItems] = useState<Set<string>>(new Set());
   const [taskColor, setTaskColor] = useState<string>('');
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   // Remote data
   const [comments, setComments]     = useState<Comment[]>([]);
@@ -303,7 +304,6 @@ export default function TaskDetailPanel({
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [activity, setActivity]     = useState<ActivityItem[]>([]);
-  const [watchers, setWatchers]     = useState<string[]>([]);
 
   // Checklist drag state
   const [dragCheckId, setDragCheckId] = useState<string | null>(null);
@@ -401,7 +401,7 @@ export default function TaskDetailPanel({
     } else {
       setTitle(''); setDesc(''); setStatus('todo'); setPriority('medium');
       setAssigneeIds([]); setDueDate(''); setStartDate(''); setChecklist([]);
-      setComments([]); setAttachments([]); setActivity([]); setWatchers([]);
+      setComments([]); setAttachments([]); setActivity([]);
       setPendingAttachment(null);
       setEditing(true);
     }
@@ -468,7 +468,7 @@ export default function TaskDetailPanel({
   }, [focusDescriptionEditor, syncDescriptionEditor]);
 
   const fetchTaskData = useCallback(async (taskId: number) => {
-    const [taskRes, commRes, attRes, actRes, watchRes] = await Promise.all([
+    const [taskRes, commRes, attRes, actRes] = await Promise.all([
       supabase.from('hub_project_tasks')
         .select('title, description, status, priority, assigned_to, assignee_ids, due_date, start_date, checklist, color, meta')
         .eq('id', taskId)
@@ -481,8 +481,6 @@ export default function TaskDetailPanel({
       supabase.from('hub_project_task_activity')
         .select('id, actor_name, type, description, created_at')
         .eq('task_id', taskId).order('created_at', { ascending: false }).limit(30),
-      supabase.from('hub_project_task_watchers')
-        .select('user_id').eq('task_id', taskId),
     ]);
     if (taskRes.data) {
       setTitle(taskRes.data.title);
@@ -505,7 +503,6 @@ export default function TaskDetailPanel({
     }
     if (attRes.data)  setAttachments(attRes.data);
     if (actRes.data)  setActivity(actRes.data);
-    if (watchRes.data) setWatchers(watchRes.data.map((w: any) => w.user_id));
   }, []);
 
   const logActivity = useCallback(async (taskId: number, type: string, description: string) => {
@@ -934,18 +931,6 @@ export default function TaskDetailPanel({
     setAttachments(prev => prev.filter(a => a.id !== att.id));
   };
 
-  // ── Watchers ───────────────────────────────────────────────────────────────
-
-  const toggleWatcher = async (userId: string) => {
-    if (!task) return;
-    if (watchers.includes(userId)) {
-      await supabase.from('hub_project_task_watchers').delete().eq('task_id', task.id).eq('user_id', userId);
-      setWatchers(prev => prev.filter(w => w !== userId));
-    } else {
-      await supabase.from('hub_project_task_watchers').insert({ task_id: task.id, user_id: userId });
-      setWatchers(prev => [...prev, userId]);
-    }
-  };
 
   // ── Checklist progress ─────────────────────────────────────────────────────
   const checkDone = checklist.filter(i => i.done).length;
@@ -971,7 +956,7 @@ export default function TaskDetailPanel({
       <div className="fixed right-0 top-0 h-full w-full max-w-[520px] bg-white z-50 flex flex-col shadow-2xl overflow-x-hidden">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="px-5 py-4 flex-shrink-0" style={{ background: taskColor || '#111827' }}>
+        <div className="px-5 pt-4 pb-3 flex-shrink-0" style={{ background: taskColor || '#111827' }}>
           <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               {editing ? (
@@ -979,21 +964,29 @@ export default function TaskDetailPanel({
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="Task title"
-                  className="w-full bg-white/10 text-white placeholder-white/40 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/50"
+                  className="w-full bg-white/10 text-white placeholder-white/30 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/30"
                   autoFocus={isNew}
                 />
               ) : (
-                <h2 className="text-white font-bold text-base leading-snug">{title}</h2>
+                <h2 className="text-white font-bold text-[15px] leading-snug">{title}</h2>
               )}
-              <div className="flex items-center gap-2 mt-2">
-                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${sc.bg} ${sc.text}`}>
-                  <i className={`${sc.icon} text-[11px]`}></i>
-                  {sc.label}
+              {/* Meta row — status · priority · creator */}
+              <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${sc.bg} ${sc.text}`}>
+                  <i className={`${sc.icon} text-[10px]`}></i>{sc.label}
                 </span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${pc.cls}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${pc.dot}`}></span>
-                  {pc.label}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${pc.cls}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${pc.dot}`}></span>{pc.label}
                 </span>
+                {!isNew && (() => {
+                  const creator = activity.find(a => a.type === 'created');
+                  return creator ? (
+                    <>
+                      <span className="text-white/20 text-xs">·</span>
+                      <span className="text-white/50 text-[11px]">by {creator.actor_name.split(' ')[0]}</span>
+                    </>
+                  ) : null;
+                })()}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -1058,210 +1051,174 @@ export default function TaskDetailPanel({
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
 
           {/* Properties */}
-          <div className="p-5 space-y-4 border-b border-gray-100">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="px-5 py-3 space-y-0.5 border-b border-gray-100">
 
-              {/* Status */}
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Status</p>
-                {editing ? (
-                  <select value={status} onChange={e => setStatus(e.target.value as TaskDetailTask['status'])}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white">
-                    {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                ) : (
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold ${sc.bg} ${sc.text}`}>
-                    <i className={`${sc.icon} text-xs`}></i>{sc.label}
-                  </span>
-                )}
-              </div>
-
-              {/* Priority */}
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Priority</p>
-                {editing ? (
-                  <select value={priority} onChange={e => setPriority(e.target.value as TaskDetailTask['priority'])}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white">
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
-                ) : (
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${pc.cls}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${pc.dot}`}></span>{pc.label}
-                  </span>
-                )}
-              </div>
-
-              {/* Assignee */}
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Assignees</p>
-                {editing ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setAssigneeIds([])}
-                      className={`px-2.5 py-1 text-xs rounded-full border transition-all cursor-pointer ${assigneeIds.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-400'}`}
-                    >
-                      Unassigned
-                    </button>
-                    {teamMembers.map((member) => {
-                      const selected = assigneeIds.includes(member.id);
-                      return (
-                        <button
-                          key={member.id}
-                          type="button"
-                          onClick={() => setAssigneeIds((prev) => selected ? prev.filter((id) => id !== member.id) : [...prev, member.id])}
-                          className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full border transition-all cursor-pointer ${selected ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}
-                        >
-                          <Avatar name={member.full_name} url={member.avatar_url} size={4} />
-                          <span className={`text-xs font-medium ${selected ? 'text-indigo-700' : 'text-gray-600'}`}>{member.full_name.split(' ')[0]}</span>
+            {/* Status — only show in body when editing (header already shows it in view mode) */}
+            {editing && (
+              <div className="flex items-center h-8 gap-3">
+                <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Status</span>
+                <div className="relative">
+                  <button type="button"
+                    onClick={() => setShowStatusDropdown(v => !v)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer hover:opacity-80 ${sc.bg} ${sc.text}`}>
+                    <i className={`${sc.icon} text-xs`}></i>
+                    {sc.label}
+                    <i className="ri-arrow-down-s-line text-xs ml-0.5 opacity-60"></i>
+                  </button>
+                  {showStatusDropdown && (
+                    <div className="absolute top-full mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-1.5 min-w-[160px]">
+                      {Object.entries(STATUS_CFG).map(([k, v]) => (
+                        <button key={k} type="button"
+                          onClick={() => { setStatus(k as TaskDetailTask['status']); setShowStatusDropdown(false); }}
+                          className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs hover:bg-gray-50 transition-colors cursor-pointer ${status === k ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>
+                          <span className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${v.bg}`}>
+                            <i className={`${v.icon} ${v.text} text-xs`}></i>
+                          </span>
+                          {v.label}
+                          {status === k && <i className="ri-check-line ml-auto text-[#FF6B35]"></i>}
                         </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  selectedAssignees.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {selectedAssignees.map((member) => (
-                        <div key={member.id} className="flex items-center gap-1.5 rounded-full bg-gray-50 px-2 py-1">
-                          <Avatar name={member.full_name} url={member.avatar_url} size={5} />
-                          <span className="text-xs font-medium text-gray-700">{member.full_name.split(' ')[0]}</span>
-                        </div>
                       ))}
                     </div>
-                  ) : (
-                    <span className="text-xs text-gray-400">Unassigned</span>
-                  )
-                )}
+                  )}
+                </div>
               </div>
+            )}
 
-              {/* Due date */}
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Due Date</p>
-                {editing ? (
-                  <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white" />
-                ) : (
-                  <span className="text-xs text-gray-700">{dueDate ? new Date(dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : <span className="text-gray-400">—</span>}</span>
-                )}
+            {/* Priority — only show in body when editing */}
+            {editing && (
+              <div className="flex items-center h-8 gap-3">
+                <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Priority</span>
+                <div className="flex gap-1.5">
+                  {([['high','High','bg-rose-100 text-rose-600','bg-rose-400'],['medium','Medium','bg-amber-100 text-amber-700','bg-amber-400'],['low','Low','bg-gray-100 text-gray-500','bg-gray-300']] as const).map(([k, label, cls, dot]) => {
+                    const active = priority === k;
+                    return (
+                      <button key={k} type="button"
+                        onClick={() => setPriority(k as TaskDetailTask['priority'])}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${active ? cls : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${active ? dot : 'bg-gray-300'}`}></span>{label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+            )}
 
-              {/* Start date */}
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Start Date</p>
-                {editing ? (
+            {/* Assignees */}
+            <div className="flex items-start gap-3 py-1">
+              <span className="text-[11px] text-gray-400 w-16 flex-shrink-0 pt-1">Assignees</span>
+              {editing ? (
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => setAssigneeIds([])}
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-all cursor-pointer ${assigneeIds.length === 0 ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-400 hover:border-gray-400'}`}>
+                    None
+                  </button>
+                  {teamMembers.map((member) => {
+                    const selected = assigneeIds.includes(member.id);
+                    return (
+                      <button key={member.id} type="button"
+                        onClick={() => setAssigneeIds((prev) => selected ? prev.filter((id) => id !== member.id) : [...prev, member.id])}
+                        className={`flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-lg border transition-all cursor-pointer ${selected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                        <Avatar name={member.full_name} url={member.avatar_url} size={4} />
+                        <span className={`text-[11px] font-medium ${selected ? 'text-indigo-700' : 'text-gray-600'}`}>{member.full_name.split(' ')[0]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : selectedAssignees.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {selectedAssignees.map((member) => (
+                    <div key={member.id} className="flex items-center gap-1.5 rounded-lg bg-gray-100 pl-1 pr-2.5 py-1">
+                      <Avatar name={member.full_name} url={member.avatar_url} size={4} />
+                      <span className="text-[11px] font-medium text-gray-700">{member.full_name.split(' ')[0]}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <span className="text-[11px] text-gray-400 pt-1">Unassigned</span>}
+            </div>
+
+            {/* Dates */}
+            <div className="flex items-center h-8 gap-3">
+              <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Dates</span>
+              {editing ? (
+                <div className="flex items-center gap-2 flex-1">
                   <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white" />
-                ) : (
-                  <span className="text-xs text-gray-700">{startDate ? new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : <span className="text-gray-400">—</span>}</span>
-                )}
-              </div>
-
-              {/* Watchers */}
-              {!isNew && (
-                <div className="col-span-2">
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1.5">Watchers</p>
-                  <div className="flex items-center flex-wrap gap-1.5">
-                    {teamMembers.map(m => {
-                      const watching = watchers.includes(m.id);
-                      return (
-                        <button key={m.id} onClick={() => toggleWatcher(m.id)}
-                          title={m.full_name}
-                          className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${watching ? 'bg-[#FF6B35] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                          <Avatar name={m.full_name} url={m.avatar_url} size={4} />
-                          {m.full_name.split(' ')[0]}
-                        </button>
-                      );
-                    })}
-                  </div>
+                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white" />
+                  <i className="ri-arrow-right-line text-gray-300 text-xs flex-shrink-0"></i>
+                  <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white" />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-[11px]">
+                  {startDate
+                    ? <span className="bg-gray-100 rounded-lg px-2.5 py-1 text-gray-700">{new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    : <span className="text-gray-400">No start</span>}
+                  <i className="ri-arrow-right-line text-gray-300 text-[10px]"></i>
+                  {dueDate
+                    ? <span className={`rounded-lg px-2.5 py-1 font-medium ${dueDate < new Date().toISOString().split('T')[0] ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-700'}`}>
+                        {new Date(dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    : <span className="text-gray-400">No due date</span>}
                 </div>
               )}
             </div>
+
           </div>
 
           {/* Description */}
-          <div className="p-5 border-b border-gray-100">
-            <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-2">Description</p>
+          <div className="px-5 py-4 border-b border-gray-100">
+            <p className="text-[11px] text-gray-400 font-medium mb-2">Description</p>
             {editing ? (
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-2 py-2">
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('bold'); }}
-                    className="px-2.5 py-1 text-xs font-semibold text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    B
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('italic'); }}
-                    className="px-2.5 py-1 text-xs italic text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    I
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('underline'); }}
-                    className="px-2.5 py-1 text-xs underline text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    U
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('insertUnorderedList'); }}
-                    className="px-2.5 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    List
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontName', 'Georgia'); }}
-                    className="px-2.5 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    Serif
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontName', 'Arial'); }}
-                    className="px-2.5 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    Sans
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontSize', '2'); }}
-                    className="px-2 py-1 text-[11px] text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    Small
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionBlock('p'); }}
-                    className="px-2 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    Normal
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontSize', '5'); }}
-                    className="px-2 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    Large
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionBlock('h2'); }}
-                    className="px-2 py-1 text-xs text-gray-600 rounded-lg bg-white border border-gray-200 hover:border-gray-300 cursor-pointer"
-                  >
-                    Title
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('removeFormat'); }}
-                    className="ml-auto px-2.5 py-1 text-xs text-gray-500 rounded-lg hover:text-gray-700 cursor-pointer"
-                  >
-                    Clear
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                {/* Toolbar */}
+                <div className="flex items-center gap-0.5 px-2 py-1.5 bg-gray-50 border-b border-gray-200">
+                  {/* Format group */}
+                  <div className="flex items-center">
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('bold'); }}
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors font-bold text-xs">B</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('italic'); }}
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors italic text-xs">I</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('underline'); }}
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors underline text-xs">U</button>
+                  </div>
+
+                  <div className="w-px h-4 bg-gray-200 mx-1" />
+
+                  {/* Block group */}
+                  <div className="flex items-center gap-0.5">
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionBlock('h2'); }}
+                      className="h-7 px-2 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors text-[11px] font-semibold">H</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionBlock('p'); }}
+                      className="h-7 px-2 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors text-[11px]">¶</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('insertUnorderedList'); }}
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors">
+                      <i className="ri-list-unordered text-sm"></i>
+                    </button>
+                  </div>
+
+                  <div className="w-px h-4 bg-gray-200 mx-1" />
+
+                  {/* Size group */}
+                  <div className="flex items-center gap-0.5">
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontSize', '2'); }}
+                      className="h-7 px-2 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors text-[10px]">Sm</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontSize', '5'); }}
+                      className="h-7 px-2 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors text-[11px]">Lg</button>
+                  </div>
+
+                  <div className="w-px h-4 bg-gray-200 mx-1" />
+
+                  {/* Font group */}
+                  <div className="flex items-center gap-0.5">
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontName', 'Georgia'); }}
+                      className="h-7 px-2 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors text-[11px]" style={{ fontFamily: 'Georgia' }}>Serif</button>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontName', 'Arial'); }}
+                      className="h-7 px-2 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors text-[11px]">Sans</button>
+                  </div>
+
+                  {/* Clear — pushed right */}
+                  <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('removeFormat'); }}
+                    className="ml-auto h-7 px-2 flex items-center justify-center rounded-md text-gray-400 hover:text-rose-500 hover:bg-rose-50 cursor-pointer transition-colors text-[11px]">
+                    <i className="ri-eraser-line text-sm"></i>
                   </button>
                 </div>
                 <div
@@ -1314,7 +1271,7 @@ export default function TaskDetailPanel({
                     }
                   }}
                   data-placeholder="Add a description… (paste images directly)"
-                  className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[120px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1"
+                  className="w-full text-sm text-gray-700 px-3 py-3 focus:outline-none bg-white min-h-[120px] empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1"
                 />
               </div>
             ) : (
@@ -1327,19 +1284,22 @@ export default function TaskDetailPanel({
           </div>
 
           {/* Checklist */}
-          <div className="p-5 border-b border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Checklist</p>
+                <div className="flex items-center gap-1.5">
+                  <i className="ri-checkbox-multiple-line text-gray-300 text-sm"></i>
+                  <p className="text-[11px] text-gray-400 font-medium">Checklist</p>
+                </div>
                 {checklist.length > 0 && (
-                  <span className="text-[10px] text-gray-400">{checkDone}/{checklist.length} · {checkPct}%</span>
+                  <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-1.5 py-0.5 rounded-full">{checkDone}/{checklist.length}</span>
                 )}
               </div>
             </div>
             {checklist.length > 0 && (
               <div className="mb-3">
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden mb-3">
-                  <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${checkPct}%` }} />
+                  <div className={`h-full rounded-full transition-all ${checkPct === 100 ? 'bg-emerald-400' : 'bg-[#FF6B35]'}`} style={{ width: `${checkPct}%` }} />
                 </div>
                 <div className="space-y-1.5">
                   {checklist.map(item => (
@@ -1435,29 +1395,39 @@ export default function TaskDetailPanel({
               </div>
             )}
             {(canEdit || isNew) && (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
+                <i className="ri-add-line text-gray-300 text-base flex-shrink-0"></i>
                 <input
                   value={newCheckItem}
                   onChange={e => setNewCheckItem(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem(); } }}
-                  placeholder="Add item…"
-                  className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white"
+                  placeholder="Add an item…"
+                  className="flex-1 text-sm bg-transparent focus:outline-none text-gray-700 placeholder-gray-400"
                 />
-                <button onClick={addCheckItem}
-                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-600 transition-colors cursor-pointer">
-                  Add
-                </button>
+                {newCheckItem.trim() && (
+                  <button onClick={addCheckItem}
+                    className="flex-shrink-0 w-6 h-6 bg-[#FF6B35] rounded-full flex items-center justify-center cursor-pointer hover:bg-[#e55a25] transition-colors">
+                    <i className="ri-arrow-right-line text-white text-xs"></i>
+                  </button>
+                )}
               </div>
             )}
           </div>
 
-          {/* Attachments */}
           {/* Custom Fields */}
           {(canEdit || customFields.length > 0) && (
-          <div className="p-5 border-b border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Custom Fields</p>
-              {canEdit && <button onClick={() => setShowAddField(v => !v)} className="text-[11px] text-[#FF6B35] hover:underline cursor-pointer">+ Add field</button>}
+              <div className="flex items-center gap-1.5">
+                <i className="ri-price-tag-3-line text-gray-300 text-sm"></i>
+                <p className="text-[11px] text-gray-400 font-medium">Custom Fields</p>
+              </div>
+              {canEdit && (
+                <button onClick={() => setShowAddField(v => !v)}
+                  className="flex items-center gap-1 text-[11px] text-[#FF6B35] hover:text-[#e55a25] cursor-pointer font-medium transition-colors">
+                  <i className="ri-add-line text-xs"></i>Add field
+                </button>
+              )}
             </div>
             <div className="space-y-2">
               {customFields.map(f => {
@@ -1538,13 +1508,19 @@ export default function TaskDetailPanel({
           </div>
           )}
 
-          <div className="p-5 border-b border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Attachments</p>
+              <div className="flex items-center gap-1.5">
+                <i className="ri-attachment-2 text-gray-300 text-sm"></i>
+                <p className="text-[11px] text-gray-400 font-medium">Attachments</p>
+                {attachments.length > 0 && (
+                  <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-1.5 py-0.5 rounded-full">{attachments.length}</span>
+                )}
+              </div>
               {(canEdit || isNew) && (
                 <button onClick={() => fileRef.current?.click()}
                   disabled={uploading}
-                  className="flex items-center gap-1 text-[11px] text-[#FF6B35] hover:underline disabled:opacity-40 cursor-pointer">
+                  className="flex items-center gap-1 text-[11px] text-[#FF6B35] hover:text-[#e55a25] disabled:opacity-40 cursor-pointer font-medium transition-colors">
                   <i className="ri-upload-2-line text-xs"></i>
                   {isNew ? (pendingAttachment ? 'Change file' : 'Add file') : (uploading ? 'Uploading…' : 'Upload')}
                 </button>
@@ -1562,21 +1538,26 @@ export default function TaskDetailPanel({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-gray-700 truncate">{pendingAttachment.name}</p>
-                    <p className="text-[10px] text-gray-400">{fmtBytes(pendingAttachment.size)} · Uploads when the task is created</p>
+                    <p className="text-[10px] text-gray-400">{fmtBytes(pendingAttachment.size)} · Uploads when task is created</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={clearPendingAttachment}
-                    className="text-gray-300 hover:text-rose-500 transition-colors cursor-pointer"
-                  >
+                  <button type="button" onClick={clearPendingAttachment}
+                    className="text-gray-300 hover:text-rose-500 transition-colors cursor-pointer">
                     <i className="ri-delete-bin-line text-sm"></i>
                   </button>
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 italic">Optional. Add a file now and it will upload when the task is created.</p>
+                <button onClick={() => fileRef.current?.click()}
+                  className="flex items-center gap-2 text-xs text-gray-400 hover:text-[#FF6B35] transition-colors cursor-pointer">
+                  <i className="ri-upload-cloud-2-line text-sm"></i>
+                  Attach a file
+                </button>
               )
             ) : attachments.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">No attachments yet</p>
+              <button onClick={() => (canEdit || isNew) && fileRef.current?.click()}
+                className="flex items-center gap-2 text-xs text-gray-400 hover:text-[#FF6B35] transition-colors cursor-pointer">
+                <i className="ri-upload-cloud-2-line text-sm"></i>
+                No files yet — click to upload
+              </button>
             ) : (
               <div className="space-y-2">
                 {attachments.map(att => {
@@ -1706,12 +1687,15 @@ export default function TaskDetailPanel({
 
           {/* Comments */}
           {!isNew && (
-            <div className="p-5 border-b border-gray-100">
-              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-3">
-                Comments {comments.length > 0 && <span className="text-gray-300">· {comments.length}</span>}
-              </p>
+            <div className="px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2 mb-3">
+                <p className="text-[11px] text-gray-400 font-medium">Comments</p>
+                {comments.length > 0 && <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-1.5 py-0.5 rounded-full">{comments.length}</span>}
+              </div>
               <div className="space-y-4 mb-4">
-                {comments.length === 0 && <p className="text-xs text-gray-400 italic">No comments yet</p>}
+                {comments.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-3">No comments yet — be the first</p>
+                )}
                 {comments.map(c => (
                   <div key={c.id} className="flex gap-2.5 group">
                     <Avatar name={c.hub_users?.full_name ?? c.author_name ?? '?'} url={c.hub_users?.avatar_url ?? c.author_avatar_url} size={7} />
@@ -1893,21 +1877,26 @@ export default function TaskDetailPanel({
                     </div>
                   )}
                   {commentFileError && <p className="text-xs text-red-500 mt-1">{commentFileError}</p>}
-                  {/* Color dots + attach + send button */}
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    {['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#111827'].map(col => (
-                      <button key={col} type="button" title="Color selected text"
-                        onMouseDown={e => {
-                          e.preventDefault();
-                          document.execCommand('foreColor', false, col);
-                          commentRef.current?.focus();
-                        }}
-                        className="w-4 h-4 rounded-full cursor-pointer hover:scale-125 transition-transform flex-shrink-0 border border-gray-100"
-                        style={{ background: col }} />
-                    ))}
+                  {/* Toolbar row */}
+                  <div className="flex items-center gap-1 mt-1.5">
+                    {/* Color palette — collapsed into a hover popover */}
+                    <div className="relative group/colors">
+                      <button type="button" title="Text color"
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 cursor-pointer transition-colors">
+                        <i className="ri-font-color text-sm"></i>
+                      </button>
+                      <div className="absolute bottom-full mb-1 left-0 hidden group-hover/colors:flex bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-1.5 gap-1">
+                        {['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#111827'].map(col => (
+                          <button key={col} type="button"
+                            onMouseDown={e => { e.preventDefault(); document.execCommand('foreColor', false, col); commentRef.current?.focus(); }}
+                            className="w-5 h-5 rounded-full cursor-pointer hover:scale-110 transition-transform border border-white shadow-sm"
+                            style={{ background: col }} />
+                        ))}
+                      </div>
+                    </div>
                     <button type="button" title="Attach file" onClick={() => commentFileRef.current?.click()}
-                      className="ml-auto text-gray-400 hover:text-[#FF6B35] cursor-pointer transition-colors">
-                      <i className="ri-attachment-2 text-base"></i>
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 cursor-pointer transition-colors">
+                      <i className="ri-attachment-2 text-sm"></i>
                     </button>
                     <input ref={commentFileRef} type="file" className="hidden" onChange={e => {
                       const f = e.target.files?.[0];
@@ -1919,10 +1908,13 @@ export default function TaskDetailPanel({
                       setCommentFile(f);
                       setCommentFileError(null);
                     }} />
-                    <button onClick={postComment} disabled={postingComment || (!newComment.trim() && !commentFile)}
-                      className="w-7 h-7 bg-[#FF6B35] disabled:opacity-30 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0">
-                      <i className={`${postingComment ? 'ri-loader-4-line animate-spin' : 'ri-send-plane-fill'} text-white text-xs`}></i>
-                    </button>
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-[10px] text-gray-300">Enter to send</span>
+                      <button onClick={postComment} disabled={postingComment || (!newComment.trim() && !commentFile)}
+                        className="w-7 h-7 bg-[#FF6B35] disabled:opacity-25 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0 transition-opacity">
+                        <i className={`${postingComment ? 'ri-loader-4-line animate-spin' : 'ri-send-plane-fill'} text-white text-xs`}></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1931,8 +1923,8 @@ export default function TaskDetailPanel({
 
           {/* Activity */}
           {!isNew && activity.length > 0 && (
-            <div className="p-5">
-              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-3">Activity</p>
+            <div className="px-5 py-4">
+              <p className="text-[11px] text-gray-400 font-medium mb-3">Activity</p>
               <div className="space-y-2.5">
                 {activity.map(a => (
                   <div key={a.id} className="flex items-start gap-2.5">
@@ -1942,7 +1934,16 @@ export default function TaskDetailPanel({
                         <span className="font-semibold text-gray-800">{a.actor_name.split(' ')[0]}</span>
                         {' '}{a.description}
                       </p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{timeAgo(a.created_at)}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        {(() => {
+                          const d = new Date(a.created_at);
+                          const diff = (Date.now() - d.getTime()) / 1000;
+                          if (diff < 60) return 'just now';
+                          if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                          if (diff < 86400 * 3) return `${Math.floor(diff / 3600)}h ago`;
+                          return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+                        })()}
+                      </p>
                     </div>
                   </div>
                 ))}
