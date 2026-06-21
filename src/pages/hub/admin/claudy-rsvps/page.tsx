@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 
@@ -22,6 +23,7 @@ const EVENTS: Event[] = [
 ];
 
 export default function EventRsvpsPage() {
+  const navigate = useNavigate();
   const [activeIdx, setActiveIdx] = useState(0);
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,9 @@ export default function EventRsvpsPage() {
   return (
     <AdminLayout title="Claudy's 30th — RSVPs">
       <div className="p-6 max-w-5xl mx-auto">
+        <button onClick={() => navigate('/hub/admin/rsvps')} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-5 cursor-pointer transition-colors">
+          <i className="ri-arrow-left-line text-base"></i> All Events
+        </button>
 
         {/* Event tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
