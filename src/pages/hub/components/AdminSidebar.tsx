@@ -11,6 +11,7 @@ const navItems = [
   { divider: true, label: 'Inbound' },
   { to: '/hub/admin/applications', label: 'Applications', icon: 'ri-user-search-line' },
   { to: '/hub/admin/contact', label: 'Contact Inbox', icon: 'ri-mail-line' },
+  { to: '/hub/admin/claudy-rsvps', label: "Claudy's 30th RSVPs", icon: 'ri-cake-line' },
   { divider: true, label: 'Approvals' },
   { to: '/hub/admin/requests', label: 'Request Center', icon: 'ri-inbox-line' },
   { to: '/hub/admin/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },

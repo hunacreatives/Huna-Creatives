@@ -54,6 +54,7 @@ const HubAdminInvoiceLog = lazy(() => import('../pages/hub/admin/invoice-log/pag
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
 const HubAdminApplications = lazy(() => import('../pages/hub/admin/applications/page'));
 const HubAdminContact = lazy(() => import('../pages/hub/admin/contact/page'));
+const HubAdminClaudyRsvps = lazy(() => import('../pages/hub/admin/claudy-rsvps/page'));
 const HubAdminProposalBuilder = lazy(() => import('../pages/hub/admin/proposals/page'));
 const PublicProposalPage = lazy(() => import('../pages/p/page'));
 const ProposalCapuCoffee = lazy(() => import('../pages/p/capu-coffee/page'));
@@ -170,6 +171,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/questionnaires', element: withAdminGate(<HubAdminQuestionnaires />) },
   { path: '/hub/admin/applications', element: withAdminGate(<HubAdminApplications />) },
   { path: '/hub/admin/contact', element: withAdminGate(<HubAdminContact />) },
+  { path: '/hub/admin/claudy-rsvps', element: withAdminGate(<HubAdminClaudyRsvps />) },
   { path: '/hub/admin/proposals/:id', element: withAdminGate(<HubAdminProposalBuilder />) },
   { path: '/hub/demo', element: <HubDemoPage /> },
   { path: '/p/capu-coffee', element: <ProposalCapuCoffee /> },
