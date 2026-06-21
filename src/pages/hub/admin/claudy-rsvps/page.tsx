@@ -48,9 +48,15 @@ export default function EventRsvpsPage() {
   return (
     <AdminLayout title="Claudy's 30th — RSVPs">
       <div className="p-6 max-w-5xl mx-auto">
-        <button onClick={() => navigate('/hub/admin/rsvps')} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-5 cursor-pointer transition-colors">
-          <i className="ri-arrow-left-line text-base"></i> All Events
-        </button>
+        <div className="flex items-center justify-between mb-5">
+          <button onClick={() => navigate('/hub/admin/rsvps')} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
+            <i className="ri-arrow-left-line text-base"></i> All Events
+          </button>
+          <a href="https://claudyat30.com/admin" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm text-[#3B3F8C] hover:text-[#2a2e6a] font-medium transition-colors">
+            <i className="ri-external-link-line text-base"></i> Client View
+          </a>
+        </div>
 
         {/* Event tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
