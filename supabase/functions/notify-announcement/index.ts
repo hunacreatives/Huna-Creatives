@@ -2,7 +2,7 @@ const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const CHANNELS = ['C0830PCGQK1'];
 
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Content-Type': 'application/json',
 };

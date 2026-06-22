@@ -6,7 +6,7 @@ const ADMIN_SLACK_IDS = ['U091BL9PQ77', 'U0838LWSY4E'];
 const FROM = 'Huna Creatives <noreply@hunacreatives.com>';
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 

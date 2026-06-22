@@ -108,7 +108,11 @@ export default function ContractorDocumentsPage() {
         blankDiv.style.display = 'flex';
         blankDiv.style.alignItems = 'flex-end';
         blankDiv.style.paddingBottom = '4pt';
-        blankDiv.innerHTML = `<p style="font-family:'Dancing Script',cursive;font-size:26pt;color:#111;margin:0;line-height:1;">${signedName}</p>`;
+        const sigPara = dom.createElement('p');
+        sigPara.style.cssText = "font-family:'Dancing Script',cursive;font-size:26pt;color:#111;margin:0;line-height:1;";
+        sigPara.textContent = signedName;
+        blankDiv.innerHTML = '';
+        blankDiv.appendChild(sigPara);
       }
       signatureLabel.remove();
     }
@@ -116,7 +120,7 @@ export default function ContractorDocumentsPage() {
     // "Name | Date" placeholder — no style attribute, ends with "Date"
     dom.querySelectorAll('p.sig-label:not([style])').forEach(p => {
       if (p.innerHTML.trim().endsWith('Date')) {
-        p.innerHTML = `${signedName} &nbsp;|&nbsp; ${dateLabel}`;
+        p.textContent = `${signedName}  |  ${dateLabel}`;
       }
     });
 

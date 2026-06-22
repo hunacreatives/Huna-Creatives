@@ -867,7 +867,12 @@ export default function ContractorProjectsPage() {
       return;
     }
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', task.id);
+    const { error: updateErr } = await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', task.id);
+    if (updateErr) {
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
+      console.error('Failed to update task status:', updateErr);
+      return;
+    }
     await logActivity('task_status_changed', task.title, task.id, { from: task.status, to: newStatus });
     const updaterName = hubUser?.full_name ?? 'Team';
     supabase.functions.invoke('notify-task-updated', {
@@ -1120,15 +1125,14 @@ export default function ContractorProjectsPage() {
     if (!editingTask) { setTaskComments([]); setNewComment(''); return; }
     supabase
       .from('hub_project_task_comments')
-      .select('id, user_id, body, created_at')
+      .select('id, user_id, body, created_at, hub_users(id, full_name, avatar_url)')
       .eq('task_id', editingTask.id)
       .order('created_at', { ascending: true })
-      .then(async ({ data }) => {
-        if (!data?.length) { setTaskComments([]); return; }
-        const ids = [...new Set(data.map((c: any) => c.user_id).filter(Boolean))];
-        const { data: users } = await supabase.from('hub_users').select('id, full_name, avatar_url').in('id', ids);
-        const map: Record<string, any> = Object.fromEntries((users ?? []).map((u: any) => [u.id, u]));
-        setTaskComments(data.map((c: any) => ({ ...c, hub_users: map[c.user_id] ?? null })));
+      .then(({ data }) => {
+        setTaskComments((data ?? []).map((c: any) => ({
+          ...c,
+          hub_users: Array.isArray(c.hub_users) ? (c.hub_users[0] ?? null) : (c.hub_users ?? null),
+        })));
       });
   }, [editingTask?.id]);
 
@@ -3338,7 +3342,9 @@ export default function ContractorProjectsPage() {
                       />
                       <button onClick={postComment} disabled={!newComment.trim() || postingComment}
                         className="w-6 h-6 flex items-center justify-center bg-[#111827] text-white rounded-lg disabled:opacity-30 cursor-pointer flex-shrink-0 transition-opacity hover:bg-gray-700">
-                        <i className="ri-send-plane-fill text-[11px]"></i>
+                        {postingComment
+                          ? <i className="ri-loader-4-line text-[11px] animate-spin"></i>
+                          : <i className="ri-send-plane-fill text-[11px]"></i>}
                       </button>
                     </div>
                     </div>

@@ -3,7 +3,7 @@ const FROM_EMAIL = 'Huna Creatives <hello@hunacreatives.com>';
 const BASE_URL = 'https://www.hunacreatives.com';
 
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Content-Type': 'application/json',
 };

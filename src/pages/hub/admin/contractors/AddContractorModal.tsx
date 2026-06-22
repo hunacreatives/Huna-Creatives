@@ -234,7 +234,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                   </div>
                   {profile.payment_type === 'project_based' ? (
                     <div><label className={labelCls}>Their Cut (% of project) *</label>
-                      <div className="relative"><input type="number" value={profile.project_percentage} onChange={e => setP('project_percentage', e.target.value)} placeholder="e.g. 40" className={`${inputCls} pr-8`} />
+                      <div className="relative"><input type="number" min="0" max="100" value={profile.project_percentage} onChange={e => setP('project_percentage', e.target.value)} placeholder="e.g. 40" className={`${inputCls} pr-8`} />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">%</span></div></div>
                   ) : (
                     <div className="grid grid-cols-3 gap-3">
@@ -244,11 +244,11 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                         </select></div>
                       {(profile.payment_type === 'fixed' || profile.payment_type === 'fixed_flexible') && (
                         <div className="col-span-2"><label className={labelCls}>Monthly Rate ({profile.currency}) *</label>
-                          <input type="number" value={profile.monthly_rate} onChange={e => setP('monthly_rate', e.target.value)} placeholder={`${currSymbol}0.00`} className={inputCls} /></div>
+                          <input type="number" min="0" value={profile.monthly_rate} onChange={e => setP('monthly_rate', e.target.value)} placeholder={`${currSymbol}0.00`} className={inputCls} /></div>
                       )}
                       {profile.payment_type === 'hourly' && (
                         <div className="col-span-2"><label className={labelCls}>Hourly Rate ({profile.currency}) *</label>
-                          <input type="number" value={profile.hourly_rate} onChange={e => setP('hourly_rate', e.target.value)} placeholder={`${currSymbol}0.00`} className={inputCls} /></div>
+                          <input type="number" min="0" value={profile.hourly_rate} onChange={e => setP('hourly_rate', e.target.value)} placeholder={`${currSymbol}0.00`} className={inputCls} /></div>
                       )}
                     </div>
                   )}

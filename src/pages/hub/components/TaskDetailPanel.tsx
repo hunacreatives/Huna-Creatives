@@ -22,12 +22,18 @@ function autoLinkUrls(text: string): string {
   );
 }
 
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<\/?(iframe|object|embed|base|meta|link|form|input|textarea|select)[^>]*>/gi, '')
+    .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>'"]+)/gi, '')
+    .replace(/(href|src|action)\s*=\s*(?:"(?:javascript|data):[^"]*"|'(?:javascript|data):[^']*'|(?:javascript|data):\S*)/gi, '$1="#"');
+}
+
 function renderCommentBody(body: string): { html: string; isHtml: boolean } {
   const hasHtml = /<[a-z][\s\S]*?>/i.test(body);
   if (hasHtml) {
-    const safe = body
-      .replace(/\s+on\w+\s*=\s*(["'])[^"']*\1/gi, '')
-      .replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"');
+    const safe = sanitizeHtml(body);
     return {
       html: autoLinkUrls(safe).replace(/(@[\w]+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>'),
       isHtml: true,
@@ -49,11 +55,7 @@ function renderCommentBody(body: string): { html: string; isHtml: boolean } {
 function renderDescription(body: string): string {
   const hasHtml = /<[a-z][\s\S]*?>/i.test(body);
   if (hasHtml) {
-    const safe = body
-      .replace(/\s+on\w+\s*=\s*(["'])[^"']*\1/gi, '')
-      .replace(/href\s*=\s*(["'])javascript:[^"']*\1/gi, 'href="#"')
-      // Ensure existing <a> tags open in a new tab
-      .replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ');
+    const safe = sanitizeHtml(body).replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ');
     return autoLinkUrls(safe);
   }
   return body

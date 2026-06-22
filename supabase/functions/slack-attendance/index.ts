@@ -1,14 +1,14 @@
 // v3 — overtime comes from hub_overtime_requests (approved), not Slack parsing
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
+const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
 const CHANNEL_ID = 'C0830PCGQK1';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const MAX_HOURS_FIXED = 8; // billable cap for fixed-rate contractors
 
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Content-Type': 'application/json',
 };
@@ -22,6 +22,7 @@ async function slackGet(path: string) {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (!SLACK_BOT_TOKEN) return new Response(JSON.stringify({ error: 'SLACK_BOT_TOKEN not configured' }), { status: 500, headers: cors });
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);

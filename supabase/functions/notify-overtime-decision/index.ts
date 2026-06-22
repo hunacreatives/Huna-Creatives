@@ -6,7 +6,7 @@ const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
 const OT_URL = 'https://www.hunacreatives.com/hub/contractor/overtime';
 
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Content-Type': 'application/json',
 };

@@ -9,7 +9,7 @@ const NOTIFY_EMAILS = ['francisfielroble@gmail.com', 'duterteabigaile@gmail.com'
 const ABIGAIL_SLACK_ID = 'U091BL9PQ77';
 
 const cors = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Content-Type': 'application/json',
 };
