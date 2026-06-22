@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
+import Avatar from '@/pages/hub/components/Avatar';
 import { supabase } from '@/lib/supabase';
 import { createHubNotifications } from '@/lib/hubNotifications';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
@@ -203,10 +204,6 @@ function getProjectActivityDescription(activity: ProjectActivity) {
   }
 }
 
-function Avatar({ name, url }: { name: string; url?: string | null }) {
-  if (url) return <img src={url} alt={name} className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0" />;
-  return <div className="w-7 h-7 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0"><span className="text-white text-xs font-bold">{name[0].toUpperCase()}</span></div>;
-}
 
 export default function AdminProjectsPage() {
   const { hubUser } = useAuth();

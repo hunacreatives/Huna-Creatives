@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
+import Avatar from '@/pages/hub/components/Avatar';
 import { supabase } from '@/lib/supabase';
 import { HubClient, HubClientAssignment, HubUser } from '@/lib/types';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
@@ -30,15 +31,6 @@ function normalizeAssignment(row: AssignmentRow): HubClientAssignment {
   };
 }
 
-function Avatar({ name, avatar_url, size = 7 }: { name: string; avatar_url?: string | null; size?: number }) {
-  const s = `w-${size} h-${size}`;
-  if (avatar_url) return <img src={avatar_url} alt={name} className={`${s} rounded-full object-cover object-top flex-shrink-0`} />;
-  return (
-    <div className={`${s} rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0`}>
-      <span className="text-white text-xs font-bold">{name.charAt(0).toUpperCase()}</span>
-    </div>
-  );
-}
 
 export default function ClientsPage() {
   const { hubUser } = useAuth();
@@ -457,7 +449,7 @@ export default function ClientsPage() {
                     if (!u) return null;
                     return (
                       <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl">
-                        <Avatar name={u.full_name} avatar_url={u.avatar_url} size={8} />
+                        <Avatar name={u.full_name} url={u.avatar_url} size={8} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-[#111827]">{u.full_name}</p>
                           <p className="text-xs text-gray-400">{a.role || u.department || '—'}</p>

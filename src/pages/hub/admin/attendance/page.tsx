@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
+import Avatar from '@/pages/hub/components/Avatar';
 import { supabase } from '@/lib/supabase';
 import { useDemo } from '@/contexts/DemoContext';
 import { DEMO_ATTENDANCE, DEMO_ATTENDANCE_HISTORY } from '@/lib/demoData';
@@ -57,16 +58,6 @@ function formatTime(iso: string | null) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null }) {
-  if (avatar_url) {
-    return <img src={avatar_url} alt={name} className="w-9 h-9 rounded-full object-cover object-top flex-shrink-0" />;
-  }
-  return (
-    <div className="w-9 h-9 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
-      <span className="text-white text-sm font-bold">{name.charAt(0).toUpperCase()}</span>
-    </div>
-  );
-}
 
 // ----- PDF helpers -----
 
@@ -649,7 +640,7 @@ export default function AdminAttendancePage() {
                       onClick={() => hasDetail && setExpanded(isExpanded ? null : key)}
                     >
                       <div className="relative flex-shrink-0">
-                        <Avatar name={r.full_name} avatar_url={r.avatar_url} />
+                        <Avatar name={r.full_name} url={r.avatar_url} size={9} />
                         <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
                           r.status === 'on' ? 'bg-emerald-500' : r.status === 'off' ? 'bg-gray-400' : 'bg-amber-400'
                         }`} />
@@ -742,7 +733,7 @@ export default function AdminAttendancePage() {
                       <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5">
-                            <Avatar name={r.full_name} avatar_url={r.avatar_url} />
+                            <Avatar name={r.full_name} url={r.avatar_url} size={9} />
                             <div>
                               <p className="text-sm font-medium text-[#111827]">{r.full_name}</p>
                               <div className="flex items-center gap-1.5 mt-0.5">

@@ -24,6 +24,9 @@ async function sendPush(supabase: any, user_id: string, title: string, body: str
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
+  const auth = req.headers.get('Authorization');
+  if (!auth) return new Response(JSON.stringify({ error: 'Missing Authorization header' }), { status: 401, headers: cors });
+
   try {
     const {
       task_id,

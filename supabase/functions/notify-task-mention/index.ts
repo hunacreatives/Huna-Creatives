@@ -46,6 +46,9 @@ async function sendPush(user_id: string, title: string, body: string, url?: stri
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
+  const auth = req.headers.get('Authorization');
+  if (!auth) return new Response(JSON.stringify({ error: 'Missing Authorization header' }), { status: 401, headers: CORS });
+
   try {
     const { task_id, author_id, author_name, body, project_id } = await req.json();
 

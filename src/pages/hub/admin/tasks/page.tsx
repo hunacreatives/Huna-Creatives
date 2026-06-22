@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
+import Avatar from '@/pages/hub/components/Avatar';
 import { supabase } from '@/lib/supabase';
 import { localToday } from '@/lib/formatUtils';
 
@@ -30,14 +31,6 @@ const PRIORITY_CFG = {
   low:    { label: 'Low',    cls: 'text-gray-400',   icon: 'ri-arrow-down-line' },
 };
 
-function Avatar({ name, url }: { name: string; url: string | null }) {
-  if (url) return <img src={url} alt={name} className="w-6 h-6 rounded-full object-cover object-top flex-shrink-0" />;
-  return (
-    <div className="w-6 h-6 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
-      <span className="text-white text-[9px] font-bold">{name[0].toUpperCase()}</span>
-    </div>
-  );
-}
 
 export default function AdminTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -286,7 +279,7 @@ export default function AdminTasksPage() {
 
                           {/* Assignee */}
                           {t.hub_users && (
-                            <Avatar name={t.hub_users.full_name} url={t.hub_users.avatar_url} />
+                            <Avatar name={t.hub_users.full_name} url={t.hub_users.avatar_url} size={6} />
                           )}
                         </div>
                       );

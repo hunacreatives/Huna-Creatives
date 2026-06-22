@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
+import Avatar from '@/pages/hub/components/Avatar';
 import { supabase } from '@/lib/supabase';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
@@ -53,14 +54,6 @@ interface PayRow {
   accrualTotal?: number;
 }
 
-function Avatar({ name, avatar_url }: { name: string; avatar_url: string | null }) {
-  if (avatar_url) return <img src={avatar_url} alt={name} className="w-8 h-8 rounded-full object-cover object-top flex-shrink-0" />;
-  return (
-    <div className="w-8 h-8 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
-      <span className="text-white text-xs font-bold">{name.charAt(0).toUpperCase()}</span>
-    </div>
-  );
-}
 
 function uint8ToBase64(bytes: Uint8Array) {
   let binary = '';
@@ -1580,7 +1573,7 @@ export default function AdminPayrollPage() {
                 <div key={c.id} className="bg-white rounded-xl border border-gray-100 p-4">
                   {/* Contractor row */}
                   <div className="flex items-center gap-3 mb-3">
-                    <Avatar name={c.full_name} avatar_url={c.avatar_url} />
+                    <Avatar name={c.full_name} url={c.avatar_url} size={8} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="font-semibold text-gray-900 text-sm truncate">{c.full_name}</p>
@@ -1759,7 +1752,7 @@ export default function AdminPayrollPage() {
                         {/* Contractor */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <Avatar name={c.full_name} avatar_url={c.avatar_url} />
+                            <Avatar name={c.full_name} url={c.avatar_url} size={8} />
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{c.full_name}</p>
@@ -2286,7 +2279,7 @@ export default function AdminPayrollPage() {
             <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">
-                  <Avatar name={c.full_name} avatar_url={c.avatar_url} />
+                  <Avatar name={c.full_name} url={c.avatar_url} size={8} />
                   <div>
                     <h3 className="text-sm font-semibold text-[#111827]">{c.full_name}</h3>
                     <p className="text-xs text-gray-400 mt-0.5">Bank details</p>

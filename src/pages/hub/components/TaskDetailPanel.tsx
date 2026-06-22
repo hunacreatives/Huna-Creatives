@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeChecklistItems, normalizeTaskAssigneePayload, sameAssigneeIds } from '@/lib/taskAssignments';
+import Avatar from '@/pages/hub/components/Avatar';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -239,15 +240,6 @@ function renderAttachmentPreview(att: Attachment) {
   );
 }
 
-function Avatar({ name, url, size = 7 }: { name: string; url?: string | null; size?: number }) {
-  const sz = `w-${size} h-${size}`;
-  if (url) return <img src={url} alt={name} className={`${sz} rounded-full object-cover object-top flex-shrink-0`} />;
-  return (
-    <div className={`${sz} rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0`}>
-      <span className="text-white font-bold" style={{ fontSize: size * 1.8 }}>{name[0].toUpperCase()}</span>
-    </div>
-  );
-}
 
 function nanoid() {
   return Math.random().toString(36).slice(2, 10);
