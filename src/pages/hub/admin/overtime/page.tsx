@@ -83,6 +83,14 @@ export default function AdminOvertimePage() {
       }, { onConflict: 'user_id,date' });
     }
 
+    supabase.functions.invoke('notify-overtime-decision', {
+      body: {
+        contractor_id: selected.contractor_id,
+        date: selected.date,
+        hours: selected.hours,
+        decision: status,
+      },
+    }).catch(() => {});
     setUpdating(false);
     setSelected(null);
     fetchRequests();

@@ -442,8 +442,13 @@ export default function NotificationBell() {
     const typeIcon: Record<string, { icon: string; iconBg: string; iconColor: string }> = {
       task_assigned:         { icon: 'ri-task-line',              iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-500' },
       task_updated:          { icon: 'ri-edit-line',              iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-500' },
+      task_comment:          { icon: 'ri-chat-3-line',            iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-500' },
       task_mention:          { icon: 'ri-at-line',                iconBg: 'bg-violet-50',  iconColor: 'text-violet-500' },
       task_due:              { icon: 'ri-alarm-line',             iconBg: 'bg-amber-50',   iconColor: 'text-amber-500' },
+      overtime_approved:     { icon: 'ri-timer-flash-line',       iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
+      overtime_rejected:     { icon: 'ri-timer-flash-line',       iconBg: 'bg-rose-50',    iconColor: 'text-rose-500' },
+      credential_approved:   { icon: 'ri-key-line',               iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
+      credential_denied:     { icon: 'ri-key-line',               iconBg: 'bg-rose-50',    iconColor: 'text-rose-500' },
       payroll_batch_approved:{ icon: 'ri-money-dollar-circle-line',iconBg: 'bg-emerald-50',iconColor: 'text-emerald-500' },
       timeoff_approved:      { icon: 'ri-checkbox-circle-line',   iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
       timeoff_rejected:      { icon: 'ri-close-circle-line',      iconBg: 'bg-rose-50',    iconColor: 'text-rose-500' },

@@ -111,6 +111,14 @@ export default function AdminRequestsPage() {
       await supabase.from('hub_daily_hours').upsert({ user_id: selectedOt.contractor_id, date: selectedOt.date, overtime_hours: totalOT, updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
     }
 
+    supabase.functions.invoke('notify-overtime-decision', {
+      body: {
+        contractor_id: selectedOt.contractor_id,
+        date: selectedOt.date,
+        hours: selectedOt.hours,
+        decision: status,
+      },
+    }).catch(() => {});
     setOtUpdating(false);
     setSelectedOt(null);
     fetchOts();

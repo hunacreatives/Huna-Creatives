@@ -210,6 +210,17 @@ export default function CredentialsVaultPage() {
       reviewed_at: new Date().toISOString(),
     }).eq('id', id);
     showToast(`Request ${status}.`);
+    const req = requests.find(r => r.id === id);
+    if (req) {
+      supabase.functions.invoke('notify-credential-decision', {
+        body: {
+          contractor_id: (req as any).contractor_id,
+          platform: (req as any).hub_credentials?.platform ?? 'credential',
+          client_name: (req as any).hub_credentials?.client_name ?? '',
+          decision: status,
+        },
+      }).catch(() => {});
+    }
     fetchData();
   };
 

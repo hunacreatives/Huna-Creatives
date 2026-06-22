@@ -94,7 +94,29 @@ Deno.serve(async (req) => {
             headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               channel: assignee.slack_id,
-              text: `⏰ *Task due ${whenLabel}*\n*"${task.title}"* — ${projectName}\n<${deepLink}|Open workspace →>`,
+              text: `⏰ Task due ${whenLabel}: "${task.title}"`,
+              unfurl_links: false,
+              unfurl_media: false,
+              blocks: [
+                {
+                  type: 'section',
+                  text: {
+                    type: 'mrkdwn',
+                    text: `⏰ *Task due ${whenLabel}*\n*"${task.title}"* — ${projectName}`,
+                  },
+                },
+                {
+                  type: 'actions',
+                  elements: [
+                    {
+                      type: 'button',
+                      text: { type: 'plain_text', text: 'Open Task →' },
+                      url: deepLink,
+                      style: 'primary',
+                    },
+                  ],
+                },
+              ],
             }),
           }).catch(() => {});
         }

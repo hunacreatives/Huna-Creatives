@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
       updated_by_id,
       updated_by_name,
       change_description,
+      notification_type,
     } = await req.json();
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -76,11 +77,13 @@ Deno.serve(async (req) => {
     const notifTitle = 'Task updated';
     const notifBody = change_description ?? `${updated_by_name} updated "${task_title}"`;
 
+    const notifType = notification_type ?? 'task_updated';
+
     // Insert hub_notifications
     await supabase.from('hub_notifications').insert(
       toNotifyIds.map((uid) => ({
         user_id: uid,
-        type: 'task_updated',
+        type: notifType,
         title: notifTitle,
         body: notifBody,
         link: deepLink,

@@ -790,6 +790,19 @@ export default function TaskDetailPanel({
       const norm = { ...data, reactions: {}, hub_users: commenter ? { full_name: commenter.full_name, avatar_url: commenter.avatar_url ?? null } : { full_name: currentUserName, avatar_url: null } };
       setComments(prev => [...prev, norm]);
       await logActivity(task.id, 'comment_added', 'added a comment');
+      // Notify all assignees + admins about the comment
+      supabase.functions.invoke('notify-task-updated', {
+        body: {
+          task_id: task.id,
+          project_id: task.project_id,
+          task_title: task.title,
+          project_name: projectName,
+          updated_by_id: currentUserId,
+          updated_by_name: currentUserName,
+          change_description: `${currentUserName} commented on "${task.title}"`,
+          notification_type: 'task_comment',
+        },
+      }).catch(() => {});
       if (newComment.includes('@')) {
         fetch(`${supabaseUrl_}/functions/v1/notify-task-mention`, {
           method: 'POST',
