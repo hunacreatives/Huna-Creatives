@@ -153,11 +153,11 @@ export default function ContractorDocumentsPage() {
     // Send signed copy to contractor's email
     supabase.functions.invoke('send-signed-contract', {
       body: { assignment_id: signModal.id },
-    }).catch(() => {}); // fire and forget
+    }).catch(console.error); // fire and forget
 
     supabase.functions.invoke('notify-internal-request', {
       body: { type: 'contract_signed', contractor_name: hubUser!.full_name, detail: signModal.hub_sign_documents?.title ?? 'Contract', notes: null },
-    }).catch(() => {});
+    }).catch(console.error);
 
     setSigning(false);
     setSignModal(null);
@@ -179,7 +179,7 @@ export default function ContractorDocumentsPage() {
     if (error) { showToast('Failed to submit. Try again.'); return; }
     supabase.functions.invoke('notify-internal-request', {
       body: { type: 'doc_request', contractor_name: hubUser!.full_name, detail: docType, notes: notes || null },
-    }).catch(() => {});
+    }).catch(console.error);
     setShowForm(false);
     setNotes('');
     setDocType(DOC_TYPES[0]);

@@ -880,7 +880,7 @@ export default function ContractorProjectsPage() {
         updated_by_name: updaterName,
         change_description: `${updaterName} marked "${task.title}" as ${newStatus.replace('_', ' ')}`,
       },
-    }).catch(() => {});
+    }).catch(console.error);
   };
 
   const cycleTask = async (task: ProjectTask) => {
@@ -998,7 +998,7 @@ export default function ContractorProjectsPage() {
                 assigned_to_id: taskForm.assigned_to,
                 assigned_by_name: hubUser.full_name ?? 'Team',
               },
-            }).catch(() => {});
+            }).catch(console.error);
           }
         }
       }
@@ -1156,7 +1156,7 @@ export default function ContractorProjectsPage() {
             body: newComment.trim(),
             project_id: workspaceRow.hub_projects.id,
           },
-        }).catch(() => {});
+        }).catch(console.error);
       }
     }
     setPostingComment(false);

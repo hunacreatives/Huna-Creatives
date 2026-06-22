@@ -187,7 +187,7 @@ export default function ContractorMyRequestsPage() {
     setTimeout(() => setReqToast(''), 3000);
     supabase.functions.invoke('notify-admin', {
       body: { type: 'request_submitted', data: { contractor_name: user.full_name, request_type: reqForm.type, title: reqForm.title } },
-    }).catch(() => {});
+    }).catch(console.error);
     fetchReqs();
   };
 
@@ -238,10 +238,10 @@ export default function ContractorMyRequestsPage() {
     const days = halfDay ? 0.5 : Math.ceil((new Date(leaveEnd).getTime() - new Date(leaveStart).getTime()) / 86400000) + 1;
     supabase.functions.invoke('notify-internal-request', {
       body: { type: 'time_off', contractor_name: user.full_name, detail: `${leaveType} · ${leaveStart}${halfDay ? '' : ` – ${leaveEnd}`}`, notes: leaveReason || null },
-    }).catch(() => {});
+    }).catch(console.error);
     supabase.functions.invoke('notify-admin', {
       body: { type: 'time_off_submitted', data: { contractor_name: user.full_name, leave_type: leaveType, start_date: leaveStart, end_date: halfDay ? leaveStart : leaveEnd, days } },
-    }).catch(() => {});
+    }).catch(console.error);
     fetchLeaves();
   };
 
@@ -262,7 +262,7 @@ export default function ContractorMyRequestsPage() {
     setOtSaving(false); setShowOtModal(false);
     supabase.functions.invoke('notify-internal-request', {
       body: { type: 'overtime', contractor_name: user.full_name, detail: `${otDate} · ${h}hrs`, notes: otReason.trim() || null },
-    }).catch(() => {});
+    }).catch(console.error);
     fetchOts();
   };
 

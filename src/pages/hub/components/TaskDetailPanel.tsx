@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase, supabaseUrl_, supabaseAnonKey_ } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeChecklistItems, normalizeTaskAssigneePayload, sameAssigneeIds } from '@/lib/taskAssignments';
@@ -558,7 +558,7 @@ export default function TaskDetailPanel({
               assigned_to_ids: nextAssigneeIds,
               assigned_by_name: currentUserName,
             },
-          }).catch(() => {});
+          }).catch(console.error);
         }
         onClose();
       } else {
@@ -593,7 +593,7 @@ export default function TaskDetailPanel({
                 assigned_to_ids: addedAssigneeIds,
                 assigned_by_name: currentUserName,
               },
-            }).catch(() => {});
+            }).catch(console.error);
           }
         }
 
@@ -612,7 +612,7 @@ export default function TaskDetailPanel({
               updated_by_name: currentUserName,
               change_description: notifBody,
             },
-          }).catch(() => {});
+          }).catch(console.error);
         }
 
         setChecklist(normalizeChecklistItems(data.checklist));
@@ -802,13 +802,11 @@ export default function TaskDetailPanel({
           change_description: `${currentUserName} commented on "${task.title}"`,
           notification_type: 'task_comment',
         },
-      }).catch(() => {});
+      }).catch(console.error);
       if (newComment.includes('@')) {
-        fetch(`${supabaseUrl_}/functions/v1/notify-task-mention`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${supabaseAnonKey_}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ comment_id: data.id, task_id: task.id, author_id: currentUserId, author_name: currentUserName, body: newComment.trim(), project_id: task.project_id }),
-        }).catch(() => {});
+        supabase.functions.invoke('notify-task-mention', {
+          body: { comment_id: data.id, task_id: task.id, author_id: currentUserId, author_name: currentUserName, body: newComment.trim(), project_id: task.project_id },
+        }).catch(console.error);
       }
     }
     setNewComment('');
@@ -829,7 +827,7 @@ export default function TaskDetailPanel({
     setComments(prev => prev.filter(c => c.id !== commentId));
     if (comment?.attachment_url) {
       const fileId = driveFileIdFromUrl(comment.attachment_url);
-      if (fileId) supabase.functions.invoke('delete-from-drive', { body: { fileId } }).catch(() => {});
+      if (fileId) supabase.functions.invoke('delete-from-drive', { body: { fileId } }).catch(console.error);
     }
   };
 
@@ -1995,7 +1993,10 @@ export default function TaskDetailPanel({
             {!confirmDelete && (
               <div className="flex flex-col gap-2 ml-auto items-end">
                 {saveError && (
-                  <p className="text-xs text-red-500">{saveError}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-red-500">{saveError}</p>
+                    <button onClick={handleSave} className="text-xs text-red-500 underline cursor-pointer hover:text-red-700">Retry</button>
+                  </div>
                 )}
                 <div className="flex gap-2">
                   {!isNew && (

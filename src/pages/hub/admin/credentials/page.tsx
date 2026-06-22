@@ -219,7 +219,7 @@ export default function CredentialsVaultPage() {
           client_name: (req as any).hub_credentials?.client_name ?? '',
           decision: status,
         },
-      }).catch(() => {});
+      }).catch(console.error);
     }
     fetchData();
   };

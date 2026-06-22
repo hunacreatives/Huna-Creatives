@@ -29,6 +29,7 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const lsKey = `hub_notif_seen_${hubUser?.id}`;
@@ -44,6 +45,7 @@ export default function NotificationBell() {
 
   const fetchNotifs = useCallback(async () => {
     if (!hubUser) return;
+    setLoading(true);
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // last 7 days
     const lastSeen = getLastSeen();
     const clearedAt = getClearedAt();
@@ -438,6 +440,7 @@ export default function NotificationBell() {
       : items;
     setNotifs(visibleItems);
     setUnread(visibleItems.filter(n => n.time > lastSeen).length);
+    setLoading(false);
   }, [hubUser]);
 
   // Keep a stable ref to fetchNotifs so the realtime subscription never needs to recreate
@@ -579,7 +582,20 @@ export default function NotificationBell() {
           </div>
 
           <div className="max-h-[420px] overflow-y-auto">
-            {notifs.length === 0 ? (
+            {loading ? (
+              <div className="divide-y divide-gray-50">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-start gap-3 px-4 py-3 animate-pulse">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 bg-gray-100 rounded w-3/4" />
+                      <div className="h-2.5 bg-gray-100 rounded w-full" />
+                      <div className="h-2 bg-gray-100 rounded w-1/4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : notifs.length === 0 ? (
               <div className="py-10 text-center">
                 <i className="ri-notification-off-line text-2xl text-gray-200 block mb-2"></i>
                 <p className="text-sm text-gray-400">All caught up!</p>

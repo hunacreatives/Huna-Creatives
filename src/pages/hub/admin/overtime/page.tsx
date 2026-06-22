@@ -90,7 +90,7 @@ export default function AdminOvertimePage() {
         hours: selected.hours,
         decision: status,
       },
-    }).catch(() => {});
+    }).catch(console.error);
     setUpdating(false);
     setSelected(null);
     fetchRequests();

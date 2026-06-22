@@ -1,7 +1,7 @@
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
-const HUB_URL = 'https://www.hunacreatives.com/hub/contractor/projects';
+const HUB_URL = Deno.env.get('HUB_URL') ?? 'https://www.hunacreatives.com/hub/contractor/projects';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -25,11 +25,12 @@ async function pgGet(table: string, params: string): Promise<any[]> {
 }
 
 async function pgInsert(table: string, body: object): Promise<void> {
-  await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',
     headers: db.headers,
     body: JSON.stringify(body),
   });
+  if (!res.ok) throw new Error(`pgInsert ${table}: ${await res.text()}`);
 }
 
 async function sendPush(user_id: string, title: string, body: string, url?: string) {

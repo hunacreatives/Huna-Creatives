@@ -118,7 +118,7 @@ export default function AdminRequestsPage() {
         hours: selectedOt.hours,
         decision: status,
       },
-    }).catch(() => {});
+    }).catch(console.error);
     setOtUpdating(false);
     setSelectedOt(null);
     fetchOts();

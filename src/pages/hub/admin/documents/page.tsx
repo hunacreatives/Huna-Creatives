@@ -203,7 +203,7 @@ export default function AdminDocumentsPage() {
       .from('hub_sign_assignments')
       .update({ status: 'signed', signed_name: signName.trim(), signed_at: signedAt })
       .eq('id', signModal.id);
-    supabase.functions.invoke('send-signed-contract', { body: { assignment_id: signModal.id } }).catch(() => {});
+    supabase.functions.invoke('send-signed-contract', { body: { assignment_id: signModal.id } }).catch(console.error);
     setSigning(false);
     setSignModal(null);
     setSignName('');
@@ -267,7 +267,7 @@ export default function AdminDocumentsPage() {
 
     if (insertedAssignments) {
       for (const a of insertedAssignments) {
-        supabase.functions.invoke('notify-contract-assigned', { body: { assignment_id: a.id } }).catch(() => {});
+        supabase.functions.invoke('notify-contract-assigned', { body: { assignment_id: a.id } }).catch(console.error);
       }
     }
 

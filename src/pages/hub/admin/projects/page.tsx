@@ -573,7 +573,7 @@ export default function AdminProjectsPage() {
             assigned_to_ids: newTaskAssigneeIds,
             assigned_by_name: hubUser?.full_name ?? 'Admin',
           },
-        }).catch(() => {});
+        }).catch(console.error);
       }
       setNewTaskTitle(''); setNewTaskAssigneeIds([]); setNewTaskDue(''); setNewTaskPriority('medium'); setNewTaskAttachment(null); setShowTaskForm(false);
       if (newTaskAttachmentRef.current) newTaskAttachmentRef.current.value = '';
@@ -603,7 +603,7 @@ export default function AdminProjectsPage() {
         updated_by_name: updaterName,
         change_description: `${updaterName} marked "${task.title}" as ${statusLabel}`,
       },
-    }).catch(() => {});
+    }).catch(console.error);
   };
 
   const toggleTask = async (task: ProjectTask) => {
@@ -799,7 +799,7 @@ export default function AdminProjectsPage() {
       if (data && !(payload as any).drive_url) {
         supabase.functions.invoke('create-project-drive-folder', {
           body: { project_id: data.id, client_name: payload.client_name, project_name: payload.project_name },
-        }).catch(() => {});
+        }).catch(console.error);
       }
       // Auto-assign the creator (owner/admin) to the new project
       if (data && hubUser?.id) {
@@ -911,7 +911,7 @@ export default function AdminProjectsPage() {
         if (client.assignments.length > 0) {
           await supabase.from('hub_project_contractors').insert(
             client.assignments.map(a => ({ project_id: data.id, contractor_id: a.contractor_id, payout_type: 'percentage', percentage: 0, payout_status: 'pending' }))
-          ).catch(() => {});
+          ).catch(console.error);
         }
         await fetchAll();
         setActiveId(data.id);
@@ -1051,7 +1051,7 @@ export default function AdminProjectsPage() {
     if (!wasAlreadyAssigned) {
       supabase.functions.invoke('notify-project-assigned', {
         body: { project_id: activeId, contractor_id: contractorId },
-      }).catch(() => {});
+      }).catch(console.error);
       const proj = projects.find(p => p.id === activeId);
       if (proj) {
         createHubNotifications([{
@@ -1059,7 +1059,7 @@ export default function AdminProjectsPage() {
           title: 'New project assigned',
           body: `You've been added to "${proj.project_name}"`,
           link: '/hub/contractor/projects', read: false,
-        }]).catch(() => {});
+        }]).catch(console.error);
       }
     }
     fetchAll();
@@ -1287,7 +1287,7 @@ export default function AdminProjectsPage() {
           type: 'invoice',
           meta: { year },
         },
-      }).catch(() => {});
+      }).catch(console.error);
     }
   };
 

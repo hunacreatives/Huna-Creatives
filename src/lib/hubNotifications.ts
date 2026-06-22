@@ -20,7 +20,7 @@ export async function createHubNotifications(notifications: HubNotificationInput
   const { error } = await supabase.from('hub_notifications').insert(rows);
   if (error) throw error;
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     rows.map((notification) =>
       supabase.functions.invoke('send-push', {
         body: {
@@ -32,4 +32,7 @@ export async function createHubNotifications(notifications: HubNotificationInput
       })
     )
   );
+  results.forEach((r) => {
+    if (r.status === 'rejected') console.error('send-push failed:', r.reason);
+  });
 }

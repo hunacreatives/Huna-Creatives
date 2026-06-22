@@ -526,7 +526,7 @@ export default function ContractorPayoutsPage() {
       contractor_id: hubUser.id,
       reason: disputeReason.trim(),
     });
-    supabase.functions.invoke('notify-payslip-submitted', { body: { payout_id: existingPayout.id, type: 'dispute' } }).catch(() => {});
+    supabase.functions.invoke('notify-payslip-submitted', { body: { payout_id: existingPayout.id, type: 'dispute' } }).catch(console.error);
     setDisputeSaving(false);
     setDisputeModal(false);
     setDisputeReason('');
