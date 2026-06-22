@@ -105,9 +105,10 @@ export default function AdminRequestsPage() {
     await supabase.from('hub_overtime_requests').update({ status, reviewed_by: hubUser.id, admin_notes: otNotes || null, updated_at: new Date().toISOString() }).eq('id', selectedOt.id);
 
     if (status === 'approved') {
+      // The update above already marked this request approved, so the query below
+      // includes it — sum directly, do NOT add selectedOt.hours again (double-count).
       const { data: approvedForDate } = await supabase.from('hub_overtime_requests').select('hours').eq('contractor_id', selectedOt.contractor_id).eq('date', selectedOt.date).eq('status', 'approved');
-      const previousHours = (approvedForDate ?? []).reduce((s: number, r: any) => s + (r.hours || 0), 0);
-      const totalOT = previousHours + (selectedOt.hours || 0);
+      const totalOT = (approvedForDate ?? []).reduce((s: number, r: any) => s + (r.hours || 0), 0);
       await supabase.from('hub_daily_hours').upsert({ user_id: selectedOt.contractor_id, date: selectedOt.date, overtime_hours: totalOT, updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' });
     }
 

@@ -62,7 +62,9 @@ export default function AdminOvertimePage() {
       updated_at: new Date().toISOString(),
     }).eq('id', selected.id);
 
-    // On approval, sum all approved OT for this contractor on this date and write to hub_daily_hours
+    // On approval, sum all approved OT for this contractor on this date and write to hub_daily_hours.
+    // The status update above already marked this request approved, so the query below
+    // includes it — do NOT add selected.hours again or it double-counts.
     if (status === 'approved') {
       const { data: approvedForDate } = await supabase
         .from('hub_overtime_requests')
@@ -71,9 +73,7 @@ export default function AdminOvertimePage() {
         .eq('date', selected.date)
         .eq('status', 'approved');
 
-      // Include the current request (just approved above) in the total
-      const previousHours = (approvedForDate ?? []).reduce((s: number, r: any) => s + (r.hours || 0), 0);
-      const totalOT = previousHours + (selected.hours || 0);
+      const totalOT = (approvedForDate ?? []).reduce((s: number, r: any) => s + (r.hours || 0), 0);
 
       await supabase.from('hub_daily_hours').upsert({
         user_id: selected.contractor_id,

@@ -169,7 +169,10 @@ Deno.serve(async (req) => {
       }));
 
       const firstOn = punches.find(p => p.status === 'on');
-      const lastOff = firstOn ? punches.find(p => p.status === 'off' && p.ts > firstOn.ts) : undefined;
+      // last OFF after the first ON (punches are chronological) — span = first_on → last_off
+      const lastOff = firstOn
+        ? [...punches].reverse().find(p => p.status === 'off' && p.ts > firstOn.ts)
+        : undefined;
 
       // Record hours under the date the shift STARTED (on punch)
       const shiftDate = (() => {

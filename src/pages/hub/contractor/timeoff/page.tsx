@@ -152,7 +152,7 @@ export default function ContractorTimeOffPage() {
     if (!user) return;
     setSaving(true);
     setFormError('');
-    await supabase.from('hub_time_off').insert({
+    const { error } = await supabase.from('hub_time_off').insert({
       contractor_id: user.id,
       type,
       start_date: startDate,
@@ -163,6 +163,11 @@ export default function ContractorTimeOffPage() {
       status: 'pending',
     });
     setSaving(false);
+    if (error) {
+      console.error('Failed to submit time off request:', error);
+      setFormError('Failed to submit. Please try again.');
+      return;
+    }
     setShowModal(false);
     const endForCalc = halfDay ? startDate : endDate;
     const days = halfDay ? 0.5 : Math.ceil((new Date(endForCalc).getTime() - new Date(startDate).getTime()) / 86400000) + 1;

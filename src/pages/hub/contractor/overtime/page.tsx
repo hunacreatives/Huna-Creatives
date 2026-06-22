@@ -58,7 +58,7 @@ export default function ContractorOvertimePage() {
     if (!user) return;
     setSaving(true);
     setFormError('');
-    await supabase.from('hub_overtime_requests').insert({
+    const { error } = await supabase.from('hub_overtime_requests').insert({
       contractor_id: user.id,
       date,
       hours: h,
@@ -66,6 +66,11 @@ export default function ContractorOvertimePage() {
       status: 'pending',
     });
     setSaving(false);
+    if (error) {
+      console.error('Failed to submit overtime request:', error);
+      setFormError('Failed to submit. Please try again.');
+      return;
+    }
     setShowModal(false);
     supabase.functions.invoke('notify-internal-request', {
       body: { type: 'overtime', contractor_name: user.full_name, detail: `${date} · ${h}hrs`, notes: reason.trim() || null },
