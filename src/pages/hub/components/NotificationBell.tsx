@@ -559,6 +559,15 @@ export default function NotificationBell() {
         if (task) params.set('task', task);
         link = `/hub/admin/projects?${params.toString()}`;
       } catch {}
+    } else if (isAdmin && link.includes('/hub/admin/projects')) {
+      // Fix admin task links that are missing ws=1 (e.g. from DB webhooks)
+      try {
+        const url = new URL(link, window.location.origin);
+        if (url.searchParams.get('w') && !url.searchParams.get('ws')) {
+          url.searchParams.set('ws', '1');
+          link = url.pathname + url.search;
+        }
+      } catch {}
     } else if (link.startsWith('http')) {
       try {
         const url = new URL(link);
