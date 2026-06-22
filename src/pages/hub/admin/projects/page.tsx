@@ -1609,17 +1609,23 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     }
   }, [projects, searchParams]);
 
-  // Deep-link: ?task=TASK_ID — open specific task after workspace loads
-  const lastTaskKey = useRef<string | null>(null);
+  // Deep-link: ?task=TASK_ID — capture task ID immediately so URL sync can't strip it
+  const pendingTaskId = useRef<number | null>(null);
   useEffect(() => {
     const taskParam = searchParams.get('task');
-    if (!taskParam || tasks.length === 0) return;
-    if (taskParam === lastTaskKey.current) return;
-    lastTaskKey.current = taskParam;
-    const taskId = parseInt(taskParam);
+    if (taskParam) pendingTaskId.current = parseInt(taskParam);
+  }, [searchParams]);
+
+  // Open pending task once workspace + tasks are loaded
+  useEffect(() => {
+    if (!pendingTaskId.current || tasks.length === 0 || !workspaceOpen) return;
+    const taskId = pendingTaskId.current;
     const task = tasks.find(t => t.id === taskId);
-    if (task) openTaskDetail(task);
-  }, [tasks, searchParams]);
+    if (task) {
+      pendingTaskId.current = null;
+      openTaskDetail(task);
+    }
+  }, [tasks, workspaceOpen]);
 
   const projectTags = (project: Project) => {
     const serviceTag = project.service ? [project.service] : ['General'];
