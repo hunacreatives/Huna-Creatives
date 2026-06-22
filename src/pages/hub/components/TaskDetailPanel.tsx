@@ -597,25 +597,22 @@ export default function TaskDetailPanel({
           }
         }
 
-        // Notify current assignees (excluding updater) when task is meaningfully changed
+        // Notify assignees + admins when task is meaningfully changed
         if (statusChanged || assigneesChanged) {
-          const taskLink = `/hub/contractor/projects?workspace=${prev.project_id}&task=${prev.id}`;
           const notifBody = statusChanged
             ? `${currentUserName} marked "${title}" as ${status.replace('_', ' ')}`
             : `${currentUserName} updated assignments on "${title}"`;
-          const toNotify = nextAssigneeIds.filter(id => id !== currentUserId);
-          if (toNotify.length > 0) {
-            supabase.from('hub_notifications').insert(
-              toNotify.map(uid => ({
-                user_id: uid,
-                type: 'task_updated',
-                title: 'Task updated',
-                body: notifBody,
-                link: taskLink,
-                read: false,
-              }))
-            ).then(() => {}).catch(() => {});
-          }
+          supabase.functions.invoke('notify-task-updated', {
+            body: {
+              task_id: prev.id,
+              project_id: prev.project_id,
+              task_title: title,
+              project_name: projectName,
+              updated_by_id: currentUserId,
+              updated_by_name: currentUserName,
+              change_description: notifBody,
+            },
+          }).catch(() => {});
         }
 
         setChecklist(normalizeChecklistItems(data.checklist));

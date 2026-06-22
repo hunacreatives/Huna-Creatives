@@ -591,6 +591,18 @@ export default function AdminProjectsPage() {
     const statusLabel = newStatus.replace('_', ' ');
     await logActivity(task.project_id, `${hubUser?.full_name ?? 'Admin'} moved "${task.title}" to ${statusLabel}`);
     if (newStatus === 'done') fetchTasks(task.project_id);
+    const updaterName = hubUser?.full_name ?? 'Admin';
+    supabase.functions.invoke('notify-task-updated', {
+      body: {
+        task_id: task.id,
+        project_id: task.project_id,
+        task_title: task.title,
+        project_name: projects.find(p => p.id === task.project_id)?.project_name ?? 'General',
+        updated_by_id: hubUser?.id,
+        updated_by_name: updaterName,
+        change_description: `${updaterName} marked "${task.title}" as ${statusLabel}`,
+      },
+    }).catch(() => {});
   };
 
   const toggleTask = async (task: ProjectTask) => {

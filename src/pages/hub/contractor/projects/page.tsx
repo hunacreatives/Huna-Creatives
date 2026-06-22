@@ -869,6 +869,18 @@ export default function ContractorProjectsPage() {
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
     await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', task.id);
     await logActivity('task_status_changed', task.title, task.id, { from: task.status, to: newStatus });
+    const updaterName = hubUser?.full_name ?? 'Team';
+    supabase.functions.invoke('notify-task-updated', {
+      body: {
+        task_id: task.id,
+        project_id: task.project_id,
+        task_title: task.title,
+        project_name: workspaceRow?.hub_projects?.project_name ?? 'General',
+        updated_by_id: hubUser?.id,
+        updated_by_name: updaterName,
+        change_description: `${updaterName} marked "${task.title}" as ${newStatus.replace('_', ' ')}`,
+      },
+    }).catch(() => {});
   };
 
   const cycleTask = async (task: ProjectTask) => {
