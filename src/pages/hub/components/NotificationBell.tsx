@@ -501,7 +501,7 @@ export default function NotificationBell() {
     setOpen(false);
     if (n.id.startsWith('hub-')) {
       const realId = n.id.replace('hub-', '');
-      supabase.from('hub_notifications').update({ read: true }).eq('id', realId).then(() => {});
+      supabase.from('hub_notifications').update({ read: true }).eq('id', realId).then(({ error }) => { if (error) console.error('Failed to mark notification read:', error); });
       setNotifs(prev => prev.filter(x => x.id !== n.id));
     }
     if (!n.link) return;

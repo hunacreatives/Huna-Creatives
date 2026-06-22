@@ -81,6 +81,7 @@ interface ProjectTask {
   checklist?: { id: string; text: string; done: boolean; detail?: string; assignee_id?: string | null }[] | null;
   archived?: boolean | null;
   archived_at?: string | null;
+  color?: string | null;
 }
 
 const emptyTaskForm = () => ({
@@ -163,7 +164,7 @@ function GanttTimeline({ tasks, projectStart, projectEnd, today, colorMap: exter
     ?? Object.fromEntries(tasks.map((t, i) => [t.id, FALLBACK_PALETTE[i % FALLBACK_PALETTE.length]]));
 
   const getBarStyle = (t: ProjectTask): React.CSSProperties => {
-    const customColor = (t as any).color as string | null | undefined;
+    const customColor = t.color;
     if (customColor) return { background: customColor, color: '#fff' };
     const entry = colorMap[t.id];
     if (entry?.bar) return { background: entry.bar, color: entry.barText ?? '#1e1b4b' };
@@ -953,7 +954,7 @@ export default function ContractorProjectsPage() {
     if (!taskForm.title.trim() || !workspaceRow?.hub_projects?.id) return;
     setTaskSaving(true);
     try {
-      const existingColor = editingTask ? (tasks.find(t => t.id === editingTask.id) as any)?.color ?? null : null;
+      const existingColor = editingTask ? tasks.find(t => t.id === editingTask.id)?.color ?? null : null;
       const taskAssigneePayload = normalizeTaskAssigneePayload(taskForm.assigned_to ? [taskForm.assigned_to] : []);
       const payload = {
         title: taskForm.title.trim(),
@@ -1801,8 +1802,8 @@ export default function ContractorProjectsPage() {
     const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
     return (
       <div key={task.id} onClick={() => openViewTask(task)}
-        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group border-l-4 ${(task as any).color ? '' : color.border}`}
-        style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
+        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group border-l-4 ${task.color ? '' : color.border}`}
+        style={task.color ? { borderLeftColor: task.color } : undefined}>
         {/* Top row */}
         <div className="flex items-start gap-2.5">
           <button onClick={e => { e.stopPropagation(); cycleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${si.cls}`}>
@@ -1887,8 +1888,8 @@ export default function ContractorProjectsPage() {
         }}
         onDragEnd={() => { setDraggedTaskId(null); setBoardDragOver(null); }}
         onClick={() => openViewTask(task)}
-        className={`w-full text-left rounded-2xl border border-gray-100 border-l-4 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md cursor-pointer ${(task as any).color ? '' : color.border} ${draggedTaskId === task.id ? 'opacity-60' : ''}`}
-        style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}
+        className={`w-full text-left rounded-2xl border border-gray-100 border-l-4 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md cursor-pointer ${task.color ? '' : color.border} ${draggedTaskId === task.id ? 'opacity-60' : ''}`}
+        style={task.color ? { borderLeftColor: task.color } : undefined}
       >
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
@@ -3382,7 +3383,7 @@ export default function ContractorProjectsPage() {
           due_date: editingTask.due_date,
           start_date: editingTask.start_date,
           checklist: editingTask.checklist,
-          color: (editingTask as any).color ?? null,
+          color: editingTask.color ?? null,
           meta: (editingTask as any).meta ?? null,
           hub_users: wsTeam.find(m => m.id === getPrimaryTaskAssigneeId(editingTask))
             ? { id: wsTeam.find(m => m.id === getPrimaryTaskAssigneeId(editingTask))!.id, full_name: wsTeam.find(m => m.id === getPrimaryTaskAssigneeId(editingTask))!.full_name, avatar_url: wsTeam.find(m => m.id === getPrimaryTaskAssigneeId(editingTask))!.avatar_url ?? null }

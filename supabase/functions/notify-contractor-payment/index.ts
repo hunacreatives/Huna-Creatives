@@ -5,7 +5,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const FROM_EMAIL = 'Huna Creatives <billing@hunacreatives.com>';
-const HUB_URL = 'https://www.hunacreatives.com/hub/contractor/payouts';
+const HUB_URL = Deno.env.get('HUB_URL') ?? 'https://www.hunacreatives.com/hub/contractor/payouts';
 
 async function slackDm(userId: string, text: string) {
   const opened = await fetch('https://slack.com/api/conversations.open', {
@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
           const periodText = period_label ? ` · ${period_label}` : '';
           await slackDm(slackId, `💸 *Payment received*\n${amountFmt} has been sent for *${project_name}*${periodText}.\nPlease check your account. Reach out if anything looks off.\n<${HUB_URL}|Open Hub →>`);
         }
-      } catch (_) { /* non-fatal */ }
+      } catch (err) { console.error('Slack payment DM failed (non-fatal):', err); }
     }
 
     if (contractor_id) {

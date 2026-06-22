@@ -15,6 +15,14 @@ const CATEGORY_CFG: Record<string, { icon: string; color: string; bg: string; li
 
 const getCfg = (cat: string) => CATEGORY_CFG[cat] ?? { icon: 'ri-book-2-line', color: 'text-gray-500', bg: 'bg-gray-400', light: 'bg-gray-50 text-gray-600 border-gray-200' };
 
+// Escape HTML entities, then apply only the **bold** markdown — prevents any
+// stored markup in SOP content from injecting tags/handlers.
+function boldMarkup(text: string): string {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+
 function formatContent(text: string) {
   return text.split('\n').map((line, i) => {
     if (!line.trim()) return <div key={i} className="h-3" />;
@@ -27,7 +35,7 @@ function formatContent(text: string) {
       return (
         <div key={i} className="flex gap-2 text-sm text-gray-700 leading-relaxed">
           <span className="text-gray-400 flex-shrink-0 mt-0.5">•</span>
-          <span dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+          <span dangerouslySetInnerHTML={{ __html: boldMarkup(line.slice(2)) }} />
         </div>
       );
     }
@@ -37,7 +45,7 @@ function formatContent(text: string) {
       return (
         <div key={i} className="flex gap-3 text-sm text-gray-700 leading-relaxed">
           <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{num}</span>
-          <span dangerouslySetInnerHTML={{ __html: rest.join('. ').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+          <span dangerouslySetInnerHTML={{ __html: boldMarkup(rest.join('. ')) }} />
         </div>
       );
     }

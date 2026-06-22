@@ -162,7 +162,7 @@ export default function ContractorMyRequestsPage() {
   const ptoLeft = Math.max(0, VL_LIMIT - ptoUsed);
   const sickLeft = Math.max(0, SL_LIMIT - sickUsed);
 
-  const startDateUser = user && (user as any).start_date;
+  const startDateUser = user?.start_date;
   const ptoEligibleDate = startDateUser
     ? new Date(new Date(startDateUser).setMonth(new Date(startDateUser).getMonth() + 6))
     : null;
@@ -179,8 +179,14 @@ export default function ContractorMyRequestsPage() {
   const submitReq = async () => {
     if (!reqForm.title.trim() || !user) return;
     setReqSaving(true);
-    await supabase.from('hub_requests').insert({ ...reqForm, contractor_id: user.id, status: 'open' });
+    const { error } = await supabase.from('hub_requests').insert({ ...reqForm, contractor_id: user.id, status: 'open' });
     setReqSaving(false);
+    if (error) {
+      console.error('Failed to submit request:', error);
+      setReqToast('Failed to submit request. Please try again.');
+      setTimeout(() => setReqToast(''), 4000);
+      return;
+    }
     setShowReqModal(false);
     setReqForm(emptyReqForm);
     setReqToast('Request submitted successfully.');
@@ -223,7 +229,7 @@ export default function ContractorMyRequestsPage() {
     if (!user) return;
     setLeaveSaving(true);
     setLeaveError('');
-    await supabase.from('hub_time_off').insert({
+    const { error } = await supabase.from('hub_time_off').insert({
       contractor_id: user.id,
       type: leaveType,
       start_date: leaveStart,
@@ -234,6 +240,11 @@ export default function ContractorMyRequestsPage() {
       status: 'pending',
     });
     setLeaveSaving(false);
+    if (error) {
+      console.error('Failed to submit leave request:', error);
+      setLeaveError('Failed to submit. Please try again.');
+      return;
+    }
     setShowLeaveModal(false);
     const days = halfDay ? 0.5 : Math.ceil((new Date(leaveEnd).getTime() - new Date(leaveStart).getTime()) / 86400000) + 1;
     supabase.functions.invoke('notify-internal-request', {
@@ -258,8 +269,14 @@ export default function ContractorMyRequestsPage() {
     if (h > 12) { setOtError('Maximum 12 overtime hours per request.'); return; }
     if (!user) return;
     setOtSaving(true); setOtError('');
-    await supabase.from('hub_overtime_requests').insert({ contractor_id: user.id, date: otDate, hours: h, reason: otReason.trim() || null, status: 'pending' });
-    setOtSaving(false); setShowOtModal(false);
+    const { error } = await supabase.from('hub_overtime_requests').insert({ contractor_id: user.id, date: otDate, hours: h, reason: otReason.trim() || null, status: 'pending' });
+    setOtSaving(false);
+    if (error) {
+      console.error('Failed to submit overtime request:', error);
+      setOtError('Failed to submit. Please try again.');
+      return;
+    }
+    setShowOtModal(false);
     supabase.functions.invoke('notify-internal-request', {
       body: { type: 'overtime', contractor_name: user.full_name, detail: `${otDate} · ${h}hrs`, notes: otReason.trim() || null },
     }).catch(console.error);

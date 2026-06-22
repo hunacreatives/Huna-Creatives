@@ -6,6 +6,7 @@ const supabase = createClient(
 );
 
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
+const ADMIN_PROJECTS_URL = (Deno.env.get('HUB_BASE_URL') ?? 'https://hunacreatives.com') + '/hub/admin/projects';
 const NOTIFY_USERS = ['U091BL9PQ77', 'U0838LWSY4E']; // Abigail, Francis
 
 const cors = {
@@ -41,7 +42,7 @@ async function notifySlack(client_name: string, project_name: string, amount_due
           elements: [{
             type: 'button',
             text: { type: 'plain_text', text: 'View Projects →', emoji: true },
-            url: 'https://hunacreatives.com/hub/admin/projects',
+            url: ADMIN_PROJECTS_URL,
           }],
         },
       ],
@@ -152,7 +153,7 @@ Deno.serve(async (req) => {
         pay_link_token: payToken,
       });
 
-      try { await notifySlack(project.client_name, project.project_name, reminder.amount_due); } catch (_) {}
+      try { await notifySlack(project.client_name, project.project_name, reminder.amount_due); } catch (err) { console.error('Slack reminder notification failed:', err); }
 
       results.push({ id: reminder.id, ok: true });
     } else {
