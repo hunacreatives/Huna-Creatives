@@ -101,13 +101,14 @@ export default function AdminInvoiceBuilderPage() {
 
   const loadNextInvoiceNumber = async () => {
     const [sentRes, scheduledRes] = await Promise.all([
-      supabase.from('hub_invoice_log').select('invoice_number').order('id', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('hub_scheduled_invoices').select('invoice_number').order('id', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('hub_invoice_log').select('invoice_number'),
+      supabase.from('hub_scheduled_invoices').select('invoice_number'),
     ]);
 
-    const latest = [sentRes.data?.invoice_number, scheduledRes.data?.invoice_number]
-      .map((value) => parseInt(String(value ?? ''), 10))
-      .filter((value) => !Number.isNaN(value));
+    const latest = [
+      ...(sentRes.data ?? []).map((r: any) => parseInt(String(r.invoice_number ?? ''), 10)),
+      ...(scheduledRes.data ?? []).map((r: any) => parseInt(String(r.invoice_number ?? ''), 10)),
+    ].filter((v) => !Number.isNaN(v));
 
     if (latest.length === 0) return '0001';
     return String(Math.max(...latest) + 1).padStart(4, '0');
