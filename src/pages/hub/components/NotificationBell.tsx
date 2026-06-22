@@ -310,28 +310,6 @@ export default function NotificationBell() {
         }
       }
 
-      // Time off decisions
-      const { data: toDecisions } = await supabase
-        .from('hub_time_off')
-        .select('id, type, status, updated_at')
-        .eq('contractor_id', hubUser.id)
-        .gte('updated_at', since)
-        .in('status', ['approved', 'rejected'])
-        .order('updated_at', { ascending: false })
-        .limit(5);
-
-      for (const t of toDecisions || []) {
-        items.push({
-          id: `to-${t.id}`,
-          icon: t.status === 'approved' ? 'ri-checkbox-circle-line' : 'ri-close-circle-line',
-          iconBg: t.status === 'approved' ? 'bg-emerald-50' : 'bg-rose-50',
-          iconColor: t.status === 'approved' ? 'text-emerald-500' : 'text-rose-500',
-          title: `Time off ${t.status}`,
-          body: `Your ${t.type} leave request was ${t.status}`,
-          time: new Date(t.updated_at),
-        });
-      }
-
       // Request updates
       const { data: reqUpdates } = await supabase
         .from('hub_requests')
@@ -350,28 +328,6 @@ export default function NotificationBell() {
           iconColor: 'text-sky-500',
           title: `Request ${r.status === 'in_review' ? 'in review' : 'resolved'}`,
           body: r.title,
-          time: new Date(r.updated_at),
-        });
-      }
-
-      // OT request decisions
-      const { data: otDecisions } = await supabase
-        .from('hub_overtime_requests')
-        .select('id, status, date, hours, updated_at')
-        .eq('contractor_id', hubUser.id)
-        .gte('updated_at', since)
-        .in('status', ['approved', 'rejected'])
-        .order('updated_at', { ascending: false })
-        .limit(5);
-
-      for (const r of otDecisions || []) {
-        items.push({
-          id: `otdec-${r.id}`,
-          icon: r.status === 'approved' ? 'ri-timer-flash-line' : 'ri-close-circle-line',
-          iconBg: r.status === 'approved' ? 'bg-emerald-50' : 'bg-rose-50',
-          iconColor: r.status === 'approved' ? 'text-emerald-500' : 'text-rose-500',
-          title: `Overtime request ${r.status}`,
-          body: `${r.hours}h on ${new Date(r.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
           time: new Date(r.updated_at),
         });
       }
