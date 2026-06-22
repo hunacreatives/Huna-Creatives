@@ -78,6 +78,45 @@ const QUICKWINS = [
   { icon: 'ri-leaf-line',    title: 'Surface the Bean Origin', desc: 'Triad Coffee is a quality signal. Make it visible on menus and packaging.' },
 ];
 
+const responsiveStyles = `
+  @media (max-width: 768px) {
+    .p-hero-section { padding: 24px 16px 0 !important; }
+    .p-topbar { margin-bottom: 28px !important; }
+    .p-hero-cols { flex-direction: column !important; gap: 20px !important; }
+    .p-hero-text { flex: none !important; width: 100% !important; }
+    .p-hero-h1 { font-size: 38px !important; }
+    .p-hero-imgs-wrap { flex: none !important; width: 100% !important; height: 300px !important; min-height: unset !important; }
+    .p-hero-left-col { display: none !important; }
+    .p-hero-right-col { flex: 1 !important; }
+    .p-body { padding: 20px 16px 60px !important; gap: 20px !important; }
+    .p-grid-2 { grid-template-columns: 1fr !important; }
+    .p-id-gap-grid { grid-template-columns: 1fr !important; }
+    .p-id-logo img { max-height: 200px !important; aspect-ratio: unset !important; object-fit: contain !important; }
+    .p-color-split { grid-template-columns: 1fr !important; }
+    .p-swatch-4 { grid-template-columns: repeat(2, 1fr) !important; }
+    .p-bg-apps { grid-template-columns: 1fr 1fr !important; }
+    .p-visual-split { grid-template-columns: 1fr !important; }
+    .p-quickwins-grid { grid-template-columns: 1fr !important; }
+    .p-steps-grid { grid-template-columns: 1fr 1fr !important; }
+    .p-divider-line { display: none !important; }
+    .p-big-stmt-inner { padding: 28px 20px !important; max-width: 100% !important; }
+    .p-glass-card { padding: 24px 16px !important; }
+    .p-cta { padding: 36px 20px !important; }
+    .p-what-next { padding: 24px 20px !important; }
+    .p-disclaimer { padding: 16px !important; }
+    .p-footer-wrap { padding: 20px 16px !important; }
+    .p-footer-inner { flex-direction: column !important; align-items: flex-start !important; }
+    .p-badge { display: none !important; }
+    .p-prepared { font-size: 11px !important; }
+    .p-section-head { flex-shrink: 1 !important; min-width: 0 !important; }
+    .p-pillar-word { font-size: 12px !important; letter-spacing: 0.06em !important; }
+  }
+  @media (max-width: 480px) {
+    .p-hero-h1 { font-size: 32px !important; }
+    .p-steps-grid { grid-template-columns: 1fr !important; }
+  }
+`;
+
 export default function CapuCoffeeProposal() {
   useEffect(() => {
     document.title = 'Brand Strategy Proposal — Capu Coffee';
@@ -85,6 +124,7 @@ export default function CapuCoffeeProposal() {
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative', fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif" }}>
+      <style>{responsiveStyles}</style>
 
       {/* ── Fixed dark background ── */}
       <div style={{
@@ -100,24 +140,24 @@ export default function CapuCoffeeProposal() {
       <div style={{ position: 'relative', zIndex: 2 }}>
 
         {/* ════════════════ HERO ════════════════ */}
-        <section style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 40px 0' }}>
+        <section className="p-hero-section" style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 40px 0' }}>
 
           {/* Top bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 64 }}>
+          <div className="p-topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 64 }}>
             <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
               alt="Huna Creatives" style={{ height: 32, opacity: 0.85 }} />
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: COPPER, border: `1px solid rgba(196,135,58,0.35)`, padding: '5px 12px', borderRadius: 6 }}>
+            <span className="p-badge" style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: COPPER, border: `1px solid rgba(196,135,58,0.35)`, padding: '5px 12px', borderRadius: 6 }}>
               Brand Strategy Proposal
             </span>
           </div>
 
           {/* Hero 2-col */}
-          <div style={{ display: 'flex', gap: 40, alignItems: 'stretch' }}>
-            <div style={{ flex: '0 0 50%', minWidth: 0 }}>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 20 }}>
+          <div className="p-hero-cols" style={{ display: 'flex', gap: 40, alignItems: 'stretch' }}>
+            <div className="p-hero-text" style={{ flex: '0 0 50%', minWidth: 0 }}>
+              <p className="p-prepared" style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 20 }}>
                 Prepared for Adrian Manuel Tan · Capu Coffee
               </p>
-              <h1 style={{ color: '#fff', fontSize: 64, lineHeight: 1.05, margin: '0 0 24px', fontWeight: 700 }}>
+              <h1 className="p-hero-h1" style={{ color: '#fff', fontSize: 64, lineHeight: 1.05, margin: '0 0 24px', fontWeight: 700 }}>
                 The Brand That<br />Grew Past<br />Its Logo.
               </h1>
               <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 20, lineHeight: 1.8, margin: '0 0 32px' }}>
@@ -132,10 +172,10 @@ export default function CapuCoffeeProposal() {
               </div>
             </div>
 
-            <div style={{ flex: '0 0 calc(50% - 40px)', minWidth: 0, minHeight: 0, position: 'relative' }}>
+            <div className="p-hero-imgs-wrap" style={{ flex: '0 0 calc(50% - 40px)', minWidth: 0, minHeight: 0, position: 'relative' }}>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', gap: 8, borderRadius: 16, overflow: 'hidden' }}>
                 {/* Left column — two equal-height images */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
+                <div className="p-hero-left-col" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
                   <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
                     <img src={IMG.sign} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 60%', display: 'block', transform: 'scale(1.25)', transformOrigin: 'center' }} />
                   </div>
@@ -144,7 +184,7 @@ export default function CapuCoffeeProposal() {
                   </div>
                 </div>
                 {/* Right column — full height */}
-                <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+                <div className="p-hero-right-col" style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
                   <img src={IMG.img4179} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} />
                 </div>
               </div>
@@ -153,7 +193,7 @@ export default function CapuCoffeeProposal() {
         </section>
 
         {/* ════════════════ BODY ════════════════ */}
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 40px 80px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="p-body" style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 40px 80px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* ── SECTION HEADER: BRAND STUDY ── */}
           <SectionDivider label="Part I" title="Brand Study" sub="What we observed on-site and what it means for the brand." />
@@ -166,7 +206,7 @@ export default function CapuCoffeeProposal() {
           />
 
           {/* ── ROW 1: Brand Essence + What We Found ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="p-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
             <GlassCard num="1" title="BRAND ESSENCE">
               <Eyebrow>What Capu Is</Eyebrow>
@@ -204,10 +244,10 @@ export default function CapuCoffeeProposal() {
 
           {/* ── IDENTITY GAP (full-width) ── */}
           <GlassCard num="3" title="THE IDENTITY GAP">
-            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="p-id-gap-grid" style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', gap: 32, alignItems: 'start' }}>
               <div>
                 <Eyebrow>Current Logo</Eyebrow>
-                <div style={{ borderRadius: 12, overflow: 'hidden', background: '#fff', padding: 16, marginTop: 12 }}>
+                <div className="p-id-logo" style={{ borderRadius: 12, overflow: 'hidden', background: '#fff', padding: 16, marginTop: 12 }}>
                   <img src={IMG.logo} alt="Current logo" style={{ width: '100%', aspectRatio: '1', objectFit: 'contain', display: 'block' }} />
                 </div>
                 <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: 6, letterSpacing: '0.1em', textTransform: 'uppercase' }}>As it stands today</p>
@@ -250,10 +290,10 @@ export default function CapuCoffeeProposal() {
 
           {/* ── COLOR DIRECTION (full width) ── */}
           <GlassCard num="4" title="PROPOSED COLOR DIRECTION">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+            <div className="p-color-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
               <div>
                 <Eyebrow>Primary Colors</Eyebrow>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 12 }}>
+                <div className="p-swatch-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 12 }}>
                   {PALETTE.primary.map(c => (
                     <div key={c.hex}>
                       <div style={{ height: 72, borderRadius: 10, background: c.hex, border: c.hex === '#F2EBD9' ? '1px solid rgba(255,255,255,0.15)' : 'none' }} />
@@ -264,7 +304,7 @@ export default function CapuCoffeeProposal() {
                   ))}
                 </div>
                 <Eyebrow mt>Secondary / Supporting</Eyebrow>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 12 }}>
+                <div className="p-swatch-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 12 }}>
                   {PALETTE.secondary.map(c => (
                     <div key={c.hex}>
                       <div style={{ height: 48, borderRadius: 8, background: c.hex, border: c.hex === '#F9F6F0' ? '1px solid rgba(255,255,255,0.15)' : 'none' }} />
@@ -276,7 +316,7 @@ export default function CapuCoffeeProposal() {
               </div>
               <div>
                 <Eyebrow>Background Applications</Eyebrow>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 12 }}>
+                <div className="p-bg-apps" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 12 }}>
                   {[
                     { bg: '#F2EBD9', label: 'Day / Café',  sub: 'Warm, open',       dark: false },
                     { bg: '#1A1410', label: 'Night / Bar', sub: 'Intimate, low-lit', dark: true },
@@ -310,14 +350,14 @@ export default function CapuCoffeeProposal() {
 
           {/* ── VISUAL STYLE (full width) ── */}
           <GlassCard num="5" title="VISUAL STYLE DIRECTION">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+            <div className="p-visual-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
               <div>
                 <Eyebrow>Brand Pillars</Eyebrow>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
                   {PILLARS.map(p => (
                     <div key={p.word} style={{ ...glass, padding: '18px 14px', textAlign: 'center' }}>
                       <div style={{ fontSize: 28, marginBottom: 8, color: COPPER }}>{p.icon}</div>
-                      <p style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.16em', color: '#fff', margin: 0 }}>{p.word}</p>
+                      <p className="p-pillar-word" style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.16em', color: '#fff', margin: 0 }}>{p.word}</p>
                       <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>{p.sub}</p>
                     </div>
                   ))}
@@ -373,7 +413,7 @@ export default function CapuCoffeeProposal() {
           />
 
           {/* ── ROW 4: Deliverables + Quick Wins ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="p-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
             <GlassCard num="6" title="DELIVERABLES">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginTop: 4 }}>
@@ -390,7 +430,7 @@ export default function CapuCoffeeProposal() {
 
             <GlassCard num="7" title="QUICK WIN IDEAS">
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20, lineHeight: 1.6 }}>High-impact moves that shift perception before the second branch opens.</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+              <div className="p-quickwins-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
                 {QUICKWINS.map((q, i) => (
                   <div key={q.title} style={{ paddingTop: i < 2 ? 0 : 18, paddingBottom: 18, borderBottom: i >= QUICKWINS.length - 2 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -405,11 +445,11 @@ export default function CapuCoffeeProposal() {
           </div>
 
           {/* ── WHAT HAPPENS NEXT ── */}
-          <div style={{ ...glassLight, padding: '36px 36px' }}>
+          <div className="p-what-next" style={{ ...glassLight, padding: '36px 36px' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', marginBottom: 28, borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 16 }}>
               <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.4)' }}>What Happens Next</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+            <div className="p-steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
               {[
                 { n: '1', phase: 'Brand Study',  status: 'complete', label: 'COMPLETE', desc: "We've documented the space, identified the identity gap, and the brief is clear. This is where we are now." },
                 { n: '2', phase: 'Logo Drafts',  status: 'active',   label: 'UP NEXT',  desc: 'We create 3–5 directions from the current logo — each a different interpretation of the Capu brand. Two revision rounds included.' },
@@ -435,7 +475,7 @@ export default function CapuCoffeeProposal() {
 
           {/* ── DISCLAIMER ── */}
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', marginTop: 8, paddingTop: 40, paddingBottom: 8, paddingLeft: 4, paddingRight: 4 }}>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '24px 28px' }}>
+            <div className="p-disclaimer" style={{ display: 'flex', gap: 16, alignItems: 'flex-start', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '24px 28px' }}>
               <span style={{ fontSize: 18, marginTop: 2, flexShrink: 0, opacity: 0.5 }}>ⓘ</span>
               <div>
                 <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 8 }}>A note on this proposal</p>
@@ -447,7 +487,7 @@ export default function CapuCoffeeProposal() {
           </div>
 
           {/* ── FINAL CTA ── */}
-          <div style={{ ...glassLight, padding: '56px 48px', marginTop: 8, textAlign: 'center' }}>
+          <div className="p-cta" style={{ ...glassLight, padding: '56px 48px', marginTop: 8, textAlign: 'center' }}>
             <p style={{ fontSize: 13, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 16 }}>Next Step</p>
             <h2 style={{ color: '#fff', fontSize: 'clamp(1.8rem,3.5vw,2.8rem)', lineHeight: 1.1, margin: '0 0 16px', fontWeight: 700 }}>
               Approve the proposal.<br />We start immediately.
@@ -470,8 +510,8 @@ export default function CapuCoffeeProposal() {
         </div>{/* end body */}
 
         {/* Footer */}
-        <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '24px 40px' }}>
-          <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <footer className="p-footer-wrap" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '24px 40px' }}>
+          <div className="p-footer-inner" style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" style={{ height: 18, opacity: 0.25 }} />
             <div style={{ display: 'flex', gap: 24 }}>
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.18)' }}>Cebu City, Philippines</span>
@@ -491,10 +531,10 @@ export default function CapuCoffeeProposal() {
 function BigStatement({ quote, sub, img, flip = false }: { quote: React.ReactNode; sub: string; img: string; flip?: boolean }) {
   const COPPER = '#C4873A';
   return (
-    <div style={{ position: 'relative', borderRadius: 20, overflow: 'hidden', minHeight: 200, display: 'flex', alignItems: 'center' }}>
+    <div className="p-big-stmt" style={{ position: 'relative', borderRadius: 20, overflow: 'hidden', minHeight: 200, display: 'flex', alignItems: 'center' }}>
       <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.35)' }} />
       <div style={{ position: 'absolute', inset: 0, background: flip ? 'linear-gradient(to left, rgba(10,8,6,0.75), rgba(10,8,6,0.2))' : 'linear-gradient(to right, rgba(10,8,6,0.75), rgba(10,8,6,0.2))' }} />
-      <div style={{ position: 'relative', zIndex: 1, padding: '44px 48px', maxWidth: 700 }}>
+      <div className="p-big-stmt-inner" style={{ position: 'relative', zIndex: 1, padding: '44px 48px', maxWidth: 700 }}>
         <div style={{ width: 36, height: 3, background: COPPER, marginBottom: 20, borderRadius: 2 }} />
         <p style={{ fontSize: 'clamp(1.3rem,2.5vw,2rem)', color: '#fff', lineHeight: 1.25, margin: '0 0 14px', fontWeight: 700 }}>
           "{quote}"
@@ -509,7 +549,7 @@ function BigStatement({ quote, sub, img, flip = false }: { quote: React.ReactNod
 function GlassCard({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   const COPPER = '#C4873A';
   return (
-    <div style={{
+    <div className="p-glass-card" style={{
       background: 'rgba(255,255,255,0.05)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
@@ -531,12 +571,12 @@ function SectionDivider({ label, title, sub, copper = false }: { label: string; 
   const COPPER = '#C4873A';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '20px 0 8px' }}>
-      <div style={{ flexShrink: 0 }}>
+      <div className="p-section-head" style={{ flexShrink: 0 }}>
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: copper ? COPPER : 'rgba(255,255,255,0.25)', margin: '0 0 4px' }}>{label}</p>
         <p style={{ fontSize: 24, fontWeight: 700, color: copper ? '#fff' : 'rgba(255,255,255,0.7)', margin: 0, letterSpacing: '-0.01em' }}>{title}</p>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', margin: '4px 0 0', lineHeight: 1.5 }}>{sub}</p>
       </div>
-      <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right, rgba(196,135,58,0.5), transparent)' }} />
+      <div className="p-divider-line" style={{ flex: 1, height: 1, background: 'linear-gradient(to right, rgba(196,135,58,0.5), transparent)' }} />
     </div>
   );
 }
