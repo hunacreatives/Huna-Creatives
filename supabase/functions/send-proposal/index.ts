@@ -3,7 +3,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
 const REPLY_TO = 'contact@hunacreatives.com';
-const CALENDLY = 'https://calendly.com/hunacreatives/30min';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -20,7 +19,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const { to_email, to_name, project_title, proposal_url, subject } = await req.json();
+    const { to_email, to_name, project_title, proposal_url, subject, thank_you_context } = await req.json();
 
     if (!to_email || !proposal_url) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: cors });
@@ -28,6 +27,9 @@ Deno.serve(async (req) => {
 
     const displayName = to_name || to_email;
     const emailSubject = subject || `A proposal from Huna Creatives`;
+    const thankYouLine = thank_you_context
+      ? `Thank you for ${thank_you_context}.`
+      : `Thank you for your time.`;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -70,51 +72,65 @@ Deno.serve(async (req) => {
             </td>
           </tr>
 
+          <!-- Accent bar -->
+          <tr>
+            <td style="height:3px;background:linear-gradient(90deg,#FF6B35 0%,#ff9a72 100%)"></td>
+          </tr>
+
           <!-- Body -->
           <tr>
             <td class="body" style="padding:44px 40px 36px">
               <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
                 <tr>
-                  <td style="padding-bottom:20px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.75;color:#2a2a2a">
+                  <td style="padding-bottom:24px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.8;color:#2a2a2a">
                     Hi ${displayName},
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding-bottom:20px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.75;color:#2a2a2a">
-                    We've put together a proposal${project_title ? ` for <strong>${project_title}</strong>` : ''} that we think you'll find worthwhile.
+                  <td style="padding-bottom:8px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.8;color:#2a2a2a">
+                    ${thankYouLine}
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding-bottom:28px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.75;color:#2a2a2a">
-                    It covers what we observed, what we're proposing, and why we think the timing is right. We'd love the chance to walk you through it.
+                  <td style="padding-bottom:36px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.8;color:#2a2a2a">
+                    Here is the proposal${project_title ? ` for <strong>${project_title}</strong>` : ''} we put together for you:
                   </td>
                 </tr>
+
+                <!-- CTA -->
                 <tr>
-                  <td style="padding-bottom:12px">
-                    <a href="${proposal_url}"
-                       style="display:inline-block;background:#111111;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:15px 32px;text-decoration:none">
-                      View Proposal &rarr;
-                    </a>
+                  <td align="center" style="padding-bottom:20px">
+                    <table cellpadding="0" cellspacing="0" border="0" role="presentation">
+                      <tr>
+                        <td style="background:#111111;border-radius:3px">
+                          <a href="${proposal_url}"
+                             style="display:inline-block;background:#111111;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:18px 44px;text-decoration:none;border-radius:3px">
+                            View Proposal &rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
+
                 <tr>
-                  <td style="padding-top:8px;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:11px;color:#aaaaaa">
-                    Or copy this link: <a href="${proposal_url}" style="color:#FF6B35;text-decoration:none">${proposal_url}</a>
+                  <td align="center" style="padding-bottom:36px;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:11px;color:#bbbbbb">
+                    or copy this link:<br>
+                    <a href="${proposal_url}" style="color:#FF6B35;text-decoration:none;word-break:break-all">${proposal_url}</a>
                   </td>
                 </tr>
-                <tr><td height="32"></td></tr>
+
+                <!-- Divider -->
                 <tr>
-                  <td style="font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.75;color:#2a2a2a">
-                    After you've had a look, we'd love to set up a call.
+                  <td style="border-top:1px solid #eeeeee;padding-top:28px;font-family:Georgia,'Times New Roman',serif;font-size:14px;line-height:1.8;color:#666666">
+                    Once you've had a look, the next step is to approve the proposal inside. If you have any questions before then, just reply to this email — we're happy to clarify.
                   </td>
                 </tr>
-                <tr><td height="16"></td></tr>
+                <tr><td height="12"></td></tr>
                 <tr>
-                  <td>
-                    <a href="${CALENDLY}"
-                       style="display:inline-block;background:#ffffff;color:#111111;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:0.06em;padding:12px 28px;text-decoration:none;border:1.5px solid #111111">
-                      Book a Discovery Call
-                    </a>
+                  <td style="font-family:Georgia,'Times New Roman',serif;font-size:14px;line-height:1.8;color:#2a2a2a">
+                    Warm regards,<br>
+                    <strong>The Huna Creatives Team</strong>
                   </td>
                 </tr>
               </table>

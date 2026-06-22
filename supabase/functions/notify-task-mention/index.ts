@@ -101,7 +101,29 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             channel: mentioned.slack_id,
-            text: `💬 *${author_name}* mentioned you in *"${taskTitle}"*:\n> ${body.slice(0, 200)}\n<${deepLink}|Open in Sentro Hub →>`,
+            text: `💬 ${author_name} mentioned you in "${taskTitle}"`,
+            unfurl_links: false,
+            unfurl_media: false,
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `💬 *${author_name}* mentioned you in *"${taskTitle}"*:\n> ${body.slice(0, 200)}`,
+                },
+              },
+              {
+                type: 'actions',
+                elements: [
+                  {
+                    type: 'button',
+                    text: { type: 'plain_text', text: 'Open in Sentro Hub →' },
+                    url: deepLink,
+                    style: 'primary',
+                  },
+                ],
+              },
+            ],
           }),
         }).catch(() => {});
       }

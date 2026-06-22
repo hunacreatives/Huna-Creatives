@@ -58,8 +58,9 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
   // Use localTasks for optimistic updates during drag
   const displayTasks = isDragging && localTasks.length ? localTasks : tasks;
 
+  // tasksByDate only for selected-day bottom panel
   const tasksByDate: Record<string, ProjectTask[]> = {};
-  for (const t of displayTasks) {
+  for (const t of tasks) {
     if (!t.due_date && !t.start_date) continue;
     const start = t.start_date ?? t.due_date!;
     const end = t.due_date ?? t.start_date!;
@@ -166,6 +167,62 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
 
   const selectedTasks = selectedDate ? (tasksByDate[selectedDate] ?? []) : [];
 
+  // ── Week-row lane assignment (bars span across days in a row) ──────────
+  const MAX_LANES = 3;
+  type LaneEntry = { task: ProjectTask; lane: number; spanStart: boolean; spanEnd: boolean };
+  type WeekRow = { dates: (string | null)[]; lanes: LaneEntry[]; overflowByDate: Record<string, number> };
+
+  const weekRows: WeekRow[] = [];
+  for (let wi = 0; wi < totalCells; wi += 7) {
+    const dates: (string | null)[] = [];
+    for (let di = 0; di < 7; di++) {
+      const dn = (wi + di) - startPad + 1;
+      dates.push(dn >= 1 && dn <= daysInMonth ? `${year}-${pad2(month + 1)}-${pad2(dn)}` : null);
+    }
+    const weekDates = dates.filter(Boolean) as string[];
+    const weekStart = weekDates[0] ?? '';
+    const weekEnd   = weekDates[weekDates.length - 1] ?? '';
+
+    const weekTasks = displayTasks
+      .filter(t => {
+        if (!t.due_date) return false;
+        const ts = t.start_date ?? t.due_date;
+        return ts <= weekEnd && t.due_date >= weekStart;
+      })
+      .sort((a, b) => {
+        const as_ = a.start_date ?? a.due_date ?? '';
+        const bs_ = b.start_date ?? b.due_date ?? '';
+        return as_.localeCompare(bs_) || a.id - b.id;
+      });
+
+    const laneEnd: string[] = [];
+    const lanes: LaneEntry[] = [];
+    const overflowByDate: Record<string, number> = {};
+
+    for (const t of weekTasks) {
+      const ts = t.start_date ?? t.due_date ?? '';
+      const te = t.due_date ?? '';
+      let lane = laneEnd.findIndex(e => e < ts);
+      if (lane === -1) lane = laneEnd.length;
+      laneEnd[lane] = te;
+
+      if (lane < MAX_LANES) {
+        lanes.push({ task: t, lane, spanStart: ts >= weekStart, spanEnd: te <= weekEnd });
+      } else {
+        const effStart = ts < weekStart ? weekStart : ts;
+        const effEnd   = te > weekEnd   ? weekEnd   : te;
+        const cur = new Date(effStart + 'T00:00:00');
+        const endD = new Date(effEnd + 'T00:00:00');
+        while (cur <= endD) {
+          const k = dateStr(cur);
+          overflowByDate[k] = (overflowByDate[k] ?? 0) + 1;
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+    }
+    weekRows.push({ dates, lanes, overflowByDate });
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       {/* Header */}
@@ -194,99 +251,117 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7">
-        {Array.from({ length: totalCells }).map((_, idx) => {
-          const dayNum = idx - startPad + 1;
-          const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
-          const cellDate = inMonth ? `${year}-${pad2(month + 1)}-${pad2(dayNum)}` : null;
-          const isToday = cellDate === today;
-          const isSelected = cellDate !== null && cellDate === selectedDate;
-          const isDropTarget = cellDate !== null && cellDate === dragOver;
-          const colIdx = idx % 7;
-          const isWeekend = colIdx === 5 || colIdx === 6;
-          const dayTasks = cellDate ? (tasksByDate[cellDate] ?? []) : [];
-          const visible = dayTasks.slice(0, 2);
-          const extra = dayTasks.length - visible.length;
+      {/* Calendar grid — rendered week by week so bars span across day cells */}
+      <div>
+        {weekRows.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7">
+            {week.dates.map((cellDate, di) => {
+              const inMonth = cellDate !== null;
+              const dayNum = cellDate ? parseInt(cellDate.split('-')[2]) : 0;
+              const isToday = cellDate === today;
+              const isSelected = cellDate !== null && cellDate === selectedDate;
+              const isDropTarget = cellDate !== null && cellDate === dragOver;
+              const isWeekend = di === 5 || di === 6;
+              const overflow = cellDate ? (week.overflowByDate[cellDate] ?? 0) : 0;
+              const weekFirstDay = week.dates.find(Boolean) ?? '';
 
-          return (
-            <div
-              key={idx}
-              onClick={() => !isDragging && inMonth && cellDate && setSelectedDate(isSelected ? null : cellDate)}
-              onDragOver={e => handleDragOver(e, cellDate)}
-              onDrop={e => handleDrop(e, cellDate)}
-              onDragLeave={() => setDragOver(null)}
-              className={[
-                'min-h-[72px] p-1.5 border-b border-r border-gray-50 flex flex-col gap-0.5 transition-colors',
-                !inMonth ? 'bg-gray-50/30' : '',
-                isWeekend && inMonth ? 'bg-gray-50/50' : '',
-                isSelected && !isDragging ? 'ring-2 ring-inset ring-orange-300' : '',
-                isDropTarget ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : '',
-                inMonth && !isDragging ? 'cursor-pointer hover:bg-orange-50/30' : '',
-                inMonth && isDragging ? 'cursor-copy' : '',
-              ].filter(Boolean).join(' ')}
-            >
-              <div className="flex justify-end">
-                <span className={[
-                  'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
-                  isToday ? 'bg-orange-500 text-white font-bold' : '',
-                  !inMonth ? 'text-gray-300' : isToday ? '' : 'text-gray-600',
-                ].filter(Boolean).join(' ')}>
-                  {inMonth ? dayNum : ''}
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5 flex-1">
-                {visible.map(t => {
-                  const isStart = cellDate === (t.start_date ?? t.due_date);
-                  const isEnd = cellDate === (t.due_date ?? t.start_date);
-                  const hasRange = t.start_date && t.due_date && t.start_date !== t.due_date;
-                  const draggable = !!onTaskUpdate;
-                  return (
-                    <div
-                      key={t.id}
-                      draggable={draggable && isStart}
-                      onDragStart={draggable && isStart ? e => handleDragStart(e, t, 'move') : undefined}
-                      onDragEnd={handleDragEnd}
-                      style={getBarStyle(t)}
-                      className={[
-                        'h-6 flex items-center text-[10px] font-medium overflow-hidden select-none group',
-                        hasRange
-                          ? isStart ? 'rounded-l-md ml-1 -mr-px' : isEnd ? 'rounded-r-md -ml-px mr-1' : '-mx-px'
-                          : 'rounded-md mx-1',
-                        draggable && isStart ? 'cursor-grab active:cursor-grabbing' : '',
-                      ].filter(Boolean).join(' ')}
-                    >
-                      {/* Left resize handle (start cell of range) */}
-                      {draggable && isStart && hasRange && (
-                        <span
-                          draggable
-                          onDragStart={e => { e.stopPropagation(); handleDragStart(e, t, 'resize-start'); }}
+              // Fill 3 fixed lane slots — null renders as spacer to keep alignment
+              const slots: (LaneEntry | null)[] = [null, null, null];
+              for (const entry of week.lanes) {
+                const ts = entry.task.start_date ?? entry.task.due_date ?? '';
+                const te = entry.task.due_date ?? '';
+                if (cellDate && ts <= cellDate && te >= cellDate) {
+                  slots[entry.lane] = entry;
+                }
+              }
+
+              return (
+                <div
+                  key={di}
+                  onClick={() => !isDragging && inMonth && cellDate && setSelectedDate(isSelected ? null : cellDate)}
+                  onDragOver={e => handleDragOver(e, cellDate)}
+                  onDrop={e => handleDrop(e, cellDate)}
+                  onDragLeave={() => setDragOver(null)}
+                  className={[
+                    'min-h-[96px] border-b border-r border-gray-50 flex flex-col',
+                    !inMonth ? 'bg-gray-50/30' : '',
+                    isWeekend && inMonth ? 'bg-gray-50/50' : '',
+                    isSelected && !isDragging ? 'ring-2 ring-inset ring-orange-300' : '',
+                    isDropTarget ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-300' : '',
+                    inMonth && !isDragging ? 'cursor-pointer hover:bg-orange-50/30 transition-colors' : '',
+                    inMonth && isDragging ? 'cursor-copy' : '',
+                  ].filter(Boolean).join(' ')}
+                >
+                  {/* Date number */}
+                  <div className="flex justify-end p-1.5 pb-1">
+                    <span className={[
+                      'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
+                      isToday ? 'bg-orange-500 text-white font-bold' : '',
+                      !inMonth ? 'text-gray-300' : isToday ? '' : 'text-gray-600',
+                    ].filter(Boolean).join(' ')}>
+                      {inMonth ? dayNum : ''}
+                    </span>
+                  </div>
+
+                  {/* Lane rows — fixed height keeps bars aligned across the row */}
+                  <div className="flex flex-col gap-px pb-1">
+                    {slots.map((slot, laneIdx) => {
+                      if (!slot || !cellDate) {
+                        return <div key={laneIdx} className="h-6" />;
+                      }
+                      const t = slot.task;
+                      const ts = t.start_date ?? t.due_date ?? '';
+                      const te = t.due_date ?? '';
+                      const isActualStart = cellDate === ts;
+                      const isActualEnd   = cellDate === te;
+                      const hasRange = t.start_date && t.due_date && t.start_date !== t.due_date;
+                      const draggable = !!onTaskUpdate;
+                      const showLabel = isActualStart || (!slot.spanStart && cellDate === weekFirstDay);
+                      const rl = (slot.spanStart && isActualStart) ? 'rounded-l-md ml-1' : '-ml-px';
+                      const rr = (slot.spanEnd && isActualEnd)     ? 'rounded-r-md mr-1' : '-mr-px';
+
+                      return (
+                        <div key={laneIdx}
+                          draggable={draggable && isActualStart}
+                          onDragStart={draggable && isActualStart ? e => handleDragStart(e, t, 'move') : undefined}
                           onDragEnd={handleDragEnd}
-                          className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-40 group-hover:opacity-100"
-                          title="Drag to extend start"
-                        ><i className="ri-arrow-left-s-line text-[8px]"></i></span>
-                      )}
-                      {isStart && <span className="truncate flex-1 pl-2 leading-none">{t.title}</span>}
-                      {/* Right resize handle — on end cell of range OR on single-day tasks */}
-                      {draggable && isEnd && (
-                        <span
-                          draggable
-                          onDragStart={e => { e.stopPropagation(); handleDragStart(e, t, 'resize-end'); }}
-                          onDragEnd={handleDragEnd}
-                          className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-40 group-hover:opacity-100"
-                          title="Drag to extend end"
-                        ><i className="ri-arrow-right-s-line text-[8px]"></i></span>
-                      )}
-                    </div>
-                  );
-                })}
-                {extra > 0 && (
-                  <div className="text-[10px] text-gray-400 px-1.5">+{extra} more</div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+                          style={getBarStyle(t)}
+                          className={[
+                            `h-6 flex items-center text-[10px] font-medium overflow-hidden select-none group ${rl} ${rr}`,
+                            draggable && isActualStart ? 'cursor-grab active:cursor-grabbing' : '',
+                          ].filter(Boolean).join(' ')}
+                        >
+                          {draggable && isActualStart && hasRange && (
+                            <span
+                              draggable
+                              onDragStart={e => { e.stopPropagation(); handleDragStart(e, t, 'resize-start'); }}
+                              onDragEnd={handleDragEnd}
+                              className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-40 group-hover:opacity-100"
+                              title="Drag to extend start"
+                            ><i className="ri-arrow-left-s-line text-[8px]"></i></span>
+                          )}
+                          {showLabel && <span className="truncate flex-1 pl-2 leading-none">{t.title}</span>}
+                          {draggable && isActualEnd && (
+                            <span
+                              draggable
+                              onDragStart={e => { e.stopPropagation(); handleDragStart(e, t, 'resize-end'); }}
+                              onDragEnd={handleDragEnd}
+                              className="w-3 h-full flex items-center justify-center cursor-ew-resize flex-shrink-0 opacity-40 group-hover:opacity-100"
+                              title="Drag to extend end"
+                            ><i className="ri-arrow-right-s-line text-[8px]"></i></span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {overflow > 0 && (
+                      <div className="text-[10px] text-gray-400 px-1.5">+{overflow} more</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* Selected day task list */}

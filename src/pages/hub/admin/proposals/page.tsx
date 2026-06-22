@@ -127,7 +127,7 @@ export default function ProposalBuilderPage() {
       await save({ status: 'published' });
     }
 
-    const proposalUrl = `${window.location.origin}/p/${proposal.slug}`;
+    const proposalUrl = `https://www.hunacreatives.com/p/${proposal.slug}`;
     try {
       const { error } = await supabase.functions.invoke('send-proposal', {
         body: {

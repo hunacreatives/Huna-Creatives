@@ -54,7 +54,6 @@ const ProjectPage = () => {
             <div className="grid lg:grid-cols-2 gap-6 md:gap-12 lg:gap-20 items-center">
               <div>
                 <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-5">
-                  <span className="w-5 h-px bg-orange-400 inline-block" />
                   Case Study
                 </span>
                 <h1 className="font-display text-2xl md:text-4xl lg:text-5xl xl:text-[3.25rem] font-bold text-[#1a1a1a] leading-[1.1] mb-3 md:mb-6">
@@ -114,7 +113,6 @@ const ProjectPage = () => {
               <div className="flex flex-col gap-4 md:gap-8 order-2 lg:order-1">
                 <div className="rounded-xl md:rounded-2xl p-4 md:p-8 flex-1 bg-white" style={{ border: '1px solid rgba(0,0,0,0.07)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
                   <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-2 md:mb-4">
-                    <span className="w-5 h-px bg-orange-400 inline-block" />
                     The Challenge
                   </span>
                   <h2 className="font-display text-base md:text-2xl font-bold text-[#1a1a1a] mb-2 md:mb-5">
@@ -124,7 +122,6 @@ const ProjectPage = () => {
                 </div>
                 <div className="rounded-xl md:rounded-2xl p-4 md:p-8 flex-1 bg-white" style={{ border: '1px solid rgba(0,0,0,0.07)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
                   <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-2 md:mb-4">
-                    <span className="w-5 h-px bg-orange-400 inline-block" />
                     Our Approach
                   </span>
                   <h2 className="font-display text-base md:text-2xl font-bold text-[#1a1a1a] mb-2 md:mb-5">
@@ -145,9 +142,7 @@ const ProjectPage = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 md:mb-12">
               <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                <span className="w-5 h-px bg-orange-400 inline-block" />
                 Brand Identity
-                <span className="w-5 h-px bg-orange-400 inline-block" />
               </span>
               <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#1a1a1a]">
                 Logo &amp; Mark
@@ -183,7 +178,6 @@ const ProjectPage = () => {
             <div className="grid lg:grid-cols-2 gap-8 md:gap-12 lg:gap-20 items-start">
               <div>
                 <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                  <span className="w-5 h-px bg-orange-400 inline-block" />
                   Typography
                 </span>
                 <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#1a1a1a] mb-4 md:mb-5">
@@ -212,9 +206,7 @@ const ProjectPage = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 md:mb-12">
               <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                <span className="w-5 h-px bg-orange-400 inline-block" />
                 Color Palette
-                <span className="w-5 h-px bg-orange-400 inline-block" />
               </span>
               <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#1a1a1a]">
                 Brand Colors
@@ -239,9 +231,7 @@ const ProjectPage = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 md:mb-12">
               <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                <span className="w-5 h-px bg-orange-400 inline-block" />
                 Applications
-                <span className="w-5 h-px bg-orange-400 inline-block" />
               </span>
               <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#1a1a1a]">
                 Brand in Action
@@ -267,9 +257,7 @@ const ProjectPage = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 md:mb-12">
               <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                <span className="w-5 h-px bg-orange-400 inline-block" />
                 Results
-                <span className="w-5 h-px bg-orange-400 inline-block" />
               </span>
               <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#1a1a1a] mb-3 md:mb-4">
                 The Impact

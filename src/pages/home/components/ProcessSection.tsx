@@ -74,9 +74,7 @@ export default function ProcessSection() {
           className="text-center mb-24"
         >
           <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest text-orange-400 uppercase mb-6">
-            <span className="w-6 h-px bg-orange-400 inline-block" />
             Our Process
-            <span className="w-6 h-px bg-orange-400 inline-block" />
           </span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5 leading-tight">
             How we{' '}

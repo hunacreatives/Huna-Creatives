@@ -101,6 +101,13 @@ export default function ContactSubmissionsPage() {
   // Proposals
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [creatingProposal, setCreatingProposal] = useState(false);
+  const [sendingProposalId, setSendingProposalId] = useState<number | null>(null);
+  const [proposalSendResult, setProposalSendResult] = useState<Record<number, 'success' | 'error'>>({});
+
+  // Send modal
+  const [sendModal, setSendModal] = useState<Proposal | null>(null);
+  const [sendModalEmail, setSendModalEmail] = useState('');
+  const [sendModalThankYou, setSendModalThankYou] = useState('');
 
   const fetchSubmissions = async () => {
     setLoading(true);
@@ -124,6 +131,48 @@ export default function ContactSubmissionsPage() {
   useEffect(() => { fetchSubmissions(); }, [filter]);
   useEffect(() => { if (tab === 'sent') fetchReplies(); }, [tab]);
   useEffect(() => { if (tab === 'proposals') fetchProposals(); }, [tab]);
+
+  const openSendModal = (e: React.MouseEvent, p: Proposal) => {
+    e.stopPropagation();
+    setSendModal(p);
+    setSendModalEmail(p.to_email || '');
+    setSendModalThankYou('');
+    setProposalSendResult(prev => { const r = { ...prev }; delete r[p.id]; return r; });
+  };
+
+  const sendProposalFromModal = async () => {
+    const p = sendModal;
+    if (!p || !sendModalEmail) return;
+    setSendingProposalId(p.id);
+
+    const proposalUrl = `https://www.hunacreatives.com/p/${p.slug}`;
+    try {
+      if (p.status === 'draft') {
+        await supabase.from('hub_proposals').update({ status: 'published' }).eq('id', p.id);
+      }
+      const { error } = await supabase.functions.invoke('send-proposal', {
+        body: {
+          to_email: sendModalEmail,
+          to_name: p.client_name,
+          project_title: p.project_title || null,
+          proposal_url: proposalUrl,
+          subject: `Proposal from Huna Creatives${p.project_title ? ` — ${p.project_title}` : ''}`,
+          thank_you_context: sendModalThankYou.trim() || null,
+        },
+      });
+      if (error) throw error;
+      await supabase.from('hub_proposals')
+        .update({ status: 'sent', sent_at: new Date().toISOString(), to_email: sendModalEmail })
+        .eq('id', p.id);
+      setProposals(prev => prev.map(x => x.id === p.id ? { ...x, status: 'sent', sent_at: new Date().toISOString(), to_email: sendModalEmail } : x));
+      setProposalSendResult(prev => ({ ...prev, [p.id]: 'success' }));
+      setSendModal(null);
+    } catch {
+      setProposalSendResult(prev => ({ ...prev, [p.id]: 'error' }));
+    } finally {
+      setSendingProposalId(null);
+    }
+  };
 
   const updateStatus = async (id: number, status: SubmissionStatus) => {
     setUpdating(true);
@@ -270,27 +319,10 @@ export default function ContactSubmissionsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {/* Hardcoded proposals built by Claude */}
-                <a href="/p/capu-coffee" target="_blank" rel="noopener noreferrer"
-                  className="text-left bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-all group">
-                  <div className="h-1.5" style={{ background: '#C4873A' }} />
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="font-medium text-sm text-gray-900">Capu Coffee</span>
-                      <span className="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">draft</span>
-                    </div>
-                    <p className="text-xs text-gray-500 truncate mb-2">Brand Elevation — Capu Coffee</p>
-                    <p className="text-[11px] text-gray-400">Jun 2026</p>
-                  </div>
-                  <div className="px-4 pb-3 flex items-center gap-1 text-[11px] text-gray-400 group-hover:text-[#FF6B35] transition-colors">
-                    <i className="ri-external-link-line" /> View proposal
-                  </div>
-                </a>
                 {proposals.map(p => (
                   <button key={p.id}
                     onClick={() => navigate(`/hub/admin/proposals/${p.id}`)}
                     className="text-left bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-all cursor-pointer group">
-                    {/* Color band */}
                     <div className="h-1.5" style={{ background: p.accent_color }} />
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -304,8 +336,19 @@ export default function ContactSubmissionsPage() {
                       )}
                       <p className="text-[11px] text-gray-400">{fmtShort(p.created_at)}</p>
                     </div>
-                    <div className="px-4 pb-3 flex items-center gap-1 text-[11px] text-gray-400 group-hover:text-[#FF6B35] transition-colors">
-                      <i className="ri-edit-line" /> Edit proposal
+                    <div className="px-4 pb-3 flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1 text-[11px] text-gray-400 group-hover:text-[#FF6B35] transition-colors">
+                        <i className="ri-edit-line" /> Edit proposal
+                      </span>
+                      <button
+                        onClick={e => openSendModal(e, p)}
+                        className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors text-[#FF6B35] hover:text-[#e55a27]">
+                        {proposalSendResult[p.id] === 'error'
+                          ? <><i className="ri-error-warning-line" /> Failed</>
+                          : p.status === 'sent'
+                            ? <><i className="ri-refresh-line" /> Resend</>
+                            : <><i className="ri-send-plane-line" /> Send to client</>}
+                      </button>
                     </div>
                   </button>
                 ))}
@@ -608,6 +651,97 @@ export default function ContactSubmissionsPage() {
           </>
         )}
       </div>
+
+      {/* ── Send Proposal Modal ── */}
+      {sendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSendModal(null)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="bg-[#111] px-6 py-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-7 w-7 rounded-full flex items-center justify-center" style={{ background: sendModal.accent_color }}>
+                  <i className={`${sendModal.status === 'sent' ? 'ri-refresh-line' : 'ri-send-plane-line'} text-white text-sm`} />
+                </div>
+                <div>
+                  <p className="text-white text-sm font-semibold leading-tight">
+                    {sendModal.status === 'sent' ? 'Resend Proposal' : 'Send Proposal'}
+                  </p>
+                  <p className="text-gray-400 text-[11px] truncate max-w-[220px]">{sendModal.client_name}{sendModal.project_title ? ` — ${sendModal.project_title}` : ''}</p>
+                </div>
+              </div>
+              <button onClick={() => setSendModal(null)} className="text-gray-400 hover:text-white transition-colors cursor-pointer">
+                <i className="ri-close-line text-lg" />
+              </button>
+            </div>
+
+            {/* Accent stripe */}
+            <div className="h-0.5" style={{ background: `linear-gradient(90deg, ${sendModal.accent_color}, transparent)` }} />
+
+            <div className="p-6 space-y-5">
+              {/* Email field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Send to</label>
+                <input
+                  type="email"
+                  value={sendModalEmail}
+                  onChange={e => setSendModalEmail(e.target.value)}
+                  placeholder="client@email.com"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-orange-300"
+                />
+              </div>
+
+              {/* Thank you context */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Thank you for…</label>
+                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-2.5 focus-within:border-orange-300 transition-colors">
+                  <span className="text-sm text-gray-400 whitespace-nowrap flex-shrink-0">Thank you for</span>
+                  <input
+                    type="text"
+                    value={sendModalThankYou}
+                    onChange={e => setSendModalThankYou(e.target.value)}
+                    placeholder="your time on our discovery call"
+                    className="flex-1 text-sm text-gray-800 focus:outline-none min-w-0"
+                  />
+                </div>
+                <p className="text-[11px] text-gray-400">Leave blank to use "Thank you for your time."</p>
+              </div>
+
+              {/* Preview snippet */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-2 text-[13px] text-gray-500 leading-relaxed">
+                <p>{sendModalThankYou.trim() ? `Thank you for ${sendModalThankYou.trim()}.` : 'Thank you for your time.'}</p>
+                <p>Here is the proposal{sendModal.project_title ? ` for ${sendModal.project_title}` : ''} we put together for you:</p>
+                <div className="mt-3">
+                  <span className="inline-block bg-[#111] text-white text-[11px] font-bold tracking-wide px-5 py-2.5 rounded">
+                    View Proposal →
+                  </span>
+                </div>
+              </div>
+
+              {proposalSendResult[sendModal.id] === 'error' && (
+                <p className="text-xs text-red-500 bg-red-50 rounded-xl px-4 py-2">Failed to send. Please try again.</p>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={sendProposalFromModal}
+                  disabled={sendingProposalId === sendModal.id || !sendModalEmail.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#e55a27] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                  {sendingProposalId === sendModal.id
+                    ? <><i className="ri-loader-4-line animate-spin" /> Sending…</>
+                    : sendModal.status === 'sent'
+                      ? <><i className="ri-refresh-line" /> Resend Proposal</>
+                      : <><i className="ri-send-plane-line" /> Send Proposal</>}
+                </button>
+                <button onClick={() => setSendModal(null)}
+                  className="px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

@@ -433,6 +433,19 @@ export default function CapuCoffeeProposal() {
             </div>
           </div>
 
+          {/* ── DISCLAIMER ── */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', marginTop: 8, paddingTop: 40, paddingBottom: 8, paddingLeft: 4, paddingRight: 4 }}>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '24px 28px' }}>
+              <span style={{ fontSize: 18, marginTop: 2, flexShrink: 0, opacity: 0.5 }}>ⓘ</span>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 8 }}>A note on this proposal</p>
+                <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.75, margin: 0 }}>
+                  The directions, scope, and creative concepts outlined here are preliminary — presented to give you an overall picture of what we can do for the brand. Nothing is locked in stone. As we move forward, we keep you in the loop at every step, and the work evolves together with your input and approval.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* ── FINAL CTA ── */}
           <div style={{ ...glassLight, padding: '56px 48px', marginTop: 8, textAlign: 'center' }}>
             <p style={{ fontSize: 13, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 16 }}>Next Step</p>

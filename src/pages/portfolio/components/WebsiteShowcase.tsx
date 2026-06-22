@@ -68,7 +68,6 @@ export default function WebsiteShowcase() {
         >
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <span className="w-8 h-px bg-orange-500/50" />
               <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">
                 Web Design
               </span>

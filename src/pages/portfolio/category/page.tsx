@@ -1028,7 +1028,6 @@ const PortfolioCategoryPage = () => {
                 </div>
 
                 <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                  <span className="w-6 h-px bg-orange-500 inline-block" />
                   Portfolio
                 </span>
 
@@ -1128,9 +1127,7 @@ const PortfolioCategoryPage = () => {
             <div className="max-w-7xl mx-auto relative z-10">
               <div className="text-center mb-12 md:mb-16 animate-fade-in-up opacity-0-init">
                 <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest text-orange-400 uppercase mb-4">
-                  <span className="w-6 h-px bg-orange-400 inline-block" />
                   Featured Work
-                  <span className="w-6 h-px bg-orange-400 inline-block" />
                 </span>
                 <h2 className="font-display text-xl md:text-2xl font-bold text-white mb-4">
                   Featured <span className="gradient-text-animated">Projects</span>
@@ -1285,7 +1282,6 @@ const PortfolioCategoryPage = () => {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-16">
                 <div>
                   <div className="flex items-center gap-3 mb-4">
-                    <span className="w-8 h-px bg-orange-500/50" />
                     <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Let&apos;s Create</span>
                   </div>
                   <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 leading-tight">

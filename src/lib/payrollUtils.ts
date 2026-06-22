@@ -236,7 +236,13 @@ export function computeSplitFixedAccrual(params: {
   };
 }
 
-export async function fetchPayrollTotal(periodStart: string, periodEnd: string, usdRate = 56): Promise<number> {
+export async function fetchPayrollTotal(
+  periodStart: string,
+  periodEnd: string,
+  usdRate = 56,
+  liveAttendance?: LiveAttendanceRow[],
+): Promise<number> {
+  const today = localToday();
   const [contractorsRes, hoursRes, allPayoutsRes] = await Promise.all([
     supabase
       .from('hub_users')
@@ -259,6 +265,8 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
     (!c.start_date || c.start_date <= periodEnd)
   );
 
+  const eligibleIds = contractors.map((c: any) => c.id);
+
   // Build payout map keyed by contractor_id
   const payoutMap: Record<string, any> = {};
   for (const p of allPayoutsRes.data || []) {
@@ -271,24 +279,30 @@ export async function fetchPayrollTotal(periodStart: string, periodEnd: string, 
     if (p.status === 'paid' && p.payment_date) paidPaymentDateMap[p.contractor_id] = p.payment_date;
   }
 
+  const rawHoursRows = (hoursRes.data || []).map((h: any) => ({ ...h })) as DailyHoursRow[];
+  const mergedRows = liveAttendance
+    ? mergeLiveAttendanceIntoDailyHours(rawHoursRows, liveAttendance, eligibleIds, today)
+    : consolidateDailyHoursByUserDate(rawHoursRows);
+
   const hoursByDate: Record<string, Record<string, number>> = {};
   const overtimeByDate: Record<string, Record<string, number>> = {};
   const hoursMap: Record<string, { capped: number; overtime: number }> = {};
-  for (const h of consolidateDailyHoursByUserDate((hoursRes.data || []) as DailyHoursRow[])) {
+  for (const h of mergedRows) {
+    if (h.date < periodStart || h.date > periodEnd) continue;
     const paymentDate = paidPaymentDateMap[h.user_id];
     if (paymentDate && h.date <= paymentDate) continue;
     if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, overtime: 0 };
-    hoursMap[h.user_id].capped += h.hours_capped;
+    hoursMap[h.user_id].capped += h.hours_capped || 0;
     hoursMap[h.user_id].overtime += h.overtime_hours || 0;
     if (!hoursByDate[h.user_id]) hoursByDate[h.user_id] = {};
-    hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + h.hours_capped;
+    hoursByDate[h.user_id][h.date] = (hoursByDate[h.user_id][h.date] || 0) + (h.hours_capped || 0);
     if (h.overtime_hours) {
       if (!overtimeByDate[h.user_id]) overtimeByDate[h.user_id] = {};
       overtimeByDate[h.user_id][h.date] = (overtimeByDate[h.user_id][h.date] || 0) + h.overtime_hours;
     }
   }
 
-  const ids = contractors.map((c: any) => c.id);
+  const ids = eligibleIds;
   const [{ data: rateHistoryAll }, { data: payoutsData }] = await Promise.all([
     ids.length > 0
       ? supabase

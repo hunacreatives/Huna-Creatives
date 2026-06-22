@@ -265,11 +265,9 @@ export default function ServicesPage() {
         {/* ══ HEADER ══ */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-32 sm:pt-36 md:pt-40 pb-16 sm:pb-20 text-center">
           <div className="inline-flex items-center gap-3 mb-5">
-            <span className="w-8 h-px bg-orange-500/50" />
             <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">
               Creative Services
             </span>
-            <span className="w-8 h-px bg-orange-500/50" />
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-bold font-display tracking-tight mb-5 text-white leading-[1.1]">
@@ -296,7 +294,6 @@ export default function ServicesPage() {
         {/* ══ SERVICES GRID ══ */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
           <div className="flex items-center gap-3 mb-12">
-            <span className="w-8 h-px bg-orange-500/50" />
             <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">
               Our Services
             </span>
@@ -396,7 +393,6 @@ export default function ServicesPage() {
         <div className="w-full border-t border-white/5" style={{ background: '#0d1829' }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
             <div className="flex items-center gap-3 mb-4">
-              <span className="w-8 h-px bg-[#FF6B35]/50" />
               <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-[#FF6B35]">
                 Client Words
               </span>

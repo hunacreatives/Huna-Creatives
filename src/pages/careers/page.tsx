@@ -366,9 +366,7 @@ export default function CareersPage() {
         <div className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-orange-900/15 blur-[100px] pointer-events-none" />
         <div className="max-w-6xl mx-auto relative z-10 text-center">
           <div className="inline-flex items-center gap-3 mb-5">
-            <span className="w-8 h-px bg-orange-500/50" />
             <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Join Our Team</span>
-            <span className="w-8 h-px bg-orange-500/50" />
           </div>
           <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-bold text-white leading-[1.1] tracking-tight mb-5">
             Build your career with{' '}
@@ -383,7 +381,6 @@ export default function CareersPage() {
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-8 h-px bg-orange-500/50" />
                   <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Open Roles</span>
                 </div>
                 <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">

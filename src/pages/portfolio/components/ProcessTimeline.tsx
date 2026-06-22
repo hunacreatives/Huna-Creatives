@@ -180,7 +180,6 @@ function StepContent({ step, align }: { step: typeof steps[0]; align: 'left' | '
         >
           Step {step.num}
         </span>
-        <span className="w-8 h-px" style={{ background: `${step.accent}40` }} />
       </div>
 
       {/* Title */}
@@ -252,9 +251,7 @@ export default function ProcessTimeline() {
           className="text-center mb-20 md:mb-28"
         >
           <span className="flex items-center justify-center gap-3 text-[10px] font-semibold tracking-[0.3em] uppercase text-orange-500 mb-4 font-display">
-            <span className="w-8 h-px bg-orange-500" />
             Our Process
-            <span className="w-8 h-px bg-orange-500" />
           </span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
             From idea to{' '}
@@ -406,9 +403,7 @@ export default function ProcessTimeline() {
               transition={{ duration: 0.7, delay: 0.2 }}
             >
               <span className="inline-flex items-center gap-2 text-[10px] font-semibold tracking-[0.35em] uppercase text-orange-400 mb-6 font-display">
-                <span className="w-6 h-px bg-orange-400/60" />
                 The Result
-                <span className="w-6 h-px bg-orange-400/60" />
               </span>
 
               <h3 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">

@@ -91,7 +91,6 @@ function CategoriesHoverReveal() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6 mb-12 md:mb-16">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <span className="w-8 h-px bg-orange-500/50" />
               <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Expertise</span>
             </div>
             <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">
@@ -303,7 +302,6 @@ export default function PortfolioPage() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="flex items-center gap-3 mb-4 md:mb-5"
             >
-              <span className="w-8 md:w-10 h-px bg-orange-500" />
               <span className="text-[10px] font-semibold tracking-[0.3em] uppercase text-orange-400 font-display">
                 Selected Works
               </span>
@@ -359,10 +357,6 @@ export default function PortfolioPage() {
             </motion.div>
           </div>
 
-          <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-            <span className="text-[9px] tracking-[0.3em] uppercase text-white/20 font-display">Scroll</span>
-            <div className="w-px h-6 md:h-8 bg-gradient-to-b from-white/30 to-transparent animate-pulse" />
-          </div>
         </div>
       </section>
 
@@ -410,7 +404,6 @@ export default function PortfolioPage() {
           >
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-8 h-px bg-orange-500/50" />
                 <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Let&apos;s Create</span>
               </div>
               <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 leading-tight">

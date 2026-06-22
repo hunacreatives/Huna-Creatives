@@ -66,7 +66,29 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             channel: assignee.slack_id,
-            text: `🎯 *You've been assigned a task*\n*Task:* ${task_title}\n*Project:* ${project_name}\n*Assigned by:* ${assigned_by_name}\n<${deepLink}|Open in Sentro Hub →>`,
+            text: `🎯 You've been assigned "${task_title}"`,
+            unfurl_links: false,
+            unfurl_media: false,
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `🎯 *You've been assigned a task*\n*Task:* ${task_title}\n*Project:* ${project_name}\n*Assigned by:* ${assigned_by_name}`,
+                },
+              },
+              {
+                type: 'actions',
+                elements: [
+                  {
+                    type: 'button',
+                    text: { type: 'plain_text', text: 'Open in Sentro Hub →' },
+                    url: deepLink,
+                    style: 'primary',
+                  },
+                ],
+              },
+            ],
           }),
         }).catch(() => {});
       }

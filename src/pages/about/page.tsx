@@ -157,7 +157,6 @@ export default function AboutPage() {
       <section ref={heroRef} className="relative pt-24 sm:pt-28 pb-0 overflow-hidden z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="reveal-item scroll-reveal flex items-center gap-3 mb-5">
-            <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
             <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">About Us</span>
           </div>
 
@@ -218,7 +217,6 @@ export default function AboutPage() {
             <div className="lg:col-span-4 lg:sticky lg:top-32">
               <div className="reveal-item scroll-reveal">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
                   <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">Our Story</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-gray-900">
@@ -265,7 +263,6 @@ export default function AboutPage() {
           <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-12">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
                 <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">Our Approach</span>
               </div>
               <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-gray-900">
@@ -302,7 +299,6 @@ export default function AboutPage() {
           <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-12">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
                 <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">The People</span>
               </div>
               <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-gray-900">
@@ -363,7 +359,6 @@ export default function AboutPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-16">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <span className="w-8 h-px bg-gradient-to-r from-red-500 to-orange-400" />
                 <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">We&apos;re Growing</span>
               </div>
               <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 leading-tight">

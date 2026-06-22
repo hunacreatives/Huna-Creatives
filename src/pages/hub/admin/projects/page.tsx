@@ -1545,7 +1545,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     }
     else if (!activeId) { setTasks([]); setActivity([]); setCommentCounts({}); setWsQuestionnaires([]); }
     if (openWorkspaceOnLoad.current) { setWorkspaceOpen(true); openWorkspaceOnLoad.current = false; }
-    else { setWorkspaceOpen(false); }
+    else if (searchParams.get('ws') !== '1') { setWorkspaceOpen(false); }
     setOpenSections({});
     if (activeId) setTimeout(() => detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
   }, [activeId, isDemo]);

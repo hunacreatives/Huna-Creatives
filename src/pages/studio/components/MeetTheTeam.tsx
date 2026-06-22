@@ -57,6 +57,7 @@ const TEAM = [
     bioKey: 'studio_team_jesse_bio',
     img: '/images/team-jesse-catedral.png',
     imgShift: '0%',
+    imgScale: 1.25,
   },
 ];
 
@@ -298,7 +299,8 @@ export default function MeetTheTeam({ selectedKey, onSelect }: MeetTheTeamProps)
                           draggable={false}
                           style={{
                             objectPosition: 'top',
-                            transform: `translateY(${member.imgShift})`,
+                            transform: `translateY(${member.imgShift}) scale(${member.imgScale ?? 1})`,
+                            transformOrigin: 'top center',
                           }}
                         />
                         <div className="team-card-view-badge">
