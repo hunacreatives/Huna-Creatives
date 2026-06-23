@@ -149,24 +149,49 @@ ${description}
 
 Tailor every section specifically to this engagement. Use the client's actual name throughout. Be concrete about deliverables and payment structure based on the description.`;
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 6000,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
-    });
+    // Try each model in order, retrying transient overload/rate-limit (429, 529)
+    // with exponential backoff. If one model stays overloaded, fall back to the
+    // next (different capacity pool) so a sustained spike doesn't fail the call.
+    const models = ['claude-sonnet-4-6', 'claude-haiku-4-5'];
+    let res: Response | null = null;
+    let lastErr = '';
+    const maxAttempts = 3;
 
-    if (!res.ok) {
-      const err = await res.text();
-      return new Response(JSON.stringify({ error: `Claude error: ${err}` }), { status: 500, headers: cors });
+    outer:
+    for (const model of models) {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 6000,
+            system: SYSTEM_PROMPT,
+            messages: [{ role: 'user', content: userPrompt }],
+          }),
+        });
+
+        if (res.ok) break outer;
+
+        lastErr = await res.text();
+        const retryable = res.status === 429 || res.status >= 500 || lastErr.includes('overloaded_error') || lastErr.includes('api_error');
+        // Non-retryable error → give up entirely. Overloaded → retry, then fall
+        // through to the next model once this model's attempts are exhausted.
+        if (!retryable) {
+          return new Response(JSON.stringify({ error: `Claude error: ${lastErr}` }), { status: 502, headers: cors });
+        }
+        if (attempt < maxAttempts - 1) {
+          await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt + Math.random() * 500)); // 1s, 2s
+        }
+      }
+    }
+
+    if (!res || !res.ok) {
+      return new Response(JSON.stringify({ error: `Claude error: ${lastErr}` }), { status: 502, headers: cors });
     }
 
     const result = await res.json();
