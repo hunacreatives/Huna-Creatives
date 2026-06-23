@@ -396,6 +396,15 @@ export default function TaskDetailPanel({
       setTitle(''); setDesc(''); setStatus('todo'); setPriority('medium');
       setAssigneeIds([]); setDueDate(''); setStartDate(''); setChecklist([]);
       setComments([]); setAttachments([]); setActivity([]);
+      // Clear the contenteditable DOM too — taskDraft() reads from it, so a
+      // stale innerHTML would copy the previous task's description into the new one.
+      setTimeout(() => { if (descRef.current) descRef.current.innerHTML = ''; }, 0);
+      setTaskColor('');
+      setCustomFields([]);
+      setShowAddField(false);
+      setShowColorPicker(false);
+      setExpandedCheckItems(new Set());
+      setConfirmDelete(false);
       setPendingAttachment(null);
       setEditing(true);
     }
