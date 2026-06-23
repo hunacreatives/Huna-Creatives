@@ -120,6 +120,7 @@ IMPORTANT RULES:
 - Keep bullet points concrete and specific to this engagement
 - Title the agreement accurately (e.g., "BRAND DEVELOPMENT & IMPLEMENTATION AGREEMENT" not just "SERVICES AGREEMENT")
 - Use today's effective date if not specified
+- DO NOT include a Signatures section or any signature/date blank lines — the platform handles e-signatures separately and will append the signature block automatically
 
 Return ONLY valid JSON with exactly these two fields:
 {
