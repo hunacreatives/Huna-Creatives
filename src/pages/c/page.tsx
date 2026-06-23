@@ -11,6 +11,8 @@ function fmtDate(iso: string) {
 }
 
 const CONTRACT_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap');
+
   .contract-doc { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.65; }
   .contract-doc h1.contract-title { font-size: 20pt; font-weight: 800; color: #111; margin: 0 0 6pt; text-transform: uppercase; letter-spacing: 0.02em; }
   .contract-doc p.contract-subtitle { font-size: 10.5pt; font-weight: 700; margin: 0 0 14pt; color: #111; }
@@ -131,8 +133,8 @@ export default function ClientContractPage() {
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, margin: '0 0 2px', fontFamily: 'Arial, sans-serif' }}>HUNA CREATIVES</p>
                     <p style={{ fontSize: 9, color: '#6b7280', margin: '0 0 16px', fontFamily: 'Arial, sans-serif' }}>Service Provider</p>
-                    <div style={{ height: 52, display: 'flex', alignItems: 'flex-end', marginBottom: 4 }}>
-                      <img src={FRANCIS_SIG} style={{ height: 52, width: 'auto', maxWidth: 200 }} alt="Signature" />
+                    <div style={{ height: 60, marginBottom: 4, background: '#fafafa', borderRadius: 4, display: 'flex', alignItems: 'center' }}>
+                      <img src={FRANCIS_SIG} style={{ height: 52, width: 'auto', maxWidth: 200, mixBlendMode: 'multiply' }} alt="Signature" />
                     </div>
                     <div style={{ borderTop: '1px solid #111', paddingTop: 4 }}>
                       <p style={{ fontSize: 8.5, color: '#6b7280', margin: 0, fontFamily: 'Arial, sans-serif' }}>Francis Fiel Roble · {fmtDate(contract.created_at!)}</p>
@@ -141,8 +143,8 @@ export default function ClientContractPage() {
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, margin: '0 0 2px', fontFamily: 'Arial, sans-serif' }}>CLIENT</p>
                     <p style={{ fontSize: 9, color: '#6b7280', margin: '0 0 16px', fontFamily: 'Arial, sans-serif' }}>Authorized Representative</p>
-                    <div style={{ height: 52, display: 'flex', alignItems: 'flex-end', marginBottom: 4, borderBottom: '1px solid #111' }}>
-                      <span style={{ fontSize: 20, fontFamily: 'Georgia, serif', fontStyle: 'italic', color: '#1f2937', paddingBottom: 4 }}>{contract.signer_name}</span>
+                    <div style={{ height: 60, marginBottom: 4, borderBottom: '1px solid #111', display: 'flex', alignItems: 'flex-end' }}>
+                      <span style={{ fontSize: 26, fontFamily: "'Dancing Script', Georgia, cursive", color: '#1f2937', paddingBottom: 6, lineHeight: 1 }}>{contract.signer_name}</span>
                     </div>
                     <div style={{ paddingTop: 4 }}>
                       <p style={{ fontSize: 8.5, color: '#6b7280', margin: 0, fontFamily: 'Arial, sans-serif' }}>{contract.signer_name} · {fmtDate(contract.signed_at!)}</p>
