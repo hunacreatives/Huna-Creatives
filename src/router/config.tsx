@@ -64,6 +64,8 @@ const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
 const HubDemoPage = lazy(() => import('../pages/hub/demo/page'));
+const ClientContractPage = lazy(() => import('../pages/c/page'));
+const ClientContractSignPage = lazy(() => import('../pages/c/sign/page'));
 
 const withAdminGate = (element: ReactNode) => (
   <HubRouteGate allowedRoles={['owner', 'admin', 'hr']}>{element}</HubRouteGate>
@@ -181,6 +183,8 @@ const routes: RouteObject[] = [
   { path: '/p/:slug', element: <PublicProposalPage /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },
+  { path: '/c/:slug', element: <ClientContractPage /> },
+  { path: '/c/:slug/sign', element: <ClientContractSignPage /> },
   {
     path: '*',
     element: <NotFound />,

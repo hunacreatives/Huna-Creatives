@@ -16,6 +16,7 @@ import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeTaskAssigneePayload } from '@/lib/taskAssignments';
+import type { HubClientContract } from '@/lib/types';
 
 // Stored receipt URLs are Drive "view" page links (https://drive.google.com/file/d/{id}/view),
 // not direct image URLs — convert to the thumbnail API for use in <img src>.
@@ -367,6 +368,134 @@ export default function AdminProjectsPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const toggleSection = (key: string) => setOpenSections(s => ({ ...s, [key]: !s[key] }));
   const teamPayoutsOpen = !!openSections['team'];
+
+  // Client checklist — proposals (no project_id FK, so we match by client name)
+  const [clientProposals, setClientProposals] = useState<{ slug: string; status: string; project_title?: string | null }[]>([]);
+
+  // Client contracts
+  const [contracts, setContracts] = useState<HubClientContract[]>([]);
+  const [contractsLoaded, setContractsLoaded] = useState<number | null>(null);
+  const [contractPrompt, setContractPrompt] = useState('');
+  const [contractGenerating, setContractGenerating] = useState(false);
+  const [contractGenError, setContractGenError] = useState('');
+  const [contractPreview, setContractPreview] = useState<{ title: string; body: string } | null>(null);
+  const [contractSaving, setContractSaving] = useState(false);
+  const [contractSendSlug, setContractSendSlug] = useState<string | null>(null);
+
+  const loadContracts = async (projectId: number) => {
+    const { data } = await supabase
+      .from('hub_client_contracts')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    setContracts((data ?? []) as HubClientContract[]);
+    setContractsLoaded(projectId);
+  };
+
+  const generateContract = async () => {
+    if (!contractPrompt.trim() || !activeProject) return;
+    setContractGenerating(true);
+    setContractGenError('');
+    setContractPreview(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-client-contract', {
+        body: {
+          description: contractPrompt,
+          project_name: activeProject.project_name,
+          client_name: activeProject.client_name,
+          contact_email: activeProject.contact_email ?? '',
+          total_value: activeProject.contract_price || activeProject.monthly_rate,
+          currency: (activeProject as any).currency || 'PHP',
+        },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      setContractPreview(data as { title: string; body: string });
+    } catch (e: any) {
+      setContractGenError(e.message ?? 'Generation failed.');
+    } finally {
+      setContractGenerating(false);
+    }
+  };
+
+  const saveContract = async (sendNow = false) => {
+    if (!contractPreview || !activeProject) return;
+    setContractSaving(true);
+    setContractGenError('');
+    try {
+      const baseSlug = slugify(`${activeProject.client_name}-${activeProject.project_name}`);
+      const slug = `${baseSlug}-${Date.now().toString(36)}`;
+      const { data, error } = await supabase
+        .from('hub_client_contracts')
+        .insert({
+          project_id: activeProject.id,
+          slug,
+          title: contractPreview.title,
+          body: contractPreview.body,
+          total_value: activeProject.contract_price || activeProject.monthly_rate || null,
+          currency: (activeProject as any).currency || 'PHP',
+          status: sendNow ? 'sent' : 'draft',
+        })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      setContracts(prev => [data as HubClientContract, ...prev]);
+      setContractPreview(null);
+      setContractPrompt('');
+      if (sendNow) {
+        setContractSendSlug(slug);
+        const clientEmail = (activeProject as any).contact_email;
+        if (clientEmail) {
+          supabase.functions.invoke('send-client-contract', {
+            body: {
+              slug,
+              client_email: clientEmail,
+              client_name: activeProject.client_name,
+              contract_title: contractPreview.title,
+              project_name: activeProject.project_name,
+            },
+          }).catch(console.error);
+        }
+      }
+    } catch (e: any) {
+      setContractGenError(e.message ?? 'Save failed.');
+    } finally {
+      setContractSaving(false);
+    }
+  };
+
+  const toggleChecklist = async (key: string, autoState: boolean) => {
+    if (!activeProject) return;
+    const current: Record<string, boolean> = (activeProject as any).client_checklist ?? {};
+    const effective = key in current ? current[key] : autoState;
+    const updated = { ...current, [key]: !effective };
+    await supabase.from('hub_projects').update({ client_checklist: updated }).eq('id', activeProject.id);
+    setProjects(prev => prev.map(p => p.id === activeProject.id ? { ...p, client_checklist: updated } as any : p));
+  };
+
+  const markContractSent = async (contractId: string, slug: string) => {
+    const { error } = await supabase
+      .from('hub_client_contracts')
+      .update({ status: 'sent' })
+      .eq('id', contractId);
+    if (!error) {
+      setContracts(prev => prev.map(c => c.id === contractId ? { ...c, status: 'sent' } : c));
+      setContractSendSlug(slug);
+      const clientEmail = (activeProject as any)?.contact_email;
+      const contract = contracts.find(c => c.id === contractId);
+      if (clientEmail && contract) {
+        supabase.functions.invoke('send-client-contract', {
+          body: {
+            slug,
+            client_email: clientEmail,
+            client_name: activeProject?.client_name,
+            contract_title: contract.title,
+            project_name: activeProject?.project_name,
+          },
+        }).catch(console.error);
+      }
+    }
+  };
 
   // Payment reminders
   const [reminderDate, setReminderDate] = useState('');
@@ -1552,8 +1681,14 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       fetchTasks(activeId);
       supabase.from('hub_questionnaires').select('id, client_name, service_type, status, submitted_at, questions, answers').eq('project_id', activeId).order('created_at', { ascending: false })
         .then(({ data }) => setWsQuestionnaires((data as WsQuestionnaire[]) ?? []));
+      loadContracts(activeId);
+      const proj = projects.find(p => p.id === activeId);
+      if (proj?.client_name) {
+        supabase.from('hub_proposals').select('slug, status, project_title').ilike('client_name', proj.client_name)
+          .then(({ data }) => setClientProposals((data ?? []) as typeof clientProposals));
+      }
     }
-    else if (!activeId) { setTasks([]); setActivity([]); setCommentCounts({}); setWsQuestionnaires([]); }
+    else if (!activeId) { setTasks([]); setActivity([]); setCommentCounts({}); setWsQuestionnaires([]); setContracts([]); setContractsLoaded(null); setClientProposals([]); }
     if (openWorkspaceOnLoad.current) { setWorkspaceOpen(true); openWorkspaceOnLoad.current = false; }
     else if (searchParams.get('ws') !== '1') { setWorkspaceOpen(false); }
     setOpenSections({});
@@ -3389,23 +3524,90 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     </div>
                   </>
                 )}
-                {activeProject.notes && <p className="text-xs text-gray-400 italic mt-3">{activeProject.notes}</p>}
+                {/* Inline client checklist */}
+                {!internalProject && (() => {
+                  const overrides: Record<string, boolean> = (activeProject as any).client_checklist ?? {};
+                  const autoStates: Record<string, boolean> = {
+                    proposal: !!(clientProposals.find(p => p.status === 'sent') || clientProposals[0]),
+                    contract: !!(contracts.find(c => c.status === 'signed') || contracts.find(c => c.status === 'sent')),
+                    onboarding: !!wsQuestionnaires.find(q => q.status === 'submitted'),
+                    email: !!activeProject.contact_email,
+                  };
+                  const items = [
+                    { key: 'proposal', label: 'Proposal' },
+                    { key: 'contract', label: 'Contract' },
+                    { key: 'onboarding', label: 'Onboarding' },
+                    { key: 'email', label: 'Email' },
+                  ];
+                  const effective = (key: string) => key in overrides ? overrides[key] : autoStates[key];
+                  const doneCount = items.filter(i => effective(i.key)).length;
+                  return (
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mr-1">On file</span>
+                      {items.map(item => {
+                        const done = effective(item.key);
+                        const manual = item.key in overrides;
+                        return (
+                          <button
+                            key={item.key}
+                            onClick={() => toggleChecklist(item.key, autoStates[item.key])}
+                            title={manual ? 'Manually set — click to toggle' : 'Click to manually mark'}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium cursor-pointer transition-colors border ${
+                              done ? 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100'
+                            }`}>
+                            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${done ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                            {item.label}
+                            {manual && <i className="ri-user-line text-[8px] opacity-60" />}
+                          </button>
+                        );
+                      })}
+                      <span className={`ml-auto text-[10px] font-bold ${doneCount === items.length ? 'text-emerald-500' : 'text-gray-300'}`}>{doneCount}/{items.length}</span>
+                    </div>
+                  );
+                })()}
+                {/* Team inline */}
+                {activeProject.hub_project_contractors.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mr-1">Team</span>
+                    <div className="flex items-center">
+                      {activeProject.hub_project_contractors.slice(0, 6).map((pc, i) => pc.hub_users && (
+                        <div key={pc.hub_users.id} title={pc.hub_users.full_name} style={{ marginLeft: i === 0 ? 0 : -6, zIndex: 6 - i }} className="relative">
+                          {pc.hub_users.avatar_url
+                            ? <img src={pc.hub_users.avatar_url} alt={pc.hub_users.full_name} className="w-6 h-6 rounded-full object-cover object-top border-2 border-white" />
+                            : <div className="w-6 h-6 rounded-full bg-[#FF6B35] border-2 border-white flex items-center justify-center"><span className="text-white text-[9px] font-bold">{pc.hub_users.full_name[0]}</span></div>
+                          }
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-gray-400">{activeProject.hub_project_contractors.length} member{activeProject.hub_project_contractors.length !== 1 ? 's' : ''}</span>
+                  </div>
+                )}
+                {activeProject.notes && <p className="text-xs text-gray-400 italic mt-2">{activeProject.notes}</p>}
                 </div>
               </div>
 
-              {!internalProject && <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Client Payments */}
+              {!internalProject && <div className="space-y-3">
+                {/* Financials — merged payments + schedule + costs */}
                 <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                  <button onClick={() => toggleSection('payments')} className="w-full flex items-center justify-between cursor-pointer group">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Client Payments</p>
+                  <button onClick={() => toggleSection('financials')} className="w-full flex items-center justify-between cursor-pointer group">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Financials</p>
                     <div className="flex items-center gap-2">
-                      {!openSections['payments'] && activeProject.hub_project_payments.length > 0 && (
-                        <span className="text-xs text-emerald-600 font-medium">{activeProject.hub_project_payments.length} payment{activeProject.hub_project_payments.length !== 1 ? 's' : ''}</span>
+                      {!openSections['financials'] && (
+                        <span className="text-[11px] text-gray-400 font-medium">
+                          {activeProject.hub_project_payments.length > 0 && <span className="text-emerald-600">{fmt(d.totalPaid)} in</span>}
+                          {activeProject.hub_project_costs.length > 0 && <span className="text-rose-500"> · {fmt(d.totalCosts)} costs</span>}
+                          {(activeProject.hub_payment_reminders ?? []).filter(r => r.status === 'pending').length > 0 && <span className="text-amber-600"> · {(activeProject.hub_payment_reminders ?? []).filter(r => r.status === 'pending').length} due</span>}
+                        </span>
                       )}
-                      <i className={`ri-arrow-${openSections['payments'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
+                      <i className={`ri-arrow-${openSections['financials'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
                     </div>
                   </button>
-                  {openSections['payments'] && (
+                  {openSections['financials'] && (
+                  <div className="space-y-4">
+
+                  {/* — Payments sub-section — */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Payments received</p>
                     <>
                       {activeProject.hub_project_payments.length === 0 ? (
                         <p className="text-xs text-gray-400">No payments logged yet.</p>
@@ -3525,21 +3727,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         {payError && <p className="text-xs text-red-500">{payError}</p>}
                       </div>
                     </>
-                  )}
-                </div>
+                  </div>
 
-                {/* Payment Schedule */}
-                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                  <button onClick={() => toggleSection('schedule')} className="w-full flex items-center justify-between cursor-pointer group">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment Schedule</p>
-                    <div className="flex items-center gap-2">
-                      {!openSections['schedule'] && (activeProject.hub_payment_reminders ?? []).length > 0 && (
-                        <span className="text-xs text-amber-600 font-medium">{(activeProject.hub_payment_reminders ?? []).length} reminder{(activeProject.hub_payment_reminders ?? []).length !== 1 ? 's' : ''}</span>
-                      )}
-                      <i className={`ri-arrow-${openSections['schedule'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
-                    </div>
-                  </button>
-                  {openSections['schedule'] && (
+                  {/* — Schedule sub-section — */}
+                  <div className="space-y-2 border-t border-gray-100 pt-3">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Payment schedule</p>
                     <>
                       <p className="text-[10px] text-gray-400">Reminders auto-send on due date</p>
                       {(activeProject.hub_payment_reminders ?? []).length === 0 ? (
@@ -3590,21 +3782,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         {reminderError && <p className="text-xs text-red-500">{reminderError}</p>}
                       </div>
                     </>
-                  )}
-                </div>
+                  </div>
 
-                {/* Operational Costs */}
-                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
-                  <button onClick={() => toggleSection('costs')} className="w-full flex items-center justify-between cursor-pointer group">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Operational Costs</p>
-                    <div className="flex items-center gap-2">
-                      {!openSections['costs'] && activeProject.hub_project_costs.length > 0 && (
-                        <span className="text-xs text-rose-500 font-medium">{fmt(activeProject.hub_project_costs.reduce((s, c) => s + c.amount, 0))}</span>
-                      )}
-                      <i className={`ri-arrow-${openSections['costs'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
-                    </div>
-                  </button>
-                  {openSections['costs'] && (
+                  {/* — Costs sub-section — */}
+                  <div className="space-y-2 border-t border-gray-100 pt-3">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Operational costs</p>
                     <>
                       {activeProject.hub_project_costs.length === 0 ? (
                         <p className="text-xs text-gray-400">No costs logged yet.</p>
@@ -3640,29 +3822,22 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         {costError && <p className="text-xs text-red-500">{costError}</p>}
                       </div>
                     </>
+                  </div>
+
+                  </div>
                   )}
                 </div>
               </div>}
 
-              {/* Team */}
+              {/* Team — payouts config, avatars shown in header */}
               <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                 <button onClick={() => toggleSection('team')} className="w-full flex items-center justify-between cursor-pointer group">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team</p>
-                  <i className={`ri-arrow-${teamPayoutsOpen ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
-                </button>
-                {!teamPayoutsOpen && activeProject.hub_project_contractors.length > 0 && (
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team & Payouts</p>
                   <div className="flex items-center gap-2">
-                    {activeProject.hub_project_contractors.slice(0, 5).map(pc => pc.hub_users && (
-                      <div key={pc.hub_users.id} title={pc.hub_users.full_name}>
-                        {pc.hub_users.avatar_url
-                          ? <img src={pc.hub_users.avatar_url} alt={pc.hub_users.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white -ml-1 first:ml-0" />
-                          : <div className="w-7 h-7 rounded-full bg-[#FF6B35] border-2 border-white flex items-center justify-center -ml-1 first:ml-0"><span className="text-white text-[10px] font-bold">{pc.hub_users.full_name[0]}</span></div>
-                        }
-                      </div>
-                    ))}
-                    <span className="text-xs text-gray-400 ml-1">{activeProject.hub_project_contractors.length} member{activeProject.hub_project_contractors.length !== 1 ? 's' : ''} · click to expand</span>
+                    {!teamPayoutsOpen && <span className="text-[11px] text-gray-400">{activeProject.hub_project_contractors.length} member{activeProject.hub_project_contractors.length !== 1 ? 's' : ''}</span>}
+                    <i className={`ri-arrow-${teamPayoutsOpen ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
                   </div>
-                )}
+                </button>
                 {teamPayoutsOpen && (
                   <>
                   <p className="text-[11px] text-gray-400">
@@ -3882,6 +4057,144 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   </>
                 )}
               </div>
+
+              {/* Client Contract */}
+              {!internalProject && (
+                <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+                  <button onClick={() => {
+                    toggleSection('contracts');
+                    if (!openSections['contracts'] && contractsLoaded !== activeProject.id) loadContracts(activeProject.id);
+                    if (!openSections['contracts'] && !contractPrompt) {
+                      const p = activeProject;
+                      const lines = [
+                        p.service ? `Service: ${p.service}` : '',
+                        p.contract_price ? `Total fee: ₱${p.contract_price.toLocaleString()}` : p.monthly_rate ? `Monthly retainer: ₱${p.monthly_rate.toLocaleString()}/mo` : '',
+                        p.start_date && p.deadline ? `Timeline: ${fmtDate(p.start_date)} – ${fmtDate(p.deadline)}` : p.deadline ? `Deadline: ${fmtDate(p.deadline)}` : '',
+                        p.notes ? `Notes: ${p.notes}` : '',
+                      ].filter(Boolean);
+                      setContractPrompt(lines.join('\n'));
+                    }
+                  }} className="w-full flex items-center justify-between cursor-pointer group">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Client Contract</p>
+                    <div className="flex items-center gap-2">
+                      {!openSections['contracts'] && contracts.length > 0 && (
+                        <span className="text-xs font-medium" style={{ color: contracts.some(c => c.status === 'signed') ? '#16a34a' : contracts.some(c => c.status === 'sent') ? '#d97706' : '#9ca3af' }}>
+                          {contracts.some(c => c.status === 'signed') ? 'Signed' : contracts.some(c => c.status === 'sent') ? 'Awaiting signature' : `${contracts.length} draft${contracts.length !== 1 ? 's' : ''}`}
+                        </span>
+                      )}
+                      <i className={`ri-arrow-${openSections['contracts'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
+                    </div>
+                  </button>
+
+                  {openSections['contracts'] && (
+                    <>
+                      {/* Contract send link toast */}
+                      {contractSendSlug && (
+                        <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                          <i className="ri-links-line text-emerald-600 text-sm flex-shrink-0"></i>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-emerald-700 font-medium">Contract link ready to share</p>
+                            <p className="text-[11px] text-emerald-600 truncate">{window.location.origin}/c/{contractSendSlug}</p>
+                          </div>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/c/${contractSendSlug}`); }}
+                            className="text-emerald-600 hover:text-emerald-800 cursor-pointer flex-shrink-0 text-xs font-medium">
+                            Copy
+                          </button>
+                          <button onClick={() => setContractSendSlug(null)} className="text-emerald-400 hover:text-emerald-600 cursor-pointer flex-shrink-0"><i className="ri-close-line text-xs"></i></button>
+                        </div>
+                      )}
+
+                      {/* Existing contracts list */}
+                      {contracts.length > 0 && (
+                        <div className="space-y-2">
+                          {contracts.map(c => (
+                            <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-100 rounded-xl bg-white/60">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-800 truncate">{c.title}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                    c.status === 'signed' ? 'bg-emerald-100 text-emerald-700' :
+                                    c.status === 'sent' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-gray-100 text-gray-500'
+                                  }`}>
+                                    {c.status === 'signed' ? `Signed · ${c.signer_name}` : c.status === 'sent' ? 'Awaiting signature' : 'Draft'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <a href={`/c/${c.slug}`} target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-gray-600 cursor-pointer" title="View contract">
+                                  <i className="ri-external-link-line text-xs"></i>
+                                </a>
+                                {c.status === 'draft' && (
+                                  <button onClick={() => markContractSent(c.id, c.slug)} className="text-gray-300 hover:text-amber-500 cursor-pointer" title="Mark as sent (share link)">
+                                    <i className="ri-send-plane-line text-xs"></i>
+                                  </button>
+                                )}
+                                {c.status === 'sent' && (
+                                  <button onClick={() => setContractSendSlug(c.slug)} className="text-gray-300 hover:text-sky-500 cursor-pointer" title="Copy share link">
+                                    <i className="ri-links-line text-xs"></i>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* AI generation area */}
+                      {!contractPreview ? (
+                        <div className="border-t border-gray-100 pt-3 space-y-2">
+                          <p className="text-[11px] text-gray-400">Project details pre-filled below. Add deliverables, payment structure, or any special terms before generating.</p>
+                          <textarea
+                            value={contractPrompt}
+                            onChange={e => setContractPrompt(e.target.value)}
+                            placeholder="Add specific deliverables, payment structure, and any special terms…"
+                            rows={3}
+                            className="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none"
+                          />
+                          {contractGenError && <p className="text-xs text-red-500">{contractGenError}</p>}
+                          <button
+                            onClick={generateContract}
+                            disabled={!contractPrompt.trim() || contractGenerating}
+                            className="w-full py-2 text-xs bg-[#111827] text-white rounded-lg hover:bg-gray-800 cursor-pointer disabled:opacity-40 font-medium flex items-center justify-center gap-1.5">
+                            {contractGenerating ? (
+                              <><i className="ri-loader-4-line animate-spin text-sm"></i> Generating…</>
+                            ) : (
+                              <><i className="ri-magic-line text-sm"></i> Generate Contract with AI</>
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="border-t border-gray-100 pt-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold text-gray-700">{contractPreview.title}</p>
+                            <button onClick={() => setContractPreview(null)} className="text-gray-300 hover:text-gray-500 cursor-pointer"><i className="ri-close-line text-sm"></i></button>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 max-h-48 overflow-y-auto text-[11px] text-gray-600 leading-relaxed [&_h1]:font-bold [&_h1]:text-[12px] [&_h2]:font-semibold [&_h2]:text-[11px] [&_h2]:mt-2 [&_h3]:font-medium [&_ul]:list-disc [&_ul]:pl-4 [&_hr]:hidden [&_p]:mb-1"
+                            dangerouslySetInnerHTML={{ __html: contractPreview.body.slice(0, 1200) + (contractPreview.body.length > 1200 ? '…' : '') }}
+                          />
+                          {contractGenError && <p className="text-xs text-red-500">{contractGenError}</p>}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => saveContract(false)}
+                              disabled={contractSaving}
+                              className="flex-1 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 cursor-pointer disabled:opacity-40">
+                              {contractSaving ? '...' : 'Save as Draft'}
+                            </button>
+                            <button
+                              onClick={() => saveContract(true)}
+                              disabled={contractSaving}
+                              className="flex-1 py-2 text-xs bg-[#D64F1E] text-white rounded-lg hover:bg-[#b84218] cursor-pointer disabled:opacity-40 font-medium">
+                              {contractSaving ? '...' : 'Save & Send to Client'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
             </> // end desktop + mobile sheets
           );

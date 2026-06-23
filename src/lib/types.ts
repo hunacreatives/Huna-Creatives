@@ -221,6 +221,21 @@ export interface HubSignAssignment {
   hub_sign_documents?: HubSignDocument;
 }
 
+export interface HubClientContract {
+  id: string;
+  project_id: number;
+  slug: string;
+  title: string;
+  body: string;
+  total_value?: number | null;
+  currency?: string;
+  status: 'draft' | 'sent' | 'signed';
+  signed_at?: string | null;
+  signer_name?: string | null;
+  signer_ip?: string | null;
+  created_at?: string;
+}
+
 export interface HubAuditLog {
   id: number;
   actor_id?: string;
