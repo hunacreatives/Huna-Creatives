@@ -1743,8 +1743,8 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       setActiveId(null);
       return;
     }
-    // Only reset activeId if it's not a retainer (retainers are in the clients section)
-    if (activeId && !filtered.some(p => p.id === activeId) && !projects.some(p => p.id === activeId && p.project_type === 'retainer')) {
+    // Only reset if the activeId doesn't exist anywhere in projects (truly gone, e.g. deleted)
+    if (activeId && !projects.some(p => p.id === activeId)) {
       setActiveId(filtered[0].id);
     }
   }, [filtered, activeId]);
