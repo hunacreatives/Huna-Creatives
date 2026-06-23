@@ -4185,7 +4185,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                             <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2.5 border border-gray-100 rounded-xl bg-white/60">
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium text-gray-800 truncate">{c.title}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                                     c.status === 'signed' ? 'bg-emerald-100 text-emerald-700' :
                                     c.status === 'sent' ? 'bg-amber-100 text-amber-700' :
@@ -4193,6 +4193,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                   }`}>
                                     {c.status === 'signed' ? `Signed · ${c.signer_name}` : c.status === 'sent' ? 'Awaiting signature' : 'Draft'}
                                   </span>
+                                  {c.status === 'signed' && c.signed_at && (
+                                    <span className="text-[10px] text-gray-400">
+                                      {new Date(c.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {new Date(c.signed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5 flex-shrink-0">
