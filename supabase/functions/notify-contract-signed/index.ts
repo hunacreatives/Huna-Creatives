@@ -86,76 +86,94 @@ function buildContractHtml(contract: any): string {
   const createdAt = contract.created_at ? fmtDate(contract.created_at) : '';
   const HUNA_LOGO = 'https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
 
+  // Table-based layout — Google Docs ignores flex/grid so we use <table> for two-column rows
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <style>
   body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.65; margin: 0; padding: 0; }
-  .page { max-width: 760px; margin: 0 auto; padding: 40px 52px; }
-  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-  .letterhead-contact { text-align: right; font-size: 9pt; color: #444; line-height: 1.8; }
-  .accent-bar { height: 3px; background: linear-gradient(to right, #D64F1E 40%, #e5e7eb 40%); margin-bottom: 28px; }
-  .contract-doc h1.contract-title { font-size: 20pt; font-weight: 800; color: #111; margin: 0 0 6pt; text-transform: uppercase; letter-spacing: 0.02em; }
-  .contract-doc p.contract-subtitle { font-size: 10.5pt; font-weight: 700; margin: 0 0 14pt; }
-  .contract-doc h2.section-between { font-size: 14pt; font-weight: 800; margin: 20pt 0 8pt; text-transform: uppercase; }
-  .contract-doc h2 { font-size: 13pt; font-weight: 800; margin: 20pt 0 6pt; text-transform: uppercase; }
-  .contract-doc h3 { font-size: 10.5pt; font-weight: 700; margin: 12pt 0 4pt; }
-  .contract-doc p { margin: 0 0 8pt; text-align: justify; }
-  .contract-doc ul { margin: 4pt 0 8pt 18pt; padding: 0; }
-  .contract-doc ul li { margin-bottom: 4pt; text-align: justify; }
-  .contract-doc hr.section-divider { border: none; border-top: 1px solid #d1d5db; margin: 16pt 0; }
-  .contract-doc strong.highlight { color: #D64F1E; }
-  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 32px; }
-  .sig-label { font-size: 10pt; font-weight: 700; margin: 0 0 2px; }
-  .sig-sub { font-size: 9pt; color: #6b7280; margin: 0 0 16px; }
-  .sig-name { font-size: 20pt; font-family: Georgia, serif; font-style: italic; color: #1f2937; }
-  .sig-line { border-top: 1px solid #111; padding-top: 4px; margin-top: 4px; }
-  .sig-meta { font-size: 8.5pt; color: #6b7280; margin: 0; }
-  .badge { margin-top: 20px; padding: 10px 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; }
-  .badge-text { font-size: 9.5pt; color: #15803d; margin: 0; }
+  h1.contract-title { font-size: 20pt; font-weight: 800; color: #111; margin: 0 0 6pt; text-transform: uppercase; letter-spacing: 0.02em; }
+  p.contract-subtitle { font-size: 10.5pt; font-weight: 700; margin: 0 0 14pt; color: #111; }
+  h2.section-between { font-size: 14pt; font-weight: 800; margin: 20pt 0 8pt; text-transform: uppercase; }
+  h2 { font-size: 13pt; font-weight: 800; margin: 20pt 0 6pt; text-transform: uppercase; color: #111; }
+  h3 { font-size: 10.5pt; font-weight: 700; margin: 12pt 0 4pt; color: #111; }
+  p { margin: 0 0 8pt; text-align: justify; }
+  ul { margin: 4pt 0 8pt 18pt; padding: 0; }
+  ul li { margin-bottom: 4pt; text-align: justify; }
+  hr.section-divider { border: none; border-top: 1px solid #d1d5db; margin: 16pt 0; }
+  strong.highlight { color: #D64F1E; }
 </style>
 </head>
-<body>
-<div class="page">
-  <div class="letterhead">
-    <div>
-      <img src="${HUNA_LOGO}" alt="Huna Creatives" style="height:48px;width:auto;display:block">
-      <p style="font-size:9pt;color:#555;font-style:italic;margin-top:4px">Let's bring your <em>hunahuna</em> to life.</p>
-    </div>
-    <div class="letterhead-contact">
-      (032) 505 6921 | +63 952 447 2602<br>
-      contact@hunacreatives.com<br>
-      Cebu, Philippines, 6004
-    </div>
-  </div>
-  <div class="accent-bar"></div>
-  <div class="contract-doc">${contract.body}</div>
-  <div style="border-top:1px solid #e5e7eb;margin-top:8px;padding-top:8px">
-    <div class="sig-grid">
-      <div>
-        <p class="sig-label">HUNA CREATIVES</p>
-        <p class="sig-sub">Service Provider</p>
-        <div style="height:52px;display:flex;align-items:flex-end;margin-bottom:4px">
-          <img src="https://hunacreatives.com/images/francis-signature.png" style="height:52px;width:auto;max-width:200px" alt="Signature" onerror="this.style.display='none'">
-        </div>
-        <div class="sig-line"><p class="sig-meta">Francis Fiel Roble · ${createdAt}</p></div>
-      </div>
-      <div>
-        <p class="sig-label">CLIENT</p>
-        <p class="sig-sub">Authorized Representative</p>
-        <div style="height:52px;display:flex;align-items:flex-end;margin-bottom:4px;border-bottom:1px solid #111">
-          <span class="sig-name">${contract.signer_name ?? ''}</span>
-        </div>
-        <div style="padding-top:4px"><p class="sig-meta">${contract.signer_name ?? ''} · ${signedAt}</p></div>
-      </div>
-    </div>
-    <div class="badge">
-      <p class="badge-text">✓ Electronically signed by <strong>${contract.signer_name ?? ''}</strong> on ${signedAt}. Valid under R.A. 8792 (Electronic Commerce Act of the Philippines).</p>
-    </div>
-  </div>
-  <p style="text-align:center;font-size:9pt;color:#9ca3af;margin-top:24px">Huna Creatives · contact@hunacreatives.com · Cebu, Philippines</p>
-</div>
+<body style="margin:0;padding:28pt 52pt;">
+
+  <!-- Letterhead: two-column table -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:6pt;">
+    <tr>
+      <td valign="top">
+        <img src="${HUNA_LOGO}" alt="Huna Creatives" height="48" style="display:block;border:0;">
+        <p style="font-size:9pt;color:#555;font-style:italic;margin:4pt 0 0;">Let's bring your <em>hunahuna</em> to life.</p>
+      </td>
+      <td valign="top" align="right" style="font-size:9pt;color:#444;line-height:1.8;">
+        (032) 505 6921 | +63 952 447 2602<br>
+        contact@hunacreatives.com<br>
+        Cebu, Philippines, 6004
+      </td>
+    </tr>
+  </table>
+
+  <!-- Accent rule -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24pt;">
+    <tr>
+      <td width="40%" height="3" bgcolor="#D64F1E" style="font-size:0;line-height:0;">&nbsp;</td>
+      <td width="60%" height="3" bgcolor="#e5e7eb" style="font-size:0;line-height:0;">&nbsp;</td>
+    </tr>
+  </table>
+
+  <!-- Contract body -->
+  ${contract.body}
+
+  <!-- Signature divider -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24pt;margin-bottom:0;">
+    <tr><td height="1" bgcolor="#e5e7eb" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+  </table>
+
+  <!-- Signature block: two-column table -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24pt;">
+    <tr>
+      <td width="48%" valign="top" style="padding-right:16pt;">
+        <p style="font-size:10pt;font-weight:700;margin:0 0 2pt;"><strong>HUNA CREATIVES</strong></p>
+        <p style="font-size:9pt;color:#6b7280;margin:0 0 16pt;">Service Provider</p>
+        <img src="https://hunacreatives.com/images/francis-signature.png" height="48" alt="Francis Signature" style="display:block;border:0;margin-bottom:4pt;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td height="1" bgcolor="#111111" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+        <p style="font-size:8.5pt;color:#6b7280;margin:4pt 0 0;">Francis Fiel Roble &middot; ${createdAt}</p>
+      </td>
+      <td width="4%"></td>
+      <td width="48%" valign="top">
+        <p style="font-size:10pt;font-weight:700;margin:0 0 2pt;"><strong>CLIENT</strong></p>
+        <p style="font-size:9pt;color:#6b7280;margin:0 0 16pt;">Authorized Representative</p>
+        <p style="font-size:22pt;font-family:Georgia,serif;font-style:italic;color:#1f2937;margin:0 0 4pt;line-height:1.2;">${contract.signer_name ?? ''}</p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td height="1" bgcolor="#111111" style="font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+        <p style="font-size:8.5pt;color:#6b7280;margin:4pt 0 0;">${contract.signer_name ?? ''} &middot; ${signedAt}</p>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Signed badge -->
+  <table width="100%" cellpadding="10" cellspacing="0" border="1" bordercolor="#bbf7d0" style="margin-top:20pt;border-collapse:collapse;background-color:#f0fdf4;">
+    <tr>
+      <td style="font-size:9.5pt;color:#15803d;">
+        &#10003; Electronically signed by <strong>${contract.signer_name ?? ''}</strong> on ${signedAt}. Valid under R.A. 8792 (Electronic Commerce Act of the Philippines).
+      </td>
+    </tr>
+  </table>
+
+  <p style="text-align:center;font-size:9pt;color:#9ca3af;margin-top:24pt;">Huna Creatives &middot; contact@hunacreatives.com &middot; Cebu, Philippines</p>
+
 </body>
 </html>`;
 }
