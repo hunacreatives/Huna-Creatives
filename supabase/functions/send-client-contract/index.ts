@@ -99,10 +99,6 @@ Deno.serve(async (req) => {
                 </tr>
               </table>
 
-              <p style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:12px;color:#9ca3af;line-height:1.6;margin:0">
-                Or copy this link to your browser:<br>
-                <a href="${contractUrl}" style="color:#D64F1E;word-break:break-all">${contractUrl}</a>
-              </p>
             </td>
           </tr>
 
