@@ -61,21 +61,21 @@ const PILLARS = [
 ];
 
 const SCOPE = [
-  { n: '01', title: 'Logo Rebrand',         desc: 'Primary wordmark, icon, horizontal + stacked lockups, favicon — built for signage scale and digital miniature.' },
-  { n: '02', title: 'Merchandise',          desc: 'Paper cups, coffee sleeves, kraft bags, tote bags, tissue paper, sticker sheet.' },
-  { n: '03', title: 'Packaging Suite',      desc: 'Takeaway containers, box inserts, branded wax paper, coffee label system.' },
-  { n: '04', title: 'Signage System',       desc: 'Exterior fascia, window decals, indoor wayfinding, menu boards — both branches.' },
-  { n: '05', title: 'Brand Applications',   desc: 'Dine-in + takeaway menus, A-frame, social media kit (templates + cover photos).' },
-  { n: '06', title: 'Brand Guidelines',     desc: "Usage rules, color specs, type hierarchy, dos & don'ts — a doc your vendor can print from." },
+  { n: '01', title: 'Logo Rebrand',         desc: 'Wordmark, icon, all lockups, favicon.' },
+  { n: '02', title: 'Merchandise',          desc: 'Cups, sleeves, kraft bags, totes, stickers.' },
+  { n: '03', title: 'Packaging Suite',      desc: 'Takeaway containers, wax paper, coffee labels.' },
+  { n: '04', title: 'Signage System',       desc: 'Fascia, window decals, wayfinding, menu boards.' },
+  { n: '05', title: 'Brand Applications',   desc: 'Menus, A-frame, social media kit.' },
+  { n: '06', title: 'Brand Guidelines',     desc: "Color specs, type hierarchy, dos & don'ts — print-ready." },
 ];
 
 const QUICKWINS = [
-  { icon: 'ri-cup-line',     title: 'Elevate the Cup',         desc: 'The cup is the most-photographed touchpoint. A refined sleeve shifts perception overnight.' },
-  { icon: 'ri-store-2-line', title: 'Unify the Signage',       desc: 'Exterior circle sign and interior typography need to speak the same language.' },
-  { icon: 'ri-text',         title: 'Strengthen the Wordmark', desc: 'Replace the rounded typeface with something that has the weight the space deserves.' },
-  { icon: 'ri-image-line',   title: 'Social Style Guide',      desc: 'Photography tone is inconsistent. A simple visual guide closes this gap fast.' },
-  { icon: 'ri-goblet-line',  title: 'Cocktail Identity Layer', desc: '"Coffee+Cocktails" deserves its own moodier visual register for the evening menu.' },
-  { icon: 'ri-leaf-line',    title: 'Surface the Bean Origin', desc: 'Triad Coffee is a quality signal. Make it visible on menus and packaging.' },
+  { icon: 'ri-cup-line',     title: 'Elevate the Cup',         desc: 'The most-photographed touchpoint. A refined sleeve shifts perception overnight.' },
+  { icon: 'ri-store-2-line', title: 'Unify the Signage',       desc: 'Circle sign and interior type need to speak the same language.' },
+  { icon: 'ri-text',         title: 'Strengthen the Wordmark', desc: 'A typeface with the weight the space deserves.' },
+  { icon: 'ri-image-line',   title: 'Social Style Guide',      desc: 'One simple guide closes the inconsistency fast.' },
+  { icon: 'ri-goblet-line',  title: 'Cocktail Identity Layer', desc: 'Evening deserves its own visual register.' },
+  { icon: 'ri-leaf-line',    title: 'Surface the Bean Origin', desc: 'Triad Coffee is a quality signal — make it visible.' },
 ];
 
 const responsiveStyles = `
@@ -96,7 +96,7 @@ const responsiveStyles = `
     .p-swatch-4 { grid-template-columns: repeat(2, 1fr) !important; }
     .p-bg-apps { grid-template-columns: 1fr 1fr !important; }
     .p-visual-split { grid-template-columns: 1fr !important; }
-    .p-quickwins-grid { grid-template-columns: 1fr !important; }
+    .p-scope-grid { grid-template-columns: 1fr 1fr !important; }
     .p-steps-grid { grid-template-columns: 1fr 1fr !important; }
     .p-divider-line { display: none !important; }
     .p-big-stmt-inner { padding: 28px 20px !important; max-width: 100% !important; }
@@ -134,7 +134,7 @@ export default function CapuCoffeeProposal() {
         filter: 'blur(6px) brightness(0.4)',
         transform: 'scale(1.05)',
       }} />
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1, background: 'rgba(8,6,4,0.75)', pointerEvents: 'none' }} />
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1, background: 'rgba(6,4,2,0.88)', pointerEvents: 'none' }} />
 
       {/* ── Content ── */}
       <div style={{ position: 'relative', zIndex: 2 }}>
@@ -160,7 +160,7 @@ export default function CapuCoffeeProposal() {
               <h1 className="p-hero-h1" style={{ color: '#fff', fontSize: 64, lineHeight: 1.05, margin: '0 0 24px', fontWeight: 700 }}>
                 The Brand That<br />Grew Past<br />Its Logo.
               </h1>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 20, lineHeight: 1.8, margin: '0 0 32px' }}>
+              <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 20, lineHeight: 1.8, margin: '0 0 32px' }}>
                 Capu has built one of the most considered interior experiences in Cebu. This proposal is about making the brand worthy of the room.
               </p>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -201,7 +201,7 @@ export default function CapuCoffeeProposal() {
           {/* ── BIG STATEMENT 1 ── */}
           <BigStatement
             quote="The space already tells the story."
-            sub="The interior Beatrix designed — porthole window, molten glass floor, bespoke lighting — is the brand. Everything else just needs to catch up."
+            sub="Porthole window, molten glass floor, bespoke lighting — this is the brand. Everything else needs to catch up."
             img={IMG.porthole}
           />
 
@@ -214,10 +214,10 @@ export default function CapuCoffeeProposal() {
                 A Third Place Built<br />for People Building Things.
               </p>
               <Body>
-                Founded by three siblings — Adrian in operations, Beatrix in interior design, Mandee in pastry — Capu was never a generic café. It was a deliberate act: a place where the coffee is serious, the space is considered, and the people who come to work, think, and connect feel that the moment they walk in.
+                Founded by three siblings — Adrian in operations, Beatrix in design, Mandee in pastry — Capu was never a generic café. Coffee serious. Space considered. Clientele: builders, creatives, professionals.
               </Body>
               <Body mt>
-                The signage reads <em style={{ color: 'rgba(255,255,255,0.8)' }}>"capu coffee+cocktails."</em> The menu spans morning espresso to evening cocktails. The clientele skews toward builders, creatives, and professionals. This is not a neighborhood hangout that happened to grow. It is a destination that was designed to be one.
+                The signage reads <em style={{ color: 'rgba(255,255,255,0.9)' }}>"capu coffee+cocktails."</em> Morning espresso to evening cocktails. This is not a hangout that happened to grow — it was designed to be a destination.
               </Body>
             </GlassCard>
 
@@ -237,7 +237,7 @@ export default function CapuCoffeeProposal() {
                 ))}
               </div>
               <Body>
-                The space was designed with the care of a boutique hotel — rough-to-smooth tactile contrast, custom furniture, considered lighting at every level. The brand identity has not kept pace.
+                Designed with boutique hotel care — tactile contrast, custom furniture, considered lighting at every level. The brand hasn't kept pace.
               </Body>
             </GlassCard>
           </div>
@@ -258,7 +258,7 @@ export default function CapuCoffeeProposal() {
                   {['Friendly neighborhood café', 'Approachable, casual, safe', 'Generic coffee category', 'Pre-growth, pre-cocktails'].map(t => (
                     <div key={t} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <span style={{ color: 'rgba(255,80,60,0.8)', fontSize: 14, flexShrink: 0 }}>✕</span>
-                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>{t}</span>
+                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)' }}>{t}</span>
                     </div>
                   ))}
                 </div>
@@ -269,7 +269,7 @@ export default function CapuCoffeeProposal() {
                   {['Architectural destination', 'Considered, precise, warm', 'Specialty coffee + cocktail bar', 'A place people seek out'].map(t => (
                     <div key={t} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <span style={{ color: 'rgba(80,200,120,0.8)', fontSize: 14, flexShrink: 0 }}>✓</span>
-                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>{t}</span>
+                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.82)' }}>{t}</span>
                     </div>
                   ))}
                 </div>
@@ -324,22 +324,22 @@ export default function CapuCoffeeProposal() {
                   ].map(b => (
                     <div key={b.label} style={{ background: b.bg, padding: '20px 14px', borderRadius: 10, border: b.bg === '#F2EBD9' ? '1px solid rgba(255,255,255,0.1)' : 'none', minHeight: 90, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                       <p style={{ fontSize: 14, fontWeight: 700, color: b.dark ? '#fff' : '#1A1410', margin: 0 }}>{b.label}</p>
-                      <p style={{ fontSize: 12, color: b.dark ? 'rgba(255,255,255,0.45)' : '#8C8074', marginTop: 3 }}>{b.sub}</p>
+                      <p style={{ fontSize: 12, color: b.dark ? 'rgba(255,255,255,0.72)' : '#8C8074', marginTop: 3 }}>{b.sub}</p>
                     </div>
                   ))}
                 </div>
                 <Eyebrow mt>Color Rationale</Eyebrow>
                 <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[
-                    { swatch: '#C4873A', label: 'Copper',        reason: 'Carries the warmth of the espresso bar — premium without being cold.' },
-                    { swatch: '#1A1410', label: 'Deep Espresso',  reason: 'Anchors the brand in coffee. Works as a primary dark across all print and digital.' },
-                    { swatch: '#3A5C52', label: 'Sage',           reason: 'Separates the cocktail identity from the café register — evening without being stark.' },
+                    { swatch: '#C4873A', label: 'Copper',        reason: 'Warm without being cold.' },
+                    { swatch: '#1A1410', label: 'Deep Espresso',  reason: 'Anchors the brand in coffee.' },
+                    { swatch: '#3A5C52', label: 'Sage',           reason: 'Separates cocktail from café.' },
                   ].map(r => (
                     <div key={r.label} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                       <div style={{ width: 14, height: 14, borderRadius: 3, background: r.swatch, flexShrink: 0, marginTop: 2 }} />
                       <div>
                         <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>{r.label} — </span>
-                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{r.reason}</span>
+                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>{r.reason}</span>
                       </div>
                     </div>
                   ))}
@@ -384,7 +384,7 @@ export default function CapuCoffeeProposal() {
                     {["Close-up material texture", "Warm, low-key lighting", "Triad bean origin", "People working, not posing"].map(t => (
                       <div key={t} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <span style={{ color: 'rgba(80,200,120,0.8)', fontSize: 13, flexShrink: 0 }}>✓</span>
-                        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>{t}</span>
+                        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)' }}>{t}</span>
                       </div>
                     ))}
                   </div>
@@ -393,68 +393,47 @@ export default function CapuCoffeeProposal() {
                     {["Flat overhead lighting", "Generic latte art shots", "Overly staged scenes", "Bright white backgrounds"].map(t => (
                       <div key={t} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <span style={{ color: 'rgba(255,80,60,0.8)', fontSize: 13, flexShrink: 0 }}>✕</span>
-                        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>{t}</span>
+                        <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)' }}>{t}</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 <Eyebrow mt>Mood</Eyebrow>
-                <Body mt>Architectural photography — not lifestyle. Capture the materials, the light, the space itself. The people are incidental. The room is the subject.</Body>
-                <Body mt>Think: boutique hotel editorial. Rough-to-smooth contrast. Imperfect warmth. Never sterile, never over-lit.</Body>
+                <Body mt>Architectural, not lifestyle. Materials, light, space. Boutique hotel editorial — imperfect warmth, never over-lit.</Body>
               </div>
             </div>
           </GlassCard>
 
           {/* ── BIG STATEMENT 3 ── */}
           <BigStatement
-            quote="The second branch is the right moment. Doing it now means the cost is absorbed into work you were already going to do."
-            sub="Launching with an elevated identity means the new space opens as Capu at its fullest — not version two, the definitive version."
+            quote="The second branch is the right moment."
+            sub="The new space should open as Capu at its fullest — not version two, the definitive version."
             img={IMG.exterior}
           />
 
-          {/* ── ROW 4: Deliverables + Quick Wins ── */}
-          <div className="p-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-
-            <GlassCard num="6" title="DELIVERABLES">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginTop: 4 }}>
-                {SCOPE.map((s, i) => (
-                  <div key={s.n} style={{ paddingTop: i < 2 ? 0 : 20, paddingBottom: 20, borderBottom: i >= SCOPE.length - 2 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
-                    <p style={{ fontSize: 32, fontWeight: 300, color: COPPER, margin: '0 0 6px', letterSpacing: '-0.02em', lineHeight: 1 }}>{s.n}</p>
-                    <p style={{ fontSize: 15, fontWeight: 600, color: '#fff', margin: '0 0 5px' }}>{s.title}</p>
-                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
-                  </div>
-                ))}
-              </div>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', marginTop: 20, letterSpacing: '0.08em' }}>6–8 weeks from kickoff · phased with review points</p>
-            </GlassCard>
-
-            <GlassCard num="7" title="QUICK WIN IDEAS">
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20, lineHeight: 1.6 }}>High-impact moves that shift perception before the second branch opens.</p>
-              <div className="p-quickwins-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-                {QUICKWINS.map((q, i) => (
-                  <div key={q.title} style={{ paddingTop: i < 2 ? 0 : 18, paddingBottom: 18, borderBottom: i >= QUICKWINS.length - 2 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <i className={q.icon} style={{ fontSize: 16, color: COPPER, flexShrink: 0 }} />
-                      <p style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>{q.title}</p>
-                    </div>
-                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6, margin: 0 }}>{q.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </GlassCard>
-          </div>
+          {/* ── DELIVERABLES (full width) ── */}
+          <GlassCard num="6" title="DELIVERABLES">
+            <div className="p-scope-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0 32px', marginTop: 4 }}>
+              {SCOPE.map((s, i) => (
+                <div key={s.n} style={{ paddingTop: i < 3 ? 0 : 20, paddingBottom: 20, borderBottom: i >= SCOPE.length - 3 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
+                  <p style={{ fontSize: 32, fontWeight: 300, color: COPPER, margin: '0 0 6px', letterSpacing: '-0.02em', lineHeight: 1 }}>{s.n}</p>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: '#fff', margin: '0 0 5px' }}>{s.title}</p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.68)', lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 20, letterSpacing: '0.08em' }}>6–8 weeks from kickoff · phased with review points</p>
+          </GlassCard>
 
           {/* ── WHAT HAPPENS NEXT ── */}
-          <div className="p-what-next" style={{ ...glassLight, padding: '36px 36px' }}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', marginBottom: 28, borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: 16 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.4)' }}>What Happens Next</span>
-            </div>
-            <div className="p-steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+          <div className="p-what-next" style={{ padding: '8px 0' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.25)', margin: '0 0 20px' }}>What Happens Next</p>
+            <div className="p-steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
               {[
-                { n: '1', phase: 'Brand Study',  status: 'complete', label: 'COMPLETE', desc: "We've documented the space, identified the identity gap, and the brief is clear. This is where we are now." },
-                { n: '2', phase: 'Logo Drafts',  status: 'active',   label: 'UP NEXT',  desc: 'We create 3–5 directions from the current logo — each a different interpretation of the Capu brand. Two revision rounds included.' },
-                { n: '3', phase: 'Applications', status: 'pending',  label: 'PENDING',  desc: 'Once the logo is locked: packaging, merchandise, signage, and the full social kit.' },
-                { n: '4', phase: 'Handoff',       status: 'pending',  label: 'PENDING',  desc: 'A living brand guidelines document + all production-ready files for print, digital, and your vendor.' },
+                { n: '1', phase: 'Brand Study',  status: 'complete', label: 'COMPLETE', desc: "On-site visit done. Identity gap mapped. Brief is clear." },
+                { n: '2', phase: 'Logo Drafts',  status: 'active',   label: 'UP NEXT',  desc: '3–5 logo directions. Two revision rounds included.' },
+                { n: '3', phase: 'Applications', status: 'pending',  label: 'PENDING',  desc: 'Packaging, merch, signage, social kit.' },
+                { n: '4', phase: 'Handoff',       status: 'pending',  label: 'PENDING',  desc: 'Brand guidelines + all production-ready files.' },
               ].map((step) => (
                 <div key={step.n} style={{ ...glass, padding: '20px 18px', opacity: step.status === 'pending' ? 0.55 : 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -467,23 +446,18 @@ export default function CapuCoffeeProposal() {
                     }}>{step.label}</span>
                   </div>
                   <p style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 8px' }}>{step.phase}</p>
-                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6, margin: 0 }}>{step.desc}</p>
+                  <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 1.6, margin: 0 }}>{step.desc}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* ── DISCLAIMER ── */}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', marginTop: 8, paddingTop: 40, paddingBottom: 8, paddingLeft: 4, paddingRight: 4 }}>
-            <div className="p-disclaimer" style={{ display: 'flex', gap: 16, alignItems: 'flex-start', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '24px 28px' }}>
-              <span style={{ fontSize: 18, marginTop: 2, flexShrink: 0, opacity: 0.5 }}>ⓘ</span>
-              <div>
-                <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)', marginBottom: 8 }}>A note on this proposal</p>
-                <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.75, margin: 0 }}>
-                  The directions, scope, and creative concepts outlined here are preliminary — presented to give you an overall picture of what we can do for the brand. Nothing is locked in stone. As we move forward, we keep you in the loop at every step, and the work evolves together with your input and approval.
-                </p>
-              </div>
-            </div>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 32, paddingBottom: 8, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 16, flexShrink: 0, color: 'rgba(255,255,255,0.5)', marginTop: 1 }}>ⓘ</span>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.75, margin: 0 }}>
+              The directions, scope, and concepts outlined here are preliminary — presented to give you a clear picture of what we can do for Capu. Nothing is locked in. As we move forward, we keep you in the loop at every step, share work before it moves ahead, and adjust based on your feedback. The goal is a brand that feels right to you — not just one that looks good on paper.
+            </p>
           </div>
 
           {/* ── FINAL CTA ── */}
@@ -492,8 +466,8 @@ export default function CapuCoffeeProposal() {
             <h2 style={{ color: '#fff', fontSize: 'clamp(1.8rem,3.5vw,2.8rem)', lineHeight: 1.1, margin: '0 0 16px', fontWeight: 700 }}>
               Approve the proposal.<br />We start immediately.
             </h2>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 17, lineHeight: 1.75, margin: '0 auto 36px', maxWidth: 480 }}>
-              We've had the call. The direction is clear. One reply is all it takes to kick off the logo redesign and the first phase of the brand elevation.
+            <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 17, lineHeight: 1.75, margin: '0 auto 36px', maxWidth: 480 }}>
+              One reply kicks off the logo redesign and the first phase of the brand elevation.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <a href={APPROVE_HREF}
@@ -501,7 +475,7 @@ export default function CapuCoffeeProposal() {
                 Approve &amp; Get Started →
               </a>
               <a href="mailto:contact@hunacreatives.com"
-                style={{ ...glass, color: 'rgba(255,255,255,0.5)', fontSize: 15, padding: '15px 28px', textDecoration: 'none', display: 'inline-block' }}>
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, color: 'rgba(255,255,255,0.7)', fontSize: 15, padding: '15px 28px', textDecoration: 'none', display: 'inline-block' }}>
                 Reply with questions
               </a>
             </div>
@@ -539,7 +513,7 @@ function BigStatement({ quote, sub, img, flip = false }: { quote: React.ReactNod
         <p style={{ fontSize: 'clamp(1.3rem,2.5vw,2rem)', color: '#fff', lineHeight: 1.25, margin: '0 0 14px', fontWeight: 700 }}>
           "{quote}"
         </p>
-        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, margin: 0 }}>{sub}</p>
+        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.82)', lineHeight: 1.7, margin: 0 }}>{sub}</p>
       </div>
     </div>
   );
@@ -586,5 +560,5 @@ function Eyebrow({ children, mt }: { children: React.ReactNode; mt?: boolean }) 
   return <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)', margin: mt ? '20px 0 0' : 0 }}>{children}</p>;
 }
 function Body({ children, mt }: { children: React.ReactNode; mt?: boolean }) {
-  return <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.55)', lineHeight: 1.75, margin: mt ? '10px 0 0' : 0 }}>{children}</p>;
+  return <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.78)', lineHeight: 1.75, margin: mt ? '10px 0 0' : 0 }}>{children}</p>;
 }
