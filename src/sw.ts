@@ -29,12 +29,15 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data?.url as string) ?? '/hub';
+  const path = (event.notification.data?.url as string) ?? '/hub';
+  const absoluteUrl = self.location.origin + path;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      const existing = clients.find((c) => c.url.includes('/hub'));
-      if (existing) { existing.focus(); existing.navigate(url); }
-      else self.clients.openWindow(url);
+      const existing = clients.find((c) => c.url.startsWith(self.location.origin + '/hub'));
+      if (existing) {
+        return existing.focus().then((c) => c.navigate(absoluteUrl)).catch(() => existing.focus());
+      }
+      return self.clients.openWindow(absoluteUrl);
     }),
   );
 });
