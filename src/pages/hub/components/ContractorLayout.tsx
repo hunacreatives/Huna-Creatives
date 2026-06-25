@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import ContractorSidebar from './ContractorSidebar';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
+import PushPermissionBanner from './PushPermissionBanner';
 
 const BOTTOM_NAV = [
   { to: '/hub/contractor/dashboard',    label: 'Dashboard',    icon: 'ri-layout-grid-line' },
@@ -407,6 +408,7 @@ export default function ContractorLayout({ children, title, titleContent, action
       </nav>
 
       <DevToolbar />
+      <PushPermissionBanner userId={hubUser?.id} />
     </div>
   );
 }

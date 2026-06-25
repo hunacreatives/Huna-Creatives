@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import AdminSidebar from './AdminSidebar';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
+import PushPermissionBanner from './PushPermissionBanner';
 
 const ADMIN_BOTTOM_NAV = [
   { to: '/hub/admin/dashboard',     label: 'Dashboard',  icon: 'ri-layout-grid-line' },
@@ -329,6 +330,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
       </nav>
 
       <DevToolbar />
+      <PushPermissionBanner userId={hubUser?.id} />
     </div>
   );
 }
