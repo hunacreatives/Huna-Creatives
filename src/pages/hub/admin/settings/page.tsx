@@ -3,6 +3,7 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 
 export default function SettingsPage() {
@@ -18,7 +19,8 @@ export default function SettingsPage() {
       </div>
     </AdminLayout>
   );
-  const { hubUser } = useAuth();
+  const { hubUser, signOut } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'system'>('profile');
   const [devToolbarHidden, setDevToolbarHidden] = useState(() => localStorage.getItem('hub_dev_toolbar_hidden') === 'true');
 
@@ -212,6 +214,16 @@ export default function SettingsPage() {
             )}
           </div>
         )}
+        {/* Sign out — mobile only */}
+        <div className="lg:hidden pt-2">
+          <button
+            onClick={async () => { await signOut(); navigate('/hub/login'); }}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 text-sm font-medium text-red-500 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-colors cursor-pointer"
+          >
+            <i className="ri-logout-box-r-line text-base"></i>
+            Sign Out
+          </button>
+        </div>
       </div>
     </AdminLayout>
   );

@@ -52,7 +52,7 @@ interface Props {
 }
 
 export default function ContractorLayout({ children, title, titleContent, actions, hideGlobalSearch }: Props) {
-  const { loading, session, signOut } = useAuth();
+  const { loading, session } = useAuth();
   const { hubUser } = useHubAuth();
   const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
   const navigate = useNavigate();
@@ -364,9 +364,6 @@ export default function ContractorLayout({ children, title, titleContent, action
               </div>}
 
               <NotificationBell />
-              <button onClick={() => signOut()} className="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 hover:text-red-500 cursor-pointer flex-shrink-0" title="Sign out">
-                <i className="ri-logout-box-r-line text-base"></i>
-              </button>
             </div>
           </header>
 

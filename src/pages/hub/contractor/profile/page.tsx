@@ -3,9 +3,11 @@ import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import AvatarCropModal from '@/pages/hub/components/AvatarCropModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 export default function ContractorProfilePage() {
-  const { user, refreshHubUser } = useAuth();
+  const { user, refreshHubUser, signOut } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -267,6 +269,17 @@ export default function ContractorProfilePage() {
             </button>
           </div>
         )}
+
+        {/* Sign out — mobile only */}
+        <div className="lg:hidden pt-2">
+          <button
+            onClick={async () => { await signOut(); navigate('/hub/login'); }}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 text-sm font-medium text-red-500 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-colors cursor-pointer"
+          >
+            <i className="ri-logout-box-r-line text-base"></i>
+            Sign Out
+          </button>
+        </div>
       </div>
       {cropSrc && (
         <AvatarCropModal imageSrc={cropSrc} onCancel={handleCropCancel} onCropped={handleCropped} />
