@@ -250,7 +250,7 @@ function nanoid() {
 function normalizeRichText(value: string | null | undefined) {
   const trimmed = value?.trim() ?? '';
   if (!trimmed || trimmed === '<br>') return null;
-  return trimmed;
+  return trimmed.replace(/&nbsp;/g, ' ');
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -1457,7 +1457,8 @@ export default function TaskDetailPanel({
                       <div className="flex-1 flex gap-1">
                         <input autoFocus value={f.value} onChange={e => setCustomFields(customFields.map(x => x.id === f.id ? { ...x, value: e.target.value } : x))}
                           onKeyDown={e => { if (e.key === 'Enter') saveField(); if (e.key === 'Escape') setEditingFieldId(null); }}
-                          className="flex-1 text-xs border border-[#FF6B35]/50 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30" />
+                          placeholder="Add link here…"
+                          className="flex-1 text-xs border border-[#FF6B35]/50 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30 placeholder-gray-400" />
                         <button onClick={saveField} className="px-2 py-1 bg-[#FF6B35] text-white text-[10px] rounded-lg cursor-pointer">Save</button>
                       </div>
                     ) : (
