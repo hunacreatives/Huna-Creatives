@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
+import { DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_OVERTIME } from '@/lib/demoData';
 import { HubRequest, HubTimeOff } from '@/lib/types';
 
 // ── Shared ────────────────────────────────────────────────────────────────────
@@ -86,6 +88,7 @@ const daysBetween = (a: string, b: string) =>
 
 export default function ContractorMyRequestsPage() {
   const { user } = useAuth();
+  const { isDemo } = useDemo();
   const [tab, setTab] = useState<Tab>('requests');
 
   // ── Requests state ──────────────────────────────────────────────────────────
@@ -124,6 +127,7 @@ export default function ContractorMyRequestsPage() {
   // ── Fetchers ────────────────────────────────────────────────────────────────
 
   const fetchReqs = async () => {
+    if (isDemo) { setReqs(DEMO_REQUESTS as HubRequest[]); setReqsLoading(false); return; }
     if (!user) return;
     setReqsLoading(true);
     const { data } = await supabase.from('hub_requests').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false });
@@ -132,6 +136,7 @@ export default function ContractorMyRequestsPage() {
   };
 
   const fetchLeaves = async () => {
+    if (isDemo) { setLeaves(DEMO_TIME_OFF as HubTimeOff[]); setBlackouts([]); setLeavesLoading(false); return; }
     if (!user) return;
     setLeavesLoading(true);
     const [{ data: l }, { data: bd }] = await Promise.all([
@@ -144,6 +149,7 @@ export default function ContractorMyRequestsPage() {
   };
 
   const fetchOts = async () => {
+    if (isDemo) { setOts(DEMO_OVERTIME); setOtsLoading(false); return; }
     if (!user) return;
     setOtsLoading(true);
     const { data } = await supabase.from('hub_overtime_requests').select('*').eq('contractor_id', user.id).order('created_at', { ascending: false });
@@ -151,7 +157,7 @@ export default function ContractorMyRequestsPage() {
     setOtsLoading(false);
   };
 
-  useEffect(() => { fetchReqs(); fetchLeaves(); fetchOts(); }, [user]);
+  useEffect(() => { fetchReqs(); fetchLeaves(); fetchOts(); }, [user, isDemo]);
 
   // ── Leave balance calculation ───────────────────────────────────────────────
 

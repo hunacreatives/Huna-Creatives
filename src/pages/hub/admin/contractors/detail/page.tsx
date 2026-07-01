@@ -8,6 +8,8 @@ import EditContractorModal from './EditContractorModal';
 import { getPeriods, fmtTime, fmtDate, localToday } from '@/lib/formatUtils';
 import { logAudit } from '@/lib/audit';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_CONTRACTORS } from '@/lib/demoData';
 import { computeFixedAccrual, computeSplitFixedAccrual, isAutoPayrollUser, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 interface DayRow {
@@ -23,6 +25,7 @@ export default function ContractorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { hubUser: actor } = useAuth();
+  const { isDemo } = useDemo();
   const [contractor, setContractor] = useState<HubUser | null>(null);
   const [attendance, setAttendance] = useState<HubAttendance[]>([]);
   const [timeOff, setTimeOff] = useState<HubTimeOff[]>([]);
@@ -115,6 +118,24 @@ export default function ContractorDetailPage() {
     }
     setLoadError('');
     setLoading(true);
+    if (isDemo) {
+      // Show a sample profile from the demo roster (fall back to the first so a
+      // profile always loads instead of "contractor not found").
+      const demoUser = (DEMO_CONTRACTORS.find((c) => c.id === id) ?? DEMO_CONTRACTORS[0]) as HubUser;
+      setContractor(demoUser);
+      setScheduleForm({
+        shift_start: demoUser.shift_start || '',
+        shift_end: demoUser.shift_end || '',
+        work_days: demoUser.work_days || [],
+      });
+      setAttendance([]);
+      setTimeOff([]);
+      setRequests([]);
+      setClients([]);
+      setAssets([]);
+      setLoading(false);
+      return;
+    }
     try {
       const [u, att, to, req, assignmentsRes, ast] = await Promise.all([
         supabase.from('hub_users').select('*').eq('id', id).maybeSingle(),

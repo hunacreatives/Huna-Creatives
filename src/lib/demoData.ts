@@ -1,4 +1,4 @@
-import { HubUser, HubAnnouncement, HubRequest, HubTimeOff, HubSop, HubClient } from './types';
+import { HubUser, HubAnnouncement, HubRequest, HubTimeOff, HubSop, HubClient, HubDocRequest, HubSignAssignment } from './types';
 
 // The demo admin user (owner role)
 export const DEMO_HUB_USER: HubUser = {
@@ -190,3 +190,50 @@ export const DEMO_CONTRACTOR_TEAM: Record<number, { id: string; full_name: strin
     { id: 'demo-c-003', full_name: 'Ana Reyes', avatar_url: null },
   ],
 };
+
+// The demo contractor "me" for the employee-side views (Maria Santos).
+export const DEMO_ME_ID = 'demo-c-001';
+
+// Document requests (contractor Documents → Requests tab; mirrors admin Doc Requests)
+export const DEMO_DOC_REQUESTS: HubDocRequest[] = [
+  { id: 501, contractor_id: DEMO_ME_ID, doc_type: 'Certificate of Engagement', notes: 'For visa application', status: 'completed', admin_notes: 'Generated and emailed.', file_name: 'certificate-of-engagement.pdf', created_at: '2026-06-10T02:00:00Z', updated_at: '2026-06-11T05:00:00Z' },
+  { id: 502, contractor_id: DEMO_ME_ID, doc_type: 'Payment Summary', notes: 'Need Jan–Jun 2026 summary for a loan', status: 'in_progress', created_at: '2026-06-25T07:30:00Z' },
+  { id: 503, contractor_id: DEMO_ME_ID, doc_type: 'NDA Copy', notes: '', status: 'pending', created_at: '2026-06-29T01:15:00Z' },
+];
+
+// Documents assigned for signing (contractor Documents → Sign tab)
+export const DEMO_SIGN_ASSIGNMENTS: HubSignAssignment[] = [
+  {
+    id: 'sign-1', document_id: 'doc-1', contractor_id: DEMO_ME_ID, status: 'pending', created_at: '2026-06-20T03:00:00Z',
+    hub_sign_documents: { id: 'doc-1', title: 'Updated Service Agreement 2026', description: 'Revised rate and scope, effective July 2026.', is_generated: true, content: '<h2>Service Agreement</h2><p>This agreement is between Huna Creatives and the team member for services rendered starting July 1, 2026.</p>', created_at: '2026-06-20T03:00:00Z' },
+  },
+  {
+    id: 'sign-2', document_id: 'doc-2', contractor_id: DEMO_ME_ID, status: 'signed', signed_at: '2026-03-02T06:20:00Z', signed_name: 'Maria Santos', created_at: '2026-03-01T03:00:00Z',
+    hub_sign_documents: { id: 'doc-2', title: 'Non-Disclosure Agreement', description: 'Standard NDA covering client work.', is_generated: false, file_name: 'nda-2026.pdf', created_at: '2026-03-01T03:00:00Z' },
+  },
+];
+
+// Credentials vault (contractor Credentials). Shapes match the page-local
+// interfaces. `full` holds the sensitive values shown only for granted access.
+export const DEMO_CREDENTIALS = [
+  { id: 'cred-1', client_name: 'Sunrise Capital Group', platform: 'WordPress Admin', login_type: 'email_password', status: 'active', account_email: 'admin@sunrisecapital.com', otp_contact: null, notes: 'Main website CMS' },
+  { id: 'cred-2', client_name: 'Sunrise Capital Group', platform: 'Canva', login_type: 'email_password', status: 'active', account_email: 'design@sunrisecapital.com', otp_contact: null, notes: 'Brand kit lives here' },
+  { id: 'cred-3', client_name: 'Northern Star Media', platform: 'Meta Business Suite', login_type: 'otp', status: 'active', account_email: 'social@northernstar.com', otp_contact: '+63 917 555 0142', notes: 'OTP goes to the marketing lead' },
+  { id: 'cred-4', client_name: 'Verde Tech Solutions', platform: 'Google Analytics', login_type: 'sso', status: 'active', account_email: 'analytics@verdetech.com', otp_contact: null, notes: 'Sign in with Google' },
+];
+
+// Sensitive values revealed only for clients the contractor has access to.
+export const DEMO_CREDENTIAL_FULL: Record<string, { password: string | null; additional_info: string | null }> = {
+  'cred-1': { password: 'Sunr!se2026#', additional_info: 'URL: sunrisecapital.com/wp-admin' },
+  'cred-2': { password: 'design-team-2026', additional_info: 'Team account — do not change the password.' },
+  'cred-3': { password: null, additional_info: 'OTP login — request the code from the marketing lead.' },
+};
+
+// Clients the demo contractor has auto-access to (drives which full values show).
+export const DEMO_CREDENTIAL_ASSIGNED_CLIENTS = ['Sunrise Capital Group'];
+
+// The contractor's own access requests for other clients' credentials.
+export const DEMO_CREDENTIAL_REQUESTS = [
+  { id: 'creq-1', credential_id: 'cred-3', status: 'approved', reason: 'Scheduling posts this month' },
+  { id: 'creq-2', credential_id: 'cred-4', status: 'pending', reason: 'Need to pull traffic report' },
+];

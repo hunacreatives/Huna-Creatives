@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { supabase } from '@/lib/supabase';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_SOPS } from '@/lib/demoData';
 import { HubSop } from '@/lib/types';
 
 const CATEGORY_CFG: Record<string, { icon: string; color: string; bg: string; light: string }> = {
@@ -58,6 +60,7 @@ function formatContent(text: string) {
 }
 
 export default function ContractorSopPage() {
+  const { isDemo } = useDemo();
   const [sops, setSops] = useState<HubSop[]>([]);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
@@ -66,9 +69,14 @@ export default function ContractorSopPage() {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (isDemo) {
+      setSops(DEMO_SOPS.filter(s => s.published));
+      setLoading(false);
+      return;
+    }
     supabase.from('hub_sops').select('*').eq('published', true).order('category').order('title')
       .then(({ data }) => { setSops((data as HubSop[]) ?? []); setLoading(false); });
-  }, []);
+  }, [isDemo]);
 
   const categories = ['All', ...Array.from(new Set(sops.map(s => s.category))).sort()];
 

@@ -7,7 +7,7 @@ import { getPeriods, slugify } from '@/lib/formatUtils';
 import { getSetting } from '@/lib/settings';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
-import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF } from '@/lib/demoData';
+import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_ATTENDANCE } from '@/lib/demoData';
 import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 const REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
@@ -362,6 +362,16 @@ export default function ContractorDashboard() {
       setRequests(DEMO_REQUESTS.slice(0, 2) as HubRequest[]);
       setTimeOffs(DEMO_TIME_OFF.slice(0, 1) as HubTimeOff[]);
       setPayoutStatus('pending');
+      // Show the same team online/attendance status the admin view sees.
+      setSlackStatus('on');
+      setTeamStatus(
+        DEMO_ATTENDANCE.map((r) => ({
+          full_name: r.full_name,
+          avatar_url: r.avatar_url,
+          status: r.status,
+          hours_today: r.hours_today,
+        }))
+      );
       setLoading(false);
       return;
     }

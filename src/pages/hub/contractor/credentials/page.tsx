@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_CREDENTIALS, DEMO_CREDENTIAL_FULL, DEMO_CREDENTIAL_ASSIGNED_CLIENTS, DEMO_CREDENTIAL_REQUESTS } from '@/lib/demoData';
 
 interface CredentialCatalog {
   id: string;
@@ -41,6 +43,7 @@ const STATUS_DOT: Record<string, string> = {
 
 export default function ContractorCredentialsPage() {
   const { hubUser } = useAuth();
+  const { isDemo } = useDemo();
   const [credentials, setCredentials] = useState<CredentialCatalog[]>([]);
   const [fullData, setFullData] = useState<Record<string, FullData>>({});
   const [myRequests, setMyRequests] = useState<MyRequest[]>([]);
@@ -62,6 +65,16 @@ export default function ContractorCredentialsPage() {
   };
 
   const fetchData = async () => {
+    if (isDemo) {
+      const credList = DEMO_CREDENTIALS as CredentialCatalog[];
+      setCredentials(credList);
+      setMyRequests(DEMO_CREDENTIAL_REQUESTS as MyRequest[]);
+      setAssignedClients(new Set(DEMO_CREDENTIAL_ASSIGNED_CLIENTS));
+      setExpandedClients(new Set(credList.map((c) => c.client_name)));
+      setFullData(DEMO_CREDENTIAL_FULL);
+      setLoading(false);
+      return;
+    }
     if (!hubUser?.id) return;
     setLoading(true);
 
@@ -107,7 +120,7 @@ export default function ContractorCredentialsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [hubUser]);
+  useEffect(() => { fetchData(); }, [hubUser, isDemo]);
 
   const requestMap = Object.fromEntries(myRequests.map((r) => [r.credential_id, r]));
 

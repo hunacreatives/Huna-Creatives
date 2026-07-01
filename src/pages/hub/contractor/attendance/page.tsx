@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import { getPeriods, fmtTime, fmtDate } from '@/lib/formatUtils';
 
@@ -44,6 +45,7 @@ function getDatesInRange(start: string, end: string): string[] {
 
 export default function ContractorAttendancePage() {
   const { hubUser } = useAuth();
+  const { isDemo } = useDemo();
 
   const periods = useMemo(() => getPeriods().reverse(), []);
   const [selectedPeriodIdx, setSelectedPeriodIdx] = useState(0);
@@ -57,6 +59,22 @@ export default function ContractorAttendancePage() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchToday = useCallback(async (showRefreshing = false) => {
+    if (isDemo) {
+      const now = Date.now();
+      setMyRecord({
+        status: 'on',
+        last_punch: new Date(now - 2 * 3600000).toISOString(),
+        punches: [
+          { status: 'on', time: new Date(now - 5 * 3600000).toISOString() },
+          { status: 'off', time: new Date(now - 4 * 3600000).toISOString() },
+          { status: 'on', time: new Date(now - 2 * 3600000).toISOString() },
+        ],
+      });
+      setLastRefresh(new Date());
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     if (showRefreshing) setRefreshing(true);
     const { data, error } = await supabase.functions.invoke('slack-attendance');
     if (!error && data?.attendance && hubUser?.email) {
@@ -68,9 +86,38 @@ export default function ContractorAttendancePage() {
     }
     setLoading(false);
     setRefreshing(false);
-  }, [hubUser]);
+  }, [hubUser, isDemo]);
 
   const fetchHistory = useCallback(async () => {
+    if (isDemo) {
+      if (!selectedPeriod) return;
+      setLoadingHistory(true);
+      const rows: DailyRecord[] = [];
+      const cur = new Date(selectedPeriod.start + 'T12:00:00');
+      const end = new Date(selectedPeriod.end + 'T12:00:00');
+      const today = new Date();
+      while (cur <= end && cur <= today) {
+        const dow = cur.getDay();
+        if (dow !== 0 && dow !== 6) {
+          const date = cur.toISOString().slice(0, 10);
+          const ot = dow === 5 ? 1.5 : 0;                 // a little OT on Fridays
+          const raw = 8 + ot + (dow === 3 ? 0.3 : 0);
+          rows.push({
+            date,
+            hours_raw: Number(raw.toFixed(1)),
+            hours_capped: 8,
+            overtime_hours: ot,
+            first_on: `${date}T09:0${dow}:00`,
+            last_off: `${date}T1${ot ? 9 : 8}:0${dow}:00`,
+          });
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      rows.reverse();
+      setDailyRecords(rows);
+      setLoadingHistory(false);
+      return;
+    }
     if (!hubUser?.id || !selectedPeriod) return;
     setLoadingHistory(true);
     const { data } = await supabase
@@ -82,7 +129,7 @@ export default function ContractorAttendancePage() {
       .order('date', { ascending: false });
     setDailyRecords((data as DailyRecord[]) ?? []);
     setLoadingHistory(false);
-  }, [hubUser?.id, selectedPeriod?.start, selectedPeriod?.end]);
+  }, [hubUser?.id, selectedPeriod?.start, selectedPeriod?.end, isDemo]);
 
   useEffect(() => {
     fetchToday();

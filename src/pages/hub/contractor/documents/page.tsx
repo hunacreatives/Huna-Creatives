@@ -3,6 +3,8 @@ import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { supabase } from '@/lib/supabase';
 import { HubDocRequest, HubSignAssignment } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
+import { DEMO_DOC_REQUESTS, DEMO_SIGN_ASSIGNMENTS } from '@/lib/demoData';
 
 const DOC_TYPES = [
   'Certificate of Engagement',
@@ -31,6 +33,7 @@ const STATUS_ICONS: Record<string, string> = {
 
 export default function ContractorDocumentsPage() {
   const { hubUser } = useAuth();
+  const { isDemo } = useDemo();
   const [tab, setTab] = useState<'sign' | 'requests'>('sign');
   const [requests, setRequests] = useState<HubDocRequest[]>([]);
   const [assignments, setAssignments] = useState<HubSignAssignment[]>([]);
@@ -49,11 +52,17 @@ export default function ContractorDocumentsPage() {
   const [signing, setSigning] = useState(false);
 
   useEffect(() => {
+    if (isDemo) {
+      setRequests(DEMO_DOC_REQUESTS);
+      setAssignments(DEMO_SIGN_ASSIGNMENTS);
+      setLoading(false);
+      return;
+    }
     if (hubUser?.id) {
       fetchRequests();
       fetchAssignments();
     }
-  }, [hubUser]);
+  }, [hubUser, isDemo]);
 
   // Clear pending toast timeout on unmount
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { getPeriods, fmtTime, fmtDate, fmtPHP, localToday } from '@/lib/formatUtils';
 import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 import { getSetting } from '@/lib/settings';
@@ -237,6 +238,7 @@ function generatePayslipHTML(opts: {
 
 export default function ContractorPayoutsPage() {
   const { hubUser } = useAuth();
+  const { isDemo } = useDemo();
   const startDate = (hubUser as any)?.start_date ?? null;
   const periods = useMemo(() => {
     const all = getPeriods();
@@ -249,11 +251,15 @@ export default function ContractorPayoutsPage() {
   // Wait for hubUser to load, then pick the admin-controlled active period
   // from the correctly-filtered periods list. Re-runs if start_date changes.
   useEffect(() => {
-    if (!hubUser) return;
+    if (!hubUser && !isDemo) return;
     if (!periods.length) {
       setSelectedPeriod(null);
       setDays([]);
       setLoading(false);
+      return;
+    }
+    if (isDemo) {
+      setSelectedPeriod((prev) => prev ?? periods[periods.length - 1]);
       return;
     }
     getSetting('active_payroll_period', '').then(v => {
@@ -261,7 +267,7 @@ export default function ContractorPayoutsPage() {
       setSelectedPeriod((prev) => prev ?? (found ?? periods[periods.length - 1]));
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hubUser?.id, periods]);
+  }, [hubUser?.id, periods, isDemo]);
 
   // Button unlocks on the cutoff day itself (compare date only, not time)
   const todayPHT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -277,6 +283,64 @@ export default function ContractorPayoutsPage() {
   const [existingDispute, setExistingDispute] = useState<any>(null);
 
   const fetchDays = async () => {
+    if (isDemo) {
+      if (!selectedPeriod) return;
+      setLoadError('');
+      // Build the days worked this period (weekdays, ~8h, Friday OT).
+      const rows: DayRow[] = [];
+      const cur = new Date(selectedPeriod.start + 'T12:00:00');
+      const end = new Date(selectedPeriod.end + 'T12:00:00');
+      const today = new Date();
+      while (cur <= end && cur <= today) {
+        const dow = cur.getDay();
+        if (dow !== 0 && dow !== 6) {
+          const date = cur.toISOString().slice(0, 10);
+          const ot = dow === 5 ? 1.5 : 0;
+          rows.push({
+            date,
+            hours_raw: Number((8 + ot).toFixed(1)),
+            hours_capped: 8,
+            overtime_hours: ot,
+            first_on: `${date}T09:00:00`,
+            last_off: `${date}T1${ot ? 9 : 8}:00:00`,
+          });
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      setDays(rows);
+      const rate = 320;
+      setRateHistory([{ effective_date: '2026-01-01', payment_type: 'hourly', hourly_rate: rate, monthly_rate: null }]);
+
+      // Only PAST periods have a submitted payout; amounts derive from that
+      // period's own days, so each period differs. The current period shows
+      // nothing submitted yet (estimate + submit button).
+      const isPast = selectedPeriod.end < todayPHT;
+      if (isPast) {
+        const approvedHours = rows.reduce((s, d) => s + d.hours_capped, 0);
+        const otHours = rows.reduce((s, d) => s + d.overtime_hours, 0);
+        const basePay = approvedHours * rate;
+        const overtimePay = Math.round(otHours * rate * 1.25);
+        // Most-recent finished period is still "incoming"; older ones are paid.
+        const daysSinceEnd = Math.floor((Date.parse(todayPHT) - Date.parse(selectedPeriod.end)) / 86400000);
+        const status = daysSinceEnd <= 16 ? 'hr_approved' : 'paid';
+        setExistingPayout({
+          id: Number(selectedPeriod.start.replace(/-/g, '')),
+          status,
+          approved_hours: approvedHours,
+          hourly_rate: rate,
+          base_pay: basePay,
+          overtime_pay: overtimePay,
+          bonus: 0, incentives: 0, reimbursements: 0, deductions: 0, advances: 0, penalties: 0, adjustments: 0,
+          final_payout: basePay + overtimePay,
+          payment_date: status === 'paid' ? selectedPeriod.end : null,
+        });
+      } else {
+        setExistingPayout(null);
+      }
+      setExistingDispute(null);
+      setLoading(false);
+      return;
+    }
     if (!hubUser || !selectedPeriod) return;
 
     setLoadError('');
@@ -340,9 +404,9 @@ export default function ContractorPayoutsPage() {
   };
 
   useEffect(() => {
-    if (hubUser?.id && selectedPeriod) fetchDays();
+    if ((hubUser?.id || isDemo) && selectedPeriod) fetchDays();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hubUser?.id, selectedPeriod?.start]);
+  }, [hubUser?.id, selectedPeriod?.start, isDemo]);
 
   const paymentType = (hubUser as any)?.payment_type || 'hourly';
   const currentHourlyRate = Number((hubUser as any)?.hourly_rate || 0);
