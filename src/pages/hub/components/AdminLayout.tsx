@@ -9,7 +9,7 @@ import DevToolbar from './DevToolbar';
 import PushPermissionBanner from './PushPermissionBanner';
 import InfoHint, { PageHelp } from './InfoHint';
 import DemoBooking, { EXIT_INTENT_EVENT } from './DemoBooking';
-import { openBooking, DEMO_EXIT_URL } from '@/lib/demoBooking';
+import { openBooking, exitDemo } from '@/lib/demoBooking';
 
 const ADMIN_BOTTOM_NAV = [
   { to: '/hub/admin/dashboard',     label: 'Dashboard',  icon: 'ri-layout-grid-line' },
@@ -266,7 +266,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
           </div>
         </div>
       )}
-      {isDemo && <DemoBooking onExit={() => { demoSignOut(); window.location.href = DEMO_EXIT_URL; }} />}
+      {isDemo && <DemoBooking onExit={exitDemo} />}
       {/* Desktop sidebar */}
       <div data-tour="sidebar" className="hidden lg:block relative z-10">
         <AdminSidebar collapsed={collapsed} onToggle={() => toggleCollapsed()} />

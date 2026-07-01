@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import ContractorSidebar from './ContractorSidebar';
 import { PageHelp } from './InfoHint';
 import DemoBooking, { EXIT_INTENT_EVENT } from './DemoBooking';
-import { openBooking, DEMO_EXIT_URL } from '@/lib/demoBooking';
+import { openBooking, exitDemo } from '@/lib/demoBooking';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
 import PushPermissionBanner from './PushPermissionBanner';
@@ -199,7 +199,7 @@ export default function ContractorLayout({ children, title, titleContent, action
           </div>
         </div>
       )}
-      {isDemo && <DemoBooking onExit={() => { demoSignOut(); window.location.href = DEMO_EXIT_URL; }} />}
+      {isDemo && <DemoBooking onExit={exitDemo} />}
 
       {/* Desktop sidebar */}
       <div className="hidden lg:block relative z-10">

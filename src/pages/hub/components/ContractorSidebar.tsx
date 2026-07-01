@@ -1,6 +1,8 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
+import { useDemo } from '@/contexts/DemoContext';
+import { exitDemo } from '@/lib/demoBooking';
 
 const baseNavItems = [
   { to: '/hub/contractor/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
@@ -23,6 +25,7 @@ interface Props {
 export default function ContractorSidebar({ collapsed, onToggle }: Props) {
   const { signOut, hubUser: realHubUser } = useAuth();
   const { hubUser } = useHubAuth();
+  const { isDemo } = useDemo();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -38,6 +41,10 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
   ];
 
   const handleSignOut = async () => {
+    if (isDemo) {
+      exitDemo();
+      return;
+    }
     await signOut();
     navigate('/hub/login');
   };

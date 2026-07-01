@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
+import { exitDemo } from '@/lib/demoBooking';
 
 const navItems = [
   { to: '/hub/admin/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
@@ -39,7 +40,7 @@ interface Props {
 
 export default function AdminSidebar({ collapsed, onToggle }: Props) {
   const { hubUser, signOut } = useAuth();
-  const { isDemo, demoUser, demoSignOut } = useDemo();
+  const { isDemo, demoUser } = useDemo();
   const navigate = useNavigate();
   const activeUser = isDemo ? demoUser : hubUser;
   const visibleNavItems = navItems
@@ -49,8 +50,7 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
 
   const handleSignOut = async () => {
     if (isDemo) {
-      demoSignOut();
-      navigate('/hub/demo');
+      exitDemo();
       return;
     }
     await signOut();
