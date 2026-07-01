@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useDemo } from '@/contexts/DemoContext';
@@ -87,6 +88,7 @@ type Tab = 'invoices' | 'proofs' | 'receipts';
 
 export default function InvoiceLogPage() {
   const { isDemo } = useDemo();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('invoices');
   const [invoices, setInvoices] = useState<InvoiceLog[]>([]);
 
@@ -124,7 +126,6 @@ export default function InvoiceLogPage() {
   useEffect(() => {
     if (isDemo) {
       setInvoices(DEMO_INVOICES as unknown as InvoiceLog[]);
-      setScheduled([]);
       setProofs([]);
       setReceipts([]);
       setLoading(false);
@@ -521,6 +522,14 @@ export default function InvoiceLogPage() {
               </button>
             </div>
           </div>
+          {isDemo && (
+            <button
+              onClick={() => navigate('/hub/admin/invoices/demo')}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg bg-[#FF6B35] text-white hover:bg-[#e85f2d] transition-colors cursor-pointer w-max"
+            >
+              <i className="ri-add-line"></i> New invoice
+            </button>
+          )}
           <input
             type="text"
             value={search}

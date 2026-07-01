@@ -21,6 +21,52 @@ interface Project {
   hub_project_costs: { id: number; amount: number; date: string }[];
 }
 
+// Sample revenue data shown only in the interactive demo.
+const DEMO_REVENUE_PROJECTS: Project[] = [
+  {
+    id: 9001, project_name: 'Brand Identity System', client_name: 'Aurora Coffee Co.', project_type: 'fixed',
+    service: 'Branding', status: 'active', contract_price: 185000, monthly_rate: null, monthly_rate_currency: null,
+    hub_project_payments: [
+      { id: 1, amount: 92500, paid_at: '2026-04-12' },
+      { id: 2, amount: 55500, paid_at: '2026-06-03' },
+    ],
+    hub_project_costs: [{ id: 1, amount: 18000, date: '2026-04-20' }],
+  },
+  {
+    id: 9002, project_name: 'E-commerce Website', client_name: 'Isla Home', project_type: 'fixed',
+    service: 'Web Design', status: 'active', contract_price: 320000, monthly_rate: null, monthly_rate_currency: null,
+    hub_project_payments: [
+      { id: 3, amount: 160000, paid_at: '2026-03-01' },
+      { id: 4, amount: 96000, paid_at: '2026-05-15' },
+    ],
+    hub_project_costs: [{ id: 2, amount: 42000, date: '2026-03-10' }, { id: 3, amount: 12000, date: '2026-05-02' }],
+  },
+  {
+    id: 9003, project_name: 'Social Media Retainer', client_name: 'Verde Wellness', project_type: 'retainer',
+    service: 'Social Media', status: 'active', contract_price: 0, monthly_rate: 45000, monthly_rate_currency: 'PHP',
+    hub_project_payments: [
+      { id: 5, amount: 45000, paid_at: '2026-05-01' },
+      { id: 6, amount: 45000, paid_at: '2026-06-01' },
+    ],
+    hub_project_costs: [{ id: 4, amount: 8000, date: '2026-05-05' }],
+  },
+  {
+    id: 9004, project_name: 'Content Retainer', client_name: 'Northwind Studios', project_type: 'retainer',
+    service: 'Content', status: 'active', contract_price: 0, monthly_rate: 1200, monthly_rate_currency: 'USD',
+    hub_project_payments: [
+      { id: 7, amount: 67200, paid_at: '2026-05-04' },
+      { id: 8, amount: 67200, paid_at: '2026-06-04' },
+    ],
+    hub_project_costs: [],
+  },
+  {
+    id: 9005, project_name: 'Launch Campaign', client_name: 'Mabini Rum', project_type: 'fixed',
+    service: 'Campaign', status: 'completed', contract_price: 240000, monthly_rate: null, monthly_rate_currency: null,
+    hub_project_payments: [{ id: 9, amount: 240000, paid_at: '2026-02-18' }],
+    hub_project_costs: [{ id: 5, amount: 55000, date: '2026-02-01' }],
+  },
+];
+
 export default function RevenuePage() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
@@ -38,7 +84,11 @@ export default function RevenuePage() {
   }, []);
 
   useEffect(() => {
-    if (isDemo) { setLoading(false); return; }
+    if (isDemo) {
+      setProjects(DEMO_REVENUE_PROJECTS);
+      setLoading(false);
+      return;
+    }
     (async () => {
       setLoading(true);
       const { data } = await supabase

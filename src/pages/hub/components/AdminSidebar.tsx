@@ -11,7 +11,7 @@ const navItems = [
   { divider: true, label: 'Inbound' },
   { to: '/hub/admin/applications', label: 'Applications', icon: 'ri-user-search-line' },
   { to: '/hub/admin/contact', label: 'Contact Inbox', icon: 'ri-mail-line' },
-  { to: '/hub/admin/rsvps', label: 'Event RSVPs', icon: 'ri-coupon-line' },
+  { to: '/hub/admin/rsvps', label: 'Event RSVPs', icon: 'ri-coupon-line', demoHidden: true },
   { divider: true, label: 'Approvals' },
   { to: '/hub/admin/requests', label: 'Request Center', icon: 'ri-inbox-line' },
   { to: '/hub/admin/timeoff', label: 'Time-Off', icon: 'ri-calendar-event-line' },
@@ -42,7 +42,10 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
   const { isDemo, demoUser, demoSignOut } = useDemo();
   const navigate = useNavigate();
   const activeUser = isDemo ? demoUser : hubUser;
-  const visibleNavItems = navItems.filter((item) => !(item as { devOnly?: boolean }).devOnly || hubUser?.is_developer);
+  const visibleNavItems = navItems
+    .filter((item) => !(item as { devOnly?: boolean }).devOnly || hubUser?.is_developer)
+    // Hide demo-excluded items (e.g. Event RSVPs) when previewing the demo.
+    .filter((item) => !(isDemo && (item as { demoHidden?: boolean }).demoHidden));
 
   const handleSignOut = async () => {
     if (isDemo) {

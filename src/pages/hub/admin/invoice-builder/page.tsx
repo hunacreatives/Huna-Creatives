@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import { useDemo } from '@/contexts/DemoContext';
 import {
   buildDefaultInvoiceLineItems,
   buildInvoiceDefaults,
@@ -15,9 +16,26 @@ import {
   parseEmailList,
 } from '@/lib/invoiceBuilder';
 
+// Sample project used only in the interactive demo so the full "build & send
+// invoice" flow can be shown without touching any live data.
+const DEMO_INVOICE_PROJECT: InvoiceProjectSnapshot = {
+  id: 9001,
+  client_name: 'Aurora Coffee Co.',
+  project_name: 'Brand Identity System',
+  service: 'Branding',
+  contract_price: 185000,
+  start_date: '2026-04-01',
+  deadline: '2026-07-31',
+  contact_email: 'accounts@auroracoffee.example',
+  hub_project_payments: [
+    { id: 1, amount: 92500, paid_at: '2026-04-12', notes: 'Downpayment', receipt_url: null },
+  ],
+};
+
 export default function AdminInvoiceBuilderPage() {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
+  const { isDemo } = useDemo();
   const [loading, setLoading] = useState(true);
   const [savingDraft, setSavingDraft] = useState(false);
   const [sending, setSending] = useState(false);
@@ -116,6 +134,15 @@ export default function AdminInvoiceBuilderPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (isDemo) {
+        const nextProject = DEMO_INVOICE_PROJECT;
+        setProject(nextProject);
+        setForm(buildInvoiceDefaults(nextProject, '0001'));
+        setLineItems(buildDefaultInvoiceLineItems(nextProject));
+        setIncludePaymentHistory(true);
+        setLoading(false);
+        return;
+      }
       if (!projectId) {
         setLoading(false);
         return;
@@ -166,7 +193,7 @@ export default function AdminInvoiceBuilderPage() {
       }
     };
     void load();
-  }, [draftKey, projectId]);
+  }, [draftKey, projectId, isDemo]);
 
   const validLineItems = useMemo(
     () => lineItems.filter((item) => item.description.trim() && item.amount !== ''),
@@ -289,6 +316,15 @@ export default function AdminInvoiceBuilderPage() {
     const payload = buildSendPayload();
     if (!payload) {
       setSending(false);
+      return;
+    }
+
+    // Demo: simulate the send end-to-end so the flow can be shown, no backend call.
+    if (isDemo) {
+      await new Promise((r) => window.setTimeout(r, 1200));
+      setSending(false);
+      window.localStorage.removeItem(draftKey);
+      setStatus({ ok: true, text: `Invoice sent to ${form.send_to.trim() || project.client_name}. (demo)` });
       return;
     }
 

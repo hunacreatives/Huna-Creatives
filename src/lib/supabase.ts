@@ -107,7 +107,7 @@ export function clearSupabaseAuthStorage() {
   });
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+const realClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -115,3 +115,58 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: typeof indexedDB !== 'undefined' ? idbStorage : undefined,
   },
 });
+
+// --- Demo isolation guard ---------------------------------------------------
+// The interactive demo (passcode-gated, see DemoContext) must NEVER read or
+// write live client data. Individual hub pages opt into mock data via
+// `if (isDemo) { ...DEMO... }`, but any page that forgets would leak real
+// employee/payroll info to anyone with the shared passcode. This is the
+// backstop: while the demo flag is set, every `.from()` query resolves to
+// empty and every mutation / rpc / edge-function call is a no-op. Real users
+// never have this flag, so production is unaffected.
+export function isDemoMode(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.localStorage.getItem('hub_demo') === '1';
+  } catch {
+    return false;
+  }
+}
+
+// A chainable, thenable stub mirroring the PostgREST query builder. Every
+// filter/modifier returns itself; awaiting it yields empty data.
+function makeQueryStub(): any {
+  const result = { data: [] as unknown[], error: null, count: 0, status: 200, statusText: 'OK' };
+  const singleResult = { data: null, error: null, count: 0, status: 200, statusText: 'OK' };
+  const stub: any = new Proxy(function () {} as any, {
+    get(_t, prop) {
+      if (prop === 'then') {
+        // Awaiting the builder resolves to an empty list result.
+        return (onFulfilled: (v: unknown) => unknown) => Promise.resolve(result).then(onFulfilled);
+      }
+      if (prop === 'single' || prop === 'maybeSingle') {
+        return () => Promise.resolve(singleResult);
+      }
+      if (prop === 'csv') return () => Promise.resolve({ data: '', error: null });
+      // Any other method (select/insert/update/eq/order/limit/...) chains.
+      return () => stub;
+    },
+    apply() {
+      return stub;
+    },
+  });
+  return stub;
+}
+
+export const supabase: typeof realClient = new Proxy(realClient, {
+  get(target, prop, receiver) {
+    if (!isDemoMode()) return Reflect.get(target, prop, receiver);
+    if (prop === 'from') return () => makeQueryStub();
+    if (prop === 'rpc') return () => makeQueryStub();
+    if (prop === 'functions') {
+      return { invoke: async () => ({ data: null, error: null }) };
+    }
+    // auth, storage, realtime, channel, etc. pass through unchanged — the demo
+    // has no Supabase session, so auth calls are harmless.
+    return Reflect.get(target, prop, receiver);
+  },
+}) as typeof realClient;
