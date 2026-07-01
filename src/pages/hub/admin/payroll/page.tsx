@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
 import html2canvas from 'html2canvas';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
+import InfoHint from '@/pages/hub/components/InfoHint';
 import Avatar from '@/pages/hub/components/Avatar';
 import { supabase } from '@/lib/supabase';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
@@ -765,7 +766,7 @@ export default function AdminPayrollPage() {
           ${[
             { label: 'Total Payroll', value: fmt(displayTotalPay, 'PHP') },
             { label: 'Total Hours', value: `${totalHours.toFixed(2)}h` },
-            { label: 'Contractors', value: `${rows.length}` },
+            { label: 'Employees', value: `${rows.length}` },
             { label: 'Hourly / Fixed', value: `${hourlyRows} / ${fixedRows}` },
           ].map((item) => `
             <div style="border:1px solid #e5e7eb;border-radius:16px;background:#f9fafb;padding:14px 16px;">
@@ -777,7 +778,7 @@ export default function AdminPayrollPage() {
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
             <tr>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Contractor</th>
+              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Employee</th>
               <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Department</th>
               <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Type</th>
               <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Rate</th>
@@ -1351,7 +1352,7 @@ export default function AdminPayrollPage() {
       <div class="value">${totalHours.toFixed(1)}h</div>
     </div>
     <div class="summary-item">
-      <div class="label">Contractors</div>
+      <div class="label">Employees</div>
       <div class="value">${rows.length}</div>
     </div>
     <div class="summary-item">
@@ -1362,7 +1363,7 @@ export default function AdminPayrollPage() {
   <table>
     <thead>
       <tr>
-        <th>Contractor</th>
+        <th>Employee</th>
         <th>Department</th>
         <th>Type</th>
         <th>Rate</th>
@@ -1475,15 +1476,18 @@ export default function AdminPayrollPage() {
                   const nextP = idx !== -1 && idx < periods.length - 1 ? periods[idx + 1] : null;
                   if (!nextP) return null;
                   return (
-                    <button
-                      onClick={openNextPeriod}
-                      disabled={openingNextPeriod}
-                      title={`Open ${nextP.label} for contractors`}
-                      className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-50 text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors cursor-pointer"
-                    >
-                      {openingNextPeriod ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-arrow-right-circle-line"></i>}
-                      Open {nextP.label}
-                    </button>
+                    <span className="flex items-center gap-1.5">
+                      <button
+                        onClick={openNextPeriod}
+                        disabled={openingNextPeriod}
+                        title={`Open ${nextP.label} for employees`}
+                        className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-50 text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors cursor-pointer"
+                      >
+                        {openingNextPeriod ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-arrow-right-circle-line"></i>}
+                        Open {nextP.label}
+                      </button>
+                      <InfoHint id="run-payroll" />
+                    </span>
                   );
                 })()}
               </div>
@@ -1493,8 +1497,8 @@ export default function AdminPayrollPage() {
                 {[
                   { label: 'Total Payroll', value: fmt(displayTotalPay, 'PHP'), accent: true },
                   { label: 'Total Hours', value: `${totalHours.toFixed(1)}h` },
-                  { label: 'Hourly', value: `${hourlyCount} contractor${hourlyCount !== 1 ? 's' : ''}` },
-                  { label: 'Fixed Rate', value: `${fixedCount} contractor${fixedCount !== 1 ? 's' : ''}` },
+                  { label: 'Hourly', value: `${hourlyCount} employee${hourlyCount !== 1 ? 's' : ''}` },
+                  { label: 'Fixed Rate', value: `${fixedCount} employee${fixedCount !== 1 ? 's' : ''}` },
                 ].map((k) => (
                   <div key={k.label}>
                     <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">{k.label}</p>
@@ -1509,7 +1513,7 @@ export default function AdminPayrollPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    const headers = ['Contractor', 'Department', 'Type', 'Rate', 'Days', 'Raw Hours', 'Billed Hours', 'Overtime Hours', 'Overtime Pay (PHP)', 'Pay (PHP)'];
+                    const headers = ['Employee', 'Department', 'Type', 'Rate', 'Days', 'Raw Hours', 'Billed Hours', 'Overtime Hours', 'Overtime Pay (PHP)', 'Pay (PHP)'];
                     const csvRows = rows.map(r => {
                       const c = r.contractor;
                       const p = payoutsMap[c.id];
@@ -1606,7 +1610,7 @@ export default function AdminPayrollPage() {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {rows.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">No contractor data found</div>
+              <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-sm text-gray-400">No employee data found</div>
             ) : rows.map((r) => {
               const c = r.contractor;
               const isFixed = c.payment_type === 'fixed' || c.payment_type === 'fixed_flexible';
@@ -1630,7 +1634,7 @@ export default function AdminPayrollPage() {
 
               return (
                 <div key={c.id} className="bg-white rounded-xl border border-gray-100 p-4">
-                  {/* Contractor row */}
+                  {/* Employee row */}
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar name={c.full_name} url={c.avatar_url} size={8} />
                     <div className="flex-1 min-w-0">
@@ -1760,7 +1764,7 @@ export default function AdminPayrollPage() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/80">
                     {[
-                      { label: 'Contractor', cls: 'w-64' },
+                      { label: 'Employee', cls: 'w-64' },
                       { label: 'Hours', cls: 'w-36' },
                       { label: 'Overtime', cls: 'w-32' },
                       { label: 'Pay', cls: 'w-48' },
@@ -1774,7 +1778,7 @@ export default function AdminPayrollPage() {
                   {rows.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="text-center py-12 text-gray-400 text-sm">
-                        No contractor data found
+                        No employee data found
                       </td>
                     </tr>
                   ) : rows.map((r) => {
@@ -1809,7 +1813,7 @@ export default function AdminPayrollPage() {
                     return (
                       <Fragment key={c.id}>
                       <tr className="hover:bg-gray-50/60 transition-colors group cursor-pointer" onClick={() => toggleRowExpanded(c.id)}>
-                        {/* Contractor */}
+                        {/* Employee */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
                             <i className={`ri-arrow-down-s-line text-gray-300 group-hover:text-gray-500 transition-transform flex-shrink-0 ${expandedRows.has(c.id) ? 'rotate-180' : ''}`} title="Show daily hours"></i>
@@ -2040,7 +2044,7 @@ export default function AdminPayrollPage() {
               </div>
 
               {!batch && approvedCount === 0 && (
-                <p className="text-xs text-gray-400">Approve at least one contractor to request a fund transfer.</p>
+                <p className="text-xs text-gray-400">Approve at least one employee to request a fund transfer.</p>
               )}
 
               {batch && (() => {
@@ -2064,7 +2068,7 @@ export default function AdminPayrollPage() {
                           {isBatchClosed ? 'Period archived' : isApproved ? 'Transfer approved — send payments' : 'Awaiting owner approval'}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-xs text-gray-500">{batch.contractor_count} contractor{batch.contractor_count !== 1 ? 's' : ''}</span>
+                          <span className="text-xs text-gray-500">{batch.contractor_count} employee{batch.contractor_count !== 1 ? 's' : ''}</span>
                           <span className="text-gray-300">·</span>
                           <span className="text-xs font-semibold text-gray-700">{fmt(batch.total_amount, 'PHP')}</span>
                           {batch.approved_at && <><span className="text-gray-300">·</span><span className="text-xs text-gray-400">Approved {new Date(batch.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></>}
@@ -2095,7 +2099,7 @@ export default function AdminPayrollPage() {
                       <div className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
                         <div className="flex items-center gap-2">
                           <i className="ri-check-double-line text-emerald-500 text-sm"></i>
-                          <p className="text-xs font-medium text-emerald-700">All {paidCount} contractors paid</p>
+                          <p className="text-xs font-medium text-emerald-700">All {paidCount} employees paid</p>
                         </div>
                         <button onClick={closePeriod} disabled={workflowLoading}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-40 transition-colors flex-shrink-0">
@@ -2144,7 +2148,7 @@ export default function AdminPayrollPage() {
                       <div className="flex items-start gap-3">
                         <i className="ri-flag-fill text-rose-500 text-sm mt-0.5 flex-shrink-0"></i>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-rose-700">Flagged by contractor</p>
+                          <p className="text-xs font-semibold text-rose-700">Flagged by employee</p>
                           <p className="text-xs text-rose-600 mt-0.5">{dispute.reason}</p>
                           {dispute.admin_notes && (
                             <p className="text-xs text-gray-500 mt-1 italic">Note: {dispute.admin_notes}</p>

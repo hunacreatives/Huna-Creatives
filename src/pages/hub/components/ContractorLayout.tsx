@@ -5,6 +5,9 @@ import { useHubAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import ContractorSidebar from './ContractorSidebar';
+import { PageHelp } from './InfoHint';
+import DemoBooking, { EXIT_INTENT_EVENT } from './DemoBooking';
+import { openBooking, DEMO_EXIT_URL } from '@/lib/demoBooking';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
 import PushPermissionBanner from './PushPermissionBanner';
@@ -184,13 +187,19 @@ export default function ContractorLayout({ children, title, titleContent, action
                 }}
                 className={`px-3 py-1 rounded-full text-[11px] font-medium capitalize transition-colors cursor-pointer ${demoRole === role ? 'bg-white text-[#111827]' : 'text-white/50 hover:text-white'}`}
               >
-                {role}
+                {role === 'contractor' ? 'Employee' : role}
               </button>
             ))}
           </div>
-          <button onClick={() => { demoSignOut(); navigate('/hub/demo'); }} className="text-white/40 hover:text-white transition-colors cursor-pointer flex-shrink-0 text-[11px]">Exit</button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => openBooking()} className="hidden sm:flex items-center gap-1 bg-[#FF6B35] hover:bg-[#ff7f4d] text-white text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer">
+              <i className="ri-calendar-check-line text-[12px]" /> Book a call
+            </button>
+            <button onClick={() => window.dispatchEvent(new CustomEvent(EXIT_INTENT_EVENT))} className="text-white/40 hover:text-white transition-colors cursor-pointer text-[11px]">Exit</button>
+          </div>
         </div>
       )}
+      {isDemo && <DemoBooking onExit={() => { demoSignOut(); window.location.href = DEMO_EXIT_URL; }} />}
 
       {/* Desktop sidebar */}
       <div className="hidden lg:block relative z-10">
@@ -215,7 +224,7 @@ export default function ContractorLayout({ children, title, titleContent, action
           {/* Top bar */}
           <header className="border-b border-white/60 px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-transparent">
             <div className="flex-1 min-w-0">
-              {titleContent ?? (title && <h1 className="text-gray-900 font-semibold text-lg sm:text-[28px] leading-tight truncate">{title}</h1>)}
+              {titleContent ?? (title && <h1 className="text-gray-900 font-semibold text-lg sm:text-[28px] leading-tight truncate flex items-center gap-2"><span className="truncate">{title}</span><PageHelp /></h1>)}
             </div>
             <div className="flex items-center gap-3">
               {actions}
@@ -405,7 +414,7 @@ export default function ContractorLayout({ children, title, titleContent, action
       </nav>
 
       <DevToolbar />
-      <PushPermissionBanner userId={hubUser?.id} />
+      {!isDemo && <PushPermissionBanner userId={hubUser?.id} />}
     </div>
   );
 }

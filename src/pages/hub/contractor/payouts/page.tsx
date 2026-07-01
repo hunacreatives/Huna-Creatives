@@ -107,10 +107,10 @@ function generatePayslipHTML(opts: {
     </p>
   </div>
 
-  <!-- Contractor + Period info -->
+  <!-- Employee + Period info -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-bottom:28px;">
     <div>
-      <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;font-weight:600;">Contractor</div>
+      <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;font-weight:600;">Employee</div>
       <div style="font-size:15px;font-weight:700;color:#111827;">${name}</div>
       ${department ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;">${department}</div>` : ''}
       <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Independent Contractor</div>
@@ -392,7 +392,7 @@ export default function ContractorPayoutsPage() {
         setExistingDispute(null);
       }
     } catch (error) {
-      console.error('Contractor payouts load failed:', error);
+      console.error('Employee payouts load failed:', error);
       setLoadError('Unable to load payout details right now.');
       setDays([]);
       setRateHistory([]);
@@ -682,7 +682,7 @@ export default function ContractorPayoutsPage() {
               <div className="bg-[#111827] px-6 py-5 flex items-start justify-between">
                 <div>
                   <p className="text-white font-bold text-base">Huna Creatives</p>
-                  <p className="text-white/40 text-xs mt-0.5">Contractor Payment Summary</p>
+                  <p className="text-white/40 text-xs mt-0.5">Employee Payment Summary</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[#FF6B35] font-bold text-sm tracking-widest">PAYSLIP</p>
@@ -690,10 +690,10 @@ export default function ContractorPayoutsPage() {
                 </div>
               </div>
 
-              {/* Contractor info row */}
+              {/* Employee info row */}
               <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Contractor</p>
+                  <p className="text-xs text-gray-400 mb-0.5">Employee</p>
                   <p className="text-sm font-semibold text-gray-900">{hubUser?.full_name}</p>
                   {(hubUser as any)?.department && <p className="text-xs text-gray-400">{(hubUser as any).department}</p>}
                 </div>

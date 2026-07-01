@@ -543,7 +543,7 @@ export default function ContractorDashboard() {
       setTimeOffs((toResult.data as HubTimeOff[]) ?? []);
       setPayoutStatus(payoutRes.data?.status ?? null);
     } catch (error) {
-      console.error('Contractor dashboard load failed:', error);
+      console.error('Employee dashboard load failed:', error);
       setActiveProjects([]);
       setAnnouncements([]);
       setRequests([]);

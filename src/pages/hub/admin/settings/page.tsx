@@ -8,18 +8,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function SettingsPage() {
   const { isDemo } = useDemo();
-  const { user } = useAuth();
-
-  if (isDemo) return (
-    <AdminLayout>
-      <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400">
-        <i className="ri-lock-2-line text-3xl opacity-40"></i>
-        <p className="text-sm font-medium">Not available in demo</p>
-        <p className="text-xs text-gray-300">This section requires a live account.</p>
-      </div>
-    </AdminLayout>
-  );
-  const { hubUser, signOut } = useAuth();
+  const { user, hubUser, signOut } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'system'>('profile');
   const [devToolbarHidden, setDevToolbarHidden] = useState(() => localStorage.getItem('hub_dev_toolbar_hidden') === 'true');
@@ -40,6 +29,18 @@ export default function SettingsPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Demo has no live account — show a placeholder. (Must come AFTER all hooks
+  // so hook order stays consistent between renders.)
+  if (isDemo) return (
+    <AdminLayout title="Settings">
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400">
+        <i className="ri-lock-2-line text-3xl opacity-40"></i>
+        <p className="text-sm font-medium">Not available in demo</p>
+        <p className="text-xs text-gray-300">This section requires a live account.</p>
+      </div>
+    </AdminLayout>
+  );
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -193,7 +194,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between py-3 border-b border-white/10">
                   <div>
                     <p className="text-sm font-medium text-white">Role switcher toolbar</p>
-                    <p className="text-xs text-gray-400 mt-0.5">The floating bar at the bottom that switches between Owner / Admin / Contractor views</p>
+                    <p className="text-xs text-gray-400 mt-0.5">The floating bar at the bottom that switches between Owner / Admin / Employee views</p>
                   </div>
                   <button
                     onClick={async () => {

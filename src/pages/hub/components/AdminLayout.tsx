@@ -7,11 +7,14 @@ import AdminSidebar from './AdminSidebar';
 import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
 import PushPermissionBanner from './PushPermissionBanner';
+import InfoHint, { PageHelp } from './InfoHint';
+import DemoBooking, { EXIT_INTENT_EVENT } from './DemoBooking';
+import { openBooking, DEMO_EXIT_URL } from '@/lib/demoBooking';
 
 const ADMIN_BOTTOM_NAV = [
   { to: '/hub/admin/dashboard',     label: 'Dashboard',  icon: 'ri-layout-grid-line' },
   { to: '/hub/admin/projects',      label: 'Projects',   icon: 'ri-folder-line' },
-  { to: '/hub/admin/contractors',   label: 'Contractors',icon: 'ri-team-line' },
+  { to: '/hub/admin/contractors',   label: 'Employees',icon: 'ri-team-line' },
   { to: '/hub/admin/payroll',       label: 'Payroll',    icon: 'ri-bar-chart-2-line' },
   { to: '/hub/admin/attendance',    label: 'Attendance', icon: 'ri-time-line' },
   { to: '/hub/admin/requests',      label: 'Requests',   icon: 'ri-inbox-line' },
@@ -122,7 +125,7 @@ function GlobalSearch() {
     { label: 'Dashboard page', path: '/hub/admin/dashboard', icon: 'ri-home-5-line' },
     { label: 'Projects page', path: '/hub/admin/projects', icon: 'ri-folder-line' },
     { label: 'Payroll page', path: '/hub/admin/payroll', icon: 'ri-bank-card-line' },
-    { label: 'Contractors page', path: '/hub/admin/contractors', icon: 'ri-team-line' },
+    { label: 'Employees page', path: '/hub/admin/contractors', icon: 'ri-team-line' },
     { label: 'Attendance page', path: '/hub/admin/attendance', icon: 'ri-time-line' },
     { label: 'Schedule invoice', path: '/hub/admin/invoice-log', icon: 'ri-calendar-schedule-line' },
   ];
@@ -202,7 +205,7 @@ function GlobalSearch() {
                 </button>
               ))}
               <div className="px-4 py-2 border-t border-gray-50">
-                <p className="text-[10px] text-gray-300">Start typing to search contractors, projects, invoices</p>
+                <p className="text-[10px] text-gray-300">Start typing to search employees, projects, invoices</p>
               </div>
             </>
           )}
@@ -240,8 +243,8 @@ export default function AdminLayout({ children, title, actions }: Props) {
     <div className={`relative flex ${isDemo ? 'h-screen pt-8' : 'h-screen'} overflow-hidden`} style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
       {isDemo && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-[#111827] text-white text-xs flex items-center justify-between px-4 py-1.5 gap-4">
-          <span className="text-white/40 hidden sm:block flex-shrink-0">Demo</span>
-          <div className="flex items-center gap-1 flex-1 justify-center">
+          <span className="text-white/40 hidden sm:flex items-center gap-1 flex-shrink-0">Demo <InfoHint id="role-switcher" /></span>
+          <div data-tour="role-switcher" className="flex items-center gap-1 flex-1 justify-center">
             {(['owner', 'admin', 'contractor'] as const).map(role => (
               <button
                 key={role}
@@ -251,15 +254,21 @@ export default function AdminLayout({ children, title, actions }: Props) {
                 }}
                 className={`px-3 py-1 rounded-full text-[11px] font-medium capitalize transition-colors cursor-pointer ${demoRole === role ? 'bg-white text-[#111827]' : 'text-white/50 hover:text-white'}`}
               >
-                {role}
+                {role === 'contractor' ? 'Employee' : role}
               </button>
             ))}
           </div>
-          <button onClick={() => { demoSignOut(); navigate('/hub/demo'); }} className="text-white/40 hover:text-white transition-colors cursor-pointer flex-shrink-0 text-[11px]">Exit</button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => openBooking()} className="hidden sm:flex items-center gap-1 bg-[#FF6B35] hover:bg-[#ff7f4d] text-white text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors cursor-pointer">
+              <i className="ri-calendar-check-line text-[12px]" /> Book a call
+            </button>
+            <button onClick={() => window.dispatchEvent(new CustomEvent(EXIT_INTENT_EVENT))} className="text-white/40 hover:text-white transition-colors cursor-pointer text-[11px]">Exit</button>
+          </div>
         </div>
       )}
+      {isDemo && <DemoBooking onExit={() => { demoSignOut(); window.location.href = DEMO_EXIT_URL; }} />}
       {/* Desktop sidebar */}
-      <div className="hidden lg:block relative z-10">
+      <div data-tour="sidebar" className="hidden lg:block relative z-10">
         <AdminSidebar collapsed={collapsed} onToggle={() => toggleCollapsed()} />
       </div>
 
@@ -282,7 +291,10 @@ export default function AdminLayout({ children, title, actions }: Props) {
         <header className="border-b border-white/60 px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-transparent">
           <div className="flex-1 min-w-0">
             {title && (
-              <h1 className="text-gray-900 font-semibold text-lg sm:text-[28px] leading-tight truncate">{title}</h1>
+              <h1 className="text-gray-900 font-semibold text-lg sm:text-[28px] leading-tight truncate flex items-center gap-2">
+                <span className="truncate">{title}</span>
+                <PageHelp />
+              </h1>
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 overflow-visible">
@@ -330,7 +342,7 @@ export default function AdminLayout({ children, title, actions }: Props) {
       </nav>
 
       <DevToolbar />
-      <PushPermissionBanner userId={hubUser?.id} />
+      {!isDemo && <PushPermissionBanner userId={hubUser?.id} />}
     </div>
   );
 }

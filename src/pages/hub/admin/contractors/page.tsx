@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
+import InfoHint from '@/pages/hub/components/InfoHint';
 import { supabase } from '@/lib/supabase';
 import { HubUser } from '@/lib/types';
 import { useDemo } from '@/contexts/DemoContext';
@@ -137,7 +138,7 @@ export default function ContractorsPage() {
 
   return (
     <AdminLayout
-      title="Contractors"
+      title="Employees"
       actions={
         <div className="flex items-center gap-2">
           <button
@@ -153,8 +154,9 @@ export default function ContractorsPage() {
             className="flex items-center gap-1.5 bg-[#FF6B35] text-white text-sm px-3 py-2 rounded-lg hover:bg-[#e55a27] transition-colors cursor-pointer whitespace-nowrap"
           >
             <i className="ri-user-add-line text-sm"></i>
-            Add Contractor
+            Add Employee
           </button>
+          <InfoHint id="add-employee" />
         </div>
       }
     >
@@ -254,7 +256,7 @@ export default function ContractorsPage() {
           </div>
         )}
 
-        {/* Contractor list */}
+        {/* Employee list */}
         {loading ? (
           <div className="flex items-center justify-center h-48">
             <i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i>
@@ -262,14 +264,14 @@ export default function ContractorsPage() {
         ) : filtered.length === 0 ? (
           <div className="bg-white border border-gray-100 rounded-xl p-10 text-center">
             <i className="ri-user-search-line text-3xl text-gray-200 block mb-2"></i>
-            <p className="text-sm text-gray-400">No contractors found</p>
+            <p className="text-sm text-gray-400">No employees found</p>
           </div>
         ) : (
           <div className="bg-white border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-50">
             {/* Header row */}
             <div className="hidden sm:grid grid-cols-[40px_minmax(0,1fr)_150px_110px_90px_56px_76px] items-center gap-4 px-5 py-2.5 bg-gray-50/60">
               <div />
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Contractor</span>
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Employee</span>
               <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Dept / Rate</span>
               <span className="hidden md:block text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Slack</span>
               <span className="hidden lg:block text-[11px] font-semibold text-gray-400 uppercase tracking-wide text-right">Start Date</span>
@@ -417,7 +419,7 @@ export default function ContractorsPage() {
           </div>
         )}
 
-        <p className="text-xs text-gray-400 pb-1">{filtered.length} contractor{filtered.length !== 1 ? 's' : ''} shown</p>
+        <p className="text-xs text-gray-400 pb-1">{filtered.length} employee{filtered.length !== 1 ? 's' : ''} shown</p>
       </div>
 
       {showAdd && (

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import Avatar from '@/pages/hub/components/Avatar';
+import InfoHint from '@/pages/hub/components/InfoHint';
+import DemoTour from '@/pages/hub/components/DemoTour';
 import { supabase } from '@/lib/supabase';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
@@ -388,6 +390,7 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminLayout title="Dashboard">
+      <DemoTour />
       <div className="space-y-4">
 
         {/* Customize drawer */}
@@ -501,7 +504,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex-1">
+            <div className="flex-1" data-tour="team-status">
               <p className="text-white/50 text-xs mb-1 flex flex-wrap items-center gap-1.5">
                 {dateStr}
                 <span className="text-white/30">·</span>
@@ -510,8 +513,9 @@ export default function AdminDashboardPage() {
                 <span className="text-white/30 text-[10px]">PH</span>
               </p>
               <h2 className="text-xl font-bold">{greeting}, team.</h2>
-              <p className="text-white/60 text-sm mt-1">
-                {counts.on > 0 ? `${counts.on} contractor${counts.on > 1 ? 's' : ''} online right now.` : 'No one online yet today.'}
+              <p className="text-white/60 text-sm mt-1 flex items-center gap-1.5">
+                {counts.on > 0 ? `${counts.on} employee${counts.on > 1 ? 's' : ''} online right now.` : 'No one online yet today.'}
+                <InfoHint id="team-status" />
               </p>
             </div>
             {/* Payroll period card */}
@@ -939,7 +943,7 @@ export default function AdminDashboardPage() {
                 <h3 className="font-semibold text-[#111827] text-sm mb-3">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: 'Add Contractor', icon: 'ri-user-add-line', path: '/hub/admin/contractors', color: 'text-[#FF6B35]', bg: 'bg-[#FF6B35]/5 hover:bg-[#FF6B35]/10' },
+                    { label: 'Add Employee', icon: 'ri-user-add-line', path: '/hub/admin/contractors', color: 'text-[#FF6B35]', bg: 'bg-[#FF6B35]/5 hover:bg-[#FF6B35]/10' },
                     { label: 'View Attendance', icon: 'ri-time-line', path: '/hub/admin/attendance', color: 'text-sky-600', bg: 'bg-sky-50 hover:bg-sky-100' },
                     { label: 'Post Announcement', icon: 'ri-megaphone-line', path: '/hub/admin/announcements', color: 'text-violet-600', bg: 'bg-violet-50 hover:bg-violet-100' },
                     { label: 'Run Payroll', icon: 'ri-money-dollar-circle-line', path: '/hub/admin/payroll', color: 'text-emerald-600', bg: 'bg-emerald-50 hover:bg-emerald-100' },
