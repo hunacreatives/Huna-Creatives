@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDemo } from '@/contexts/DemoContext';
 
@@ -8,8 +8,31 @@ export default function HubDemoPage() {
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Typewriter (matches the real sign-in screen)
+  const WORDS = ['Attendance.', 'Payroll.', 'Time Off.', 'Documents.', 'Credentials.', 'Your team.'];
+  const [wordIdx, setWordIdx] = useState(0);
+  const [displayed, setDisplayed] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const current = WORDS[wordIdx];
+    if (!deleting && displayed.length < current.length) {
+      timerRef.current = setTimeout(() => setDisplayed(current.slice(0, displayed.length + 1)), 80);
+    } else if (!deleting && displayed.length === current.length) {
+      timerRef.current = setTimeout(() => setDeleting(true), 1800);
+    } else if (deleting && displayed.length > 0) {
+      timerRef.current = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 45);
+    } else if (deleting && displayed.length === 0) {
+      setDeleting(false);
+      setWordIdx(i => (i + 1) % WORDS.length);
+    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [displayed, deleting, wordIdx]);
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const ok = demoSignIn(passcode);
     if (ok) {
@@ -23,52 +46,216 @@ export default function HubDemoPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-indigo-50 px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen min-h-dvh flex bg-[#0a0608]">
+      <style>{`
+        @keyframes orb-a {
+          0%   { transform: translate(0, 0) scale(1);       filter: hue-rotate(0deg) brightness(1); }
+          30%  { transform: translate(60px, -40px) scale(1.12); filter: hue-rotate(20deg) brightness(1.2); }
+          60%  { transform: translate(-30px, 25px) scale(0.9);  filter: hue-rotate(-15deg) brightness(0.85); }
+          100% { transform: translate(0, 0) scale(1);       filter: hue-rotate(0deg) brightness(1); }
+        }
+        @keyframes orb-b {
+          0%   { transform: translate(0, 0) scale(1);        filter: hue-rotate(0deg) brightness(1); }
+          35%  { transform: translate(-55px, 50px) scale(1.1);  filter: hue-rotate(-25deg) brightness(1.15); }
+          70%  { transform: translate(30px, -25px) scale(0.93); filter: hue-rotate(30deg) brightness(0.9); }
+          100% { transform: translate(0, 0) scale(1);        filter: hue-rotate(0deg) brightness(1); }
+        }
+        @keyframes orb-c {
+          0%   { transform: translate(0, 0) scale(1);       filter: hue-rotate(0deg) brightness(1); }
+          50%  { transform: translate(45px, 45px) scale(1.08); filter: hue-rotate(40deg) brightness(1.25); }
+          100% { transform: translate(0, 0) scale(1);       filter: hue-rotate(0deg) brightness(1); }
+        }
+        @keyframes orb-d {
+          0%   { transform: translate(0, 0) scale(1);        filter: hue-rotate(0deg) brightness(1); }
+          40%  { transform: translate(-40px, -50px) scale(1.15); filter: hue-rotate(-30deg) brightness(1.3); }
+          75%  { transform: translate(25px, 35px) scale(0.88);   filter: hue-rotate(20deg) brightness(0.8); }
+          100% { transform: translate(0, 0) scale(1);        filter: hue-rotate(0deg) brightness(1); }
+        }
+        @keyframes orb-e {
+          0%   { transform: translate(0, 0) scale(1);       filter: hue-rotate(0deg) brightness(1); }
+          45%  { transform: translate(50px, -30px) scale(1.1); filter: hue-rotate(35deg) brightness(1.2); }
+          80%  { transform: translate(-20px, 40px) scale(0.92); filter: hue-rotate(-20deg) brightness(0.88); }
+          100% { transform: translate(0, 0) scale(1);       filter: hue-rotate(0deg) brightness(1); }
+        }
+        @keyframes form-in {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes logo-in {
+          from { opacity: 0; transform: translateY(40px) scale(0.9); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes wiggle {
+          0%,100% { transform: translateX(0); }
+          20% { transform: translateX(-8px); }
+          40% { transform: translateX(8px); }
+          60% { transform: translateX(-5px); }
+          80% { transform: translateX(5px); }
+        }
+        .orb-a-anim    { animation: orb-a 18s ease-in-out infinite; }
+        .orb-b-anim    { animation: orb-b 24s ease-in-out infinite; }
+        .orb-c-anim    { animation: orb-c 15s ease-in-out infinite; }
+        .orb-d-anim    { animation: orb-d 20s ease-in-out infinite 3s; }
+        .orb-e-anim    { animation: orb-e 22s ease-in-out infinite 1s; }
+        .form-in     { animation: form-in 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+        .logo-in     { animation: logo-in 0.8s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
+        .shake { animation: wiggle 0.4s ease-in-out; }
+        input:-webkit-autofill {
+          -webkit-box-shadow: 0 0 0 100px rgba(15,10,8,0.98) inset !important;
+          -webkit-text-fill-color: rgba(255,255,255,0.85) !important;
+        }
+        .btn-glow {
+          background: linear-gradient(135deg, #FF6B35, #e53a00);
+          transition: all 0.3s ease;
+        }
+        .btn-glow:hover {
+          background: linear-gradient(135deg, #ff7f4d, #FF6B35);
+          box-shadow: 0 8px 32px rgba(255,107,53,0.55) !important;
+          transform: translateY(-1px);
+        }
+        .btn-glow:active { transform: scale(0.98); }
+        .input-dark {
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.85);
+          transition: border 0.2s, background 0.2s, box-shadow 0.2s;
+          font-size: 16px;
+        }
+        .input-dark::placeholder { color: rgba(255,255,255,0.2); }
+        .input-dark:focus {
+          background: rgba(255,255,255,0.08);
+          border-color: rgba(255,107,53,0.6);
+          box-shadow: 0 0 0 3px rgba(255,107,53,0.12);
+          outline: none;
+        }
+        .input-error {
+          border-color: rgba(239,68,68,0.6) !important;
+          box-shadow: 0 0 0 3px rgba(239,68,68,0.12) !important;
+        }
+      `}</style>
+
+      {/* ── Left panel — dark glass form ──────────────────────────────────── */}
+      <div className="flex-1 relative flex flex-col min-h-screen min-h-dvh overflow-hidden"
+        style={{ background: '#0a0608' }}>
+
+        {/* Subtle ambient behind form */}
+        <div className="absolute top-[-20%] left-[-10%] w-[400px] h-[400px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,107,53,0.07) 0%, transparent 65%)' }} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[350px] h-[350px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,160,0,0.05) 0%, transparent 65%)' }} />
+
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-3xl bg-[#FF6B35] text-white flex items-center justify-center shadow-lg shadow-orange-200 mb-4">
-            <img src="/s-logo.png" alt="S" className="w-8 h-8 object-contain" style={{ filter: 'invert(1)' }} />
+        <div className="relative z-10 p-8 md:p-10 flex items-center gap-2.5 form-in">
+          <div className="w-8 h-8 rounded-xl bg-[#FF6B35] flex items-center justify-center flex-shrink-0"
+            style={{ boxShadow: '0 4px 14px rgba(255,107,53,0.4)' }}>
+            <img src="/s-logo.png" alt="S" className="w-[18px] h-[18px] object-contain" style={{ filter: 'invert(1)' }} />
           </div>
-          <p className="text-[11px] uppercase tracking-widest text-gray-400 font-semibold">Huna Ops</p>
-          <h1 className="text-2xl font-bold text-gray-800">Sentro</h1>
-          <p className="text-sm text-gray-400 mt-1">Interactive Demo</p>
+          <span className="font-bold tracking-widest text-sm text-white/90">SENTRO <span className="text-[#FF6B35]">OS</span></span>
+          <span className="text-white/20 text-xs font-light tracking-widest ml-1">· Demo</span>
         </div>
 
-        {/* Card */}
-        <div
-          className="rounded-3xl p-7"
-          style={{
-            background: 'rgba(255,255,255,0.8)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255,255,255,0.9)',
-            boxShadow: '0 8px 40px rgba(99,120,200,0.12)',
-          }}
-        >
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">Enter demo passcode</h2>
-          <p className="text-sm text-gray-400 mb-6">You're about to preview the Sentro admin hub with sample data.</p>
+        {/* Form */}
+        <div className="relative z-10 flex-1 flex items-center justify-center px-8 md:px-14">
+          <div className="w-full max-w-[380px] form-in" style={{ animationDelay: '0.1s' }}>
 
-          <form onSubmit={handleSubmit} className={shake ? 'animate-[wiggle_0.4s_ease-in-out]' : ''}>
-            <input
-              type="password"
-              value={passcode}
-              onChange={e => { setPasscode(e.target.value); setError(false); }}
-              placeholder="Passcode"
-              autoFocus
-              className={`w-full border rounded-xl px-4 py-3 text-sm outline-none transition-all mb-3 ${error ? 'border-red-300 bg-red-50 text-red-600' : 'border-gray-200 bg-white/60 text-gray-800 focus:border-[#FF6B35]/50 focus:ring-2 focus:ring-[#FF6B35]/10'}`}
-            />
-            {error && <p className="text-xs text-red-500 mb-3">Incorrect passcode. Try again.</p>}
-            <button
-              type="submit"
-              className="w-full bg-[#FF6B35] hover:bg-[#e55a27] text-white font-semibold py-3 rounded-xl transition-colors text-sm cursor-pointer"
-            >
-              View Demo
-            </button>
-          </form>
+            <div className="mb-10">
+              <p className="text-[#FF6B35] text-[11px] font-semibold tracking-[0.25em] uppercase mb-3">Interactive Demo</p>
+              <h1 className="text-white font-bold leading-tight" style={{ fontSize: '2.6rem', letterSpacing: '-0.02em' }}>
+                Preview the<br />Sentro hub.
+              </h1>
+              <p className="text-white/30 text-sm mt-3">Enter the passcode to explore with sample data. Nothing you do is saved.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className={`space-y-4 ${shake ? 'shake' : ''}`}>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold text-white/40 tracking-widest uppercase">Demo passcode</label>
+                <div className="relative">
+                  <input type={showPass ? 'text' : 'password'} value={passcode}
+                    onChange={e => { setPasscode(e.target.value); setError(false); }}
+                    placeholder="Enter passcode" autoFocus required
+                    className={`input-dark w-full px-4 pr-10 py-3.5 text-sm rounded-xl ${error ? 'input-error' : ''}`} />
+                  <button type="button" onClick={() => setShowPass(!showPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50 cursor-pointer transition-colors">
+                    <i className={showPass ? 'ri-eye-off-line text-sm' : 'ri-eye-line text-sm'}></i>
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 p-3.5 rounded-2xl"
+                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <i className="ri-error-warning-line text-red-400 text-sm flex-shrink-0"></i>
+                  <p className="text-red-400 text-sm">Incorrect passcode. Please try again.</p>
+                </div>
+              )}
+
+              <button type="submit"
+                className="btn-glow w-full text-white py-3.5 rounded-xl text-sm font-semibold cursor-pointer mt-2"
+                style={{ boxShadow: '0 4px 24px rgba(255,107,53,0.4)' }}>
+                View demo →
+              </button>
+            </form>
+          </div>
         </div>
 
-        <p className="text-center text-xs text-gray-300 mt-6">Sentro by Huna Creatives · Demo Mode</p>
+        {/* Footer */}
+        <div className="relative z-10 p-8 md:p-10 form-in" style={{ animationDelay: '0.2s' }}>
+          <p className="text-xs text-white/15">© Sentro OS {new Date().getFullYear()} · by <a href="https://hunacreatives.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">Huna Creatives</a></p>
+        </div>
+      </div>
+
+      {/* ── Right panel — frosted glass with colored circles ─────────────── */}
+      <div className="hidden lg:flex w-[52%] relative overflow-hidden"
+        style={{ background: '#0a0608' }}>
+
+        {/* Layer 1 — vivid color circles (show through frost) */}
+        <div className="orb-a-anim absolute top-[-8%] right-[-8%] w-[520px] h-[520px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,107,53,0.90) 0%, rgba(255,60,0,0.4) 45%, transparent 70%)' }} />
+        <div className="orb-b-anim absolute bottom-[-10%] left-[-8%] w-[480px] h-[480px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,170,0,0.80) 0%, rgba(255,100,0,0.35) 45%, transparent 70%)' }} />
+        <div className="orb-c-anim absolute top-[30%] left-[18%] w-[380px] h-[380px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,50,10,0.65) 0%, rgba(200,30,0,0.25) 50%, transparent 70%)' }} />
+        <div className="orb-d-anim absolute top-[5%] left-[5%] w-[280px] h-[280px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,200,50,0.55) 0%, transparent 65%)' }} />
+        <div className="orb-e-anim absolute bottom-[20%] right-[5%] w-[300px] h-[300px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,80,30,0.50) 0%, transparent 65%)' }} />
+
+        {/* Layer 2 — frosted glass overlay */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          zIndex: 2,
+          backdropFilter: 'blur(60px) saturate(180%) brightness(1.1)',
+          WebkitBackdropFilter: 'blur(60px) saturate(180%) brightness(1.1)',
+          background: 'rgba(255,255,255,0.06)',
+        }}>
+          <div className="absolute top-0 left-0 right-0" style={{
+            height: '50%',
+            background: 'linear-gradient(to bottom, rgba(255,255,255,0.09) 0%, transparent 100%)',
+          }} />
+          <div className="absolute bottom-0 left-0 right-0" style={{
+            height: '30%',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.15) 0%, transparent 100%)',
+          }} />
+        </div>
+
+        {/* Layer 3 — S logo + tagline grouped */}
+        <div className="logo-in absolute inset-0 flex items-center justify-center" style={{ zIndex: 3 }}>
+          <div className="flex flex-col items-center gap-6">
+            <img src="/s-logo.png" alt="S"
+              style={{ width: '200px', height: '200px', objectFit: 'contain', filter: 'invert(1)', opacity: 0.95 }} />
+            <div className="text-center">
+              <p className="text-white/40 text-[10px] tracking-[0.35em] uppercase mb-2">Sentro OS · Demo</p>
+              <p className="text-white/80 text-base font-medium" style={{ minWidth: '240px', minHeight: '28px' }}>
+                Explore{' '}
+                <span className="text-[#FF6B35]">
+                  {displayed}
+                  <span className="inline-block w-[2px] h-[1em] bg-[#FF6B35] ml-[1px] align-middle"
+                    style={{ animation: 'blink 1s step-end infinite' }} />
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+        <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
       </div>
     </div>
   );
