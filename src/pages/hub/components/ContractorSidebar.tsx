@@ -131,7 +131,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
               )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-gray-800 truncate leading-tight">{hubUser.full_name}</p>
-                <p className="text-[11px] text-gray-400 truncate">{hubUser.department ?? 'Contractor'}</p>
+                <p className="text-[11px] text-gray-400 truncate">{hubUser.department ?? 'Employee'}</p>
               </div>
               <button onClick={handleSignOut} title="Sign out"
                 className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-white/50 transition-colors cursor-pointer flex-shrink-0">

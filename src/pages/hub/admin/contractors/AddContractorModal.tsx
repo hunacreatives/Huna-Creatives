@@ -160,7 +160,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
           <div>
-            <h2 className="font-semibold text-[#111827]">Add Contractor</h2>
+            <h2 className="font-semibold text-[#111827]">Add Employee</h2>
             <p className="text-xs text-gray-400 mt-0.5">Invite won't be sent until the final step</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
@@ -212,7 +212,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className={labelCls}>Access Role</label>
                       <select value={profile.role} onChange={e => setP('role', e.target.value)} className={`${inputCls} bg-white`}>
-                        <option value="contractor">Contractor</option>
+                        <option value="contractor">Employee</option>
                         <option value="admin">HR / Admin</option>
                       </select></div>
                     <div><label className={labelCls}>Slack ID</label>
@@ -438,7 +438,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
           {step === 3 && (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Contractor</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Employee</p>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
                     <span className="text-sm font-bold text-[#FF6B35]">{profile.full_name[0]?.toUpperCase()}</span>

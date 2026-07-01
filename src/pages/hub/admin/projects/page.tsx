@@ -286,7 +286,7 @@ export default function AdminProjectsPage() {
   const [sendReceiptSending, setSendReceiptSending] = useState(false);
   const [sendReceiptMsg, setSendReceiptMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Contractor assignment
+  // Employee assignment
   const [addCtxId, setAddCtxId] = useState('');
   const [addCtxRole, setAddCtxRole] = useState('');
   const [ctxSaving, setCtxSaving] = useState(false);
@@ -3917,7 +3917,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     {internalProject ? 'Assign people and roles. Tasks and workspace access start immediately.' : 'Assign people first, then configure payout type and amount for each person.'}
                   </p>
                   {activeProject.hub_project_contractors.length === 0 ? (
-                  <p className="text-xs text-gray-400">No contractors assigned to this project yet.</p>
+                  <p className="text-xs text-gray-400">No employees assigned to this project yet.</p>
                   ) : (
                   <div className="space-y-3">
                     {activeProject.hub_project_contractors.map(pc => {
@@ -3943,7 +3943,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       const setPf = (patch: Partial<typeof pf>) => setCtxPayForm(prev => ({ ...prev, [pc.id]: { ...pf, ...patch } }));
                       return (
                         <div key={pc.id} className="border border-gray-100 bg-white rounded-xl overflow-hidden">
-                          {/* Contractor header */}
+                          {/* Employee header */}
                           <div className="flex items-center gap-3 p-3 bg-white/45 backdrop-blur-md">
                             <Avatar name={u.full_name} url={u.avatar_url} />
                             <div className="flex-1 min-w-0">

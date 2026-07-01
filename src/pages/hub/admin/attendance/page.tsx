@@ -257,7 +257,7 @@ async function generateAttendancePDF(start: string, end: string, label: string) 
     <thead>
       <tr>
         <th>Date</th>
-        <th>Contractor</th>
+        <th>Employee</th>
         <th>Dept</th>
         <th>Time In</th>
         <th>Time Out</th>
@@ -723,7 +723,7 @@ export default function AdminAttendancePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Contractor', 'Time In', 'Time Out', 'Raw Hrs', 'Billable', 'Status'].map(h => (
+                      {['Employee', 'Time In', 'Time Out', 'Raw Hrs', 'Billable', 'Status'].map(h => (
                         <th key={h} className="text-left text-xs text-gray-400 font-medium px-4 py-3">{h}</th>
                       ))}
                     </tr>

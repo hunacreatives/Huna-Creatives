@@ -209,7 +209,7 @@ export default function AdminRequestsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Contractor', 'Date', 'Hours', 'Reason', 'Status', 'Filed', ''].map(h => (
+                      {['Employee', 'Date', 'Hours', 'Reason', 'Status', 'Filed', ''].map(h => (
                         <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
                       ))}
                     </tr>
@@ -309,7 +309,7 @@ export default function AdminRequestsPage() {
                 </div>
               )}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Notes <span className="text-gray-400 font-normal">(visible to contractor)</span></label>
+                <label className="text-xs font-medium text-gray-700">Notes <span className="text-gray-400 font-normal">(visible to employee)</span></label>
                 <textarea value={otNotes} onChange={e => setOtNotes(e.target.value)} rows={2} placeholder="Optional notes..."
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none" />
               </div>

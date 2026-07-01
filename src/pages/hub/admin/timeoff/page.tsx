@@ -315,7 +315,7 @@ export default function AdminTimeOffPage() {
                       <th className="px-4 py-3 w-8">
                         <input type="checkbox" checked={requests.length > 0 && selectedIds.size === requests.length} onChange={toggleSelectAll} className="cursor-pointer" />
                       </th>
-                      {['Contractor', 'Type', 'Dates', 'Days', 'Status', 'Filed', ''].map((h) => (
+                      {['Employee', 'Type', 'Dates', 'Days', 'Status', 'Filed', ''].map((h) => (
                         <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
                       ))}
                     </tr>
@@ -383,7 +383,7 @@ export default function AdminTimeOffPage() {
             {/* Add blackout */}
             <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
               <h3 className="text-sm font-semibold text-[#111827]">Add Blackout Period</h3>
-              <p className="text-xs text-gray-400">Contractors cannot file PTO or sick leave during blackout dates. Emergencies are exempt.</p>
+              <p className="text-xs text-gray-400">Employees cannot file PTO or sick leave during blackout dates. Emergencies are exempt.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Start Date</label>
@@ -396,7 +396,7 @@ export default function AdminTimeOffPage() {
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
                 <div className="col-span-1 sm:col-span-2 space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Reason <span className="text-gray-400 font-normal">(shown to contractors)</span></label>
+                  <label className="text-xs font-medium text-gray-700">Reason <span className="text-gray-400 font-normal">(shown to employees)</span></label>
                   <input value={bdForm.reason} onChange={(e) => setBdForm({ ...bdForm, reason: e.target.value })}
                     placeholder="e.g. Client launch period, Q4 crunch"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
@@ -448,7 +448,7 @@ export default function AdminTimeOffPage() {
             ) : balances.length === 0 ? (
               <div className="bg-white border border-gray-100 rounded-xl p-10 text-center">
                 <i className="ri-user-line text-3xl text-gray-200 mb-2 block"></i>
-                <p className="text-sm text-gray-400">No active contractors found</p>
+                <p className="text-sm text-gray-400">No active employees found</p>
               </div>
             ) : (
               <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -456,7 +456,7 @@ export default function AdminTimeOffPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Contractor', 'VL Used', 'VL Left', 'SL Used', 'SL Left', 'Eligibility'].map(h => (
+                      {['Employee', 'VL Used', 'VL Left', 'SL Used', 'SL Left', 'Eligibility'].map(h => (
                         <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
                       ))}
                     </tr>
@@ -553,14 +553,14 @@ export default function AdminTimeOffPage() {
 
               {selected.reason && (
                 <div>
-                  <p className="text-xs font-medium text-gray-700 mb-1">Contractor's Reason</p>
+                  <p className="text-xs font-medium text-gray-700 mb-1">Employee's Reason</p>
                   <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">{selected.reason}</p>
                 </div>
               )}
 
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">
-                  {isOwner ? 'Notes (visible to contractor)' : 'HR Notes (forwarded to owner)'}
+                  {isOwner ? 'Notes (visible to employee)' : 'HR Notes (forwarded to owner)'}
                 </label>
                 <textarea value={hrNotes} onChange={(e) => setHrNotes(e.target.value)} rows={3}
                   placeholder={isOwner ? 'Add notes for the contractor...' : 'Add notes before forwarding to owner...'}

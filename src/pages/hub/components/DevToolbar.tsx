@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 const ROLES = [
   { value: 'owner', label: 'Owner', color: 'bg-violet-500' },
   { value: 'admin', label: 'Admin', color: 'bg-sky-500' },
-  { value: 'contractor', label: 'Contractor', color: 'bg-emerald-500' },
+  { value: 'contractor', label: 'Employee', color: 'bg-emerald-500' },
 ] as const;
 
 const LS_KEY = 'hub_dev_toolbar_hidden';

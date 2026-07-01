@@ -217,7 +217,7 @@ export default function ContractorOnboardingPage() {
             <div>
               <div className="px-6 pt-6 pb-4 border-b border-gray-50">
                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Step 1 of 4</p>
-                <h2 className="text-lg font-bold text-[#111827] mt-1">Contractor Agreement</h2>
+                <h2 className="text-lg font-bold text-[#111827] mt-1">Employee Agreement</h2>
                 <p className="text-xs text-gray-400 mt-1">Review and sign your documents before continuing.</p>
               </div>
 

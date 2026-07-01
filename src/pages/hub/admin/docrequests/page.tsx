@@ -175,7 +175,7 @@ export default function AdminDocRequestsPage() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Document Requests</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Review and fulfil contractor document requests</p>
+            <p className="text-sm text-gray-500 mt-0.5">Review and fulfil employee document requests</p>
           </div>
           <div className="flex items-center gap-2">
             {pendingCount > 0 && (
@@ -224,7 +224,7 @@ export default function AdminDocRequestsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Contractor','Document Type','Notes','Status','File','Requested','Actions'].map(h => (
+                    {['Employee','Document Type','Notes','Status','File','Requested','Actions'].map(h => (
                       <th key={h} className="text-left text-xs text-gray-400 font-medium px-4 py-3">{h}</th>
                     ))}
                   </tr>

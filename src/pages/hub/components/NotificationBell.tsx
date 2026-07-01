@@ -232,7 +232,7 @@ export default function NotificationBell() {
       }
 
     } else {
-      // Contractor notifications
+      // Employee notifications
 
       // New announcements
       const { data: anns } = await supabase

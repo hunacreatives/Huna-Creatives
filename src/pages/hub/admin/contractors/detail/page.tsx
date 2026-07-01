@@ -358,7 +358,7 @@ export default function ContractorDetailPage() {
 
   if (loading) {
     return (
-      <AdminLayout title="Contractor Detail">
+      <AdminLayout title="Employee Detail">
         <div className="flex items-center justify-center h-48">
           <i className="ri-loader-4-line animate-spin text-2xl text-gray-400"></i>
         </div>
@@ -369,7 +369,7 @@ export default function ContractorDetailPage() {
   if (!contractor) {
     return (
       <AdminLayout title="Not Found">
-        <p className="text-gray-500">{loadError || 'Contractor not found.'}</p>
+        <p className="text-gray-500">{loadError || 'Employee not found.'}</p>
       </AdminLayout>
     );
   }
@@ -770,7 +770,7 @@ export default function ContractorDetailPage() {
           <div className="space-y-3">
             {requests.length === 0 ? (
               <div className="bg-white border border-gray-100 rounded-xl p-8 text-center">
-                <p className="text-sm text-gray-400">No requests from this contractor</p>
+                <p className="text-sm text-gray-400">No requests from this employee</p>
               </div>
             ) : requests.map((r) => (
               <div key={r.id} className="bg-white border border-gray-100 rounded-xl p-4">
@@ -958,7 +958,7 @@ export default function ContractorDetailPage() {
                     <div className="bg-[#111827] px-6 py-5 flex items-start justify-between">
                       <div>
                         <p className="text-white font-bold text-base">Huna Creatives</p>
-                        <p className="text-white/40 text-xs mt-0.5">Contractor Payment Summary</p>
+                        <p className="text-white/40 text-xs mt-0.5">Employee Payment Summary</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[#FF6B35] font-bold text-sm tracking-widest">PAYSLIP</p>
@@ -968,7 +968,7 @@ export default function ContractorDetailPage() {
 
                     <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-2 sm:grid-cols-3 gap-4">
                       <div>
-                        <p className="text-xs text-gray-400 mb-0.5">Contractor</p>
+                        <p className="text-xs text-gray-400 mb-0.5">Employee</p>
                         <p className="text-sm font-semibold text-gray-900">{contractor?.full_name}</p>
                         {(contractor as any)?.department && <p className="text-xs text-gray-400">{(contractor as any).department}</p>}
                       </div>

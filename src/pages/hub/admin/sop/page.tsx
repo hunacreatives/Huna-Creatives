@@ -222,7 +222,7 @@ export default function SopPage() {
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.visibility === 'admin_only'} onChange={(e) => setForm({ ...form, visibility: e.target.checked ? 'admin_only' : 'all' })} className="rounded" />
-                  <span className="text-sm text-gray-600">Admin only <span className="text-xs text-gray-400">(hidden from contractors)</span></span>
+                  <span className="text-sm text-gray-600">Admin only <span className="text-xs text-gray-400">(hidden from employees)</span></span>
                 </label>
               </div>
             </div>

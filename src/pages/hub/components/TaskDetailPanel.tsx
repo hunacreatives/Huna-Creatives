@@ -1372,7 +1372,7 @@ export default function TaskDetailPanel({
                             }}
                             className="mb-2 w-full text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30"
                           >
-                            <option value="">No contractor assigned</option>
+                            <option value="">No employee assigned</option>
                             {teamMembers.map((member) => (
                               <option key={member.id} value={member.id}>{member.full_name}</option>
                             ))}

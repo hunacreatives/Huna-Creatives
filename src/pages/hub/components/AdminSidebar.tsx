@@ -6,7 +6,7 @@ const navItems = [
   { to: '/hub/admin/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
   { divider: true, label: 'People' },
   { to: '/hub/admin/attendance', label: 'Attendance', icon: 'ri-time-line' },
-  { to: '/hub/admin/contractors', label: 'Contractors', icon: 'ri-team-line' },
+  { to: '/hub/admin/contractors', label: 'Employees', icon: 'ri-team-line' },
   { to: '/hub/admin/performance', label: 'Performance', icon: 'ri-medal-line', devOnly: true },
   { divider: true, label: 'Inbound' },
   { to: '/hub/admin/applications', label: 'Applications', icon: 'ri-user-search-line' },

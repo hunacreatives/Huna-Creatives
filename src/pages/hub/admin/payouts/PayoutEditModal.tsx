@@ -106,10 +106,10 @@ export default function PayoutEditModal({ payout, contractors, onClose, onSaved 
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
           {error && <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</div>}
 
-          {/* Contractor + Period */}
+          {/* Employee + Period */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-1">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Contractor *</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Employee *</label>
               <select className={inputCls} value={form.contractor_id} onChange={e => set('contractor_id', e.target.value)} required disabled={!isNew}>
                 <option value="">Select...</option>
                 {contractors.map(c => (

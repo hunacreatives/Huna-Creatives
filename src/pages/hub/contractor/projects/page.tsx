@@ -3423,7 +3423,7 @@ export default function ContractorProjectsPage() {
         teamMembers={wsTeam}
         canEdit={true}
         currentUserId={hubUser?.id ?? ''}
-        currentUserName={hubUser?.full_name ?? 'Contractor'}
+        currentUserName={hubUser?.full_name ?? 'Employee'}
         currentUserAvatarUrl={hubUser?.avatar_url ?? null}
       />
     </ContractorLayout>

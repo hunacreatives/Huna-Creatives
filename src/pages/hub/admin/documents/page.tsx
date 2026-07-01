@@ -85,7 +85,7 @@ function ReviewModal({ req, onClose, onSaved }: { req: HubDocRequest; onClose: (
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Admin Notes</label>
-            <textarea className={`${inputCls} resize-none`} rows={3} value={adminNotes} onChange={e => setAdminNotes(e.target.value)} placeholder="Add notes for the contractor…" maxLength={500} />
+            <textarea className={`${inputCls} resize-none`} rows={3} value={adminNotes} onChange={e => setAdminNotes(e.target.value)} placeholder="Add notes for the employee…" maxLength={500} />
           </div>
           <div className="border-t border-gray-100 pt-3">
             <p className="text-xs font-medium text-gray-600 mb-2">Upload Document Link</p>
@@ -354,7 +354,7 @@ export default function AdminDocumentsPage() {
 
         {activeTab === 'contracts' && <>
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <p className="text-sm text-gray-500">Send contracts and documents to contractors for signature.</p>
+          <p className="text-sm text-gray-500">Send contracts and documents to employees for signature.</p>
           <div className="flex gap-2">
             <button
               onClick={() => setShowUpload(true)}
@@ -555,7 +555,7 @@ export default function AdminDocumentsPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>{['Contractor','Type','Notes','Status','File','Requested',''].map(h => (
+                        <tr>{['Employee','Type','Notes','Status','File','Requested',''].map(h => (
                           <th key={h} className="text-left text-xs text-gray-400 font-medium px-4 py-3">{h}</th>
                         ))}</tr>
                       </thead>

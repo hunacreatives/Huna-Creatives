@@ -130,7 +130,7 @@ export default function AdminOvertimePage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  {['Contractor', 'Date', 'Hours', 'Reason', 'Status', 'Filed', ''].map(h => (
+                  {['Employee', 'Date', 'Hours', 'Reason', 'Status', 'Filed', ''].map(h => (
                     <th key={h} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{h}</th>
                   ))}
                 </tr>
@@ -207,7 +207,7 @@ export default function AdminOvertimePage() {
                 </div>
               )}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Notes <span className="text-gray-400 font-normal">(visible to contractor)</span></label>
+                <label className="text-xs font-medium text-gray-700">Notes <span className="text-gray-400 font-normal">(visible to employee)</span></label>
                 <textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
