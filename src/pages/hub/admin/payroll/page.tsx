@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import html2canvas from 'html2canvas';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import Avatar from '@/pages/hub/components/Avatar';
@@ -37,6 +37,12 @@ interface RateEntry {
   monthly_rate: number | null;
 }
 
+interface DayHours {
+  date: string;
+  billed: number;     // hours_capped — what they're paid for
+  overtime: number;   // overtime_hours
+}
+
 interface PayRow {
   contractor: Contractor;
   hours: number;
@@ -47,11 +53,42 @@ interface PayRow {
   pay: number;
   payOriginalCurrency?: number;
   days: number;
+  dailyBreakdown: DayHours[];
   prorated: boolean;
   proratedNote?: string;
   accruing?: boolean;
   accrualDays?: number;
   accrualTotal?: number;
+}
+
+// "2026-06-18" → "Wed, Jun 18"
+const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function formatDayLabel(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  const [, m, day] = dateStr.split('-');
+  return `${DAY_ABBR[d.getDay()]}, ${MONTH_ABBR[Number(m) - 1]} ${Number(day)}`;
+}
+
+// Per-day hours breakdown shown when a payroll row is expanded — the days worked
+// this period and the hours logged on each (plus any overtime).
+function DailyBreakdownPanel({ days }: { days: DayHours[] }) {
+  if (days.length === 0) {
+    return <p className="text-xs text-gray-400 py-2">No daily hours logged this period.</p>;
+  }
+  return (
+    <div className="space-y-1">
+      {days.map((d) => (
+        <div key={d.date} className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-md bg-gray-50">
+          <span className="font-medium text-gray-600">{formatDayLabel(d.date)}</span>
+          <span className="flex items-center gap-2 tabular-nums">
+            <span className="text-gray-700">{d.billed.toFixed(1)}h</span>
+            {d.overtime > 0 && <span className="text-violet-700 font-medium">+{d.overtime.toFixed(1)} OT</span>}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 
@@ -219,6 +256,13 @@ export default function AdminPayrollPage() {
   const [editOTHours, setEditOTHours] = useState('');
   const [editOTRate, setEditOTRate] = useState('');
   const [rowOverrides, setRowOverrides] = useState<Record<string, { hours?: number; pay?: number; otHours?: number; otRate?: number }>>({});
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const toggleRowExpanded = (id: string) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   const [editAdjItems, setEditAdjItems] = useState<{ label: string; amount: number; type: string }[]>([]);
   const [editAdjLabel, setEditAdjLabel] = useState('');
   const [editAdjAmount, setEditAdjAmount] = useState('');
@@ -878,6 +922,7 @@ export default function AdminPayrollPage() {
           derivedHourlyRate: c.hourly_rate || (c.monthly_rate ? c.monthly_rate / 176 : 0),
           pay: p.base_pay,
           days: isFixed ? 10 : Math.round(p.approved_hours / 8),
+          dailyBreakdown: [],
           prorated: false,
         };
       });
@@ -1147,6 +1192,18 @@ export default function AdminPayrollPage() {
         : hrs.overtime;
 
       const isAccruing = prorated && proratedNote?.includes('accruing');
+
+      // Per-day breakdown of days worked + hours logged this period (shown when the row is expanded)
+      const billedByDate = hoursByDate[c.id] || {};
+      const otByDate = overtimeByDate[c.id] || {};
+      const dailyBreakdown: DayHours[] = Object.keys(billedByDate)
+        .sort()
+        .map((date) => ({
+          date,
+          billed: parseFloat((billedByDate[date] || 0).toFixed(2)),
+          overtime: parseFloat((otByDate[date] || 0).toFixed(2)),
+        }));
+
       return {
         contractor: c as Contractor,
         hours: parseFloat(hrs.raw.toFixed(2)),
@@ -1157,6 +1214,7 @@ export default function AdminPayrollPage() {
         pay: payInPHP,
         payOriginalCurrency: isUSD ? parseFloat(pay.toFixed(2)) : undefined,
         days: hrs.days,
+        dailyBreakdown,
         prorated,
         proratedNote,
         accruing: isAccruing,
@@ -1749,10 +1807,12 @@ export default function AdminPayrollPage() {
                     const dispute = p ? disputesMap[p.id] : null;
 
                     return (
-                      <tr key={c.id} className="hover:bg-gray-50/60 transition-colors group">
+                      <Fragment key={c.id}>
+                      <tr className="hover:bg-gray-50/60 transition-colors group cursor-pointer" onClick={() => toggleRowExpanded(c.id)}>
                         {/* Contractor */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
+                            <i className={`ri-arrow-down-s-line text-gray-300 group-hover:text-gray-500 transition-transform flex-shrink-0 ${expandedRows.has(c.id) ? 'rotate-180' : ''}`} title="Show daily hours"></i>
                             <Avatar name={c.full_name} url={c.avatar_url} size={8} />
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
@@ -1837,7 +1897,7 @@ export default function AdminPayrollPage() {
                         </td>
 
                         {/* Status + Action */}
-                        <td className="px-5 py-4">
+                        <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => setBankInfoContractor(c)}
@@ -1914,6 +1974,17 @@ export default function AdminPayrollPage() {
                           </div>
                         </td>
                       </tr>
+                      {expandedRows.has(c.id) && (
+                        <tr className="bg-gray-50/40">
+                          <td colSpan={5} className="px-5 pb-4 pt-1">
+                            <div className="pl-11 pr-2">
+                              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Daily hours · {selectedPeriod.label}</p>
+                              <DailyBreakdownPanel days={r.dailyBreakdown} />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
