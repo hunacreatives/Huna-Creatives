@@ -627,7 +627,7 @@ export default function AdminProjectsPage() {
       const mergedActivity = [
         ...((aRes.data as ProjectActivity[]) ?? []),
         ...((taskActivityRows ?? []).map((row: any) => ({
-          id: Number(`9${row.id}`),
+          id: 9_000_000_000 + row.id, // offset avoids key collisions with project-activity ids
           project_id: projectId,
           actor_name: row.actor_name,
           description: normalizeTaskActivityDescription({
@@ -685,7 +685,7 @@ export default function AdminProjectsPage() {
     const mergedActivity = [
       ...((projectActivityRows as ProjectActivity[]) ?? []),
       ...((taskActivityRows ?? []).map((row: any) => ({
-        id: Number(`9${row.id}`),
+        id: 9_000_000_000 + row.id, // offset avoids key collisions with project-activity ids
         project_id: activeId,
         actor_name: row.actor_name,
         description: normalizeTaskActivityDescription({
@@ -1487,7 +1487,7 @@ export default function AdminProjectsPage() {
       },
     });
     const timeoutPromise = new Promise<never>((_, reject) => {
-      window.setTimeout(() => reject(new Error('Invoice sending timed out. Please try again.')), 20000);
+      window.setTimeout(() => reject(new Error('Invoice sending timed out — it may still have gone out. Check the invoice log before retrying to avoid a duplicate send.')), 20000);
     });
 
     let data: any;
@@ -2005,7 +2005,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         const taskColorMap = Object.fromEntries(tasks.map((t, i) => [t.id, ADMIN_PALETTE[i % ADMIN_PALETTE.length]]));
 
         // Map tasks for GanttTimeline (admin tasks have assignee_id, no start_date — compatible via any cast)
-        const ganttTasks = tasks.map(t => ({
+        const ganttTasks = wsActiveTasks.map(t => ({
           id: t.id,
           project_id: t.project_id,
           title: t.title,
@@ -2167,10 +2167,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               {/* ── Stats row ── */}
               <div id="ws-stats" className="grid grid-cols-4 gap-2">
                 {[
-                  { label: 'Total', value: tasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
-                  { label: 'Done', value: tasks.filter(t => t.status === 'done').length, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
-                  { label: 'In Progress', value: tasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', iconBg: 'bg-sky-100', iconClr: 'text-sky-600', valClr: 'text-sky-700' },
-                  { label: 'Overdue', value: tasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', iconBg: 'bg-rose-100', iconClr: 'text-rose-500', valClr: 'text-rose-600' },
+                  { label: 'Total', value: wsActiveTasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
+                  { label: 'Done', value: wsDoneCt, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
+                  { label: 'In Progress', value: wsActiveTasks.filter(t => t.status === 'in_progress').length, icon: 'ri-loader-2-line', iconBg: 'bg-sky-100', iconClr: 'text-sky-600', valClr: 'text-sky-700' },
+                  { label: 'Overdue', value: wsActiveTasks.filter(t => !!wsIsOverdue(t)).length, icon: 'ri-alarm-warning-line', iconBg: 'bg-rose-100', iconClr: 'text-rose-500', valClr: 'text-rose-600' },
                 ].map(s => (
                   <div key={s.label} className="bg-white rounded-xl px-3 py-2.5 shadow-sm border border-gray-100/80 flex items-center gap-2.5">
                     <div className={`w-7 h-7 rounded-lg ${s.iconBg} flex items-center justify-center flex-shrink-0`}>
@@ -2231,12 +2231,12 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold text-gray-800">Tasks</h3>
-                        {tasks.length > 0 && (
+                        {wsActiveTasks.length > 0 && (
                           <div className="flex items-center gap-2">
                             <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                               <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${wsPct}%` }} />
                             </div>
-                            <span className="text-xs text-gray-400">{wsDoneCt}/{tasks.length}</span>
+                            <span className="text-xs text-gray-400">{wsDoneCt}/{wsActiveTasks.length}</span>
                           </div>
                         )}
                       </div>
@@ -2395,7 +2395,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   )}
 
                   {/* Task content */}
-                  {tasks.length === 0 ? (
+                  {wsActiveTasks.length === 0 ? (
                     <div className="py-14 text-center">
                       <i className="ri-task-line text-3xl text-gray-200 block mb-2"></i>
                       <p className="text-sm text-gray-400 mb-3">No tasks yet</p>
@@ -2408,8 +2408,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   ) : taskView === 'board' ? (
                     <div className="hidden lg:flex p-4 overflow-x-auto overflow-y-hidden min-h-[calc(100vh-19rem)]">
                       <div className="grid grid-cols-5 gap-4 min-w-[1120px] w-full min-h-full">
-                        {BOARD_COLUMNS.map((column) => {
-                          const columnTasks = tasks.filter((task) => task.status === column.key);
+                        {BOARD_COLUMNS.map((column, columnIdx) => {
+                          const columnTasks = wsActiveTasks.filter((task) => task.status === column.key);
+                          // Unique per-column sentinel for the top drop zone ('todo' and
+                          // 'done' share a key length, so -key.length collided)
+                          const topDropSentinel = -(columnIdx + 1);
                           return (
                             <div
                               key={column.key}
@@ -2447,7 +2450,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                   <>
                                   {/* Top drop zone — allows inserting before the first card */}
                                   <div className="h-2 -mb-1 relative"
-                                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); setListDragOverTaskId(-column.key.length); setListDragOverPos('above'); setBoardDragOver(null); }}
+                                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); setListDragOverTaskId(topDropSentinel); setListDragOverPos('above'); setBoardDragOver(null); }}
                                     onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setListDragOverTaskId(null); setListDragOverPos(null); } }}
                                     onDrop={async e => {
                                       e.preventDefault(); e.stopPropagation();
@@ -2464,7 +2467,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                       reorderTasks([fromId, ...colIds]);
                                     }}
                                   >
-                                    {listDragOverTaskId === -column.key.length && <div className="absolute top-0 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full pointer-events-none" />}
+                                    {listDragOverTaskId === topDropSentinel && <div className="absolute top-0 left-0 right-0 h-0.5 bg-[#FF6B35] rounded-full pointer-events-none" />}
                                   </div>
                                   {columnTasks.map((task) => {
                                     const isBoardOver = listDragOverTaskId === task.id && draggedTaskId !== task.id;

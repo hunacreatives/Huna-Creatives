@@ -118,7 +118,9 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
     if (!task) return;
 
     if (ds.mode === 'move') {
-      const anchorDate = ds.originalEnd ?? ds.originalStart!;
+      // Anchor on the start — bars are grabbed by their start cell, so the
+      // grabbed end should land on the hovered date, not shift by duration.
+      const anchorDate = ds.originalStart ?? ds.originalEnd!;
       const delta = diffDays(anchorDate, cellDate);
       const newEnd = ds.originalEnd ? addDays(ds.originalEnd, delta) : null;
       const newStart = ds.originalStart ? addDays(ds.originalStart, delta) : null;

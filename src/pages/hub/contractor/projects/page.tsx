@@ -1101,7 +1101,7 @@ export default function ContractorProjectsPage() {
     const mergedRows = [
       ...((projectActivityRows ?? []) as any[]),
       ...((taskActivityRows ?? []).map((row: any) => ({
-        id: Number(`9${row.id}`),
+        id: 9_000_000_000 + row.id, // offset avoids key collisions with project-activity ids
         action: normalizeTaskActivityAction(row.type),
         entity_title: taskTitleMap[row.task_id] ?? '',
         entity_id: row.task_id ?? null,
