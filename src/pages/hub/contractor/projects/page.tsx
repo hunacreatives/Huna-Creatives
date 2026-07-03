@@ -81,6 +81,7 @@ interface ProjectTask {
   archived?: boolean | null;
   archived_at?: string | null;
   color?: string | null;
+  meta?: { custom_fields?: { id: string; label: string; value: string }[]; blocked_reason?: string | null } | null;
 }
 
 // ── SVG progress ring ──────────────────────────────────────────────────────
@@ -462,10 +463,21 @@ export default function ContractorProjectsPage() {
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
       return;
     }
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    const { error: updateErr } = await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', task.id);
+    // Blocked needs a reason so the team can see what's stuck; leaving blocked clears it
+    const currentMeta = (task as any).meta ?? null;
+    let metaPatch: Record<string, unknown> = {};
+    if (newStatus === 'blocked') {
+      const reason = window.prompt("What's blocking this task? (visible to the team)", currentMeta?.blocked_reason ?? '');
+      if (reason === null) return;
+      metaPatch = { meta: { ...(currentMeta ?? {}), blocked_reason: reason.trim() } };
+    } else if (task.status === 'blocked' && currentMeta?.blocked_reason) {
+      const { blocked_reason: _drop, ...rest } = currentMeta;
+      metaPatch = { meta: Object.keys(rest).length ? rest : null };
+    }
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus, ...(metaPatch as any) } : t));
+    const { error: updateErr } = await supabase.from('hub_project_tasks').update({ status: newStatus, updated_at: new Date().toISOString(), ...metaPatch }).eq('id', task.id);
     if (updateErr) {
-      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status } : t));
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status, meta: currentMeta } as any : t));
       console.error('Failed to update task status:', updateErr);
       return;
     }
@@ -833,6 +845,32 @@ export default function ContractorProjectsPage() {
     })();
   }, [hubUser, projectRefreshKey]);
 
+  // Realtime: keep tasks in sync across all of this employee's projects
+  useEffect(() => {
+    if (!hubUser?.id || isDemo || rows.length === 0) return;
+    const projectIds = [...new Set(rows.map(r => r.hub_projects?.id).filter(Boolean))];
+    if (projectIds.length === 0) return;
+    const channel = supabase
+      .channel(`contractor-tasks-${hubUser.id}`)
+      .on('postgres_changes' as any, {
+        event: '*', schema: 'public', table: 'hub_project_tasks',
+        filter: `project_id=in.(${projectIds.join(',')})`,
+      }, (payload: any) => {
+        if (payload.eventType === 'DELETE') {
+          const oldId = payload.old?.id;
+          if (oldId) setTasks(prev => prev.filter(t => t.id !== oldId));
+          return;
+        }
+        const row = payload.new as ProjectTask | undefined;
+        if (!row?.id) return;
+        setTasks(prev => prev.some(t => t.id === row.id)
+          ? prev.map(t => t.id === row.id ? { ...t, ...row } : t)
+          : [...prev, row]);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [hubUser?.id, isDemo, rows]);
+
   // Realtime: re-fetch when admin assigns or removes this contractor from a project
   useEffect(() => {
     if (!hubUser?.id || isDemo) return;
@@ -892,7 +930,10 @@ export default function ContractorProjectsPage() {
   const today = localToday();
   const firstName = hubUser?.full_name?.split(' ')[0] ?? '';
 
-  const myTasks = tasks.filter(t => getTaskAssigneeIds(t).includes(hubUser?.id ?? '') && !t.archived_at);
+  // "Mine" = assigned to me, or containing an open checklist item assigned to me
+  const myUserId = hubUser?.id ?? '';
+  const hasMyChecklistItem = (t: ProjectTask) => (t.checklist ?? []).some(i => i.assignee_id === myUserId && !i.done);
+  const myTasks = tasks.filter(t => !t.archived_at && (getTaskAssigneeIds(t).includes(myUserId) || hasMyChecklistItem(t)));
   const doneTasks = myTasks.filter(t => t.status === 'done');
   const inProgressTasks = myTasks.filter(t => ['in_progress', 'in_review', 'blocked'].includes(t.status));
   const todoTasks = myTasks.filter(t => t.status === 'todo');
@@ -1249,6 +1290,7 @@ export default function ContractorProjectsPage() {
           <div className="flex-1 min-w-0">
             <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
             {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
+            {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
           </div>
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
         </div>
@@ -1335,6 +1377,7 @@ export default function ContractorProjectsPage() {
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
             </div>
             {task.description && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{getTaskDescriptionPreview(task.description)}</p>}
+            {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
           </div>
         </div>
         <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
@@ -2303,6 +2346,10 @@ export default function ContractorProjectsPage() {
                             <button type="button" onClick={() => openTaskFromDashboard(t)} className="flex-1 min-w-0 text-left cursor-pointer">
                               <p className={`text-[13px] font-medium leading-snug ${isDone ? 'line-through text-gray-400' : 'text-[#111827]'}`}>{t.title}</p>
                               <p className="text-[11px] text-gray-400 mt-0.5 truncate">{projectName}</p>
+                              {!getTaskAssigneeIds(t).includes(myUserId) && (() => {
+                                const item = (t.checklist ?? []).find(i => i.assignee_id === myUserId && !i.done);
+                                return item ? <p className="text-[10px] text-indigo-500 mt-0.5 truncate"><i className="ri-checkbox-line mr-0.5"></i>Your item: {item.text}</p> : null;
+                              })()}
                             </button>
                             {t.due_date && t.status !== 'done' && (
                               <span className={`text-[10px] font-semibold flex-shrink-0 mt-1 ${isTaskOverdue ? 'text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded' : t.due_date === today ? 'text-amber-600' : 'text-gray-400'}`}>

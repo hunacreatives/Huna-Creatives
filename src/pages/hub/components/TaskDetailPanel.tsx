@@ -83,7 +83,7 @@ export interface TaskDetailTask {
   start_date: string | null;
   checklist?: ChecklistItem[] | null;
   color?: string | null;
-  meta?: { custom_fields?: { id: string; label: string; value: string }[] } | null;
+  meta?: { custom_fields?: { id: string; label: string; value: string }[]; blocked_reason?: string | null } | null;
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
 }
 
@@ -260,8 +260,19 @@ type TaskDraftSource = Pick<TaskDetailTask, 'title' | 'description' | 'status' |
   assignee_ids?: string[] | null;
   checklist?: ChecklistItem[] | null;
   color?: string | null;
-  meta?: { custom_fields?: { id: string; label: string; value: string }[] } | null;
+  meta?: { custom_fields?: { id: string; label: string; value: string }[]; blocked_reason?: string | null } | null;
 };
+
+function buildTaskMetaPayload(
+  customFields: { id: string; label: string; value: string }[],
+  status: TaskDetailTask['status'],
+  blockedReason: string,
+) {
+  const meta: { custom_fields?: typeof customFields; blocked_reason?: string } = {};
+  if (customFields.length) meta.custom_fields = customFields;
+  if (status === 'blocked' && blockedReason.trim()) meta.blocked_reason = blockedReason.trim();
+  return Object.keys(meta).length ? meta : null;
+}
 
 function buildTaskDraftSnapshot(task: TaskDraftSource) {
   return {
@@ -274,7 +285,7 @@ function buildTaskDraftSnapshot(task: TaskDraftSource) {
     start_date: task.start_date ?? null,
     checklist: normalizeChecklistItems(task.checklist),
     color: task.color ?? null,
-    meta: task.meta?.custom_fields?.length ? { custom_fields: task.meta.custom_fields } : null,
+    meta: buildTaskMetaPayload(task.meta?.custom_fields ?? [], task.status, task.meta?.blocked_reason ?? ''),
   };
 }
 
@@ -310,6 +321,7 @@ export default function TaskDetailPanel({
   const [newCheckItem, setNewCheckItem] = useState('');
   const [expandedCheckItems, setExpandedCheckItems] = useState<Set<string>>(new Set());
   const [taskColor, setTaskColor] = useState<string>('');
+  const [blockedReason, setBlockedReason] = useState('');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
@@ -372,8 +384,8 @@ export default function TaskDetailPanel({
     start_date: startDate || null,
     checklist: normalizeChecklistItems(checklist),
     color: taskColor || null,
-    meta: customFields.length ? { custom_fields: customFields } : null,
-  }), [title, description, status, priority, assigneeIds, dueDate, startDate, checklist, taskColor, customFields]);
+    meta: buildTaskMetaPayload(customFields, status, blockedReason),
+  }), [title, description, status, priority, assigneeIds, dueDate, startDate, checklist, taskColor, customFields, blockedReason]);
 
   const initialDraft = task
     ? buildTaskDraftSnapshot(task)
@@ -414,6 +426,7 @@ export default function TaskDetailPanel({
       setChecklist(normalizeChecklistItems(task.checklist));
       setTaskColor(task.color ?? '');
       setCustomFields((task as any).meta?.custom_fields ?? []);
+      setBlockedReason((task as any).meta?.blocked_reason ?? '');
       setShowAddField(false);
       setPendingAttachment(null);
       setEditing(false);
@@ -432,6 +445,7 @@ export default function TaskDetailPanel({
       setTimeout(() => { if (descRef.current) descRef.current.innerHTML = ''; }, 0);
       setTaskColor('');
       setCustomFields([]);
+      setBlockedReason('');
       setShowAddField(false);
       setShowColorPicker(false);
       setExpandedCheckItems(new Set());
@@ -504,7 +518,7 @@ export default function TaskDetailPanel({
   const fetchTaskData = useCallback(async (taskId: number) => {
     const [taskRes, commRes, attRes, actRes] = await Promise.all([
       supabase.from('hub_project_tasks')
-        .select('title, description, status, priority, assigned_to, assignee_ids, due_date, start_date, checklist, color, meta')
+        .select('title, description, status, priority, assigned_to, assignee_ids, due_date, start_date, checklist, color, meta, updated_at')
         .eq('id', taskId)
         .single(),
       supabase.from('hub_project_task_comments')
@@ -534,6 +548,7 @@ export default function TaskDetailPanel({
       setChecklist(normalizeChecklistItems(taskRes.data.checklist));
       setTaskColor(taskRes.data.color ?? '');
       setCustomFields((taskRes.data as any).meta?.custom_fields ?? []);
+      setBlockedReason((taskRes.data as any).meta?.blocked_reason ?? '');
     }
     if (commRes.data) {
       // Build user map from teamMembers (already loaded, no RLS issues for contractors)
@@ -606,13 +621,29 @@ export default function TaskDetailPanel({
         // can be stale, which would log changes this user never made.
         const fetched = lastFetchedTaskRef.current;
         const prev = fetched && fetched.id === task!.id ? { ...task!, ...fetched } : task!;
-        const { data, error } = await supabase
+        // Optimistic-concurrency guard: only overwrite the row if it still
+        // matches the version we loaded — otherwise someone changed it while
+        // this panel was open and a blind write would destroy their edit.
+        const fetchedUpdatedAt = fetched && fetched.id === task!.id ? (fetched as any).updated_at ?? null : null;
+        let updateQuery = supabase
           .from('hub_project_tasks')
-          .update(payload)
-          .eq('id', prev.id)
-          .select('*')
-          .single();
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', prev.id);
+        if (fetchedUpdatedAt) updateQuery = updateQuery.eq('updated_at', fetchedUpdatedAt);
+        const { data: updatedRows, error } = await updateQuery.select('*');
         if (error) throw error;
+        const data = updatedRows?.[0];
+        if (!data) {
+          // Row changed since we loaded it. Keep the user's edits in the form,
+          // refresh our version marker, and let them decide to save again.
+          const { data: freshRow } = await supabase
+            .from('hub_project_tasks')
+            .select('title, description, status, priority, assigned_to, assignee_ids, due_date, start_date, checklist, color, meta, updated_at')
+            .eq('id', prev.id)
+            .maybeSingle();
+          if (freshRow) lastFetchedTaskRef.current = { id: prev.id, ...freshRow };
+          throw new Error('Someone updated this task while you had it open. Your edits are kept here — press Save again to apply them over the latest version, or close without saving to discard.');
+        }
 
         // Log meaningful changes
         const statusChanged = prev.status !== status;
@@ -1132,6 +1163,23 @@ export default function TaskDetailPanel({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+            {editing && status === 'blocked' && (
+              <div className="flex items-center h-8 gap-3">
+                <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Blocked by</span>
+                <input
+                  value={blockedReason}
+                  onChange={e => setBlockedReason(e.target.value)}
+                  placeholder="What's blocking this? e.g. waiting on client assets"
+                  className="flex-1 px-2.5 py-1.5 text-xs border border-rose-200 bg-rose-50/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-300"
+                />
+              </div>
+            )}
+            {!editing && status === 'blocked' && blockedReason.trim() && (
+              <div className="flex items-start gap-2 px-3 py-2 my-1 bg-rose-50 border border-rose-100 rounded-xl">
+                <i className="ri-indeterminate-circle-line text-rose-500 text-sm flex-shrink-0 mt-px"></i>
+                <p className="text-xs text-rose-700 leading-snug"><span className="font-semibold">Blocked:</span> {blockedReason}</p>
               </div>
             )}
 

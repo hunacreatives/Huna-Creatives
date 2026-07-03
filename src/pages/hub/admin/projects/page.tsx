@@ -110,7 +110,7 @@ interface ProjectTask {
   start_date: string | null;
   created_at: string;
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
-  meta?: { custom_fields?: {id: string; label: string; value: string}[] } | null;
+  meta?: { custom_fields?: {id: string; label: string; value: string}[]; blocked_reason?: string | null } | null;
   archived?: boolean | null;
   archived_at?: string | null;
   sort_order?: number | null;
@@ -713,8 +713,19 @@ export default function AdminProjectsPage() {
 
   const updateTaskStatus = async (task: ProjectTask, newStatus: ProjectTask['status']) => {
     if (task.status === newStatus || isDemo) return;
-    await supabase.from('hub_project_tasks').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', task.id);
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+    // Blocked needs a reason so the team can see what's stuck; leaving blocked clears it
+    const currentMeta = task.meta ?? null;
+    let metaPatch: Record<string, unknown> = {};
+    if (newStatus === 'blocked') {
+      const reason = window.prompt("What's blocking this task? (visible to the team)", (currentMeta as any)?.blocked_reason ?? '');
+      if (reason === null) return;
+      metaPatch = { meta: { ...(currentMeta ?? {}), blocked_reason: reason.trim() } };
+    } else if (task.status === 'blocked' && (currentMeta as any)?.blocked_reason) {
+      const { blocked_reason: _drop, ...rest } = currentMeta as any;
+      metaPatch = { meta: Object.keys(rest).length ? rest : null };
+    }
+    await supabase.from('hub_project_tasks').update({ status: newStatus, updated_at: new Date().toISOString(), ...metaPatch }).eq('id', task.id);
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus, ...(metaPatch as any) } : t));
     const statusLabel = newStatus.replace('_', ' ');
     await logActivity(task.project_id, `${hubUser?.full_name ?? 'Admin'} moved "${task.title}" to ${statusLabel}`);
     if (newStatus === 'done') fetchTasks(task.project_id);
@@ -1499,6 +1510,29 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     if (!isDemo) refreshWorkspaceActivity();
   }, [isDemo, refreshWorkspaceActivity]);
 
+  // Realtime: keep the open project's tasks in sync with other users' changes
+  useEffect(() => {
+    if (!activeId || isDemo) return;
+    const channel = supabase.channel(`admin-project-tasks-${activeId}`)
+      .on('postgres_changes' as any, {
+        event: '*', schema: 'public', table: 'hub_project_tasks',
+        filter: `project_id=eq.${activeId}`,
+      }, (payload: any) => {
+        if (payload.eventType === 'DELETE') {
+          const oldId = payload.old?.id;
+          if (oldId) setTasks(prev => prev.filter(t => t.id !== oldId));
+          return;
+        }
+        const row = payload.new as ProjectTask | undefined;
+        if (!row?.id) return;
+        setTasks(prev => prev.some(t => t.id === row.id)
+          ? prev.map(t => t.id === row.id ? { ...t, ...row } : t)
+          : [...prev, row]);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeId, isDemo]);
+
   // Realtime: update comment counts when new comments arrive
   useEffect(() => {
     if (!activeId || isDemo) return;
@@ -1613,6 +1647,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
             </div>
             {task.description && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{getTaskDescriptionPreview(task.description)}</p>}
+            {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
           </div>
         </div>
         <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
@@ -2233,6 +2268,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                   {isMyTask && <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-[#FF6B35]" title="Assigned to you" />}
                                 </div>
                                 {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
+                                {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
                               </div>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
                             </div>
@@ -2360,6 +2396,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                           <div className="flex-1 min-w-0">
                                             <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
                                             {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
+                                {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
                                           </div>
                                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
                                         </div>
@@ -2738,7 +2775,42 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   const key = taskGroupBy === 'project' ? (t.project?.project_name ?? 'Unknown') : (t.assignee?.full_name ?? 'Unassigned');
                   (groups[key] ??= []).push(t);
                 }
-                return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([grp, gtasks]) => {
+                // Workload strip: open/overdue per person across every project
+                const workload: Record<string, { name: string; avatar: string | null; open: number; overdue: number }> = {};
+                for (const t of allTasks) {
+                  if (t.status === 'done') continue;
+                  const people = t.assignees?.length ? t.assignees : [null];
+                  for (const u of people) {
+                    const key = u?.id ?? 'unassigned';
+                    workload[key] ??= { name: u?.full_name ?? 'Unassigned', avatar: u?.avatar_url ?? null, open: 0, overdue: 0 };
+                    workload[key].open++;
+                    if (isOver(t)) workload[key].overdue++;
+                  }
+                }
+                const workloadRows = Object.entries(workload).sort((a, b) => b[1].open - a[1].open);
+                const maxOpen = Math.max(1, ...workloadRows.map(([, w]) => w.open));
+                const workloadStrip = workloadRows.length > 1 ? (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Team Workload</p>
+                    <div className="space-y-2">
+                      {workloadRows.map(([key, w]) => (
+                        <div key={key} className="flex items-center gap-3">
+                          {w.avatar
+                            ? <img src={w.avatar} alt={w.name} className="w-6 h-6 rounded-full object-cover object-top flex-shrink-0" />
+                            : <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-500 flex-shrink-0">{w.name[0]}</div>}
+                          <span className="text-xs text-gray-700 w-32 truncate flex-shrink-0">{w.name.split(' ')[0]}</span>
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${w.overdue > 0 ? 'bg-rose-400' : 'bg-sky-400'}`} style={{ width: `${Math.round((w.open / maxOpen) * 100)}%` }} />
+                          </div>
+                          <span className="text-[11px] text-gray-500 w-20 text-right flex-shrink-0">
+                            {w.open} open{w.overdue > 0 && <span className="text-rose-500 font-semibold"> · {w.overdue} late</span>}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+                const groupSections = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([grp, gtasks]) => {
                   const done = gtasks.filter(t => t.status === 'done').length;
                   const pct = Math.round((done / gtasks.length) * 100);
                   const overdue = gtasks.filter(t => isOver(t)).length;
@@ -2762,7 +2834,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           const scfg = STATUS_LABEL[t.status] ?? STATUS_LABEL.todo;
                           return (
                             <div key={t.id} className={`flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50/60 ${over ? 'bg-rose-50/30' : ''}`}>
-                              <button onClick={async () => { const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); logStatusChangeSideEffects(t, n); }} className="flex-shrink-0 cursor-pointer">
+                              <button onClick={async () => { const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n, updated_at: new Date().toISOString() }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); logStatusChangeSideEffects(t, n); }} className="flex-shrink-0 cursor-pointer">
                                 <i className={`text-base ${t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-emerald-400'}`}></i>
                               </button>
                               <div className="flex-1 min-w-0">
@@ -2783,6 +2855,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     </div>
                   );
                 });
+                return <>{workloadStrip}{groupSections}</>;
               })()}
             </div>
           )}
@@ -3891,15 +3964,24 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
           };
           const updateMyTaskStatus = async (taskId: number, newStatus: string) => {
             const myTask = myTasks.find(t => t.id === taskId);
+            // Blocked needs a reason; this list doesn't carry meta, so merge with the stored row
+            let metaPatch: Record<string, unknown> = {};
+            if (newStatus === 'blocked') {
+              const reason = window.prompt("What's blocking this task? (visible to the team)");
+              if (reason === null) return;
+              const { data: cur } = await supabase.from('hub_project_tasks').select('meta').eq('id', taskId).maybeSingle();
+              metaPatch = { meta: { ...((cur?.meta as any) ?? {}), blocked_reason: reason.trim() } };
+            }
+            const stamp = { updated_at: new Date().toISOString() };
             if (newStatus === 'done') {
               setMyTaskCompleting(taskId);
-              await supabase.from('hub_project_tasks').update({ status: 'done' }).eq('id', taskId);
+              await supabase.from('hub_project_tasks').update({ status: 'done', ...stamp }).eq('id', taskId);
               setTimeout(() => {
                 setMyTasks(prev => prev.filter(t => t.id !== taskId));
                 setMyTaskCompleting(null);
               }, 1800);
             } else {
-              await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', taskId);
+              await supabase.from('hub_project_tasks').update({ status: newStatus, ...stamp, ...metaPatch }).eq('id', taskId);
               setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
             }
             if (myTask) logStatusChangeSideEffects(myTask, newStatus);
