@@ -1311,8 +1311,12 @@ export default function ForAgenciesPage() {
               style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 24px rgba(255,107,53,0.4)' }}>
               Book a Free Demo →
             </button>
-            <a href="#features"
+            <a href="/hub/demo"
               className="w-full sm:w-auto px-7 py-3.5 border border-white/10 text-gray-400 font-medium rounded-xl hover:bg-white/5 transition-colors text-sm text-center">
+              Try the Live Demo →
+            </a>
+            <a href="#features"
+              className="w-full sm:w-auto px-7 py-3.5 text-gray-500 font-medium rounded-xl hover:text-white transition-colors text-sm text-center">
               See how it works
             </a>
           </div>
@@ -1579,12 +1583,19 @@ export default function ForAgenciesPage() {
           <p className="text-gray-500 text-sm mb-8 leading-relaxed">
             Book a 30-minute demo. We walk through the platform, understand your workflow, and show you exactly what we'd build for your org.
           </p>
-          <a href="https://calendly.com/hunacreatives/30min" target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-8 py-4 font-bold rounded-xl text-base text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 40px rgba(255,107,53,0.35)' }}>
-            <i className="ri-calendar-check-line"></i>
-            Book a Free Demo
-          </a>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="https://calendly.com/hunacreatives/30min" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 font-bold rounded-xl text-base text-white transition-all"
+              style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 40px rgba(255,107,53,0.35)' }}>
+              <i className="ri-calendar-check-line"></i>
+              Book a Free Demo
+            </a>
+            <a href="/hub/demo"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-white/10 text-gray-400 font-medium rounded-xl hover:bg-white/5 transition-colors text-base">
+              <i className="ri-play-circle-line"></i>
+              Try the Live Demo
+            </a>
+          </div>
           <p className="text-xs text-gray-600 mt-4">30 minutes · No commitment · We do the setup</p>
           <p className="text-xs text-gray-700 mt-2">
             A product by <a href="https://www.hunacreatives.com" className="text-gray-500 hover:text-white transition-colors">Huna Creatives</a>
