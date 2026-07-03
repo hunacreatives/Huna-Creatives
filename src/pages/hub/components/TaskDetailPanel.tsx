@@ -253,6 +253,30 @@ function normalizeRichText(value: string | null | undefined) {
   return trimmed.replace(/&nbsp;/g, ' ');
 }
 
+type TaskDraftSource = Pick<TaskDetailTask, 'title' | 'description' | 'status' | 'priority' | 'due_date' | 'start_date'> & {
+  assigned_to?: string | null;
+  assignee_id?: string | null;
+  assignee_ids?: string[] | null;
+  checklist?: ChecklistItem[] | null;
+  color?: string | null;
+  meta?: { custom_fields?: { id: string; label: string; value: string }[] } | null;
+};
+
+function buildTaskDraftSnapshot(task: TaskDraftSource) {
+  return {
+    title: task.title.trim(),
+    description: normalizeRichText(task.description),
+    status: task.status,
+    priority: task.priority,
+    ...normalizeTaskAssigneePayload(getTaskAssigneeIds(task)),
+    due_date: task.due_date ?? null,
+    start_date: task.start_date ?? null,
+    checklist: normalizeChecklistItems(task.checklist),
+    color: task.color ?? null,
+    meta: task.meta?.custom_fields?.length ? { custom_fields: task.meta.custom_fields } : null,
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function TaskDetailPanel({
@@ -327,6 +351,15 @@ export default function TaskDetailPanel({
   const commentRef = useRef<HTMLDivElement>(null);
   const descRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Task currently shown in the panel — a fetch response for any other task
+  // must be discarded, or it overwrites the form the user is looking at.
+  const activeTaskIdRef = useRef<number | null>(null);
+  // Snapshot of the data last loaded from the DB for the open task. This is
+  // the baseline for "did the user change anything" — comparing against the
+  // task prop instead can flag stale list data as user edits and silently
+  // save them on close, attributed to a user who touched nothing.
+  const baselineDraftRef = useRef<{ taskId: number; json: string } | null>(null);
+  const lastFetchedTaskRef = useRef<({ id: number } & Partial<TaskDetailTask>) | null>(null);
 
   const taskDraft = useCallback(() => ({
     title: title.trim(),
@@ -342,18 +375,7 @@ export default function TaskDetailPanel({
   }), [title, description, status, priority, assigneeIds, dueDate, startDate, checklist, taskColor, customFields]);
 
   const initialDraft = task
-    ? {
-        title: task.title.trim(),
-        description: normalizeRichText(task.description),
-        status: task.status,
-        priority: task.priority,
-        ...normalizeTaskAssigneePayload(getTaskAssigneeIds(task)),
-        due_date: task.due_date ?? null,
-        start_date: task.start_date ?? null,
-        checklist: normalizeChecklistItems(task.checklist),
-        color: task.color ?? null,
-        meta: (task as any).meta?.custom_fields?.length ? { custom_fields: (task as any).meta.custom_fields } : null,
-      }
+    ? buildTaskDraftSnapshot(task)
     : {
         title: '',
         description: null,
@@ -367,12 +389,18 @@ export default function TaskDetailPanel({
         meta: null,
       };
 
-  const hasUnsavedChanges = JSON.stringify(taskDraft()) !== JSON.stringify(initialDraft);
+  const baselineJson = task && baselineDraftRef.current?.taskId === task.id
+    ? baselineDraftRef.current.json
+    : JSON.stringify(initialDraft);
+  const hasUnsavedChanges = JSON.stringify(taskDraft()) !== baselineJson;
 
   // Populate form when task changes
   useEffect(() => {
+    activeTaskIdRef.current = open && task ? task.id : null;
     if (!open) return;
     if (task) {
+      baselineDraftRef.current = { taskId: task.id, json: JSON.stringify(buildTaskDraftSnapshot(task)) };
+      lastFetchedTaskRef.current = null;
       setTitle(task.title);
       setDesc(task.description ?? '');
       // Sync contenteditable div on next tick
@@ -393,6 +421,8 @@ export default function TaskDetailPanel({
       setShowColorPicker(false);
       fetchTaskData(task.id);
     } else {
+      baselineDraftRef.current = null;
+      lastFetchedTaskRef.current = null;
       setTitle(''); setDesc(''); setStatus('todo'); setPriority('medium');
       setAssigneeIds([]); setDueDate(''); setStartDate(''); setChecklist([]);
       setComments([]); setAttachments([]); setActivity([]);
@@ -485,7 +515,13 @@ export default function TaskDetailPanel({
         .select('id, actor_name, type, description, created_at')
         .eq('task_id', taskId).order('created_at', { ascending: false }).limit(30),
     ]);
+    // A slow response for a task the user has since navigated away from must
+    // not touch the form — the close-time auto-save would write this task's
+    // content into whichever task is open now.
+    if (activeTaskIdRef.current !== taskId) return;
     if (taskRes.data) {
+      lastFetchedTaskRef.current = { id: taskId, ...taskRes.data };
+      baselineDraftRef.current = { taskId, json: JSON.stringify(buildTaskDraftSnapshot(taskRes.data)) };
       setTitle(taskRes.data.title);
       setDesc(taskRes.data.description ?? '');
       if (descRef.current) descRef.current.innerHTML = taskRes.data.description ?? '';
@@ -565,7 +601,10 @@ export default function TaskDetailPanel({
         }
         onClose();
       } else {
-        const prev = task!;
+        // Diff against the freshly fetched row when available — the list prop
+        // can be stale, which would log changes this user never made.
+        const fetched = lastFetchedTaskRef.current;
+        const prev = fetched && fetched.id === task!.id ? { ...task!, ...fetched } : task!;
         const { data, error } = await supabase
           .from('hub_project_tasks')
           .update(payload)
