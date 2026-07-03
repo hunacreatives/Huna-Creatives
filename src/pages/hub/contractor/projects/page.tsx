@@ -1559,13 +1559,16 @@ export default function ContractorProjectsPage() {
   }, [wsProject?.id]);
   useEffect(() => {
     if (!wsProject?.id) { setWsTeamDirect([]); return; }
-    // Use SECURITY DEFINER RPC to bypass RLS on hub_project_contractors
+    let cancelled = false;
+    // Use SECURITY DEFINER RPC to bypass RLS on hub_project_contractors.
+    // Always set (even to []) so the previous project's team can't linger,
+    // and ignore stale responses after switching projects.
     supabase.rpc('get_project_team', { p_project_id: wsProject.id })
       .then(({ data }) => {
-        if (data?.length) {
-          setWsTeamDirect((data as any[]).map(u => ({ id: u.id, full_name: u.full_name, avatar_url: u.avatar_url ?? null })));
-        }
+        if (cancelled) return;
+        setWsTeamDirect(((data as any[]) ?? []).map(u => ({ id: u.id, full_name: u.full_name, avatar_url: u.avatar_url ?? null })));
       });
+    return () => { cancelled = true; };
   }, [wsProject?.id]);
   const wsTeam = wsTeamDirect.length > 0 ? wsTeamDirect : (wsRow ? (teamMap[wsProject?.id ?? 0] ?? []) : []);
   const getWorkspaceTaskAssignees = (task: ProjectTask) =>

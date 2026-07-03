@@ -528,7 +528,7 @@ export default function AdminPayrollPage() {
         title: 'Payout approved',
         body: `Your payout of ${fmt(finalPay)} for ${selectedPeriod.label} has been approved`,
         link: '/hub/contractor/payouts', read: false,
-      }).catch(console.error);
+      }).then(({ error }) => { if (error) console.error(error); });
     }
     await fetchWorkflow();
     setWorkflowLoading(false);
@@ -579,7 +579,7 @@ export default function AdminPayrollPage() {
           title: 'Payout approved',
           body: `Your payout for ${selectedPeriod.label} has been approved`,
           link: '/hub/contractor/payouts', read: false,
-        }).catch(console.error);
+        }).then(({ error }) => { if (error) console.error(error); });
       }
     }
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'payout', entity_id: selectedPeriod.start, description: `Bulk approved ${toApprove.length} payouts for ${selectedPeriod.label}` });

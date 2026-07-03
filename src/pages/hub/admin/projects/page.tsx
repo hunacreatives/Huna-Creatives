@@ -810,6 +810,26 @@ export default function AdminProjectsPage() {
     await updateTaskStatus(task, next);
   };
 
+  // Activity + notification for status changes made outside the active workspace
+  // (My Tasks panel, All Tasks view) — keeps every status path traceable.
+  const logStatusChangeSideEffects = (task: { id: number; project_id: number; title: string }, newStatus: string) => {
+    if (isDemo) return;
+    const statusLabel = newStatus.replace('_', ' ');
+    const updaterName = hubUser?.full_name ?? 'Admin';
+    logActivity(task.project_id, `${updaterName} moved "${task.title}" to ${statusLabel}`);
+    supabase.functions.invoke('notify-task-updated', {
+      body: {
+        task_id: task.id,
+        project_id: task.project_id,
+        task_title: task.title,
+        project_name: projects.find(p => p.id === task.project_id)?.project_name ?? 'General',
+        updated_by_id: hubUser?.id,
+        updated_by_name: updaterName,
+        change_description: `${updaterName} marked "${task.title}" as ${statusLabel}`,
+      },
+    }).catch(console.error);
+  };
+
   const reorderTasks = async (orderedIds: number[]) => {
     const orderedSet = new Set(orderedIds);
     // Sort all current tasks by their existing sort_order / created_at
@@ -1067,7 +1087,13 @@ export default function AdminProjectsPage() {
 
     let receipt_url: string | null = null;
     if (payReceipt) {
-      receipt_url = await uploadFileToDrive(payReceipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
+      try {
+        receipt_url = await uploadFileToDrive(payReceipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
+      } catch (err) {
+        setPaySaving(false);
+        setPayError(err instanceof Error ? err.message : 'Receipt upload failed');
+        return;
+      }
     }
 
     const amountPHP = payCurrency === 'USD' ? parseFloat(payAmount) * usdRate : parseFloat(payAmount);
@@ -1108,9 +1134,10 @@ export default function AdminProjectsPage() {
         }).select('id').single();
         if (error) { alert(`Could not create workspace: ${error.message}`); return; }
         if (client.assignments.length > 0) {
-          await supabase.from('hub_project_contractors').insert(
+          const { error: assignErr } = await supabase.from('hub_project_contractors').insert(
             client.assignments.map(a => ({ project_id: data.id, contractor_id: a.contractor_id, payout_type: 'percentage', percentage: 0, payout_status: 'pending' }))
-          ).catch(console.error);
+          );
+          if (assignErr) console.error(assignErr);
         }
         await fetchAll();
         setActiveId(data.id);
@@ -1210,7 +1237,13 @@ export default function AdminProjectsPage() {
 
     let receipt_url = editPayForm.existingReceiptUrl;
     if (editPayForm.receipt) {
-      receipt_url = await uploadFileToDrive(editPayForm.receipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
+      try {
+        receipt_url = await uploadFileToDrive(editPayForm.receipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
+      } catch (err) {
+        setEditPaySaving(false);
+        setEditPayError(err instanceof Error ? err.message : 'Receipt upload failed');
+        return;
+      }
     }
 
     const { error } = await supabase.from('hub_project_payments').update({
@@ -1313,7 +1346,13 @@ export default function AdminProjectsPage() {
 
     let receipt_url: string | null = null;
     if (form.receipt) {
-      receipt_url = await uploadFileToDrive(form.receipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
+      try {
+        receipt_url = await uploadFileToDrive(form.receipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
+      } catch (err) {
+        setCtxPaySaving(p => ({ ...p, [pcId]: false }));
+        setCtxPayError(p => ({ ...p, [pcId]: err instanceof Error ? err.message : 'Receipt upload failed' }));
+        return;
+      }
     }
 
     const amount = parseFloat(form.amount);
@@ -1739,15 +1778,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
   ];
 
   useEffect(() => {
-    if (!filtered.length) {
-      setActiveId(null);
-      return;
+    // Only reset if the activeId doesn't exist anywhere in projects (truly gone,
+    // e.g. deleted). Retainers are excluded from `filtered`, so an empty filter
+    // list must not deselect a retainer workspace.
+    if (activeId && projects.length > 0 && !projects.some(p => p.id === activeId)) {
+      setActiveId(filtered[0]?.id ?? null);
     }
-    // Only reset if the activeId doesn't exist anywhere in projects (truly gone, e.g. deleted)
-    if (activeId && !projects.some(p => p.id === activeId)) {
-      setActiveId(filtered[0].id);
-    }
-  }, [filtered, activeId]);
+  }, [filtered, activeId, projects]);
 
   useEffect(() => {
     if (activeId && !isDemo) {
@@ -3052,7 +3089,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           const scfg = STATUS_LABEL[t.status] ?? STATUS_LABEL.todo;
                           return (
                             <div key={t.id} className={`flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50/60 ${over ? 'bg-rose-50/30' : ''}`}>
-                              <button onClick={async () => { const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); }} className="flex-shrink-0 cursor-pointer">
+                              <button onClick={async () => { const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); logStatusChangeSideEffects(t, n); }} className="flex-shrink-0 cursor-pointer">
                                 <i className={`text-base ${t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-emerald-400'}`}></i>
                               </button>
                               <div className="flex-1 min-w-0">
@@ -4314,6 +4351,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             return <i className="ri-circle-line text-gray-300 text-xl flex-shrink-0" />;
           };
           const updateMyTaskStatus = async (taskId: number, newStatus: string) => {
+            const myTask = myTasks.find(t => t.id === taskId);
             if (newStatus === 'done') {
               setMyTaskCompleting(taskId);
               await supabase.from('hub_project_tasks').update({ status: 'done' }).eq('id', taskId);
@@ -4325,6 +4363,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               await supabase.from('hub_project_tasks').update({ status: newStatus }).eq('id', taskId);
               setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
             }
+            if (myTask) logStatusChangeSideEffects(myTask, newStatus);
           };
           return (
             <div className="hidden lg:flex flex-col w-72 flex-shrink-0 px-3 relative overflow-hidden"
