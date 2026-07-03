@@ -28,31 +28,6 @@ function getDriveThumbnailUrl(url: string | null | undefined, size = 400) {
   return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w${size}`;
 }
 
-// ── SVG progress ring ──────────────────────────────────────────────────────
-function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
-  const r = (size / 2) - 10;
-  const circ = 2 * Math.PI * r;
-  const filled = Math.max(0, Math.min(pct, 100)) / 100 * circ;
-  return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e5e7eb" strokeWidth={size < 60 ? 7 : 9} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-          stroke="#3b82f6" strokeWidth={size < 60 ? 7 : 9}
-          strokeLinecap="round"
-          strokeDasharray={`${filled} ${circ}`}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dasharray 1s ease' }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-bold text-gray-900" style={{ fontSize: size < 60 ? 13 : 22 }}>{pct}%</span>
-        {size >= 100 && <span className="text-[10px] text-gray-400 mt-0.5">complete</span>}
-      </div>
-    </div>
-  );
-}
-
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtRate = (rate: number | null, currency?: string | null) =>
   rate == null ? '—' : currency === 'USD' ? `$${rate.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/mo` : `${fmt(rate)}/mo`;
@@ -71,7 +46,6 @@ const getServicePalette = (service: string | null | undefined) => {
   if (s.includes('marketing'))           return { from: '#f97316', to: '#f59e0b' };
   return                                        { from: '#94a3b8', to: '#64748b' };
 };
-const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 const fmtDate = (d: string | null | undefined, fallback = '—') => {
   if (!d) return fallback;
   const s = d.length === 10 ? d + 'T00:00:00' : d;
@@ -578,21 +552,6 @@ export default function AdminProjectsPage() {
   const [reminderError, setReminderError] = useState('');
   const invoiceLocked = !!invoiceMsg?.ok;
 
-  const fetchNextInvoiceNumber = async () => {
-    const [sentRes, scheduledRes] = await Promise.all([
-      supabase.from('hub_invoice_log').select('invoice_number'),
-      supabase.from('hub_scheduled_invoices').select('invoice_number'),
-    ]);
-
-    const latest = [
-      ...(sentRes.data ?? []).map((r: any) => parseInt(String(r.invoice_number ?? ''), 10)),
-      ...(scheduledRes.data ?? []).map((r: any) => parseInt(String(r.invoice_number ?? ''), 10)),
-    ].filter((v) => !Number.isNaN(v));
-
-    if (latest.length === 0) return '0001';
-    return String(Math.max(...latest) + 1).padStart(4, '0');
-  };
-
   const fetchTasks = async (projectId: number) => {
     const [tRes, aRes] = await Promise.all([
       supabase.from('hub_project_tasks')
@@ -855,12 +814,6 @@ export default function AdminProjectsPage() {
     ));
   };
 
-  const deleteTask = async (task: ProjectTask) => {
-    if (isDemo) return;
-    await supabase.from('hub_project_tasks').delete().eq('id', task.id);
-    setTasks(prev => prev.filter(t => t.id !== task.id));
-  };
-
   const fetchAllTasks = async () => {
     setAllTasksLoading(true);
     const [tasksRes, projectsRes] = await Promise.all([
@@ -948,40 +901,6 @@ export default function AdminProjectsPage() {
   };
 
   const isInternalProject = (project: Project | null | undefined) => project?.project_type === 'internal';
-
-  const getProjectHealth = (
-    project: Project,
-    teamCount: number,
-    tasksDone: number,
-    tasksTotal: number,
-    today: string,
-  ): string => {
-    if (project.status === 'cancelled' || project.status === 'archived') return 'Archived';
-    if (project.status === 'completed') return 'Completed';
-    if (teamCount === 0) return 'No team assigned';
-    if (tasksTotal === 0) return 'No tasks yet';
-    if (project.deadline && project.deadline < today && project.status !== 'completed') {
-      if (project.project_type === 'client') {
-        const d = derived(project);
-        if (d.balance > 0) return 'Waiting on payment';
-      }
-      return 'Overdue';
-    }
-    if (project.deadline) {
-      const daysLeft = Math.ceil((new Date(project.deadline).getTime() - new Date(today).getTime()) / 86400000);
-      if (daysLeft <= 7) return 'Due this week';
-    }
-    if (project.project_type === 'client') {
-      const d = derived(project);
-      if (d.paidPct >= 100) return 'Fully paid';
-    }
-    if (project.project_type === 'retainer') return 'Active retainer';
-    if (project.project_type === 'internal') {
-      const hasInProgress = tasksTotal > tasksDone && tasksTotal > 0;
-      if (hasInProgress) return 'Internal sprint';
-    }
-    return 'In progress';
-  };
 
   const saveProject = async () => {
     const isInternal = form.project_type === 'internal';
@@ -1790,7 +1709,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
     if (activeId && !isDemo) {
       fetchTasks(activeId);
       supabase.from('hub_questionnaires').select('id, client_name, service_type, status, submitted_at, questions, answers').eq('project_id', activeId).order('created_at', { ascending: false })
-        .then(({ data }) => setWsQuestionnaires((data as WsQuestionnaire[]) ?? []));
+        .then(({ data }) => setWsQuestionnaires((data as WsQuestionnaireRow[]) ?? []));
       loadContracts(activeId);
       const proj = projects.find(p => p.id === activeId);
       if (proj?.client_name) {
@@ -1868,20 +1787,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       openTaskDetail(task);
     }
   }, [tasks, workspaceOpen]);
-
-  const projectTags = (project: Project) => {
-    const serviceTag = project.service ? [project.service] : ['General'];
-    const roleTags = project.hub_project_contractors
-      .map(pc => pc.project_role)
-      .filter((role): role is string => !!role)
-      .slice(0, 2);
-    const deptTags = contractors
-      .filter(c => project.hub_project_contractors.some(pc => pc.hub_users?.id === c.id))
-      .map(c => c.department)
-      .filter((dept): dept is string => !!dept)
-      .slice(0, 2);
-    return [...new Set([...serviceTag, ...roleTags, ...deptTags])].slice(0, 3);
-  };
 
   const wsToday = localToday();
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';

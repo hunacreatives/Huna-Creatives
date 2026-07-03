@@ -83,6 +83,7 @@ export interface TaskDetailTask {
   start_date: string | null;
   checklist?: ChecklistItem[] | null;
   color?: string | null;
+  meta?: { custom_fields?: { id: string; label: string; value: string }[] } | null;
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
 }
 
@@ -2038,7 +2039,7 @@ export default function TaskDetailPanel({
                 {saveError && (
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-red-500">{saveError}</p>
-                    <button onClick={handleSave} className="text-xs text-red-500 underline cursor-pointer hover:text-red-700">Retry</button>
+                    <button onClick={() => handleSave()} className="text-xs text-red-500 underline cursor-pointer hover:text-red-700">Retry</button>
                   </div>
                 )}
                 <div className="flex gap-2">
@@ -2051,7 +2052,7 @@ export default function TaskDetailPanel({
                       Cancel
                     </button>
                   )}
-                  <button onClick={handleSave} disabled={saving || !title.trim()}
+                  <button onClick={() => handleSave()} disabled={saving || !title.trim()}
                     className="px-5 py-2.5 bg-[#111827] text-white rounded-xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors cursor-pointer">
                     {saving ? 'Saving…' : isNew ? 'Create Task' : 'Save Changes'}
                   </button>
