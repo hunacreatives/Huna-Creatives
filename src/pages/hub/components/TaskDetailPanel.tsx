@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeChecklistItems, normalizeTaskAssigneePayload, sameAssigneeIds } from '@/lib/taskAssignments';
+import { useDemo } from '@/contexts/DemoContext';
 import Avatar from '@/pages/hub/components/Avatar';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -308,6 +309,7 @@ export default function TaskDetailPanel({
   currentUserAvatarUrl,
 }: Props) {
   const isNew = !task;
+  const { isDemo } = useDemo();
 
   // Form state
   const [title, setTitle]           = useState('');
@@ -516,6 +518,7 @@ export default function TaskDetailPanel({
   }, [focusDescriptionEditor, syncDescriptionEditor]);
 
   const fetchTaskData = useCallback(async (taskId: number) => {
+    if (isDemo) return;
     const [taskRes, commRes, attRes, actRes] = await Promise.all([
       supabase.from('hub_project_tasks')
         .select('title, description, status, priority, assigned_to, assignee_ids, due_date, start_date, checklist, color, meta, updated_at')
@@ -561,6 +564,7 @@ export default function TaskDetailPanel({
   }, []);
 
   const logActivity = useCallback(async (taskId: number, type: string, description: string) => {
+    if (isDemo) return;
     await supabase.from('hub_project_task_activity').insert({
       task_id: taskId, actor_id: currentUserId, actor_name: currentUserName, type, description,
     });
@@ -575,6 +579,21 @@ export default function TaskDetailPanel({
     setSaveError(null);
     try {
       const payload = taskDraft();
+
+      if (isDemo) {
+        // Demo mode: apply the change locally so the flow feels real,
+        // but never touch the database.
+        const demoAssignee = teamMembers.find(m => m.id === (getTaskAssigneeIds(payload)[0] ?? '')) ?? null;
+        const demoHubUsers = demoAssignee ? { id: demoAssignee.id, full_name: demoAssignee.full_name, avatar_url: demoAssignee.avatar_url ?? null } : null;
+        if (isNew) {
+          onSaved({ id: Date.now(), project_id: projectId, ...payload, hub_users: demoHubUsers } as TaskDetailTask);
+          onClose();
+        } else {
+          onSaved({ ...task!, ...payload, hub_users: demoHubUsers } as TaskDetailTask);
+          if (closeAfterSave) onClose(); else setEditing(false);
+        }
+        return;
+      }
 
       const nextAssigneeIds = getTaskAssigneeIds(payload);
       const assigneeMember = teamMembers.find(m => m.id === (nextAssigneeIds[0] ?? '')) ?? null;
@@ -712,6 +731,12 @@ export default function TaskDetailPanel({
   const handleDelete = async () => {
     if (!task) return;
     setDeleting(true);
+    if (isDemo) {
+      onDeleted(task.id);
+      onClose();
+      setDeleting(false);
+      return;
+    }
     await supabase.from('hub_project_tasks').delete().eq('id', task.id);
     onDeleted(task.id);
     onClose();
@@ -721,6 +746,11 @@ export default function TaskDetailPanel({
   const handleArchive = async () => {
     if (!task) return;
     const archived_at = new Date().toISOString();
+    if (isDemo) {
+      onArchived?.(task.id);
+      onClose();
+      return;
+    }
     await supabase.from('hub_project_tasks').update({ archived: true, archived_at }).eq('id', task.id);
     onArchived?.(task.id);
     onClose();
@@ -759,6 +789,7 @@ export default function TaskDetailPanel({
 
   const saveChecklist = async (updated: ChecklistItem[]) => {
     if (!task) return;
+    if (isDemo) { onSaved({ ...task, checklist: normalizeChecklistItems(updated) }); return; }
     const { data, error } = await supabase
       .from('hub_project_tasks')
       .update({ checklist: normalizeChecklistItems(updated) })
@@ -819,6 +850,19 @@ export default function TaskDetailPanel({
     if ((!body || body === '<br>') && !commentFile || !task) return;
     setPosting(true);
     setCommentFileError(null);
+
+    if (isDemo) {
+      setComments(prev => [...prev, {
+        id: Date.now(), user_id: currentUserId, body, created_at: new Date().toISOString(),
+        author_name: currentUserName, author_avatar_url: currentUserAvatarUrl ?? null,
+        attachment_url: null, attachment_name: null, attachment_size: null, attachment_mime: null,
+        reactions: {}, hub_users: { full_name: currentUserName, avatar_url: currentUserAvatarUrl ?? null },
+      } as Comment]);
+      setNewComment('');
+      if (commentRef.current) commentRef.current.innerHTML = '';
+      setPosting(false);
+      return;
+    }
 
     let attachmentUrl: string | null = null;
     let attachmentName: string | null = null;
@@ -900,6 +944,7 @@ export default function TaskDetailPanel({
   };
 
   const deleteComment = async (commentId: number) => {
+    if (isDemo) { setComments(prev => prev.filter(c => c.id !== commentId)); return; }
     const comment = comments.find(c => c.id === commentId);
     await supabase.from('hub_project_task_comments').delete().eq('id', commentId);
     setComments(prev => prev.filter(c => c.id !== commentId));
@@ -921,6 +966,7 @@ export default function TaskDetailPanel({
     const newReactions = { ...comment.reactions, [emoji]: updated };
     if (updated.length === 0) delete newReactions[emoji];
     setComments(prev => prev.map(c => c.id === commentId ? { ...c, reactions: newReactions } : c));
+    if (isDemo) return;
     await supabase.from('hub_project_task_comments').update({ reactions: newReactions }).eq('id', commentId);
   };
 
@@ -1539,7 +1585,7 @@ export default function TaskDetailPanel({
                 const isEditing = editingFieldId === f.id;
                 const saveField = () => {
                   setEditingFieldId(null);
-                  if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: customFields } }).eq('id', task.id)
+                  if (task?.id) supabase.from('hub_project_tasks').update({ meta: buildTaskMetaPayload(customFields, status, blockedReason) }).eq('id', task.id)
                     .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
                 };
                 return (
@@ -1574,7 +1620,7 @@ export default function TaskDetailPanel({
                       <button onClick={() => {
                         const updated = customFields.filter(x => x.id !== f.id);
                         setCustomFields(updated);
-                        if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id)
+                        if (task?.id) supabase.from('hub_project_tasks').update({ meta: buildTaskMetaPayload(updated, status, blockedReason) }).eq('id', task.id)
                         .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
                       }} className="text-gray-300 hover:text-rose-500 cursor-pointer transition-all flex-shrink-0">
                         <i className="ri-delete-bin-line text-[10px]"></i>
@@ -1592,7 +1638,7 @@ export default function TaskDetailPanel({
                       setCustomFields(updated);
                       setNewFieldLabel(''); setShowAddField(false);
                       setEditingFieldId(id); // immediately open for editing
-                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id)
+                      if (task?.id) supabase.from('hub_project_tasks').update({ meta: buildTaskMetaPayload(updated, status, blockedReason) }).eq('id', task.id)
                         .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
                     }}}
                     className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30" autoFocus />
@@ -1603,7 +1649,7 @@ export default function TaskDetailPanel({
                     setCustomFields(updated);
                     setNewFieldLabel(''); setShowAddField(false);
                     setEditingFieldId(id);
-                    if (task?.id) supabase.from('hub_project_tasks').update({ meta: { custom_fields: updated } }).eq('id', task.id)
+                    if (task?.id) supabase.from('hub_project_tasks').update({ meta: buildTaskMetaPayload(updated, status, blockedReason) }).eq('id', task.id)
                         .select('*').single().then(({ data }) => { if (data) onSaved({ ...task, ...data } as TaskDetailTask); });
                   }} className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs cursor-pointer">Add</button>
                 </div>

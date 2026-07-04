@@ -16,6 +16,7 @@ import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getServicePalette } from '@/pages/hub/utils/servicePalette';
+import { PRIORITY_CFG, PROJECT_STATUS_COLORS } from '@/pages/hub/utils/taskUi';
 import { getDriveThumbnailUrl } from '@/pages/hub/utils/drive';
 import { fmt, fmtRate, fmtDate } from './shared';
 import ReceiptLightbox from './ReceiptLightbox';
@@ -1388,7 +1389,7 @@ export default function AdminProjectsPage() {
     const overdue = !!wsIsOverdue(task);
     const assignees = getWorkspaceTaskAssignees(task);
     const commentCount = commentCounts[task.id] ?? 0;
-    const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
+    const priorityCfg = PRIORITY_CFG[task.priority];
     const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
     return (
       <button
@@ -1448,12 +1449,7 @@ export default function AdminProjectsPage() {
       {workspaceOpen && activeProject && (() => {
         const p = activeProject;
         const internalProject = isInternalProject(p);
-        const statusColors: Record<string, string> = {
-          ongoing: 'bg-emerald-100 text-emerald-700',
-          completed: 'bg-blue-100 text-blue-700',
-          paused: 'bg-amber-100 text-amber-700',
-          cancelled: 'bg-gray-100 text-gray-500',
-        };
+        const statusColors = PROJECT_STATUS_COLORS;
         const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' };
         const wsTeam = p.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean) as { id: string; full_name: string; avatar_url: string | null }[];
         const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
@@ -2001,7 +1997,7 @@ export default function AdminProjectsPage() {
                         const sc = wsStatusCycle[task.status];
                         const overdue = wsIsOverdue(task);
                         const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
-                        const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
+                        const priorityCfg = PRIORITY_CFG[task.priority];
                         const assignees = getWorkspaceTaskAssignees(task);
                         const isMyTask = getTaskAssigneeIds(task).includes(hubUser?.id ?? '');
                         const commentCount = commentCounts[task.id] ?? 0;
@@ -2133,7 +2129,7 @@ export default function AdminProjectsPage() {
                                     const sc = wsStatusCycle[task.status];
                                     const overdue = wsIsOverdue(task);
                                     const priorityBorder = { high: 'border-l-rose-400', medium: 'border-l-amber-400', low: 'border-l-gray-300' }[task.priority];
-                                    const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
+                                    const priorityCfg = PRIORITY_CFG[task.priority];
                                     const assignees = getWorkspaceTaskAssignees(task);
                                     const commentCount = commentCounts[task.id] ?? 0;
                                     const tDaysLeft = task.due_date

@@ -466,8 +466,29 @@ export default function NotificationBell() {
     if (!hubUser) return;
 
     const isAdmin = hubUser.role === 'admin' || hubUser.role === 'owner';
-    const adminTables = ['hub_announcement_comments', 'hub_time_off', 'hub_requests', 'hub_credential_requests', 'hub_payroll_batches', 'hub_payouts', 'hub_payslip_disputes', 'hub_overtime_requests', 'hub_notifications'];
-    const contractorTables = ['hub_announcements', 'hub_payouts', 'hub_payroll_batches', 'hub_time_off', 'hub_requests', 'hub_overtime_requests', 'hub_notifications'];
+    // Admins review everyone's activity, so their table subscriptions stay
+    // unfiltered; employees only care about their own rows — filter so every
+    // other user's changes don't trigger a refetch for the whole company.
+    const adminTables: { table: string; filter?: string }[] = [
+      { table: 'hub_announcement_comments' },
+      { table: 'hub_time_off' },
+      { table: 'hub_requests' },
+      { table: 'hub_credential_requests' },
+      { table: 'hub_payroll_batches' },
+      { table: 'hub_payouts' },
+      { table: 'hub_payslip_disputes' },
+      { table: 'hub_overtime_requests' },
+      { table: 'hub_notifications', filter: `user_id=eq.${hubUser.id}` },
+    ];
+    const contractorTables: { table: string; filter?: string }[] = [
+      { table: 'hub_announcements' },
+      { table: 'hub_payouts', filter: `contractor_id=eq.${hubUser.id}` },
+      { table: 'hub_payroll_batches' },
+      { table: 'hub_time_off', filter: `contractor_id=eq.${hubUser.id}` },
+      { table: 'hub_requests', filter: `contractor_id=eq.${hubUser.id}` },
+      { table: 'hub_overtime_requests', filter: `contractor_id=eq.${hubUser.id}` },
+      { table: 'hub_notifications', filter: `user_id=eq.${hubUser.id}` },
+    ];
     const tables = isAdmin ? adminTables : contractorTables;
 
     let debounce: ReturnType<typeof setTimeout>;
@@ -477,8 +498,8 @@ export default function NotificationBell() {
     };
 
     const channel = supabase.channel(`hub-notifs-${hubUser.id}`);
-    for (const table of tables) {
-      channel.on('postgres_changes' as any, { event: '*', schema: 'public', table }, refetch);
+    for (const { table, filter } of tables) {
+      channel.on('postgres_changes' as any, { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) }, refetch);
     }
     channel.subscribe();
 

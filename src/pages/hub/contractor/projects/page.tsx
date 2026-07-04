@@ -10,11 +10,12 @@ import { DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS, DEMO_CONTRACTOR_TEAM }
 import TaskDetailPanel from '@/pages/hub/components/TaskDetailPanel';
 import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
 import { getServicePalette } from '@/pages/hub/utils/servicePalette';
+import { fmt } from '@/pages/hub/utils/format';
+import { PRIORITY_CFG, PROJECT_STATUS_COLORS } from '@/pages/hub/utils/taskUi';
 import { localToday, slugify } from '@/lib/formatUtils';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds } from '@/lib/taskAssignments';
 
-const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function normalizeTaskActivityAction(type: string) {
   switch (type) {
@@ -1000,7 +1001,7 @@ export default function ContractorProjectsPage() {
     const daysLeft = task.due_date
       ? Math.ceil((new Date(task.due_date + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000)
       : null;
-    const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
+    const priorityCfg = PRIORITY_CFG[task.priority];
     return (
       <div key={task.id} onClick={() => openViewTask(task)}
         className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group border-l-4 ${task.color ? '' : color.border}`}
@@ -1077,7 +1078,7 @@ export default function ContractorProjectsPage() {
     const color = taskColorMap[task.id] ?? TASK_PALETTE[0];
     const assignees = getWorkspaceTaskAssignees(task);
     const commentCount = taskCommentCounts[task.id] ?? 0;
-    const priorityCfg = { high: { label: 'High', cls: 'bg-rose-100 text-rose-600' }, medium: { label: 'Med', cls: 'bg-amber-100 text-amber-600' }, low: { label: 'Low', cls: 'bg-gray-100 text-gray-500' } }[task.priority];
+    const priorityCfg = PRIORITY_CFG[task.priority];
     return (
       <button
         key={task.id}
@@ -1239,7 +1240,7 @@ export default function ContractorProjectsPage() {
 
           {/* ── Hero banner ── */}
           {(() => {
-            const statusColors: Record<string, string> = { ongoing: 'bg-emerald-100 text-emerald-700', completed: 'bg-blue-100 text-blue-700', paused: 'bg-amber-100 text-amber-700', cancelled: 'bg-gray-100 text-gray-500' };
+            const statusColors = PROJECT_STATUS_COLORS;
             const statusLabels: Record<string, string> = { ongoing: 'Active', completed: 'Completed', paused: 'Paused', cancelled: 'Archived' };
             const daysLeft = wsProject.deadline ? Math.ceil((new Date(wsProject.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
             const isDeadlineOver = daysLeft !== null && daysLeft < 0 && wsProject.status !== 'completed';

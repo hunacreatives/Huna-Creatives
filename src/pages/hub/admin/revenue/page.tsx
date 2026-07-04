@@ -1,11 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
+import { fmt } from '@/pages/hub/utils/format';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { getSetting } from '@/lib/settings';
 
-const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface Project {
   id: number;
