@@ -16,29 +16,18 @@ import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getServicePalette } from '@/pages/hub/utils/servicePalette';
+import { getDriveThumbnailUrl } from '@/pages/hub/utils/drive';
+import { fmt, fmtRate, fmtDate } from './shared';
+import ReceiptLightbox from './ReceiptLightbox';
+import QuestionnaireAnswersModal, { type WsQuestionnaireRow } from './QuestionnaireAnswersModal';
+import SendReceiptModal from './SendReceiptModal';
+import { openContractPreview } from './contractPreview';
+import { openInvoicePrintView } from './invoicePrint';
+import ProjectFormModal, { type ImportedTask } from './ProjectFormModal';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeTaskAssigneePayload } from '@/lib/taskAssignments';
 import type { HubClientContract } from '@/lib/types';
-import { HUNA_LOGO, FRANCIS_SIG } from '@/pages/hub/admin/documents/contractAssets';
 
-// Stored receipt URLs are Drive "view" page links (https://drive.google.com/file/d/{id}/view),
-// not direct image URLs — convert to the thumbnail API for use in <img src>.
-function getDriveThumbnailUrl(url: string | null | undefined, size = 400) {
-  if (!url) return url ?? '';
-  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (!match) return url;
-  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w${size}`;
-}
 
-const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const fmtRate = (rate: number | null, currency?: string | null) =>
-  rate == null ? '—' : currency === 'USD' ? `$${rate.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/mo` : `${fmt(rate)}/mo`;
-
-const fmtDate = (d: string | null | undefined, fallback = '—') => {
-  if (!d) return fallback;
-  const s = d.length === 10 ? d + 'T00:00:00' : d;
-  const dt = new Date(s);
-  return isNaN(dt.getTime()) ? fallback : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
 
 const serviceCfg: Record<string, { border: string; dot: string; badge: string }> = {
   'Website Design':           { border: 'border-l-sky-400',     dot: 'bg-sky-400',     badge: 'bg-sky-50 text-sky-700' },
@@ -121,7 +110,6 @@ interface ProjectActivity {
   hub_users?: { id: string; full_name: string; avatar_url: string | null } | null;
 }
 
-interface WsQuestionnaireRow { id: number; client_name: string; service_type: string; status: string; submitted_at: string | null; questions: { id: string; label: string; type: string; required?: boolean }[]; answers: Record<string, string | string[]> | null; }
 
 function normalizeTaskActivityDescription(row: { actor_name: string; type: string; description: string; task_title?: string | null }) {
   const title = row.task_title ? `"${row.task_title}"` : 'this task';
@@ -205,15 +193,13 @@ export default function AdminProjectsPage() {
   const [clientLinkCopied, setClientLinkCopied] = useState(false);
 
   // Project form
-  const SERVICES = ['Website Design', 'Website Maintenance', 'E-vite / Event Website', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Marketing', 'Other'];
   const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', monthly_rate_currency: 'PHP' as 'PHP' | 'USD', monthly_deliverables: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [importedTasks, setImportedTasks] = useState<{ title: string; description: string | null; priority: 'low' | 'medium' | 'high'; start_date: string | null; due_date: string | null }[]>([]);
+  const [importedTasks, setImportedTasks] = useState<ImportedTask[]>([]);
 
   // Payment log
   const [payAmount, setPayAmount] = useState('');
@@ -239,10 +225,6 @@ export default function AdminProjectsPage() {
 
   // Send receipt
   const [sendReceiptModal, setSendReceiptModal] = useState<{ payment: Project['hub_project_payments'][0]; project: Project } | null>(null);
-  const [sendReceiptEmail, setSendReceiptEmail] = useState('');
-  const [sendReceiptCc, setSendReceiptCc] = useState('');
-  const [sendReceiptSending, setSendReceiptSending] = useState(false);
-  const [sendReceiptMsg, setSendReceiptMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Employee assignment
   const [addCtxId, setAddCtxId] = useState('');
@@ -433,77 +415,6 @@ export default function AdminProjectsPage() {
     }
   };
 
-  const previewContract = (preview: { title: string; body: string }) => {
-    const win = window.open('', '_blank', 'width=960,height=800');
-    if (!win) return;
-    const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${preview.title}</title><style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { background: #f5f5f4; font-family: Arial, Helvetica, sans-serif; }
-      .page { max-width: 820px; margin: 32px auto 80px; background: #fff; box-shadow: 0 2px 20px rgba(0,0,0,0.07); border-radius: 4px; overflow: hidden; }
-      .lh { padding: 24px 52px 0; }
-      .lh-inner { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-      .lh-contact { text-align: right; font-size: 9pt; color: #444; line-height: 1.8; }
-      .accent { height: 3px; background: linear-gradient(to right, #D64F1E 40%, #e5e7eb 40%); margin-bottom: 28px; }
-      .body { padding: 0 52px 48px; font-size: 10.5pt; color: #111; line-height: 1.65; }
-      .body h1.contract-title { font-size: 20pt; font-weight: 800; color: #111; margin: 0 0 6pt; text-transform: uppercase; letter-spacing: 0.02em; }
-      .body p.contract-subtitle { font-size: 10.5pt; font-weight: 700; margin: 0 0 14pt; color: #111; }
-      .body h2.section-between { font-size: 14pt; font-weight: 800; margin: 20pt 0 8pt; text-transform: uppercase; }
-      .body h2 { font-size: 13pt; font-weight: 800; margin: 20pt 0 6pt; text-transform: uppercase; color: #111; }
-      .body h3 { font-size: 10.5pt; font-weight: 700; margin: 12pt 0 4pt; color: #111; }
-      .body p { margin: 0 0 8pt; text-align: justify; }
-      .body ul { margin: 4pt 0 8pt 18pt; padding: 0; }
-      .body ul li { margin-bottom: 4pt; text-align: justify; }
-      .body hr.section-divider { border: none; border-top: 1px solid #d1d5db; margin: 16pt 0; }
-      .body strong.highlight { color: #D64F1E; }
-      .sig { padding: 0 52px 48px; border-top: 1px solid #e5e7eb; margin-top: 8px; }
-      .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 32px; }
-      .sig-label { font-size: 10pt; font-weight: 700; margin: 0 0 2px; }
-      .sig-sub { font-size: 9pt; color: #6b7280; margin: 0 0 16px; }
-      .sig-line { border-top: 1px solid #111; padding-top: 4px; margin-top: 4px; }
-      .sig-meta { font-size: 8.5pt; color: #6b7280; margin: 0; }
-      .draft-badge { margin: 0 52px 24px; padding: 10px 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 11px; color: #92400e; }
-      @media print { body { background: #fff; } .page { box-shadow: none; margin: 0; } }
-    </style></head><body>
-    <div class="page">
-      <div class="lh">
-        <div class="lh-inner">
-          <div>
-            <img src="${HUNA_LOGO}" alt="Huna Creatives" style="height:52px;width:auto;display:block">
-            <p style="font-size:9pt;color:#555;font-style:italic;margin-top:4px;font-family:Arial,sans-serif">Let's bring your <em>hunahuna</em> to life.</p>
-          </div>
-          <div class="lh-contact">
-            (032) 505 6921 | +63 952 447 2602<br>
-            contact@hunacreatives.com<br>
-            Cebu, Philippines, 6004
-          </div>
-        </div>
-        <div class="accent"></div>
-      </div>
-      <div class="body">${preview.body}</div>
-      <div class="sig">
-        <div class="sig-grid">
-          <div>
-            <p class="sig-label">HUNA CREATIVES</p>
-            <p class="sig-sub">Service Provider</p>
-            <div style="height:52px;display:flex;align-items:flex-end;margin-bottom:4px">
-              <img src="${FRANCIS_SIG}" style="height:52px;width:auto;max-width:200px" alt="Signature">
-            </div>
-            <div class="sig-line"><p class="sig-meta">Francis Fiel Roble · ${today}</p></div>
-          </div>
-          <div>
-            <p class="sig-label">CLIENT</p>
-            <p class="sig-sub">Authorized Representative</p>
-            <div style="height:52px;border-bottom:1px solid #ccc;margin-bottom:4px"></div>
-            <div style="padding-top:4px"><p class="sig-meta">Client signature · upon signing</p></div>
-          </div>
-        </div>
-      </div>
-      <div class="draft-badge">⚠ This is a preview — contract has not been sent yet.</div>
-    </div>
-    </body></html>`);
-    win.document.close();
-  };
 
   // Payment reminders
   const [reminderDate, setReminderDate] = useState('');
@@ -1076,34 +987,6 @@ export default function AdminProjectsPage() {
     }
   };
 
-  const sendReceipt = async () => {
-    if (!sendReceiptModal || !sendReceiptEmail.trim()) return;
-    setSendReceiptSending(true); setSendReceiptMsg(null);
-    const { payment, project } = sendReceiptModal;
-    const totalPaid = project.hub_project_payments.reduce((s, p) => s + p.amount, 0);
-    const { data, error } = await supabase.functions.invoke('send-payment-receipt', {
-      body: {
-        to: sendReceiptEmail.trim(),
-        cc: sendReceiptCc.trim() || undefined,
-        client_name: project.client_name,
-        project_name: project.project_name,
-        amount: payment.amount,
-        paid_at: payment.paid_at,
-        notes: payment.notes,
-        receipt_url: payment.receipt_url,
-        total_paid: totalPaid,
-        contract_price: project.contract_price,
-        invoice_number: project.id,
-        project_id: project.id,
-      },
-    });
-    setSendReceiptSending(false);
-    if (error || data?.error) {
-      setSendReceiptMsg({ ok: false, text: data?.error ?? error?.message ?? 'Failed to send' });
-    } else {
-      setSendReceiptMsg({ ok: true, text: 'Receipt sent!' });
-    }
-  };
 
   const logCost = async () => {
     if (!activeId || !costLabel.trim() || !costAmount) return;
@@ -1318,153 +1201,6 @@ export default function AdminProjectsPage() {
     fetchAll();
   };
 
-  const printInvoice = async (project: Project, overrides?: { due_date?: string; invoice_number?: string; bill_to_name?: string; bill_to_address?: string; reference?: string; payment_terms?: string; message?: string; line_items?: { description: string; amount: string }[]; show_payments?: boolean; amount_requested?: number }) => {
-    const win = window.open('', '_blank', 'width=900,height=700');
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Preparing invoice…</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px;color:#111827} .muted{color:#6b7280;font-size:14px}</style></head><body><h2>Preparing invoice preview…</h2><p class="muted">Please wait while we generate the print view.</p></body></html>`);
-    win.document.close();
-
-    const { data: latestLink } = await supabase
-      .from('hub_invoice_payment_links')
-      .select('token')
-      .eq('project_id', project.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const payUrl = latestLink?.token
-      ? `https://hunacreatives.com/pay/${latestLink.token}`
-      : null;
-    const d = derived(project);
-    const fmt2 = (n: number) => '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
-    const invNum = overrides?.invoice_number || String(project.id).padStart(4,'0');
-    const billToName = overrides?.bill_to_name || project.client_name;
-    const billToAddress = overrides?.bill_to_address?.trim() || '';
-    const customMsg = overrides?.message || '';
-    const lineItems = overrides?.line_items ?? [{ description: project.service ?? project.project_name, amount: String(project.contract_price) }];
-    const showPayments = overrides?.show_payments ?? true;
-    const lineItemsTotal = lineItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
-    const totalPaid = d.totalPaid;
-    // balance_due is what appears on the invoice — use explicit amount_requested if provided,
-    // otherwise fall back to lineItemsTotal (the invoice amount itself, not auto-deducted)
-    const balanceDue = overrides?.amount_requested != null ? overrides.amount_requested : lineItemsTotal - totalPaid;
-    const paymentRows = project.hub_project_payments.map(p => `
-      <tr>
-        <td>${fmtDate(p.paid_at)}</td>
-        <td>${p.notes ?? 'Payment received'}</td>
-        <td class="amount paid">+ ${fmt2(p.amount)}</td>
-      </tr>`).join('');
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Invoice #${invNum} — ${project.project_name}</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827;background:#f9fafb;padding:24px}
-  .invoice-card{max-width:1100px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:24px;overflow:hidden}
-  .content{padding:28px 40px 36px}
-  .header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;background:#0f172a;padding:28px 40px}
-  .header-brand img{height:64px;display:block}
-  .header-right{text-align:right}
-  .header-right h1{font-size:13px;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em}
-  .header-right .inv{font-size:36px;line-height:1;font-weight:800;color:#fff}
-  .meta{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f3f4f6}
-  .meta-col .eyebrow{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-  .meta-col .title{font-size:16px;font-weight:700}
-  .meta-col .line{font-size:12px;color:#6b7280;line-height:1.7;white-space:pre-line}
-  .meta-col.right{text-align:right}
-  .project-box{background:#f9fafb;border-radius:10px;padding:14px 16px;margin-bottom:20px}
-  .project-box .name{font-size:14px;font-weight:600}
-  .project-box .sub{font-size:12px;color:#6b7280;margin-top:3px}
-  table{width:100%;border-collapse:collapse;margin-bottom:20px}
-  th{background:#111827;color:#fff;padding:10px 14px;font-size:11px;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:.04em}
-  td{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px}
-  td.amount{text-align:right;font-weight:600}
-  td.paid{color:#059669}
-  .summary-wrap{display:flex;justify-content:flex-end;margin-top:10px}
-  .summary-card{width:340px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px}
-  .summary-title{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px}
-  .totals{width:100%;margin:0}
-  .totals tr td{padding:7px 0;font-size:13px;color:#6b7280;border:none}
-  .totals tr td:last-child{text-align:right}
-  .totals .divider td{padding:5px 0 0}
-  .totals .divider-line{border-top:2px solid #e5e7eb}
-  .totals .balance td{font-size:16px;font-weight:800;color:#111827;padding-top:10px}
-  .totals .balance td:last-child{color:${balanceDue <= 0 ? '#059669' : '#FF6B35'}}
-  .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;font-size:11px;color:#9ca3af}
-  .pay-via{margin-top:32px}
-  .pay-via h3{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:14px}
-  .qr-grid{display:flex;gap:12px}
-  .qr-item{flex:1;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 10px;text-align:center}
-  .qr-item img{width:100px;height:100px;object-fit:contain;border-radius:6px;display:block;margin:0 auto}
-  .qr-item p{margin:8px 0 0;font-size:12px;font-weight:700;color:#111827}
-  @media print{body{padding:0;background:#fff}.invoice-card{max-width:none;border:none;border-radius:0}.content{padding:24px}}
-</style></head><body>
-<div class="invoice-card">
-<div class="header">
-  <div class="header-brand">
-    <img src="${logoUrl}" onerror="this.parentElement.style.display='none'" />
-  </div>
-  <div class="header-right">
-    <h1>Invoice</h1>
-    <div class="inv">#${invNum}</div>
-  </div>
-</div>
-<div class="content">
-${customMsg ? `<div style="background:#fffbf5;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;margin-bottom:24px;font-size:13px;color:#92400e">${customMsg}</div>` : ''}
-<div class="meta">
-  <div class="meta-col">
-    <div class="eyebrow">From</div>
-    <div class="title">Huna Creatives</div>
-    <div class="line">billing@hunacreatives.com
-www.hunacreatives.com</div>
-  </div>
-  <div class="meta-col right">
-    <div class="eyebrow">Bill To</div>
-    <div class="title">${billToName}</div>
-    <div class="line">${project.contact_email ? `${project.contact_email}${billToAddress ? '\n' : ''}` : ''}${billToAddress}</div>
-  </div>
-</div>
-<div class="project-box">
-  <div class="name">${project.project_name}</div>
-  ${project.service ? `<div class="sub">${project.service}</div>` : ''}
-  ${project.start_date ? `<div class="sub">Started ${new Date(project.start_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>` : ''}
-</div>
-<table>
-  <thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
-  <tbody>${lineItems.map(i => `<tr><td>${i.description}</td><td class="amount">${fmt2(parseFloat(i.amount) || 0)}</td></tr>`).join('')}</tbody>
-</table>
-${showPayments && project.hub_project_payments.length > 0 ? `
-<table>
-  <thead><tr><th>Date</th><th>Note</th><th style="text-align:right">Payment</th></tr></thead>
-  <tbody>${paymentRows}</tbody>
-</table>` : ''}
-<div class="summary-wrap">
-  <div class="summary-card">
-    <div class="summary-title">Invoice Summary</div>
-    <table class="totals">
-      <tr><td>Subtotal</td><td>${fmt2(lineItemsTotal)}</td></tr>
-      ${showPayments ? `<tr><td>Total paid</td><td style="color:#059669">− ${fmt2(d.totalPaid)}</td></tr>` : ''}
-      <tr class="divider"><td colspan="2"><div class="divider-line"></div></td></tr>
-      <tr class="balance"><td>Balance due</td><td>${balanceDue <= 0 ? 'Paid in full' : fmt2(balanceDue)}</td></tr>
-    </table>
-  </div>
-</div>
-${balanceDue > 0 && payUrl ? `
-<div style="margin-top:14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px;text-align:center;">
-  <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Choose your payment channel online</div>
-  <div style="font-size:12px;color:#6b7280;margin-bottom:14px;">Open your secure payment page to select GCash, BDO, or GoTyme, then upload proof of payment.</div>
-  <a href="${payUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#111827;color:#ffffff;font-size:13px;font-weight:700;padding:10px 18px;border-radius:9px;text-decoration:none;">Pay Now →</a>
-</div>` : ''}
-${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;margin-top:16px">${project.notes}</p>` : ''}
-<div class="footer">This email is not being monitored. Please do not reply directly. If you have questions, contact contact@hunacreatives.com.</div>
-</div>
-</div>
-<script>window.onload=function(){setTimeout(function(){window.print()},400)}</script>
-</body></html>`;
-
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-  };
 
   const projectTypes = Array.from(new Set(projects.map(p => p.service).filter(Boolean) as string[])).sort();
 
@@ -2673,51 +2409,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
         );
       })()}
 
-      {/* Questionnaire answers modal */}
-      {wsQModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4 pb-16 sm:pb-0" onClick={() => setWsQModal(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[80vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 flex-shrink-0">
-              <div>
-                <h3 className="text-sm font-bold text-[#111827]">{wsQModal.client_name}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{wsQModal.service_type}</p>
-              </div>
-              <button onClick={() => setWsQModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer mt-0.5"><i className="ri-close-line text-lg"></i></button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-5 space-y-4">
-              {wsQModal.status === 'submitted' && wsQModal.answers ? (
-                wsQModal.questions.map(question => {
-                  const answer = wsQModal.answers![question.id];
-                  const hasAnswer = answer && (Array.isArray(answer) ? answer.length > 0 : String(answer).trim() !== '');
-                  return (
-                    <div key={question.id} className="space-y-1.5">
-                      <p className="text-xs font-medium text-gray-700">{question.label}{question.required && <span className="text-red-400 ml-0.5">*</span>}</p>
-                      {hasAnswer ? (
-                        Array.isArray(answer) ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {answer.map(a => <span key={a} className="text-xs bg-[#FF6B35]/10 text-[#FF6B35] px-2 py-0.5 rounded-full font-medium">{a}</span>)}
-                          </div>
-                        ) : question.type === 'file_upload' && (answer as string).startsWith('http') ? (
-                          <a href={answer as string} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-sm text-[#FF6B35] hover:underline bg-orange-50 rounded-lg px-3 py-2">
-                            <i className="ri-external-link-line text-xs"></i> View file →
-                          </a>
-                        ) : (
-                          <p className="text-sm text-[#111827] bg-gray-50 rounded-lg px-3 py-2">{answer}</p>
-                        )
-                      ) : (
-                        <p className="text-xs text-gray-300 italic">No answer</p>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-8">No responses yet — questionnaire is {wsQModal.status}.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {wsQModal && <QuestionnaireAnswersModal q={wsQModal} onClose={() => setWsQModal(null)} />}
 
       {!workspaceOpen && (
       <div className="flex items-stretch gap-5 min-h-screen">
@@ -3207,7 +2899,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       </button>
                       {!internalProject && <>
                         <div className="w-px h-4 bg-gray-200" />
-                        <button onClick={() => void printInvoice(activeProject)}
+                        <button onClick={() => void openInvoicePrintView(activeProject)}
                           className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors">
                           <i className="ri-printer-line text-sm"></i> Print
                         </button>
@@ -3443,7 +3135,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                     )}
                                   </div>
                                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    <button onClick={() => { setSendReceiptModal({ payment: pp, project: activeProject }); setSendReceiptEmail(activeProject.contact_email ?? ''); setSendReceiptCc(''); setSendReceiptMsg(null); }}
+                                    <button onClick={() => setSendReceiptModal({ payment: pp, project: activeProject })}
                                       className="text-gray-300 hover:text-sky-500 cursor-pointer mt-0.5" title="Send receipt to client">
                                       <i className="ri-mail-send-line text-xs"></i>
                                     </button>
@@ -3946,7 +3638,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                             <p className="text-xs font-semibold text-gray-700 leading-snug">{contractPreview.title}</p>
                             <div className="flex items-center gap-1 shrink-0">
                               <button
-                                onClick={() => previewContract(contractPreview)}
+                                onClick={() => openContractPreview(contractPreview)}
                                 className="text-[11px] text-[#D64F1E] hover:underline cursor-pointer font-medium flex items-center gap-1">
                                 <i className="ri-eye-line text-xs"></i> Preview
                               </button>
@@ -4122,277 +3814,32 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
       </div>
       )}
 
-      {/* Project form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <h2 className="font-semibold text-[#111827]">{editingProject ? 'Edit Project' : 'New Project'}</h2>
-              <div className="flex items-center gap-2">
-                {!editingProject && (
-                  <>
-                    <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors ${importing ? 'opacity-60 pointer-events-none' : ''}`}>
-                      <i className={`${importing ? 'ri-loader-4-line animate-spin' : 'ri-sparkling-2-line'} text-sm text-indigo-500`}></i>
-                      {importing ? 'Reading…' : 'Import from file'}
-                      <input type="file" className="hidden" accept=".pdf,.csv,.txt,.png,.jpg,.jpeg"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setImporting(true);
-                          try {
-                            const buffer = await file.arrayBuffer();
-                            const bytes = new Uint8Array(buffer);
-                            let binary = '';
-                            bytes.forEach(b => binary += String.fromCharCode(b));
-                            const file_base64 = btoa(binary);
-                            const { data, error } = await supabase.functions.invoke('parse-project-doc', {
-                              body: { file_base64, mime_type: file.type, file_name: file.name },
-                            });
-                            if (error || !data) throw new Error(error?.message ?? 'No data returned');
-                            setForm(f => ({
-                              ...f,
-                              project_name: data.project_name ?? f.project_name,
-                              client_name: data.client_name ?? f.client_name,
-                              project_type: data.project_type ?? f.project_type,
-                              service: data.service ?? f.service,
-                              contract_price: data.contract_price != null ? String(data.contract_price) : f.contract_price,
-                              monthly_rate: data.monthly_rate != null ? String(data.monthly_rate) : (f as any).monthly_rate,
-                              start_date: data.start_date ?? f.start_date,
-                              deadline: data.deadline ?? f.deadline,
-                              notes: data.notes ?? f.notes,
-                            } as any));
-                            if (data.tasks?.length) setImportedTasks(data.tasks);
-                          } catch (err) {
-                            setFormError(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                          } finally {
-                            setImporting(false);
-                            e.target.value = '';
-                          }
-                        }}
-                      />
-                    </label>
-                  </>
-                )}
-                <button onClick={() => { setShowForm(false); setEditingProject(null); }} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>
-              </div>
-            </div>
-            <div className="p-5 space-y-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Project Type</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { value: 'client',   label: 'One-time',   sub: 'Fixed contract billing' },
-                    { value: 'retainer', label: 'Retainer', sub: 'Monthly recurring' },
-                    { value: 'internal', label: 'Internal', sub: 'Tasks & team only' },
-                  ].map(option => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setForm({ ...form, project_type: option.value as 'client' | 'internal' | 'retainer', client_name: option.value === 'internal' && !form.client_name ? 'Internal' : form.client_name, contract_price: option.value !== 'client' ? '' : form.contract_price, monthly_rate: option.value !== 'retainer' ? '' : (form as any).monthly_rate, contact_email: option.value === 'internal' ? '' : form.contact_email } as any)}
-                      className={`rounded-xl border px-2 py-3 text-left transition-colors cursor-pointer ${form.project_type === option.value ? 'border-[#111827] bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
-                    >
-                      <p className="text-sm font-medium text-gray-800">{option.label}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{option.sub}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">{form.project_type === 'internal' ? 'Owner / Label' : 'Client Name'}{form.project_type !== 'internal' ? ' *' : ''}</label>
-                  <input value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} placeholder={form.project_type === 'internal' ? 'e.g. Internal, Marketing, Ops' : 'e.g. Blue Collar Nutrition'}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Project Name *</label>
-                  <input value={form.project_name} onChange={e => setForm({ ...form, project_name: e.target.value })} placeholder="e.g. bluecollarmealplan.com"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Service</label>
-                  <select value={SERVICES.includes(form.service) ? form.service : 'Other'}
-                    onChange={e => setForm({ ...form, service: e.target.value === 'Other' ? '' : e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  {!SERVICES.slice(0, -1).includes(form.service) && (
-                    <input value={form.service} onChange={e => setForm({ ...form, service: e.target.value })}
-                      placeholder="Describe the service..."
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] mt-1.5" />
-                  )}
-                </div>
-                {form.project_type === 'client' && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-700">Contract Price (PHP) *</label>
-                    <input type="number" value={form.contract_price} onChange={e => setForm({ ...form, contract_price: e.target.value })} placeholder="0.00"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                  </div>
-                )}
-                {form.project_type === 'retainer' && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-700">Monthly Rate *</label>
-                    <div className="flex gap-0">
-                      <select value={(form as any).monthly_rate_currency} onChange={e => setForm({ ...form, monthly_rate_currency: e.target.value } as any)}
-                        className="px-2.5 py-2 text-sm border border-gray-200 rounded-l-lg focus:outline-none bg-gray-50 border-r-0 text-gray-600">
-                        <option value="PHP">₱ PHP</option>
-                        <option value="USD">$ USD</option>
-                      </select>
-                      <input type="number" value={(form as any).monthly_rate} onChange={e => setForm({ ...form, monthly_rate: e.target.value } as any)} placeholder="0.00"
-                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                    </div>
-                    {(form as any).monthly_rate_currency === 'USD' && (form as any).monthly_rate && (
-                      <p className="text-xs text-gray-400 mt-1">≈ ₱{((parseFloat((form as any).monthly_rate) || 0) * usdRate).toLocaleString()}/mo at current rate (₱{usdRate}/USD)</p>
-                    )}
-                    <label className="text-xs font-medium text-gray-700 block mt-2">Deliverables per month <span className="text-gray-400 font-normal">(optional)</span></label>
-                    <input type="number" min="1" value={(form as any).monthly_deliverables} onChange={e => setForm({ ...form, monthly_deliverables: e.target.value } as any)} placeholder="e.g. 8"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                    <p className="text-[10px] text-gray-400">Tracks tasks completed each month against this target.</p>
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Status</label>
-                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    <option value="ongoing">Ongoing</option>
-                    <option value="completed">Completed</option>
-                    <option value="paused">Paused</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Start Date</label>
-                  <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
-                </div>
-                {form.project_type !== 'retainer' && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-700">Deadline</label>
-                    <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Notes</label>
-                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Any notes..."
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none resize-none" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700 flex items-center gap-1.5">
-                  <svg viewBox="0 0 87.3 78" className="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>
-                  Google Drive URL <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input type="url" value={(form as any).drive_url ?? ''} onChange={e => setForm({ ...form, drive_url: e.target.value } as any)} placeholder="https://drive.google.com/drive/u/0/folders/..."
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
-              </div>
-              {(form.project_type === 'client' || form.project_type === 'retainer') && (
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Client Contact Email <span className="text-gray-400 font-normal">(for invoices)</span></label>
-                  <input type="email" value={form.contact_email} onChange={e => setForm({ ...form, contact_email: e.target.value })} placeholder="client@email.com"
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-                </div>
-              )}
-              {importedTasks.length > 0 && (
-                <div className="mt-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                  <p className="text-xs font-semibold text-indigo-700 mb-1.5"><i className="ri-sparkling-2-line mr-1"></i>{importedTasks.length} task{importedTasks.length !== 1 ? 's' : ''} will be added</p>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {importedTasks.map((t, i) => (
-                      <div key={i} className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-indigo-800 truncate">{t.title}</span>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${t.priority === 'high' ? 'bg-rose-100 text-rose-600' : t.priority === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-500'}`}>{t.priority}</span>
-                          <button onClick={() => setImportedTasks(prev => prev.filter((_, j) => j !== i))} className="text-indigo-400 hover:text-indigo-600 cursor-pointer"><i className="ri-close-line text-xs"></i></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {formError && <p className="text-xs text-red-500">{formError}</p>}
-            </div>
-            <div className="flex gap-2 p-5 pt-0">
-              <button onClick={() => { setShowForm(false); setEditingProject(null); setImportedTasks([]); }} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
-              <button onClick={saveProject} disabled={formSaving}
-                className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-40 cursor-pointer">
-                {formSaving ? 'Saving...' : editingProject ? 'Save Changes' : 'Create Project'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ProjectFormModal
+          isEditing={!!editingProject}
+          form={form}
+          setForm={setForm}
+          formError={formError}
+          setFormError={setFormError}
+          formSaving={formSaving}
+          importedTasks={importedTasks}
+          setImportedTasks={setImportedTasks}
+          usdRate={usdRate}
+          onSave={saveProject}
+          onClose={() => { setShowForm(false); setEditingProject(null); }}
+          onCancel={() => { setShowForm(false); setEditingProject(null); setImportedTasks([]); }}
+        />
       )}
 
-      {/* Send receipt modal */}
       {sendReceiptModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setSendReceiptModal(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-[#111827]">Send Payment Receipt</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{fmt(sendReceiptModal.payment.amount)} · {fmtDate(sendReceiptModal.payment.paid_at)}</p>
-              </div>
-              <button onClick={() => setSendReceiptModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600">Send to <span className="text-red-400">*</span></label>
-                <input type="email" value={sendReceiptEmail} onChange={e => setSendReceiptEmail(e.target.value)}
-                  placeholder="client@email.com" autoFocus
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600">CC <span className="text-gray-400">(optional)</span></label>
-                <input type="email" value={sendReceiptCc} onChange={e => setSendReceiptCc(e.target.value)}
-                  placeholder="e.g. team@hunacreatives.com"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
-              </div>
-
-              {/* Payment summary */}
-              <div className="bg-gray-50 rounded-xl p-3 space-y-1.5 text-xs text-gray-500">
-                <div className="flex justify-between"><span>Payment</span><span className="font-semibold text-emerald-600">{fmt(sendReceiptModal.payment.amount)}</span></div>
-                <div className="flex justify-between"><span>Date</span><span className="font-medium text-gray-700">{fmtDate(sendReceiptModal.payment.paid_at)}</span></div>
-                {sendReceiptModal.payment.notes && <div className="flex justify-between"><span>Note</span><span className="text-gray-600">{sendReceiptModal.payment.notes}</span></div>}
-                <div className="flex justify-between pt-1 border-t border-gray-200"><span>Remaining balance</span><span className={`font-bold ${sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0) <= 0 ? 'text-emerald-600' : 'text-[#FF6B35]'}`}>{sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0) <= 0 ? 'Paid in full' : fmt(sendReceiptModal.project.contract_price - sendReceiptModal.project.hub_project_payments.reduce((s,p)=>s+p.amount,0))}</span></div>
-              </div>
-
-              {sendReceiptModal.payment.receipt_url && (
-                <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
-                  <img src={getDriveThumbnailUrl(sendReceiptModal.payment.receipt_url)} alt="receipt" className="h-10 w-14 object-cover rounded border border-gray-200 flex-shrink-0" />
-                  <p className="text-xs text-gray-500">Receipt image will be included in the email.</p>
-                </div>
-              )}
-
-              {sendReceiptMsg && (
-                <p className={`text-xs font-medium ${sendReceiptMsg.ok ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {sendReceiptMsg.ok ? <><i className="ri-check-line mr-1"></i>{sendReceiptMsg.text}</> : sendReceiptMsg.text}
-                </p>
-              )}
-            </div>
-            <div className="px-5 pb-5 flex gap-2">
-              <button onClick={() => setSendReceiptModal(null)} className="flex-1 py-2.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
-              <button onClick={sendReceipt} disabled={sendReceiptSending || !sendReceiptEmail.trim()}
-                className="flex-1 py-2.5 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a27] disabled:opacity-40 cursor-pointer flex items-center justify-center gap-1.5">
-                {sendReceiptSending ? <><i className="ri-loader-4-line animate-spin"></i> Sending…</> : <><i className="ri-mail-send-line"></i> Send Receipt</>}
-              </button>
-            </div>
-          </div>
-        </div>
+        <SendReceiptModal
+          payment={sendReceiptModal.payment}
+          project={sendReceiptModal.project}
+          onClose={() => setSendReceiptModal(null)}
+        />
       )}
 
-      {/* Receipt lightbox */}
-      {lightboxUrl && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightboxUrl(null)}>
-          <div className="relative max-w-3xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
-            <img src={getDriveThumbnailUrl(lightboxUrl, 1600)} alt="Receipt" className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl" />
-            <button onClick={() => setLightboxUrl(null)} className="absolute top-2 right-2 w-8 h-8 bg-black/60 text-white rounded-full flex items-center justify-center hover:bg-black cursor-pointer">
-              <i className="ri-close-line text-sm"></i>
-            </button>
-            <a href={lightboxUrl} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 text-white text-xs rounded-lg hover:bg-black">
-              <i className="ri-external-link-line text-xs"></i> Open full size
-            </a>
-          </div>
-        </div>
-      )}
+      {lightboxUrl && <ReceiptLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
 
       <TaskDetailPanel
         task={detailTask}
