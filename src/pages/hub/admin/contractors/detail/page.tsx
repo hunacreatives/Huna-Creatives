@@ -187,12 +187,16 @@ export default function ContractorDetailPage() {
   const saveSchedule = async () => {
     if (!id) return;
     setScheduleSaving(true);
-    await supabase.from('hub_users').update({
+    const { error } = await supabase.from('hub_users').update({
       shift_start: scheduleForm.shift_start || null,
       shift_end: scheduleForm.shift_end || null,
       work_days: scheduleForm.work_days,
     }).eq('id', id);
     setScheduleSaving(false);
+    if (error) {
+      window.alert(`Failed to save schedule: ${error.message}`);
+      return;
+    }
     setScheduleEditing(false);
     await fetch();
   };
@@ -241,12 +245,18 @@ export default function ContractorDetailPage() {
 
     if (error) { setRateError(error.message); setRateSaving(false); return; }
 
-    // Update hub_users with whichever rates were filled
-    await supabase.from('hub_users').update({
+    // Update hub_users with whichever rates were filled. Rate history is the
+    // payroll source of truth, but hub_users must not silently drift from it.
+    const { error: userErr } = await supabase.from('hub_users').update({
       payment_type: newPaymentType,
       ...(monthly !== null ? { monthly_rate: monthly } : {}),
       ...(hourly  !== null ? { hourly_rate:  hourly  } : {}),
     }).eq('id', id);
+    if (userErr) {
+      setRateError(`Rate history saved, but updating the profile rate failed: ${userErr.message}. Retry to re-sync.`);
+      setRateSaving(false);
+      return;
+    }
 
     const rateDesc = monthly ? `₱${monthly.toLocaleString()}/mo` : `₱${hourly?.toLocaleString()}/hr`;
     logAudit({ actor_id: actor?.id, actor_name: actor?.full_name, action: 'update', entity_type: 'contractor', entity_id: id, description: `Updated rate for ${contractor.full_name} to ${rateDesc} (effective ${rateForm.effective_date})` });
@@ -260,7 +270,12 @@ export default function ContractorDetailPage() {
     if (!id || !contractor) return;
     // Deleting the most recent entry → revert hub_users to the one before it
     const isLatest = rateHistory[0]?.id === entryId;
-    await supabase.from('hub_rate_history').delete().eq('id', entryId);
+    const { error: delErr } = await supabase.from('hub_rate_history').delete().eq('id', entryId);
+    if (delErr) {
+      window.alert(`Failed to delete rate entry: ${delErr.message}`);
+      setConfirmDeleteRateId(null);
+      return;
+    }
     if (isLatest) {
       const remaining = rateHistory.filter(r => r.id !== entryId);
       const prev = remaining[0] || null;

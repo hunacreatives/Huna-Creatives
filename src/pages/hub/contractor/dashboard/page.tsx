@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
-import { getPeriods, slugify } from '@/lib/formatUtils';
+import { getPeriods, slugify, localToday } from '@/lib/formatUtils';
 import { getSetting } from '@/lib/settings';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
@@ -397,8 +397,7 @@ export default function ContractorDashboard() {
             const pts = (tasks ?? []).filter((t: any) => t.project_id === p.id);
             return { id: p.id, project_name: p.project_name, client_name: p.client_name, service: p.service, status: p.status, deadline: p.deadline, project_type: p.project_type ?? null, slug: p.slug ?? null, tasksDone: pts.filter((t: any) => t.status === 'done').length, tasksTotal: pts.length };
           }));
-        })
-        .catch(() => setActiveProjects([]));
+        }, () => setActiveProjects([]));
 
       // Fetch active clients
       supabase
@@ -413,8 +412,7 @@ export default function ContractorDashboard() {
             })
             .filter(c => c.name && c.status === 'active');
           setActiveClients(clients);
-        })
-        .catch(() => setActiveClients([]));
+        }, () => setActiveClients([]));
 
       const [attResult, annResult, reqResult, toResult, slackResult, rateRes, payoutRes] = await Promise.all([
         supabase
@@ -443,7 +441,7 @@ export default function ContractorDashboard() {
         ((attResult.data ?? []) as any[]).map((d: any) => ({ ...d, user_id: user.id })),
         (slackResult.data as any)?.attendance || [],
         [user.id],
-        today,
+        localToday(),
       ).map(({ user_id: _userId, ...rest }) => rest);
       const totalHours = days.reduce((s: number, r: any) => s + (r.hours_capped || 0), 0);
       const totalOT    = days.reduce((s: number, r: any) => s + (r.overtime_hours || 0), 0);

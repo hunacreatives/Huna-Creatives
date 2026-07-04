@@ -120,7 +120,11 @@ export default function AnnouncementsPage() {
   };
 
   const deleteAnnouncement = async (id: number) => {
-    await supabase.from('hub_announcements').delete().eq('id', id);
+    const { error } = await supabase.from('hub_announcements').delete().eq('id', id);
+    if (error) {
+      window.alert(`Failed to delete announcement: ${error.message}`);
+      return;
+    }
     setDeleteConfirm(null);
     fetchAnnouncements();
   };

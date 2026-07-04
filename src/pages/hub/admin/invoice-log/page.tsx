@@ -97,6 +97,22 @@ export default function InvoiceLogPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<number | null>(null);
+  // Payments per project, fetched lazily when an invoice row is expanded.
+  // (The log row itself never stored payments — the old inv.payments was dead.)
+  const [projectPayments, setProjectPayments] = useState<Record<number, { amount: number; paid_at: string; notes: string | null }[]>>({});
+  useEffect(() => {
+    if (expanded == null) return;
+    const inv = invoices.find(i => i.id === expanded);
+    const pid = inv?.project_id;
+    if (!pid || projectPayments[pid]) return;
+    supabase
+      .from('hub_project_payments')
+      .select('amount, paid_at, notes')
+      .eq('project_id', pid)
+      .order('paid_at', { ascending: true })
+      .then(({ data }) => setProjectPayments(prev => ({ ...prev, [pid]: (data ?? []) as { amount: number; paid_at: string; notes: string | null }[] })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, invoices]);
   const [showPaid, setShowPaid] = useState(false);
   const [verifying, setVerifying] = useState<Set<number>>(new Set());
   const [resending, setResending] = useState<Set<number>>(new Set());
@@ -738,10 +754,10 @@ export default function InvoiceLogPage() {
                           {expanded === inv.id && (
                             <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-2 text-sm text-gray-600">
                               {inv.settled_at && <p className="text-xs text-gray-400">Settled on {fmtDateTime(inv.settled_at)}</p>}
-                              {inv.payments && inv.payments.length > 0 && (
+                              {inv.project_id && projectPayments[inv.project_id] && projectPayments[inv.project_id].length > 0 && (
                                 <div>
                                   <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Payments</p>
-                                  {inv.payments.map((p, i) => (
+                                  {projectPayments[inv.project_id].map((p, i) => (
                                     <div key={i} className="flex justify-between text-xs py-1 border-b border-gray-100 last:border-0">
                                       <span>{fmtDate(p.paid_at)}{p.notes ? ` · ${p.notes}` : ''}</span>
                                       <span className="font-semibold">{fmt(p.amount)}</span>

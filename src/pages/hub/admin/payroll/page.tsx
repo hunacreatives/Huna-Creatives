@@ -661,13 +661,16 @@ export default function AdminPayrollPage() {
     } else {
       await supabase.from('hub_payouts').delete().eq('id', p.id);
     }
-    // Clean up batch if no more active payouts remain in it
+    // Clean up batch if no payouts remain in it. Counted AFTER the mutation
+    // above: a deleted payout is gone from the count, while a reverted
+    // paid payout keeps its batch_id and correctly keeps the batch alive
+    // (the old .neq(id) exclusion deleted batches still referenced by
+    // reverted payouts, leaving dangling batch_ids).
     if (batch) {
       const { count } = await supabase
         .from('hub_payouts')
         .select('id', { count: 'exact', head: true })
-        .eq('batch_id', batch.id)
-        .neq('id', p.id);
+        .eq('batch_id', batch.id);
       if ((count ?? 0) === 0) {
         await supabase.from('hub_payroll_batches').delete().eq('id', batch.id);
       }

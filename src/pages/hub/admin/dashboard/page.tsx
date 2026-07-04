@@ -9,7 +9,7 @@ import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { HubUser, HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { getSetting } from '@/lib/settings';
-import { getPeriods } from '@/lib/formatUtils';
+import { getPeriods, localToday } from '@/lib/formatUtils';
 import { DEMO_ATTENDANCE, DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_INVOICES, DEMO_DASHBOARD } from '@/lib/demoData';
 import { mergeLiveAttendanceIntoDailyHours, fetchPayrollTotal } from '@/lib/payrollUtils';
 
@@ -235,7 +235,7 @@ export default function AdminDashboardPage() {
         ((hoursResult.data as any[]) || []).map((h: any) => ({ ...h })),
         liveAttendance,
         eligibleContractors.map((c: any) => c.id),
-        today,
+        localToday(),
       );
 
       let hrs = 0;

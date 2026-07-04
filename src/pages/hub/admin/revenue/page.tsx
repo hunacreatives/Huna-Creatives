@@ -75,7 +75,7 @@ export default function RevenuePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [usdRate, setUsdRate] = useState(56);
-  const [statsPeriod, setStatsPeriod] = useState<'month' | 'year' | 'all'>('all');
+  const [statsPeriod, setStatsPeriod] = useState<'month' | 'year' | 'all' | 'custom'>('all');
   const [statsDateFrom, setStatsDateFrom] = useState('');
   const [statsDateTo, setStatsDateTo] = useState('');
 
@@ -197,11 +197,11 @@ export default function RevenuePage() {
               </button>
             ))}
           </div>
-          <button onClick={() => setStatsPeriod('custom' as any)}
+          <button onClick={() => setStatsPeriod('custom')}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium border cursor-pointer transition-all ${statsPeriod === 'custom' ? 'bg-[#111827] text-white border-[#111827]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
             Custom
           </button>
-          {(statsPeriod as string) === 'custom' && (
+          {statsPeriod === 'custom' && (
             <div className="flex items-center gap-1.5">
               <input type="date" value={statsDateFrom} onChange={e => setStatsDateFrom(e.target.value)}
                 className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />

@@ -118,10 +118,13 @@ export default function AdminPerformancePage() {
       updated_at: new Date().toISOString(),
     };
 
-    if (editingId) {
-      await supabase.from('hub_performance_reviews').update(payload).eq('id', editingId);
-    } else {
-      await supabase.from('hub_performance_reviews').insert(payload);
+    const { error } = editingId
+      ? await supabase.from('hub_performance_reviews').update(payload).eq('id', editingId)
+      : await supabase.from('hub_performance_reviews').insert(payload);
+    if (error) {
+      setSaving(false);
+      window.alert(`Failed to save review: ${error.message}`);
+      return;
     }
 
     const name = contractors.find(c => c.id === form.contractor_id)?.full_name || form.contractor_id;
@@ -155,7 +158,11 @@ export default function AdminPerformancePage() {
   };
 
   const handleDelete = async (id: number) => {
-    await supabase.from('hub_performance_reviews').delete().eq('id', id);
+    const { error } = await supabase.from('hub_performance_reviews').delete().eq('id', id);
+    if (error) {
+      window.alert(`Failed to delete review: ${error.message}`);
+      return;
+    }
     setSelectedReview(null);
     fetchAll();
   };

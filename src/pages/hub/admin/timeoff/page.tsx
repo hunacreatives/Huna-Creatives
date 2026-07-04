@@ -128,12 +128,17 @@ export default function AdminTimeOffPage() {
   const forwardToOwner = async () => {
     if (!selected) return;
     setUpdating(true);
-    await supabase.from('hub_time_off').update({
+    const { error } = await supabase.from('hub_time_off').update({
       status: 'forwarded',
       hr_notes: hrNotes,
       admin_notes: hrNotes,
       forwarded_to_owner: true,
     }).eq('id', selected.id);
+    if (error) {
+      setUpdating(false);
+      window.alert(`Failed to forward request: ${error.message}`);
+      return;
+    }
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'time_off', entity_id: String(selected.id), description: `Forwarded ${selected.type} request from ${(selected as any).hub_users?.full_name} to owner` });
     setUpdating(false);
     setSelected(null);
@@ -144,11 +149,16 @@ export default function AdminTimeOffPage() {
   const ownerDecide = async (status: 'approved' | 'rejected') => {
     if (!selected) return;
     setUpdating(true);
-    await supabase.from('hub_time_off').update({
+    const { error } = await supabase.from('hub_time_off').update({
       status,
       admin_notes: hrNotes,
       hr_notes: hrNotes,
     }).eq('id', selected.id);
+    if (error) {
+      setUpdating(false);
+      window.alert(`Failed to ${status === 'approved' ? 'approve' : 'reject'} request: ${error.message}`);
+      return;
+    }
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: status === 'approved' ? 'approve' : 'reject', entity_type: 'time_off', entity_id: String(selected.id), description: `${status === 'approved' ? 'Approved' : 'Rejected'} ${selected.type} request from ${(selected as any).hub_users?.full_name} (${selected.start_date} – ${selected.end_date})` });
     if (selected?.contractor_id) {
       supabase.functions.invoke('notify-timeoff-decision', {
@@ -186,7 +196,12 @@ export default function AdminTimeOffPage() {
   const bulkDecide = async (status: 'approved' | 'rejected') => {
     if (selectedIds.size === 0) return;
     setBulkUpdating(true);
-    await supabase.from('hub_time_off').update({ status, admin_notes: null }).in('id', Array.from(selectedIds));
+    const { error } = await supabase.from('hub_time_off').update({ status, admin_notes: null }).in('id', Array.from(selectedIds));
+    if (error) {
+      setBulkUpdating(false);
+      window.alert(`Bulk ${status === 'approved' ? 'approval' : 'rejection'} failed: ${error.message}`);
+      return;
+    }
     logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: status === 'approved' ? 'approve' : 'reject', entity_type: 'time_off', description: `Bulk ${status} ${selectedIds.size} leave request(s)` });
     const selectedRequests = requests.filter(r => r.id != null && selectedIds.has(r.id));
     for (const r of selectedRequests) {

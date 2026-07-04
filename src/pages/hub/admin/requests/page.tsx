@@ -93,7 +93,11 @@ export default function AdminRequestsPage() {
 
   const updateReqStatus = async (id: number, status: string) => {
     setReqUpdating(true);
-    await supabase.from('hub_requests').update({ status, admin_notes: reqNotes, updated_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await supabase.from('hub_requests').update({ status, admin_notes: reqNotes, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) {
+      window.alert(`Failed to update request: ${error.message}`);
+      return;
+    }
     setReqUpdating(false);
     setSelectedReq(null);
     fetchReqs();

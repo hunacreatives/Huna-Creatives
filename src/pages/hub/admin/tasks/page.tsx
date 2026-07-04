@@ -49,7 +49,7 @@ export default function AdminTasksPage() {
         .from('hub_project_tasks')
         .select('id, project_id, title, status, priority, assigned_to, due_date, start_date, hub_users(id, full_name, avatar_url), hub_projects(id, project_name, client_name, project_type, service)')
         .order('due_date', { ascending: true, nullsFirst: false });
-      setTasks((data as Task[]) ?? []);
+      setTasks((data as unknown as Task[]) ?? []);
       setLoading(false);
     })();
   }, []);

@@ -585,11 +585,16 @@ export default function ContractorPayoutsPage() {
   const submitDispute = async () => {
     if (!hubUser || !existingPayout || !disputeReason.trim()) return;
     setDisputeSaving(true);
-    await supabase.from('hub_payslip_disputes').insert({
+    const { error } = await supabase.from('hub_payslip_disputes').insert({
       payout_id: existingPayout.id,
       contractor_id: hubUser.id,
       reason: disputeReason.trim(),
     });
+    if (error) {
+      setDisputeSaving(false);
+      window.alert(`Failed to submit dispute: ${error.message}`);
+      return;
+    }
     supabase.functions.invoke('notify-payslip-submitted', { body: { payout_id: existingPayout.id, type: 'dispute' } }).catch(console.error);
     setDisputeSaving(false);
     setDisputeModal(false);

@@ -185,12 +185,14 @@ export default function CredentialsVaultPage() {
       notes: form.notes.trim() || null,
       updated_at: new Date().toISOString(),
     };
-    if (editingCred) {
-      await supabase.from('hub_credentials').update(payload).eq('id', editingCred.id);
-    } else {
-      await supabase.from('hub_credentials').insert({ ...payload, created_by: hubUser?.id });
-    }
+    const { error } = editingCred
+      ? await supabase.from('hub_credentials').update(payload).eq('id', editingCred.id)
+      : await supabase.from('hub_credentials').insert({ ...payload, created_by: hubUser?.id });
     setSaving(false);
+    if (error) {
+      showToast(`Failed to save credential: ${error.message}`);
+      return;
+    }
     setShowAdd(false);
     showToast(editingCred ? 'Credential updated.' : 'Credential added.');
     fetchData();
