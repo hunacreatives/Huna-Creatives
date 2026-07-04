@@ -585,7 +585,7 @@ export default function TaskDetailPanel({
       if (isNew) {
         const { data, error } = await supabase
           .from('hub_project_tasks')
-          .insert({ ...payload, project_id: projectId })
+          .insert({ ...payload, project_id: projectId, ...(payload.status === 'done' ? { completed_at: new Date().toISOString() } : {}) })
           .select('*')
           .single();
         if (error) throw error;
@@ -625,9 +625,13 @@ export default function TaskDetailPanel({
         // matches the version we loaded — otherwise someone changed it while
         // this panel was open and a blind write would destroy their edit.
         const fetchedUpdatedAt = fetched && fetched.id === task!.id ? (fetched as any).updated_at ?? null : null;
+        // completed_at drives the monthly-deliverables count
+        const completedPatch = prev.status !== status
+          ? { completed_at: status === 'done' ? new Date().toISOString() : null }
+          : {};
         let updateQuery = supabase
           .from('hub_project_tasks')
-          .update({ ...payload, updated_at: new Date().toISOString() })
+          .update({ ...payload, ...completedPatch, updated_at: new Date().toISOString() })
           .eq('id', prev.id);
         if (fetchedUpdatedAt) updateQuery = updateQuery.eq('updated_at', fetchedUpdatedAt);
         const { data: updatedRows, error } = await updateQuery.select('*');

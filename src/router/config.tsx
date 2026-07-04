@@ -61,6 +61,7 @@ const PublicProposalPage = lazy(() => import('../pages/p/page'));
 const ProposalCapuCoffee = lazy(() => import('../pages/p/capu-coffee/page'));
 const ProposalCapuCoffeeApprove = lazy(() => import('../pages/p/capu-coffee/approve/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
+const ClientStatusPage = lazy(() => import('../pages/status/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
 const HubDemoPage = lazy(() => import('../pages/hub/demo/page'));
@@ -183,6 +184,7 @@ const routes: RouteObject[] = [
   { path: '/p/:slug', element: <PublicProposalPage /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },
+  { path: '/status/:token', element: <ClientStatusPage /> },
   { path: '/c/:slug', element: <ClientContractPage /> },
   { path: '/c/:slug/sign', element: <ClientContractSignPage /> },
   {

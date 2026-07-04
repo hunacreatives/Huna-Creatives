@@ -69,6 +69,8 @@ interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
   project_type: 'client' | 'internal' | 'retainer';
   contract_price: number; monthly_rate: number | null; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
+  monthly_deliverables?: number | null;
+  client_status_token?: string | null;
   hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
   hub_payment_reminders: PaymentReminder[];
@@ -101,6 +103,7 @@ interface ProjectTask {
   archived?: boolean | null;
   archived_at?: string | null;
   sort_order?: number | null;
+  completed_at?: string | null;
 }
 
 interface ProjectActivity {
@@ -177,6 +180,7 @@ export default function AdminProjectsPage() {
   useEffect(() => { getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v))); }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [deliveredThisMonth, setDeliveredThisMonth] = useState<Record<number, number>>({});
   const [myTasks, setMyTasks] = useState<{ id: number; title: string; status: string; priority: string; due_date: string | null; project_id: number; project_name: string; client_name: string }[]>([]);
   const [myTaskCompleting, setMyTaskCompleting] = useState<number | null>(null);
   const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; contract_value: number | null; contract_currency: string | null; assignments: { id: number; contractor_id: string; role: string | null; hub_users: { id: string; full_name: string; avatar_url: string | null; department: string | null } | null }[] }[]>([]);
@@ -198,10 +202,11 @@ export default function AdminProjectsPage() {
     return w ? parseInt(w) : null;
   });
   const [linkCopied, setLinkCopied] = useState(false);
+  const [clientLinkCopied, setClientLinkCopied] = useState(false);
 
   // Project form
   const SERVICES = ['Website Design', 'Website Maintenance', 'E-vite / Event Website', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Marketing', 'Other'];
-  const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', monthly_rate_currency: 'PHP' as 'PHP' | 'USD', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
+  const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', monthly_rate_currency: 'PHP' as 'PHP' | 'USD', monthly_deliverables: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -711,7 +716,7 @@ export default function AdminProjectsPage() {
       const { blocked_reason: _drop, ...rest } = currentMeta as any;
       metaPatch = { meta: Object.keys(rest).length ? rest : null };
     }
-    await supabase.from('hub_project_tasks').update({ status: newStatus, updated_at: new Date().toISOString(), ...metaPatch }).eq('id', task.id);
+    await supabase.from('hub_project_tasks').update({ status: newStatus, completed_at: newStatus === 'done' ? new Date().toISOString() : null, updated_at: new Date().toISOString(), ...metaPatch }).eq('id', task.id);
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus, ...(metaPatch as any) } : t));
     const statusLabel = newStatus.replace('_', ' ');
     await logActivity(task.project_id, `${hubUser?.full_name ?? 'Admin'} moved "${task.title}" to ${statusLabel}`);
@@ -810,6 +815,26 @@ export default function AdminProjectsPage() {
     ]);
     setProjects((pRes.data as Project[]) ?? []);
 
+    // Monthly deliverables: count tasks completed this month per quota'd retainer
+    const quotaProjectIds = ((pRes.data as Project[]) ?? [])
+      .filter(p => p.project_type === 'retainer' && (p.monthly_deliverables ?? 0) > 0)
+      .map(p => p.id);
+    if (quotaProjectIds.length > 0) {
+      const monthStart = new Date();
+      monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+      const { data: doneRows } = await supabase
+        .from('hub_project_tasks')
+        .select('project_id')
+        .eq('status', 'done')
+        .gte('completed_at', monthStart.toISOString())
+        .in('project_id', quotaProjectIds);
+      const counts: Record<number, number> = {};
+      for (const r of (doneRows ?? []) as { project_id: number }[]) counts[r.project_id] = (counts[r.project_id] ?? 0) + 1;
+      setDeliveredThisMonth(counts);
+    } else {
+      setDeliveredThisMonth({});
+    }
+
     if (hubUser?.id) {
       const uid = hubUser.id;
       const { data: mtData } = await supabase
@@ -884,6 +909,7 @@ export default function AdminProjectsPage() {
       contract_price: isInternal || isRetainer ? 0 : parseFloat(form.contract_price),
       monthly_rate: isRetainer ? parseFloat((form as any).monthly_rate) : null,
       monthly_rate_currency: isRetainer ? (form as any).monthly_rate_currency : 'PHP',
+      monthly_deliverables: isRetainer && (form as any).monthly_deliverables ? parseInt((form as any).monthly_deliverables, 10) : null,
       status: form.status,
       start_date: form.start_date || null,
       deadline: isRetainer ? null : (form.deadline || null),
@@ -994,6 +1020,22 @@ export default function AdminProjectsPage() {
 
 
   const [openingWorkspace, setOpeningWorkspace] = useState(false);
+
+  // Client status page: copy the shareable link, generating the token on first use
+  const shareClientStatus = async () => {
+    if (!activeProject) return;
+    let token = activeProject.client_status_token ?? null;
+    if (!token) {
+      token = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '').slice(0, 48);
+      const { error } = await supabase.from('hub_projects').update({ client_status_token: token }).eq('id', activeProject.id);
+      if (error) { window.alert(`Could not create client link: ${error.message}`); return; }
+      setProjects(prev => prev.map(pp => pp.id === activeProject.id ? { ...pp, client_status_token: token } : pp));
+      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'project', entity_id: String(activeProject.id), description: `Created client status link for "${activeProject.project_name}"` });
+    }
+    try { await navigator.clipboard.writeText(`https://hunacreatives.com/status/${token}`); } catch { /* clipboard blocked */ }
+    setClientLinkCopied(true);
+    setTimeout(() => setClientLinkCopied(false), 2000);
+  };
 
   const openClientWorkspace = async (client: typeof intlClients[0]) => {
     setOpeningWorkspace(true);
@@ -1758,6 +1800,15 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <i className={`text-base ${linkCopied ? 'ri-check-line' : 'ri-link'}`}></i>
                   {linkCopied ? 'Copied!' : 'Copy link'}
                 </button>
+                {!isInternalProject(p) && (
+                  <button
+                    onClick={() => void shareClientStatus()}
+                    title={clientLinkCopied ? 'Copied!' : 'Copy the client-facing status page link'}
+                    className={`flex items-center gap-1.5 h-8 px-2.5 rounded-xl border cursor-pointer transition-all shadow-sm flex-shrink-0 text-xs font-medium ${clientLinkCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-gray-200 text-gray-500 hover:text-[#FF6B35] hover:border-orange-200'}`}>
+                    <i className={`text-base ${clientLinkCopied ? 'ri-check-line' : 'ri-global-line'}`}></i>
+                    {clientLinkCopied ? 'Copied!' : 'Client link'}
+                  </button>
+                )}
               </div>
 
               {/* Info card */}
@@ -1789,6 +1840,26 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           <span className="text-[11px] text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
                         </div>
                       )}
+
+                      {isRetainerProject(p) && ((p as any).monthly_deliverables ?? 0) > 0 && (() => {
+                        const quota = (p as any).monthly_deliverables as number;
+                        const now = new Date();
+                        const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                        const delivered = wsActiveTasks.filter(t => t.status === 'done' && t.completed_at && t.completed_at &&
+                          `${new Date(t.completed_at).getFullYear()}-${String(new Date(t.completed_at).getMonth() + 1).padStart(2, '0')}` === ym).length;
+                        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                        const dLeft = lastDay - now.getDate();
+                        const behind = delivered < quota && dLeft <= 7;
+                        const cls = delivered >= quota
+                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                          : behind ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-gray-600 bg-gray-50 border-gray-200';
+                        return (
+                          <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium ${cls}`}>
+                            <i className="ri-stack-line text-[10px]"></i>
+                            {now.toLocaleDateString('en-US', { month: 'short' })}: {delivered}/{quota} delivered · {dLeft}d left
+                          </span>
+                        );
+                      })()}
 
                       {daysLeft !== null && (
                         isDeadlineOver ? (
@@ -2806,7 +2877,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                           const scfg = STATUS_LABEL[t.status] ?? STATUS_LABEL.todo;
                           return (
                             <div key={t.id} className={`flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50/60 ${over ? 'bg-rose-50/30' : ''}`}>
-                              <button onClick={async () => { const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n, updated_at: new Date().toISOString() }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); logStatusChangeSideEffects(t, n); }} className="flex-shrink-0 cursor-pointer">
+                              <button onClick={async () => { const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n, completed_at: n === 'done' ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); logStatusChangeSideEffects(t, n); }} className="flex-shrink-0 cursor-pointer">
                                 <i className={`text-base ${t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-emerald-400'}`}></i>
                               </button>
                               <div className="flex-1 min-w-0">
@@ -2944,6 +3015,11 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                                 ))}
                                 {team.length === 0 && <div className="w-7 h-7 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center"><i className="ri-user-line text-[9px] text-gray-300"></i></div>}
                               </div>
+                              {((p as any).monthly_deliverables ?? 0) > 0 && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${(deliveredThisMonth[p.id] ?? 0) >= (p as any).monthly_deliverables ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-50 text-[#FF6B35]'}`}>
+                                  {deliveredThisMonth[p.id] ?? 0}/{(p as any).monthly_deliverables} this month
+                                </span>
+                              )}
                               {isOwner && p.monthly_rate ? (
                                 <span className="text-xs font-semibold text-gray-700 tabular-nums flex-shrink-0">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}<span className="text-[10px] font-normal text-gray-400">/mo</span></span>
                               ) : (
@@ -3052,7 +3128,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>}
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_rate_currency: (activeProject as any).monthly_rate_currency ?? 'PHP', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', monthly_rate_currency: (activeProject as any).monthly_rate_currency ?? 'PHP', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
                       className="px-4 flex items-center gap-1.5 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-xl cursor-pointer">
                       <i className="ri-edit-line"></i>
                     </button>
@@ -3125,7 +3201,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {/* Secondary actions */}
                     <div className="flex items-center gap-0.5 bg-white/60 border border-gray-200 rounded-xl px-1 py-1">
-                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
+                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
                         className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors">
                         <i className="ri-edit-line text-sm"></i> Edit
                       </button>
@@ -3947,13 +4023,13 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
             const stamp = { updated_at: new Date().toISOString() };
             if (newStatus === 'done') {
               setMyTaskCompleting(taskId);
-              await supabase.from('hub_project_tasks').update({ status: 'done', ...stamp }).eq('id', taskId);
+              await supabase.from('hub_project_tasks').update({ status: 'done', completed_at: new Date().toISOString(), ...stamp }).eq('id', taskId);
               setTimeout(() => {
                 setMyTasks(prev => prev.filter(t => t.id !== taskId));
                 setMyTaskCompleting(null);
               }, 1800);
             } else {
-              await supabase.from('hub_project_tasks').update({ status: newStatus, ...stamp, ...metaPatch }).eq('id', taskId);
+              await supabase.from('hub_project_tasks').update({ status: newStatus, completed_at: null, ...stamp, ...metaPatch }).eq('id', taskId);
               setMyTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
             }
             if (myTask) logStatusChangeSideEffects(myTask, newStatus);
@@ -4169,6 +4245,10 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                     {(form as any).monthly_rate_currency === 'USD' && (form as any).monthly_rate && (
                       <p className="text-xs text-gray-400 mt-1">≈ ₱{((parseFloat((form as any).monthly_rate) || 0) * usdRate).toLocaleString()}/mo at current rate (₱{usdRate}/USD)</p>
                     )}
+                    <label className="text-xs font-medium text-gray-700 block mt-2">Deliverables per month <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="number" min="1" value={(form as any).monthly_deliverables} onChange={e => setForm({ ...form, monthly_deliverables: e.target.value } as any)} placeholder="e.g. 8"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    <p className="text-[10px] text-gray-400">Tracks tasks completed each month against this target.</p>
                   </div>
                 )}
               </div>

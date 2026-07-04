@@ -59,6 +59,7 @@ interface ProjectRow {
     notes: string | null;
     drive_url: string | null;
     slug: string | null;
+    monthly_deliverables?: number | null;
     hub_project_payments: { amount: number }[];
     hub_project_costs: { amount: number }[];
   };
@@ -84,6 +85,7 @@ interface ProjectTask {
   archived_at?: string | null;
   color?: string | null;
   meta?: { custom_fields?: { id: string; label: string; value: string }[]; blocked_reason?: string | null } | null;
+  completed_at?: string | null;
 }
 
 // ── SVG progress ring ──────────────────────────────────────────────────────
@@ -196,7 +198,7 @@ export default function ContractorProjectsPage() {
       metaPatch = { meta: Object.keys(rest).length ? rest : null };
     }
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus, ...(metaPatch as any) } : t));
-    const { error: updateErr } = await supabase.from('hub_project_tasks').update({ status: newStatus, updated_at: new Date().toISOString(), ...metaPatch }).eq('id', task.id);
+    const { error: updateErr } = await supabase.from('hub_project_tasks').update({ status: newStatus, completed_at: newStatus === 'done' ? new Date().toISOString() : null, updated_at: new Date().toISOString(), ...metaPatch }).eq('id', task.id);
     if (updateErr) {
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status, meta: currentMeta } as any : t));
       console.error('Failed to update task status:', updateErr);
@@ -462,7 +464,7 @@ export default function ContractorProjectsPage() {
           { data: paymentsData },
           { data: costsData },
         ] = await Promise.all([
-          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, slug').in('id', projectIds),
+          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, slug, monthly_deliverables').in('id', projectIds),
           supabase.from('hub_project_contractor_payouts').select('id, amount, paid_at, notes, receipt_url, project_contractor_id').in('project_contractor_id', pcIds),
           supabase.from('hub_project_payments').select('amount, project_id').in('project_id', projectIds),
           supabase.from('hub_project_costs').select('amount, project_id').in('project_id', projectIds),
@@ -500,7 +502,7 @@ export default function ContractorProjectsPage() {
 
         // 3. tasks + team
         const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
-          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta, archived, archived_at').in('project_id', projectIds),
+          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta, archived, archived_at, completed_at').in('project_id', projectIds),
           supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', projectIds),
         ]);
         setTasks((taskData as ProjectTask[]) ?? []);
@@ -1274,6 +1276,26 @@ export default function ContractorProjectsPage() {
                             <span className="text-[11px] text-gray-400">{wsTeam.length} member{wsTeam.length !== 1 ? 's' : ''}</span>
                           </div>
                         )}
+
+                        {wsProject.project_type === 'retainer' && (wsProject.monthly_deliverables ?? 0) > 0 && (() => {
+                          const quota = wsProject.monthly_deliverables as number;
+                          const now = new Date();
+                          const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                          const delivered = wsTasks.filter(t => t.status === 'done' && t.completed_at &&
+                            `${new Date(t.completed_at).getFullYear()}-${String(new Date(t.completed_at).getMonth() + 1).padStart(2, '0')}` === ym).length;
+                          const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                          const dLeft = lastDay - now.getDate();
+                          const behind = delivered < quota && dLeft <= 7;
+                          const cls = delivered >= quota
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            : behind ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-gray-600 bg-gray-50 border-gray-200';
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border font-medium ${cls}`}>
+                              <i className="ri-stack-line text-[10px]"></i>
+                              {now.toLocaleDateString('en-US', { month: 'short' })}: {delivered}/{quota} delivered
+                            </span>
+                          );
+                        })()}
 
                         {daysLeft !== null && (
                           isDeadlineOver ? (
