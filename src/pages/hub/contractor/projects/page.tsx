@@ -8,6 +8,8 @@ import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import { DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS, DEMO_CONTRACTOR_TEAM } from '@/lib/demoData';
 import TaskDetailPanel from '@/pages/hub/components/TaskDetailPanel';
+import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
+import { getServicePalette } from '@/pages/hub/utils/servicePalette';
 import { localToday, slugify } from '@/lib/formatUtils';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds } from '@/lib/taskAssignments';
@@ -111,287 +113,6 @@ function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
   );
 }
 
-// ── Calendar view (replaces Gantt) ────────────────────────────────────────
-function GanttTimeline({ tasks, projectStart, projectEnd, today, colorMap: externalColorMap }: {
-  tasks: ProjectTask[];
-  projectStart: string | null;
-  projectEnd: string | null;
-  today: string;
-  colorMap?: Record<number, { chip: string; bar?: string; barText?: string; dot?: string }>;
-}) {
-  const anchor = new Date(today + 'T00:00:00');
-  const [viewMonth, setViewMonth] = useState<Date>(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState<string | null>(today);
-
-  void projectStart; void projectEnd;
-
-  const year = viewMonth.getFullYear();
-  const month = viewMonth.getMonth();
-
-  const prevMonth = () => setViewMonth(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewMonth(new Date(year, month + 1, 1));
-  const goToday   = () => { setViewMonth(new Date(anchor.getFullYear(), anchor.getMonth(), 1)); setSelectedDate(today); };
-
-  const monthLabel = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-  const firstDay = new Date(year, month, 1);
-  const startPad = (firstDay.getDay() + 6) % 7; // Mon-based
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const totalCells = Math.ceil((startPad + daysInMonth) / 7) * 7;
-  const pad2 = (n: number) => String(n).padStart(2, '0');
-
-  const FALLBACK_PALETTE = [
-    { chip: 'bg-violet-100 text-violet-700' },
-    { chip: 'bg-sky-100 text-sky-700' },
-    { chip: 'bg-emerald-100 text-emerald-700' },
-    { chip: 'bg-amber-100 text-amber-700' },
-    { chip: 'bg-pink-100 text-pink-700' },
-    { chip: 'bg-orange-100 text-orange-700' },
-    { chip: 'bg-teal-100 text-teal-700' },
-    { chip: 'bg-indigo-100 text-indigo-700' },
-  ];
-  const colorMap: Record<number, { chip: string; bar?: string; barText?: string; dot?: string }> = externalColorMap
-    ?? Object.fromEntries(tasks.map((t, i) => [t.id, FALLBACK_PALETTE[i % FALLBACK_PALETTE.length]]));
-
-  const getBarStyle = (t: ProjectTask): React.CSSProperties => {
-    const customColor = t.color;
-    if (customColor) return { background: customColor, color: '#fff' };
-    const entry = colorMap[t.id];
-    if (entry?.bar) return { background: entry.bar, color: entry.barText ?? '#1e1b4b' };
-    return { background: '#c7d2fe', color: '#312e81' };
-  };
-
-  // ── Week-row lane assignment ──────────────────────────────────────────────
-  // Each task gets a fixed lane per week row so bars stay aligned.
-  const MAX_LANES = 3;
-
-  type LaneEntry = { task: ProjectTask; lane: number; spanStart: boolean; spanEnd: boolean };
-  type WeekRow = { dates: (string | null)[]; lanes: LaneEntry[]; overflowByDate: Record<string, number> };
-
-  const weekRows: WeekRow[] = [];
-  for (let wi = 0; wi < totalCells; wi += 7) {
-    const dates: (string | null)[] = [];
-    for (let di = 0; di < 7; di++) {
-      const dn = (wi + di) - startPad + 1;
-      dates.push(dn >= 1 && dn <= daysInMonth ? `${year}-${pad2(month + 1)}-${pad2(dn)}` : null);
-    }
-    const weekDates = dates.filter(Boolean) as string[];
-    const weekStart = weekDates[0] ?? '';
-    const weekEnd   = weekDates[weekDates.length - 1] ?? '';
-
-    const weekTasks = tasks
-      .filter(t => {
-        if (!t.due_date) return false;
-        const ts = t.start_date ?? t.due_date;
-        return ts <= weekEnd && t.due_date >= weekStart;
-      })
-      .sort((a, b) => {
-        const as_ = a.start_date ?? a.due_date ?? '';
-        const bs_ = b.start_date ?? b.due_date ?? '';
-        return as_.localeCompare(bs_) || a.id - b.id;
-      });
-
-    const laneEnd: string[] = []; // laneEnd[i] = last date occupying lane i
-    const lanes: LaneEntry[] = [];
-    const overflowByDate: Record<string, number> = {};
-
-    for (const t of weekTasks) {
-      const ts = t.start_date ?? t.due_date ?? '';
-      const te = t.due_date ?? '';
-      let lane = laneEnd.findIndex(e => e < ts);
-      if (lane === -1) lane = laneEnd.length;
-      laneEnd[lane] = te;
-
-      if (lane < MAX_LANES) {
-        lanes.push({ task: t, lane, spanStart: ts >= weekStart, spanEnd: te <= weekEnd });
-      } else {
-        // count overflow per date for "+N more"
-        const effStart = ts < weekStart ? weekStart : ts;
-        const effEnd   = te > weekEnd   ? weekEnd   : te;
-        const cur = new Date(effStart + 'T00:00:00');
-        const endD = new Date(effEnd + 'T00:00:00');
-        while (cur <= endD) {
-          const k = `${cur.getFullYear()}-${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`;
-          overflowByDate[k] = (overflowByDate[k] ?? 0) + 1;
-          cur.setDate(cur.getDate() + 1);
-        }
-      }
-    }
-
-    weekRows.push({ dates, lanes, overflowByDate });
-  }
-
-  // tasksByDate for selected-day bottom panel only
-  const tasksByDate: Record<string, ProjectTask[]> = {};
-  for (const t of tasks) {
-    if (!t.due_date) continue;
-    const cur = new Date((t.start_date ?? t.due_date) + 'T00:00:00');
-    const endD = new Date(t.due_date + 'T00:00:00');
-    while (cur <= endD) {
-      const k = `${cur.getFullYear()}-${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`;
-      (tasksByDate[k] ??= []).push(t);
-      cur.setDate(cur.getDate() + 1);
-    }
-  }
-  const selectedTasks = selectedDate ? (tasksByDate[selectedDate] ?? []) : [];
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <i className="ri-calendar-line text-indigo-400 text-base"></i>
-          <h3 className="font-semibold text-gray-800 text-sm">{monthLabel}</h3>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={prevMonth} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer">
-            <i className="ri-arrow-left-s-line text-base"></i>
-          </button>
-          <button onClick={goToday} className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer">
-            Today
-          </button>
-          <button onClick={nextMonth} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer">
-            <i className="ri-arrow-right-s-line text-base"></i>
-          </button>
-        </div>
-      </div>
-
-      {/* Day-of-week headers */}
-      <div className="grid grid-cols-7 border-b border-gray-100">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-          <div key={d} className={`py-2 text-center text-[10px] font-semibold uppercase tracking-wide ${d === 'Sat' || d === 'Sun' ? 'text-gray-300' : 'text-gray-400'}`}>{d}</div>
-        ))}
-      </div>
-
-      {/* Calendar grid — rendered week by week for consistent lane alignment */}
-      <div>
-        {weekRows.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7">
-            {week.dates.map((cellDate, di) => {
-              const inMonth = cellDate !== null;
-              const dayNum = cellDate ? parseInt(cellDate.split('-')[2]) : 0;
-              const isToday = cellDate === today;
-              const isSelected = cellDate !== null && cellDate === selectedDate;
-              const isWeekend = di === 5 || di === 6;
-              const overflow = cellDate ? (week.overflowByDate[cellDate] ?? 0) : 0;
-
-              // Fill 3 fixed lane slots — null means empty (renders as spacer)
-              const slots: (LaneEntry | null)[] = [null, null, null];
-              for (const entry of week.lanes) {
-                const ts = entry.task.start_date ?? entry.task.due_date ?? '';
-                const te = entry.task.due_date ?? '';
-                if (cellDate && ts <= cellDate && te >= cellDate) {
-                  slots[entry.lane] = entry;
-                }
-              }
-
-              return (
-                <div
-                  key={di}
-                  onClick={() => inMonth && cellDate && setSelectedDate(isSelected ? null : cellDate)}
-                  className={[
-                    'min-h-[96px] border-b border-r border-gray-50 flex flex-col',
-                    !inMonth ? 'bg-gray-50/30' : '',
-                    isWeekend && inMonth ? 'bg-gray-50/50' : '',
-                    isSelected ? 'ring-2 ring-inset ring-orange-300' : '',
-                    inMonth ? 'cursor-pointer hover:bg-orange-50/30 transition-colors' : '',
-                  ].filter(Boolean).join(' ')}
-                >
-                  {/* Date number */}
-                  <div className="flex justify-end p-1.5 pb-1">
-                    <span className={[
-                      'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
-                      isToday ? 'bg-orange-500 text-white font-bold' : '',
-                      !inMonth ? 'text-gray-300' : isToday ? '' : 'text-gray-600',
-                    ].filter(Boolean).join(' ')}>
-                      {inMonth ? dayNum : ''}
-                    </span>
-                  </div>
-
-                  {/* Lane rows — fixed height per lane keeps bars horizontally aligned */}
-                  <div className="flex flex-col gap-px pb-1">
-                    {slots.map((slot, laneIdx) => {
-                      if (!slot || !cellDate) {
-                        return <div key={laneIdx} className="h-6" />;
-                      }
-                      const t = slot.task;
-                      const ts = t.start_date ?? t.due_date ?? '';
-                      const te = t.due_date ?? '';
-                      const isActualStart = cellDate === ts;
-                      const isActualEnd   = cellDate === te;
-                      const weekFirstDay = week.dates.find(Boolean) ?? '';
-                      const showLabel = isActualStart || (!slot.spanStart && cellDate === weekFirstDay);
-                      // Rounded corners at true start/end; continuation bars bleed into borders
-                      const rl = (slot.spanStart && isActualStart) ? 'rounded-l-md ml-1' : '-ml-px';
-                      const rr = (slot.spanEnd && isActualEnd)     ? 'rounded-r-md mr-1' : '-mr-px';
-
-                      return (
-                        <div key={laneIdx}
-                          style={getBarStyle(t)}
-                          className={`h-6 flex items-center text-[10px] font-medium overflow-hidden ${rl} ${rr}`}
-                        >
-                          {showLabel && (
-                            <span className="truncate pl-2 pr-1 leading-none">{t.title}</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {overflow > 0 && (
-                      <div className="text-[10px] text-gray-400 px-1.5">+{overflow} more</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      {/* Selected day task list */}
-      {selectedDate && (
-        <div className="border-t border-gray-100 px-5 py-4">
-          <p className="text-xs font-semibold text-gray-500 mb-2">
-            {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
-          {selectedTasks.length === 0 ? (
-            <p className="text-xs text-gray-300">No tasks due on this day</p>
-          ) : (
-            <div className="space-y-1.5">
-              {selectedTasks.map(t => {
-                const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
-                const statusIcon = t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' : t.status === 'in_progress' ? 'ri-loader-2-line text-sky-400' : 'ri-checkbox-blank-circle-line text-gray-300';
-                return (
-                  <div key={t.id} className="flex items-center gap-2.5">
-                    <i className={`${statusIcon} text-base flex-shrink-0`}></i>
-                    <span className={`text-sm flex-1 truncate ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-700'}`}>{t.title}</span>
-                    {isOverdue && <span className="text-[11px] text-rose-500 font-medium flex-shrink-0">Overdue</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Per-project color palette ──────────────────────────────────────────────
-// Colors based on service type
-const getCardPalette = (service: string | null) => {
-  const s = (service ?? '').toLowerCase();
-  if (s.includes('website design'))      return { from: '#6366f1', to: '#8b5cf6' }; // indigo-violet
-  if (s.includes('website maintenance')) return { from: '#0ea5e9', to: '#6366f1' }; // sky-indigo
-  if (s.includes('branding'))            return { from: '#ec4899', to: '#f97316' }; // pink-orange
-  if (s.includes('graphic'))             return { from: '#f97316', to: '#f59e0b' }; // orange-amber
-  if (s.includes('social media'))        return { from: '#10b981', to: '#0ea5e9' }; // emerald-sky
-  if (s.includes('content'))             return { from: '#14b8a6', to: '#6366f1' }; // teal-indigo
-  if (s.includes('seo'))                 return { from: '#84cc16', to: '#10b981' }; // lime-emerald
-  if (s.includes('digital ads') || s.includes('ads')) return { from: '#f59e0b', to: '#ef4444' }; // amber-red
-  if (s.includes('email'))               return { from: '#8b5cf6', to: '#ec4899' }; // violet-pink
-  if (s.includes('marketing'))           return { from: '#f97316', to: '#f59e0b' }; // orange-amber
-  return                                        { from: '#94a3b8', to: '#64748b' }; // gray — other/internal
-};
 
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function ContractorProjectsPage() {
@@ -1636,21 +1357,6 @@ export default function ContractorProjectsPage() {
               </div>
             )}
 
-            {/* Questionnaire banner — mobile only, shown when questionnaires exist */}
-            {wsQuestionnaires.length > 0 && !wsFocusSection && (
-              <div className="lg:hidden flex flex-col gap-2">
-                {wsQuestionnaires.map(q => (
-                  <button key={q.id} onClick={() => setWsQModal(q)}
-                    className="flex items-center justify-between gap-3 w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm">
-                    <div className="flex items-center gap-2.5">
-                      <i className="ri-questionnaire-line text-base text-indigo-500"></i>
-                      <span>{q.service_type} Questionnaire</span>
-                    </div>
-                    <i className="ri-arrow-right-s-line text-base text-gray-400"></i>
-                  </button>
-                ))}
-              </div>
-            )}
 
             {/* Stats */}
             <div id="ws-stats" className={`grid grid-cols-4 gap-2 ${wsFocusSection && wsFocusSection !== 'ws-stats' ? 'hidden' : ''}`}>
@@ -1682,7 +1388,7 @@ export default function ContractorProjectsPage() {
               />
             </div>
 
-            <div className="flex gap-6">
+            <div className="flex flex-col lg:flex-row gap-6">
               {/* Task list */}
               <div id="ws-tasks" className={`min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${taskView === 'board' ? 'flex-[1_1_100%]' : 'flex-1'} ${wsFocusSection && wsFocusSection !== 'ws-tasks' ? 'hidden' : ''}`}>
                 <div className="px-5 py-4 border-b border-gray-50 space-y-3">
@@ -1699,7 +1405,7 @@ export default function ContractorProjectsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="hidden lg:flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
+                      <div className="flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
                         <button
                           type="button"
                           onClick={() => setTaskView('list')}
@@ -1721,7 +1427,7 @@ export default function ContractorProjectsPage() {
                       </button>
                     </div>
                   </div>
-                  <div className={`flex gap-1 flex-wrap ${taskView === 'board' ? 'lg:hidden' : ''}`}>
+                  <div className={`flex gap-1 flex-wrap ${taskView === 'board' ? 'hidden' : ''}`}>
                     {(['all', 'todo', 'in_progress', 'in_review', 'blocked', 'done', 'overdue'] as const).map(f => {
                       const labels: Record<string, string> = { all: 'All', todo: 'To Do', in_progress: 'Active', in_review: 'Review', blocked: 'Blocked', done: 'Done', overdue: 'Overdue' };
                       const counts: Record<string, number> = {
@@ -1756,7 +1462,7 @@ export default function ContractorProjectsPage() {
                     <p className="text-sm text-gray-400">No tasks in this filter</p>
                   </div>
                 ) : taskView === 'board' ? (
-                  <div className="hidden lg:flex p-4 overflow-x-auto overflow-y-hidden min-h-[calc(100vh-19rem)]">
+                  <div className="flex p-4 overflow-x-auto overflow-y-hidden min-h-[calc(100vh-19rem)]">
                     <div className="grid grid-cols-5 gap-4 min-w-[1120px] w-full min-h-full">
                       {BOARD_COLUMNS.map((column) => {
                         const columnTasks = boardTasks.filter((task) => task.status === column.key);
@@ -1879,7 +1585,7 @@ export default function ContractorProjectsPage() {
               </div>
 
               {/* Right: project info */}
-                <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : wsFocusSection === 'ws-sidebar' ? 'flex' : 'hidden lg:flex'} flex-col gap-4 w-64 flex-shrink-0 ${wsFocusSection && wsFocusSection !== 'ws-sidebar' ? 'hidden' : ''}`}>
+                <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'flex'} flex-col gap-4 w-full lg:w-64 flex-shrink-0 ${wsFocusSection && wsFocusSection !== 'ws-sidebar' ? 'hidden' : ''}`}>
                 {/* Dates + notes card */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                   {(wsProject.start_date || wsProject.deadline) && (
@@ -2150,7 +1856,7 @@ export default function ContractorProjectsPage() {
                     {sRows.map((r) => {
                       const p = r.hub_projects;
                       if (!p) return null;
-                      const palette = getCardPalette(p.service);
+                      const palette = getServicePalette(p.service);
                       const projectTasks = tasks.filter(t => t.project_id === p.id);
                       const tasksDone = projectTasks.filter(t => t.status === 'done').length;
                       const isOverdueRow = !!(p.deadline && p.deadline < today && p.status !== 'completed');
@@ -2207,7 +1913,7 @@ export default function ContractorProjectsPage() {
                 </div>
                 <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
                   {clientEntries.map(c => {
-                    const pal = getCardPalette(c.service ?? null);
+                    const pal = getServicePalette(c.service ?? null);
                     return (
                       <button key={c.id} onClick={() => {
                         if (c.type === 'retainer' && c.rowId) {

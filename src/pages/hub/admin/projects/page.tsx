@@ -15,6 +15,7 @@ import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/Tas
 import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
+import { getServicePalette } from '@/pages/hub/utils/servicePalette';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeTaskAssigneePayload } from '@/lib/taskAssignments';
 import type { HubClientContract } from '@/lib/types';
 import { HUNA_LOGO, FRANCIS_SIG } from '@/pages/hub/admin/documents/contractAssets';
@@ -32,20 +33,6 @@ const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigi
 const fmtRate = (rate: number | null, currency?: string | null) =>
   rate == null ? '—' : currency === 'USD' ? `$${rate.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/mo` : `${fmt(rate)}/mo`;
 
-const getServicePalette = (service: string | null | undefined) => {
-  const s = (service ?? '').toLowerCase();
-  if (s.includes('website design'))      return { from: '#6366f1', to: '#8b5cf6' };
-  if (s.includes('website maintenance')) return { from: '#0ea5e9', to: '#6366f1' };
-  if (s.includes('branding'))            return { from: '#ec4899', to: '#f97316' };
-  if (s.includes('graphic'))             return { from: '#f97316', to: '#f59e0b' };
-  if (s.includes('social media'))        return { from: '#10b981', to: '#0ea5e9' };
-  if (s.includes('content'))             return { from: '#14b8a6', to: '#6366f1' };
-  if (s.includes('seo'))                 return { from: '#84cc16', to: '#10b981' };
-  if (s.includes('digital ads') || s.includes('ads')) return { from: '#f59e0b', to: '#ef4444' };
-  if (s.includes('email'))               return { from: '#8b5cf6', to: '#ec4899' };
-  if (s.includes('marketing'))           return { from: '#f97316', to: '#f59e0b' };
-  return                                        { from: '#94a3b8', to: '#64748b' };
-};
 const fmtDate = (d: string | null | undefined, fallback = '—') => {
   if (!d) return fallback;
   const s = d.length === 10 ? d + 'T00:00:00' : d;
@@ -1889,21 +1876,6 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 ))}
               </div>
 
-              {/* Questionnaire quick-access — mobile only */}
-              {wsQuestionnaires.filter(q => q.status === 'submitted').length > 0 && (
-                <div className="lg:hidden flex flex-col gap-2">
-                  {wsQuestionnaires.filter(q => q.status === 'submitted').map(q => (
-                    <button key={q.id} onClick={() => setWsQModal(q)}
-                      className="flex items-center justify-between gap-3 w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm">
-                      <div className="flex items-center gap-2.5">
-                        <i className="ri-questionnaire-line text-base text-indigo-500"></i>
-                        <span>{q.service_type} Questionnaire</span>
-                      </div>
-                      <i className="ri-arrow-right-s-line text-base text-gray-400"></i>
-                    </button>
-                  ))}
-                </div>
-              )}
 
               {/* ── Calendar / Timeline ── */}
               <div id="ws-timeline">
@@ -1924,7 +1896,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
               </div>
 
               {/* ── Two-column: tasks + sidebar ── */}
-              <div className="flex gap-6">
+              <div className="flex flex-col lg:flex-row gap-6">
                 {/* Task list */}
                 <div
                   id="ws-tasks"
@@ -1946,7 +1918,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="hidden lg:flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
+                        <div className="flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
                           <button
                             type="button"
                             onClick={() => setTaskView('list')}
@@ -1978,7 +1950,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                         </button>
                       </div>
                     </div>
-                    <div className={`flex gap-1 flex-wrap ${taskView === 'board' ? 'lg:hidden' : ''}`}>
+                    <div className={`flex gap-1 flex-wrap ${taskView === 'board' ? 'hidden' : ''}`}>
                       {(['all', 'mine', 'todo', 'in_progress', 'in_review', 'blocked', 'done', 'overdue'] as const).map(f => {
                         const labels: Record<string, string> = { all: 'All', mine: 'Mine', todo: 'To Do', in_progress: 'Active', in_review: 'Review', blocked: 'Blocked', done: 'Done', overdue: 'Overdue' };
                         const myId = hubUser?.id ?? '';
@@ -2111,7 +2083,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                       <p className="text-sm text-gray-400">No tasks in this filter</p>
                     </div>
                   ) : taskView === 'board' ? (
-                    <div className="hidden lg:flex p-4 overflow-x-auto overflow-y-hidden min-h-[calc(100vh-19rem)]">
+                    <div className="flex p-4 overflow-x-auto overflow-y-hidden min-h-[calc(100vh-19rem)]">
                       <div className="grid grid-cols-5 gap-4 min-w-[1120px] w-full min-h-full">
                         {BOARD_COLUMNS.map((column, columnIdx) => {
                           const columnTasks = wsActiveTasks.filter((task) => task.status === column.key);
@@ -2479,7 +2451,7 @@ ${project.notes ? `<p style="font-size:12px;color:#6b7280;font-style:italic;marg
                 </div>
 
                 {/* Right sidebar */}
-                <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'hidden lg:flex'} flex-col gap-4 w-64 flex-shrink-0`}>
+                <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'flex'} flex-col gap-4 w-full lg:w-64 flex-shrink-0`}>
                   {/* Dates & Notes card */}
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                     {(p.start_date || p.deadline) && (
