@@ -4,26 +4,6 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
-async function disableStaleServiceWorkers() {
-  if (typeof window === 'undefined') return;
-
-  try {
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((registration) => registration.unregister()));
-    }
-
-    if ('caches' in window) {
-      const cacheKeys = await window.caches.keys();
-      await Promise.all(cacheKeys.map((key) => window.caches.delete(key)));
-    }
-  } catch {
-    // Best-effort cleanup only.
-  }
-}
-
-void disableStaleServiceWorkers();
-
 // Auto-reload when Vercel deploys a new build and old chunk files are gone
 window.addEventListener('error', (e) => {
   const msg = e.message ?? '';
@@ -31,6 +11,22 @@ window.addEventListener('error', (e) => {
     window.location.reload();
   }
 }, true);
+
+// Deep-link handoff from the service worker: when a push notification is
+// clicked and the SW can't navigate the window itself (uncontrolled client),
+// it posts the target URL here instead.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data?.type === 'push-navigate' && typeof e.data.url === 'string') {
+      try {
+        const url = new URL(e.data.url, window.location.origin);
+        if (url.origin === window.location.origin && url.pathname.startsWith('/hub')) {
+          window.location.assign(url.pathname + url.search + url.hash);
+        }
+      } catch { /* malformed URL — ignore */ }
+    }
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

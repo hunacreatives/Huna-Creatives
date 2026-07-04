@@ -24,7 +24,32 @@ export function usePushSubscription(userId: string | undefined) {
     }
     const permission = Notification.permission;
     if (permission === 'denied') { setStatus('denied'); return; }
-    if (permission === 'granted') { setStatus('subscribed'); return; }
+    if (permission === 'granted') {
+      setStatus('subscribed');
+      // Self-heal: subscriptions rot (platforms expire them; stale endpoints
+      // are deleted server-side after failed sends), so re-register this
+      // device on every app load. No prompt — permission is already granted.
+      (async () => {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          const sub = (await reg.pushManager.getSubscription())
+            ?? await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            });
+          const json = sub.toJSON();
+          if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
+            await supabase.from('hub_push_subscriptions').upsert(
+              { user_id: userId, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
+              { onConflict: 'user_id,endpoint' }
+            );
+          }
+        } catch (err) {
+          console.error('Push re-sync failed:', err);
+        }
+      })();
+      return;
+    }
     setStatus('default');
   }, [userId]);
 

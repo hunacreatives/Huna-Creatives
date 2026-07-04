@@ -29,15 +29,34 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const path = (event.notification.data?.url as string) ?? '/hub';
-  const absoluteUrl = self.location.origin + path;
+  const raw = (event.notification.data?.url as string) ?? '/hub';
+  // Push payloads may carry absolute URLs (sometimes on the www. subdomain).
+  // Normalize onto this worker's origin — concatenating origin + raw produced
+  // garbage URLs for absolute links, and a www./apex mismatch kicks the click
+  // out of the installed app's scope.
+  let target: URL;
+  try {
+    target = new URL(raw, self.location.origin);
+  } catch {
+    target = new URL('/hub', self.location.origin);
+  }
+  const absoluteUrl = `${self.location.origin}${target.pathname}${target.search}${target.hash}`;
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      const existing = clients.find((c) => c.url.startsWith(self.location.origin + '/hub'));
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      const existing = clients.find((c) => c.url.startsWith(self.location.origin + '/hub'))
+        ?? clients.find((c) => c.url.startsWith(self.location.origin));
       if (existing) {
-        return existing.focus().then((c) => c.navigate(absoluteUrl)).catch(() => existing.focus());
+        const focused = await existing.focus().catch(() => existing);
+        try {
+          await (focused ?? existing).navigate(absoluteUrl);
+        } catch {
+          // Uncontrolled clients can't be navigated from the SW —
+          // hand the URL to the app and let it route itself.
+          (focused ?? existing).postMessage({ type: 'push-navigate', url: absoluteUrl });
+        }
+        return;
       }
-      return self.clients.openWindow(absoluteUrl);
+      await self.clients.openWindow(absoluteUrl);
     }),
   );
 });
