@@ -9,7 +9,8 @@ interface Credential {
   client_name: string;
   platform: string;
   account_email: string | null;
-  password: string | null;
+  password: string | null;        // legacy plaintext — nulled once migrated
+  password_enc: string | null;    // AES-GCM ciphertext (credentials-vault)
   login_type: string;
   otp_contact: string | null;
   additional_info: string | null;
@@ -81,6 +82,9 @@ export default function CredentialsVaultPage() {
   const [saving, setSaving] = useState(false);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [showPassIds, setShowPassIds] = useState<Set<string>>(new Set());
+  // Decrypted passwords, fetched on demand from the credentials-vault function
+  const [revealedPass, setRevealedPass] = useState<Record<string, string | null>>({});
+  const [revealLoading, setRevealLoading] = useState<Set<string>>(new Set());
   const [showFormPass, setShowFormPass] = useState(false);
   const [toast, setToast] = useState('');
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,6 +115,24 @@ export default function CredentialsVaultPage() {
 
   useEffect(() => { fetchData(); }, []);
 
+  // One-time self-migration: encrypt any legacy plaintext rows via the vault
+  const migrationStarted = useRef(false);
+  useEffect(() => {
+    if (migrationStarted.current) return;
+    if (!credentials.some(c => c.password)) return;
+    migrationStarted.current = true;
+    supabase.functions.invoke('credentials-vault', { body: { action: 'migrate' } })
+      .then(({ data, error }) => {
+        if (error || data?.error) {
+          console.error('Credential migration failed:', data?.error ?? error?.message);
+          migrationStarted.current = false; // retry on next visit
+        } else if (data?.migrated > 0) {
+          fetchData();
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [credentials]);
+
   // Group credentials by client
   const filtered = credentials.filter((c) =>
     !search ||
@@ -139,11 +161,25 @@ export default function CredentialsVaultPage() {
   };
 
   const togglePassVis = (id: string) => {
+    const revealing = !showPassIds.has(id);
     setShowPassIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+    if (revealing && !(id in revealedPass)) {
+      setRevealLoading(prev => new Set(prev).add(id));
+      supabase.functions.invoke('credentials-vault', { body: { action: 'decrypt', credential_id: id } })
+        .then(({ data, error }) => {
+          if (error || data?.error) {
+            showToast(`Could not decrypt: ${data?.error ?? error?.message ?? 'unknown error'}`);
+            setShowPassIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+          } else {
+            setRevealedPass(prev => ({ ...prev, [id]: data?.password ?? null }));
+          }
+        })
+        .finally(() => setRevealLoading(prev => { const next = new Set(prev); next.delete(id); return next; }));
+    }
   };
 
   const openNew = () => {
@@ -160,7 +196,7 @@ export default function CredentialsVaultPage() {
       platform: c.platform,
       login_type: c.login_type,
       account_email: c.account_email ?? '',
-      password: c.password ?? '',
+      password: '', // blank = keep the current (encrypted) password
       otp_contact: c.otp_contact ?? '',
       additional_info: c.additional_info ?? '',
       status: c.status,
@@ -173,12 +209,27 @@ export default function CredentialsVaultPage() {
   const save = async () => {
     if (!form.client_name.trim() || !form.platform.trim()) return;
     setSaving(true);
+    // Passwords are never stored in plaintext: encrypt via the vault function.
+    let passwordFields: { password: string | null; password_enc: string | null } | Record<string, never> = {};
+    if (form.password.trim()) {
+      const { data: enc, error: encErr } = await supabase.functions.invoke('credentials-vault', {
+        body: { action: 'encrypt', plaintext: form.password.trim() },
+      });
+      if (encErr || !enc?.ciphertext) {
+        setSaving(false);
+        showToast(`Could not encrypt password — nothing saved. ${enc?.error ?? encErr?.message ?? ''}`);
+        return;
+      }
+      passwordFields = { password: null, password_enc: enc.ciphertext };
+    } else if (!editingCred) {
+      passwordFields = { password: null, password_enc: null };
+    } // editing with a blank field: leave the stored password untouched
     const payload = {
+      ...passwordFields,
       client_name: form.client_name.trim(),
       platform: form.platform.trim(),
       login_type: form.login_type,
       account_email: form.account_email.trim() || null,
-      password: form.password.trim() || null,
       otp_contact: form.otp_contact.trim() || null,
       additional_info: form.additional_info.trim() || null,
       status: form.status,
@@ -193,6 +244,7 @@ export default function CredentialsVaultPage() {
       showToast(`Failed to save credential: ${error.message}`);
       return;
     }
+    if (editingCred) setRevealedPass(prev => { const next = { ...prev }; delete next[editingCred.id]; return next; });
     setShowAdd(false);
     showToast(editingCred ? 'Credential updated.' : 'Credential added.');
     fetchData();
@@ -333,7 +385,7 @@ export default function CredentialsVaultPage() {
                                   <div className="flex items-center gap-2">
                                     <i className="ri-lock-line text-gray-400 text-xs"></i>
                                     <span className="text-xs text-gray-700 font-mono">
-                                      {passVisible ? (cred.password ?? '—') : '••••••••'}
+                                      {passVisible ? (revealLoading.has(cred.id) ? '…' : revealedPass[cred.id] ?? '—') : (cred.password_enc || cred.password ? '••••••••' : '—')}
                                     </span>
                                     <button
                                       onClick={() => togglePassVis(cred.id)}
@@ -544,7 +596,7 @@ export default function CredentialsVaultPage() {
                       type={showFormPass ? 'text' : 'password'}
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder="Enter password..."
+                      placeholder={editingCred ? "Leave blank to keep current password" : "Enter password..."}
                       className={`${inputCls} pr-9`}
                     />
                     <button

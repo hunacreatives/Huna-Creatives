@@ -151,6 +151,16 @@ export function countWorkingDays(startDate: string, endDate: string, workDays: s
   return count;
 }
 
+// Whether a specific date falls on the contractor's scheduled workdays
+// (same semantics as countWorkingDays: empty schedule = Mon-Fri).
+export function isScheduledWorkday(date: string, workDays: string[] | null | undefined) {
+  const days = workDays ?? [];
+  const scheduled = days.length > 0
+    ? new Set(days.map(normalizeWorkDay).map((d) => DAY_MAP[d]).filter((d): d is number => typeof d === 'number'))
+    : new Set([1, 2, 3, 4, 5]);
+  return scheduled.has(new Date(`${date}T00:00:00`).getDay());
+}
+
 export function countScheduledHours(startDate: string, endDate: string, workDays: string[] | null | undefined) {
   if (!startDate || !endDate || endDate < startDate) return 0;
   return countWorkingDays(startDate, endDate, workDays || []) * 8;

@@ -10,7 +10,7 @@ import { FULL_MONTHS, getPeriods, fmtCurrency as fmt, getNextPayrollCutoff, loca
 import { logAudit } from '@/lib/audit';
 import { getSetting, setSetting } from '@/lib/settings';
 import { DEMO_PAYOUTS, DEMO_CONTRACTORS } from '@/lib/demoData';
-import { computeFixedAccrual, computeSplitFixedAccrual, isAutoPayrollUser, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { computeFixedAccrual, computeSplitFixedAccrual, isAutoPayrollUser, isScheduledWorkday, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
 
 interface Contractor {
   id: string;
@@ -42,6 +42,7 @@ interface DayHours {
   date: string;
   billed: number;     // hours_capped — what they're paid for
   overtime: number;   // overtime_hours
+  leave?: boolean;    // credited from approved paid time off, not worked
 }
 
 interface PayRow {
@@ -83,6 +84,7 @@ function DailyBreakdownPanel({ days }: { days: DayHours[] }) {
         <div key={d.date} className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-md bg-gray-50">
           <span className="font-medium text-gray-600">{formatDayLabel(d.date)}</span>
           <span className="flex items-center gap-2 tabular-nums">
+            {d.leave && <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Paid leave</span>}
             <span className="text-gray-700">{d.billed.toFixed(1)}h</span>
             {d.overtime > 0 && <span className="text-violet-700 font-medium">+{d.overtime.toFixed(1)} OT</span>}
           </span>
@@ -994,6 +996,13 @@ export default function AdminPayrollPage() {
         .select('contractor_id, payment_date, overtime_pay, status')
         .eq('cutoff_start', selectedPeriod.start),
     ]);
+    const { data: approvedLeave } = await supabase
+      .from('hub_time_off')
+      .select('contractor_id, type, start_date, end_date, half_day')
+      .eq('status', 'approved')
+      .neq('type', 'unpaid')
+      .lte('start_date', selectedPeriod.end)
+      .gte('end_date', selectedPeriod.start);
 
     // Map contractor_id → payment_date for already-paid payouts (to exclude settled hours).
     const paidPaymentDateMap: Record<string, string> = {};
@@ -1016,6 +1025,35 @@ export default function AdminPayrollPage() {
       eligibleContractors.map((c: any) => c.id),
       today,
     );
+
+    // Paid leave credit: approved leave (all types except unpaid) counts as
+    // 8h/day on the contractor's scheduled workdays — 4h for half-days — so
+    // leave days pay out without manual adjustments. Days that already have
+    // logged hours are skipped (no double credit), and the existing
+    // paid-payout date guard below still applies.
+    const contractorById: Record<string, any> = Object.fromEntries(eligibleContractors.map((c: any) => [c.id, c]));
+    const datesWithHours = new Set(mergedHoursRows.filter((h: any) => (h.hours_capped || 0) > 0).map((h: any) => `${h.user_id}::${h.date}`));
+    const leaveByDate: Record<string, Set<string>> = {};
+    for (const lv of approvedLeave || []) {
+      const c = contractorById[lv.contractor_id];
+      if (!c) continue;
+      const creditHours = lv.half_day ? 4 : 8;
+      const rangeEnd = lv.half_day ? lv.start_date : lv.end_date;
+      const from = lv.start_date < selectedPeriod.start ? selectedPeriod.start : lv.start_date;
+      const to = rangeEnd > selectedPeriod.end ? selectedPeriod.end : rangeEnd;
+      const cur = new Date(`${from}T00:00:00`);
+      const endD = new Date(`${to}T00:00:00`);
+      while (cur <= endD) {
+        const dateStr = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+        cur.setDate(cur.getDate() + 1);
+        if (!isScheduledWorkday(dateStr, c.work_days)) continue;
+        const key = `${lv.contractor_id}::${dateStr}`;
+        if (datesWithHours.has(key)) continue;
+        datesWithHours.add(key);
+        mergedHoursRows.push({ user_id: lv.contractor_id, date: dateStr, hours_capped: creditHours, hours_raw: creditHours, overtime_hours: 0 } as any);
+        (leaveByDate[lv.contractor_id] ??= new Set()).add(dateStr);
+      }
+    }
 
     // Per-user per-date hours map (for hourly proration)
     const hoursByDate: Record<string, Record<string, number>> = {};
@@ -1206,6 +1244,7 @@ export default function AdminPayrollPage() {
           date,
           billed: parseFloat((billedByDate[date] || 0).toFixed(2)),
           overtime: parseFloat((otByDate[date] || 0).toFixed(2)),
+          leave: leaveByDate[c.id]?.has(date) || undefined,
         }));
 
       return {

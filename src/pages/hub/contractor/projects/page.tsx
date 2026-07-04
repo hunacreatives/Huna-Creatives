@@ -87,6 +87,7 @@ interface ProjectTask {
   color?: string | null;
   meta?: { custom_fields?: { id: string; label: string; value: string }[]; blocked_reason?: string | null } | null;
   completed_at?: string | null;
+  deleted_at?: string | null;
 }
 
 // ── SVG progress ring ──────────────────────────────────────────────────────
@@ -267,7 +268,8 @@ export default function ContractorProjectsPage() {
   const deleteTask = async (taskId: number) => {
     setDeletingTaskId(taskId);
     const t = tasks.find(t => t.id === taskId);
-    const { error } = await supabase.from('hub_project_tasks').delete().eq('id', taskId);
+    // Soft delete — restorable from the admin workspace trash for 30 days
+    const { error } = await supabase.from('hub_project_tasks').update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', taskId);
     if (error) {
       console.error('Failed to delete project task', error);
       setDeletingTaskId(null);
@@ -503,7 +505,7 @@ export default function ContractorProjectsPage() {
 
         // 3. tasks + team
         const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
-          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta, archived, archived_at, completed_at').in('project_id', projectIds),
+          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta, archived, archived_at, completed_at, deleted_at').in('project_id', projectIds),
           supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', projectIds),
         ]);
         setTasks((taskData as ProjectTask[]) ?? []);
@@ -657,7 +659,7 @@ export default function ContractorProjectsPage() {
   // "Mine" = assigned to me, or containing an open checklist item assigned to me
   const myUserId = hubUser?.id ?? '';
   const hasMyChecklistItem = (t: ProjectTask) => (t.checklist ?? []).some(i => i.assignee_id === myUserId && !i.done);
-  const myTasks = tasks.filter(t => !t.archived_at && (getTaskAssigneeIds(t).includes(myUserId) || hasMyChecklistItem(t)));
+  const myTasks = tasks.filter(t => !t.archived_at && !t.deleted_at && (getTaskAssigneeIds(t).includes(myUserId) || hasMyChecklistItem(t)));
   const doneTasks = myTasks.filter(t => t.status === 'done');
   const inProgressTasks = myTasks.filter(t => ['in_progress', 'in_review', 'blocked'].includes(t.status));
   const todoTasks = myTasks.filter(t => t.status === 'todo');
@@ -740,7 +742,7 @@ export default function ContractorProjectsPage() {
   const wsRow = workspaceRow;
   const wsProject = wsRow?.hub_projects;
   const wsIsInternal = wsProject?.project_type === 'internal';
-  const wsAllTasks = wsRow ? tasks.filter(t => t.project_id === wsProject?.id) : [];
+  const wsAllTasks = wsRow ? tasks.filter(t => t.project_id === wsProject?.id && !t.deleted_at) : [];
   const wsTasks = wsAllTasks.filter(t => !t.archived);
   const wsArchivedTasks = wsAllTasks.filter(t => !!t.archived);
   const wsToday = localToday();
@@ -1880,7 +1882,7 @@ export default function ContractorProjectsPage() {
                       const p = r.hub_projects;
                       if (!p) return null;
                       const palette = getServicePalette(p.service);
-                      const projectTasks = tasks.filter(t => t.project_id === p.id);
+                      const projectTasks = tasks.filter(t => t.project_id === p.id && !t.deleted_at);
                       const tasksDone = projectTasks.filter(t => t.status === 'done').length;
                       const isOverdueRow = !!(p.deadline && p.deadline < today && p.status !== 'completed');
                       const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;

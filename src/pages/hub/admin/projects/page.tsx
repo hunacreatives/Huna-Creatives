@@ -94,6 +94,7 @@ interface ProjectTask {
   archived_at?: string | null;
   sort_order?: number | null;
   completed_at?: string | null;
+  deleted_at?: string | null;
 }
 
 interface ProjectActivity {
@@ -248,6 +249,12 @@ export default function AdminProjectsPage() {
   const [commentCounts, setCommentCounts] = useState<Record<number,number>>({});
   const [taskFilter, setTaskFilter] = useState<'all' | 'mine' | 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done' | 'overdue'>('all');
   const [showArchivedTasks, setShowArchivedTasks] = useState(false);
+  const [showTrashedTasks, setShowTrashedTasks] = useState(false);
+  const restoreTask = async (taskId: number) => {
+    const { error } = await supabase.from('hub_project_tasks').update({ deleted_at: null, updated_at: new Date().toISOString() }).eq('id', taskId);
+    if (error) { window.alert(`Failed to restore task: ${error.message}`); return; }
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, deleted_at: null } : t));
+  };
   const [taskView, setTaskView] = useState<'list' | 'board'>('list');
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
   const [boardDragOver, setBoardDragOver] = useState<ProjectTask['status'] | null>(null);
@@ -700,7 +707,7 @@ export default function AdminProjectsPage() {
   const fetchAllTasks = async () => {
     setAllTasksLoading(true);
     const [tasksRes, projectsRes] = await Promise.all([
-      supabase.from('hub_project_tasks').select('id, project_id, title, status, priority, assigned_to, assignee_ids, due_date').order('due_date', { ascending: true, nullsFirst: false }),
+      supabase.from('hub_project_tasks').select('id, project_id, title, status, priority, assigned_to, assignee_ids, due_date').is('deleted_at', null).order('due_date', { ascending: true, nullsFirst: false }),
       supabase.from('hub_projects').select('id, project_name, client_name, project_type'),
     ]);
     const projectMap: Record<number, any> = Object.fromEntries((projectsRes.data ?? []).map((p: any) => [p.id, p]));
@@ -755,6 +762,7 @@ export default function AdminProjectsPage() {
         .or(`assigned_to.eq.${uid},assignee_ids.cs.{${uid}}`)
         .neq('status', 'done')
         .not('archived', 'is', true)
+        .is('deleted_at', null)
         .order('due_date', { ascending: true, nullsFirst: false });
       setMyTasks((mtData ?? []).map((t: any) => ({
         id: t.id, title: t.title, status: t.status, priority: t.priority, due_date: t.due_date,
@@ -763,6 +771,11 @@ export default function AdminProjectsPage() {
         client_name: t.hub_projects?.client_name ?? '',
       })));
     }
+    // Purge tasks that have been in the trash for over 30 days
+    const purgeCutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+    supabase.from('hub_project_tasks').delete().lt('deleted_at', purgeCutoff)
+      .then(({ error }) => { if (error) console.error('Trash purge failed:', error); });
+
     setContractors((cRes.data as Contractor[]) ?? []);
     setIntlClients((clientRes.data ?? []).map((c: any) => ({
       id: c.id, client_name: c.client_name, platform: c.platform, status: c.status,
@@ -1355,14 +1368,15 @@ export default function AdminProjectsPage() {
 
   const wsToday = localToday();
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
-  const wsArchivedTasks = tasks.filter(t => !!t.archived);
-  const wsFilteredTasks = tasks.filter(t => !t.archived).filter(t => {
+  const wsArchivedTasks = tasks.filter(t => !!t.archived && !t.deleted_at);
+  const wsTrashedTasks = tasks.filter(t => !!t.deleted_at);
+  const wsFilteredTasks = tasks.filter(t => !t.archived && !t.deleted_at).filter(t => {
     if (taskFilter === 'all') return true;
     if (taskFilter === 'mine') return getTaskAssigneeIds(t).includes(hubUser?.id ?? '');
     if (taskFilter === 'overdue') return !!wsIsOverdue(t);
     return t.status === taskFilter;
   });
-  const wsActiveTasks = tasks.filter(t => !t.archived);
+  const wsActiveTasks = tasks.filter(t => !t.archived && !t.deleted_at);
   const wsDoneCt = wsActiveTasks.filter(t => t.status === 'done').length;
   const wsPct = wsActiveTasks.length > 0 ? Math.round((wsDoneCt / wsActiveTasks.length) * 100) : 0;
   const wsTaskTeam = activeProject ? activeProject.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean) : [];
@@ -1757,7 +1771,7 @@ export default function AdminProjectsPage() {
                       {(['all', 'mine', 'todo', 'in_progress', 'in_review', 'blocked', 'done', 'overdue'] as const).map(f => {
                         const labels: Record<string, string> = { all: 'All', mine: 'Mine', todo: 'To Do', in_progress: 'Active', in_review: 'Review', blocked: 'Blocked', done: 'Done', overdue: 'Overdue' };
                         const myId = hubUser?.id ?? '';
-                        const activeTasks = tasks.filter(t => !t.archived);
+                        const activeTasks = tasks.filter(t => !t.archived && !t.deleted_at);
                         const counts: Record<string, number> = {
                           all: activeTasks.length,
                           mine: activeTasks.filter(t => getTaskAssigneeIds(t).includes(myId)).length,
@@ -2225,6 +2239,40 @@ export default function AdminProjectsPage() {
                     </div>
                   )}
 
+                  {/* Trash — soft-deleted tasks, restorable for 30 days */}
+                  {wsTrashedTasks.length > 0 && (
+                    <div className="border-t border-gray-100">
+                      <button
+                        onClick={() => setShowTrashedTasks(v => !v)}
+                        className="w-full flex items-center gap-2 px-5 py-2.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <i className="ri-delete-bin-line text-sm"></i>
+                        <span>{showTrashedTasks ? 'Hide' : 'Show'} trash ({wsTrashedTasks.length})</span>
+                        <i className={`${showTrashedTasks ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'} ml-auto`}></i>
+                      </button>
+                      {showTrashedTasks && (
+                        <div className="p-3 space-y-2">
+                          {wsTrashedTasks.map(task => {
+                            const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - new Date(task.deleted_at!).getTime()) / 86400000));
+                            return (
+                              <div key={task.id} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 shadow-sm px-3.5 py-2.5">
+                                <i className="ri-delete-bin-line text-gray-300 text-sm flex-shrink-0"></i>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-gray-500 line-clamp-1 line-through">{task.title}</p>
+                                  <p className="text-[10px] text-gray-400">Purges in {daysLeft} day{daysLeft !== 1 ? 's' : ''}</p>
+                                </div>
+                                <button onClick={() => restoreTask(task.id)}
+                                  className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 cursor-pointer transition-colors flex-shrink-0">
+                                  <i className="ri-arrow-go-back-line mr-1"></i>Restore
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Archived tasks toggle */}
                   {wsArchivedTasks.length > 0 && (
                     <div className="border-t border-gray-100">
@@ -2607,7 +2655,7 @@ export default function AdminProjectsPage() {
                       {(activeId ? filtered.filter(p => p.id === activeId) : filtered).map(p => {
                         const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                         const dl = deadlineStatus(p.deadline, p.status);
-                        const pTasks = tasks.filter(t => t.project_id === p.id);
+                        const pTasks = tasks.filter(t => t.project_id === p.id && !t.deleted_at);
                         const pTasksDone = pTasks.filter(t => t.status === 'done').length;
                         const pal = getServicePalette(p.service);
                         const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
@@ -3852,7 +3900,7 @@ export default function AdminProjectsPage() {
           refreshWorkspaceActivity();
         }}
         onDeleted={(id) => {
-          setTasks(prev => prev.filter(t => t.id !== id));
+          setTasks(prev => prev.map(t => t.id === id ? { ...t, deleted_at: new Date().toISOString() } : t));
           setDetailOpen(false);
           setDetailTask(null);
           refreshWorkspaceActivity();

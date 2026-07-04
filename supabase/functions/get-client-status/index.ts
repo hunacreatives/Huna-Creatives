@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
       .select('id, title, status, due_date, start_date, completed_at, created_at')
       .eq('project_id', project.id)
       .not('archived', 'is', true)
+      .is('deleted_at', null)
       .order('due_date', { ascending: true, nullsFirst: false });
 
     const { id: _projectId, ...safeProject } = project;

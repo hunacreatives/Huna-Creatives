@@ -737,7 +737,8 @@ export default function TaskDetailPanel({
       setDeleting(false);
       return;
     }
-    await supabase.from('hub_project_tasks').delete().eq('id', task.id);
+    // Soft delete — lands in the workspace trash, restorable for 30 days
+    await supabase.from('hub_project_tasks').update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', task.id);
     onDeleted(task.id);
     onClose();
     setDeleting(false);
