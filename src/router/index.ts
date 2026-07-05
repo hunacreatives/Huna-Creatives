@@ -34,7 +34,6 @@ export function AppRoutes() {
     import('../pages/hub/admin/attendance/page');
     import('../pages/hub/admin/projects/page');
     import('../pages/hub/admin/requests/page');
-    import('../pages/hub/admin/timeoff/page');
     import('../pages/hub/admin/announcements/page');
     import('../pages/hub/admin/sop/page');
     import('../pages/hub/admin/performance/page');

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
@@ -28,7 +27,8 @@ const statusLabels: Record<string, string> = {
 const daysBetween = (a: string, b: string) =>
   Math.ceil((new Date(b).getTime() - new Date(a).getTime()) / 86400000) + 1;
 
-export default function AdminTimeOffPage() {
+// Rendered as the Time-Off tab inside the Request Center (was its own page).
+export default function TimeOffPanel() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
   const isOwner = isDemo ? true : hubUser?.role === 'owner';
@@ -241,7 +241,7 @@ export default function AdminTimeOffPage() {
   const filterTabs = ['pending', 'forwarded', 'approved', 'rejected', 'all'];
 
   return (
-    <AdminLayout title="Time Off">
+    <>
       <div className="space-y-4">
 
         {/* Tab: Requests / Blackouts / Balances */}
@@ -616,6 +616,6 @@ export default function AdminTimeOffPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </>
   );
 }

@@ -22,11 +22,10 @@ const HubAdminContractors = lazy(() => import('../pages/hub/admin/contractors/pa
 const HubAdminContractorDetail = lazy(() => import('../pages/hub/admin/contractors/detail/page'));
 const HubAdminAttendance = lazy(() => import('../pages/hub/admin/attendance/page'));
 const HubAdminRequests = lazy(() => import('../pages/hub/admin/requests/page'));
-const HubAdminTimeOff = lazy(() => import('../pages/hub/admin/timeoff/page'));
 const HubAdminAnnouncements = lazy(() => import('../pages/hub/admin/announcements/page'));
 const HubContractorMyRequests = lazy(() => import('../pages/hub/contractor/my-requests/page'));
 const HubAdminSop = lazy(() => import('../pages/hub/admin/sop/page'));
-const HubAdminAssets = lazy(() => import('../pages/hub/admin/assets/page'));
+const HubAdminAccess = lazy(() => import('../pages/hub/admin/access/page'));
 const HubAdminAuditLog = lazy(() => import('../pages/hub/admin/auditlog/page'));
 const HubAdminSettings = lazy(() => import('../pages/hub/admin/settings/page'));
 const HubAdminPayroll = lazy(() => import('../pages/hub/admin/payroll/page'));
@@ -39,7 +38,6 @@ const HubContractorSop = lazy(() => import('../pages/hub/contractor/sop/page'));
 const HubContractorProfile = lazy(() => import('../pages/hub/contractor/profile/page'));
 const HubContractorPayouts = lazy(() => import('../pages/hub/contractor/payouts/page'));
 const HubContractorDocuments = lazy(() => import('../pages/hub/contractor/documents/page'));
-const HubAdminCredentials = lazy(() => import('../pages/hub/admin/credentials/page'));
 const HubAdminPerformance = lazy(() => import('../pages/hub/admin/performance/page'));
 const HubContractorCredentials = lazy(() => import('../pages/hub/contractor/credentials/page'));
 const HubContractorOnboarding = lazy(() => import('../pages/hub/contractor/onboarding/page'));
@@ -138,10 +136,11 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/contractors/:id', element: withAdminGate(<HubAdminContractorDetail />) },
   { path: '/hub/admin/attendance', element: withAdminGate(<HubAdminAttendance />) },
   { path: '/hub/admin/requests', element: withAdminGate(<HubAdminRequests />) },
-  { path: '/hub/admin/timeoff', element: withAdminGate(<HubAdminTimeOff />) },
+  { path: '/hub/admin/timeoff', element: <Navigate to="/hub/admin/requests?tab=timeoff" replace /> },
   { path: '/hub/admin/announcements', element: withAdminGate(<HubAdminAnnouncements />) },
   { path: '/hub/admin/sop', element: withAdminGate(<HubAdminSop />) },
-  { path: '/hub/admin/assets', element: withAdminGate(<HubAdminAssets />) },
+  { path: '/hub/admin/access', element: withAdminGate(<HubAdminAccess />) },
+  { path: '/hub/admin/assets', element: <Navigate to="/hub/admin/access?tab=assets" replace /> },
   { path: '/hub/admin/auditlog', element: withAdminGate(<HubAdminAuditLog />) },
   { path: '/hub/admin/performance', element: withAdminGate(<HubAdminPerformance />) },
   { path: '/hub/admin/settings', element: withAdminGate(<HubAdminSettings />) },
@@ -149,7 +148,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/payouts', element: withAdminGate(<HubAdminPayouts />) },
   { path: '/hub/admin/docrequests', element: withAdminGate(<HubAdminDocRequests />) },
   { path: '/hub/admin/invoices/:projectId', element: withAdminGate(<HubAdminInvoiceBuilder />) },
-  { path: '/hub/admin/credentials', element: withAdminGate(<HubAdminCredentials />) },
+  { path: '/hub/admin/credentials', element: <Navigate to="/hub/admin/access" replace /> },
   { path: '/hub/contractor/dashboard', element: withContractorGate(<HubContractorDashboard />) },
   { path: '/hub/contractor/attendance', element: withContractorGate(<HubContractorAttendance />) },
   { path: '/hub/contractor/my-requests', element: withContractorGate(<HubContractorMyRequests />) },

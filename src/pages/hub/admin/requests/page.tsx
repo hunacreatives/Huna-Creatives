@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
+import TimeOffPanel from './TimeOffPanel';
 import { supabase } from '@/lib/supabase';
 import { HubRequest, HubUser } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { DEMO_REQUESTS, DEMO_OVERTIME } from '@/lib/demoData';
 
-type Tab = 'requests' | 'overtime';
+type Tab = 'requests' | 'overtime' | 'timeoff';
 
 // ── General requests ──────────────────────────────────────────────────────────
 
@@ -33,7 +35,14 @@ const otStatusLabels: Record<string, string> = {
 export default function AdminRequestsPage() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
-  const [tab, setTab] = useState<Tab>('requests');
+  // ?tab=timeoff|overtime deep links (old /hub/admin/timeoff route redirects here)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [tab, setTab] = useState<Tab>(tabParam === 'timeoff' || tabParam === 'overtime' ? tabParam : 'requests');
+  const switchTab = (t: Tab) => {
+    setTab(t);
+    setSearchParams(t === 'requests' ? {} : { tab: t }, { replace: true });
+  };
 
   // ── General requests state ────────────────────────────────────────────────
   const [reqs, setReqs] = useState<HubRequest[]>([]);
@@ -135,13 +144,17 @@ export default function AdminRequestsPage() {
     <AdminLayout title="Request Center">
       {/* Tab bar */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-5">
-        <button onClick={() => setTab('requests')}
+        <button onClick={() => switchTab('requests')}
           className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'requests' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           <i className="ri-inbox-line text-[13px]"></i>General Requests
         </button>
-        <button onClick={() => setTab('overtime')}
+        <button onClick={() => switchTab('overtime')}
           className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'overtime' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           <i className="ri-timer-flash-line text-[13px]"></i>Overtime
+        </button>
+        <button onClick={() => switchTab('timeoff')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'timeoff' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <i className="ri-calendar-event-line text-[13px]"></i>Time-Off
         </button>
       </div>
 
@@ -259,6 +272,9 @@ export default function AdminRequestsPage() {
           )}
         </div>
       )}
+
+      {/* ── Time-Off (full former Time-Off page: requests · blackouts · balances) ── */}
+      {tab === 'timeoff' && <TimeOffPanel />}
 
       {/* ── Modals ────────────────────────────────────────────────────────────── */}
 

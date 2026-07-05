@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubAsset, HubUser } from '@/lib/types';
 import { useDemo } from '@/contexts/DemoContext';
@@ -30,17 +29,18 @@ const accessColors: Record<string, string> = {
 
 const emptyForm = { contractor_id: '', platform: 'canva', account_name: '', access_level: 'editor', status: 'active', notes: '' };
 
-export default function AssetsPage() {
+// Rendered as the Platform Access tab of the Access page (was its own page).
+export default function AssetsPanel() {
   const { isDemo } = useDemo();
 
   if (isDemo) return (
-    <AdminLayout>
+    <>
       <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400">
         <i className="ri-lock-2-line text-3xl opacity-40"></i>
         <p className="text-sm font-medium">Not available in demo</p>
         <p className="text-xs text-gray-300">This section requires a live account.</p>
       </div>
-    </AdminLayout>
+    </>
   );
 
   const [assets, setAssets] = useState<HubAsset[]>([]);
@@ -96,7 +96,7 @@ export default function AssetsPage() {
   };
 
   return (
-    <AdminLayout title="Asset Access">
+    <>
       <div className="space-y-4">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-48">
@@ -238,6 +238,6 @@ export default function AssetsPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </>
   );
 }
