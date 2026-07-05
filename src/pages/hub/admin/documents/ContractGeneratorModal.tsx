@@ -498,6 +498,43 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
   const [toast, setToast] = useState('');
   const [contractMode, setContractMode] = useState<'template' | 'custom'>('template');
   const [customBody, setCustomBody] = useState('');
+  const [aiBrief, setAiBrief] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  // AI draft: fills the custom body from a brief + the selected contractor's
+  // details; the normal preview → send-for-signature flow takes over from there.
+  const generateWithAI = async () => {
+    if (!aiBrief.trim() && !fields.role.trim()) { setAiError('Describe the engagement first (or pick a role).'); return; }
+    setAiGenerating(true);
+    setAiError('');
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-contractor-contract', {
+        body: {
+          brief: aiBrief.trim(),
+          contractor_name: fields.contractorName || null,
+          role: fields.role || null,
+          effective_date: fields.effectiveDate || null,
+          payment_type: fields.paymentType,
+          monthly_rate: fields.monthlyRate || null,
+          hourly_rate: fields.hourlyRate || null,
+          currency: fields.currency,
+          amendment_type: fields.amendmentType,
+        },
+      });
+      if (error || data?.error || !data?.body) {
+        setAiError(data?.error ?? error?.message ?? 'Generation failed — try again.');
+        return;
+      }
+      setCustomBody(data.body);
+      setToast('Draft generated — review and edit below before previewing.');
+      setTimeout(() => setToast(''), 4000);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'Generation failed — try again.');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
 
   const set = (key: keyof ContractFields, val: any) =>
     setFields(prev => ({ ...prev, [key]: val }));
@@ -639,7 +676,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
                   className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
                     contractMode === m ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
                   }`}>
-                  {m === 'template' ? 'Use Template' : 'Write Custom'}
+                  {m === 'template' ? 'Use Template' : 'Custom · AI'}
                 </button>
               ))}
             </div>
@@ -677,6 +714,31 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
                       <option value="other">Other Amendment</option>
                     </select>
                   </div>
+                </div>
+
+                {/* AI draft */}
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-indigo-700 flex items-center gap-1.5">
+                    <i className="ri-sparkling-2-line"></i> Draft with AI
+                  </p>
+                  <textarea
+                    value={aiBrief}
+                    onChange={e => setAiBrief(e.target.value)}
+                    rows={3}
+                    placeholder={"Describe the engagement — role, responsibilities, schedule, rate, special terms…\nThe selected contractor's name, rate, and dates above are included automatically."}
+                    className="w-full border border-indigo-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 resize-y"
+                  />
+                  {aiError && <p className="text-xs text-red-500">{aiError}</p>}
+                  <button
+                    type="button"
+                    onClick={generateWithAI}
+                    disabled={aiGenerating}
+                    className="w-full py-2 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 cursor-pointer disabled:opacity-40 font-medium flex items-center justify-center gap-1.5">
+                    {aiGenerating
+                      ? <><i className="ri-loader-4-line animate-spin text-sm"></i> Drafting… this can take a minute</>
+                      : <><i className="ri-magic-line text-sm"></i> {customBody.trim() ? 'Regenerate draft' : 'Generate draft'}</>}
+                  </button>
+                  <p className="text-[10px] text-indigo-400">The draft lands in the Contract Body below — always review before sending.</p>
                 </div>
 
                 {/* Custom body */}

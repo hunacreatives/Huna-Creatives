@@ -946,6 +946,15 @@ export default function AdminProjectsPage() {
 
   const [openingWorkspace, setOpeningWorkspace] = useState(false);
 
+  // Row click → straight into the workspace. Uses openWorkspaceOnLoad so the
+  // activeId effect (which resets workspaceOpen when ws!=1) opens it instead.
+  const openProjectWorkspace = (id: number) => {
+    setActiveClientId(null);
+    if (activeId === id) { setWorkspaceOpen(true); return; }
+    openWorkspaceOnLoad.current = true;
+    setActiveId(id);
+  };
+
   // Client status page: copy the shareable link, generating the token on first use
   const shareClientStatus = async () => {
     if (!activeProject) return;
@@ -1276,7 +1285,6 @@ export default function AdminProjectsPage() {
     if (openWorkspaceOnLoad.current) { setWorkspaceOpen(true); openWorkspaceOnLoad.current = false; }
     else if (searchParams.get('ws') !== '1') { setWorkspaceOpen(false); }
     setOpenSections({});
-    if (activeId) setTimeout(() => detailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
   }, [activeId, isDemo]);
 
   // Sync URL separately so changing workspaceOpen doesn't re-run the effect above and reset it
@@ -2652,7 +2660,7 @@ export default function AdminProjectsPage() {
                       <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{filtered.length}</span>
                     </div>
                     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
-                      {(activeId ? filtered.filter(p => p.id === activeId) : filtered).map(p => {
+                      {filtered.map(p => {
                         const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
                         const dl = deadlineStatus(p.deadline, p.status);
                         const pTasks = tasks.filter(t => t.project_id === p.id && !t.deleted_at);
@@ -2662,8 +2670,9 @@ export default function AdminProjectsPage() {
                         const isSelected = activeId === p.id;
                         const badge = dl ?? (p.status !== 'ongoing' ? cfg : null);
                         return (
-                          <button key={p.id}
-                            onClick={() => { setActiveClientId(null); setActiveId(prev => prev === p.id ? null : p.id); }}
+                          <div key={p.id} role="button" tabIndex={0}
+                            onClick={() => openProjectWorkspace(p.id)}
+                            onKeyDown={e => { if (e.key === 'Enter') openProjectWorkspace(p.id); }}
                             className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/60'}`}>
                             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
                               style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
@@ -2694,8 +2703,14 @@ export default function AdminProjectsPage() {
                             ) : (
                               <span className="text-[11px] text-gray-400 flex-shrink-0">Active</span>
                             )}
+                            <button
+                              onClick={e => { e.stopPropagation(); setActiveClientId(null); setActiveId(p.id); }}
+                              title="Payments, payouts & contract"
+                              className={`w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 cursor-pointer transition-colors ${isSelected ? 'text-[#FF6B35] bg-[#FF6B35]/10' : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'}`}>
+                              <i className="ri-wallet-3-line text-base"></i>
+                            </button>
                             <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -2709,7 +2724,7 @@ export default function AdminProjectsPage() {
                 )}
 
                 {/* ── Retainer Clients ── */}
-                {!activeClientId && !(activeId && projects.find(p => p.id === activeId && p.project_type !== 'retainer')) && (() => {
+                {!activeClientId && (() => {
                   const retainerNames = new Set([
                     ...retainerProjects.map(p => p.client_name.toLowerCase()),
                     ...retainerProjects.map(p => p.project_name.toLowerCase()),
@@ -2728,12 +2743,14 @@ export default function AdminProjectsPage() {
                         <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{totalCount}</span>
                       </div>
                       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
-                        {(activeId ? sortedRetainers.filter(p => p.id === activeId) : sortedRetainers).map(p => {
+                        {sortedRetainers.map(p => {
                           const pal = getServicePalette(p.service);
                           const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
                           const isSelected = activeId === p.id;
                           return (
-                            <button key={p.id} onClick={() => { setActiveClientId(null); setActiveId(prev => prev === p.id ? null : p.id); }}
+                            <div key={p.id} role="button" tabIndex={0}
+                              onClick={() => openProjectWorkspace(p.id)}
+                              onKeyDown={e => { if (e.key === 'Enter') openProjectWorkspace(p.id); }}
                               className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/60'}`}>
                               <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
                                 style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
@@ -2761,8 +2778,14 @@ export default function AdminProjectsPage() {
                               ) : (
                                 <span className="text-[11px] text-gray-400 flex-shrink-0">Retainer</span>
                               )}
+                              <button
+                                onClick={e => { e.stopPropagation(); setActiveClientId(null); setActiveId(p.id); }}
+                                title="Payments, payouts & contract"
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 cursor-pointer transition-colors ${isSelected ? 'text-[#FF6B35] bg-[#FF6B35]/10' : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'}`}>
+                                <i className="ri-wallet-3-line text-base"></i>
+                              </button>
                               <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
-                            </button>
+                            </div>
                           );
                         })}
                         {sortedIntl.map(c => {
@@ -2909,14 +2932,15 @@ export default function AdminProjectsPage() {
                 </div>
               </div>
 
-              {/* Desktop: inline panel */}
-            <div className="hidden lg:block space-y-4 min-w-0">
+              {/* Desktop: right-side drawer */}
+            <div className="hidden lg:block fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setActiveId(null)} />
+            <div className="hidden lg:block fixed right-0 top-0 bottom-0 z-50 w-[620px] max-w-[92vw] bg-gray-50 shadow-2xl overflow-y-auto p-5 space-y-4">
               {/* Header */}
               <div className="bg-white border border-gray-100 rounded-2xl p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="font-bold text-[#111827] text-lg">{activeProject.project_name}</h2>
+                      <h2 className="font-bold text-[#111827] text-lg leading-snug">{activeProject.project_name}</h2>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.cls}`}>{cfg.label}</span>
                       {internalProject && (
                         <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">Internal</span>
@@ -2934,7 +2958,14 @@ export default function AdminProjectsPage() {
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button onClick={() => setActiveId(null)} title="Close details"
+                    className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors flex-shrink-0">
+                    <i className="ri-close-line text-base"></i>
+                  </button>
+                </div>
+
+                {/* Actions — own row so the title never gets squeezed */}
+                <div className="flex items-center gap-1.5 flex-wrap mt-4 pt-3 border-t border-gray-50">
                     {/* Secondary actions */}
                     <div className="flex items-center gap-0.5 bg-white/60 border border-gray-200 rounded-xl px-1 py-1">
                       <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
@@ -2969,7 +3000,6 @@ export default function AdminProjectsPage() {
                       className="text-xs px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors font-medium">
                       <i className="ri-layout-grid-line text-sm"></i> Workspace
                     </button>
-                  </div>
                 </div>
 
                 {/* Ops stats strip — always shown, finance only for client */}
@@ -3089,7 +3119,6 @@ export default function AdminProjectsPage() {
                   </div>
                 )}
                 {activeProject.notes && <p className="text-xs text-gray-400 italic mt-2">{activeProject.notes}</p>}
-                </div>
               </div>
 
               {!internalProject && <div className="space-y-3">
@@ -3711,6 +3740,7 @@ export default function AdminProjectsPage() {
                   )}
                 </div>
               )}
+            </div>
 
             </> // end desktop + mobile sheets
           );
