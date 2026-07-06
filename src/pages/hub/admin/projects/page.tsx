@@ -951,8 +951,10 @@ export default function AdminProjectsPage() {
   const openProjectWorkspace = (id: number) => {
     setActiveClientId(null);
     if (activeId === id) { setWorkspaceOpen(true); return; }
-    openWorkspaceOnLoad.current = true;
+    openWorkspaceOnLoad.current = true; // keeps the activeId effect from resetting workspaceOpen
+    setTasks([]);            // don't flash the previous project's tasks in the new workspace
     setActiveId(id);
+    setWorkspaceOpen(true);  // same render as activeId — the drawer never gets a frame to flicker
   };
 
   // Client status page: copy the shareable link, generating the token on first use
