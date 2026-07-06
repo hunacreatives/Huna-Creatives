@@ -984,6 +984,33 @@ export default function AdminProjectsPage() {
     });
     setPaySaving(false);
     if (error) { setPayError(error.message); return; }
+
+    // Apply the payment to open Invoice Log entries (oldest first) so the
+    // dashboard's outstanding-invoices banner reflects money already received.
+    try {
+      const { data: openInvoices } = await supabase.from('hub_invoice_log')
+        .select('id, balance')
+        .eq('project_id', activeId)
+        .eq('settled', false)
+        .gt('balance', 0)
+        .order('sent_at', { ascending: true });
+      let remaining = amountPHP;
+      for (const inv of openInvoices ?? []) {
+        if (remaining <= 0) break;
+        const applied = Math.min(remaining, inv.balance);
+        remaining -= applied;
+        const newBalance = inv.balance - applied;
+        const settledNow = newBalance <= 0.5; // centavo dust doesn't keep an invoice open
+        const { error: invErr } = await supabase.from('hub_invoice_log').update({
+          balance: settledNow ? 0 : newBalance,
+          ...(settledNow ? { settled: true, settled_at: new Date().toISOString() } : {}),
+        }).eq('id', inv.id);
+        if (invErr) { console.error('Invoice log sync failed:', invErr.message); break; }
+      }
+    } catch (e) {
+      console.error('Invoice log sync failed:', e);
+    }
+
     setPayAmount(''); setPayNotes(''); setPayReceipt(null); setPayCurrency('PHP');
     fetchAll();
   };
