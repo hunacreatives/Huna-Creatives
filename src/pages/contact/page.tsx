@@ -13,6 +13,7 @@ const SERVICE_OPTIONS = [
   'Print & Packaging Design',
   'Motion & Animation',
   'Website Design',
+  'E-Vites & Event RSVP Websites',
   'Other / Not Sure Yet',
 ];
 
