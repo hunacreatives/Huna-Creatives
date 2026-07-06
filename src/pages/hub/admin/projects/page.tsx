@@ -928,15 +928,38 @@ export default function AdminProjectsPage() {
     fetchAll();
   };
 
+  // Unarchiving a finished project needs a decision: is work actually resuming,
+  // or should it just become visible again? This holds the project while we ask.
+  const [unarchiveChoice, setUnarchiveChoice] = useState<Project | null>(null);
+
+  const doUnarchive = async (project: Project, newStatus: string | null) => {
+    const payload: Record<string, unknown> = { archived_at: null, updated_at: new Date().toISOString() };
+    if (newStatus) payload.status = newStatus;
+    const { error } = await supabase.from('hub_projects').update(payload).eq('id', project.id);
+    if (error) { window.alert(`Failed to unarchive project: ${error.message}`); return; }
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'project', entity_id: String(project.id), description: `Unarchived project "${project.project_name}"${newStatus ? ` and reopened it as ${newStatus === 'ongoing' ? 'active' : newStatus}` : ''}` });
+    setProjects(prev => prev.map(p => p.id === project.id ? { ...p, archived_at: null, ...(newStatus ? { status: newStatus } : {}) } : p));
+    setUnarchiveChoice(null);
+  };
+
   const toggleArchiveProject = async (project: Project) => {
     if (isDemo) return;
-    const archiving = !project.archived_at;
-    const archived_at = archiving ? new Date().toISOString() : null;
+    if (project.archived_at || project.status === 'cancelled') {
+      // Finished projects get the reopen-vs-restore question; anything archived
+      // mid-flight (paused/ongoing) just comes straight back as it was.
+      if (project.status === 'completed' || project.status === 'cancelled') {
+        setUnarchiveChoice(project);
+      } else {
+        await doUnarchive(project, null);
+      }
+      return;
+    }
+    const archived_at = new Date().toISOString();
     const { error } = await supabase.from('hub_projects').update({ archived_at, updated_at: new Date().toISOString() }).eq('id', project.id);
-    if (error) { window.alert(`Failed to ${archiving ? 'archive' : 'unarchive'} project: ${error.message}`); return; }
-    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'project', entity_id: String(project.id), description: `${archiving ? 'Archived' : 'Unarchived'} project "${project.project_name}"` });
+    if (error) { window.alert(`Failed to archive project: ${error.message}`); return; }
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'project', entity_id: String(project.id), description: `Archived project "${project.project_name}"` });
     setProjects(prev => prev.map(p => p.id === project.id ? { ...p, archived_at } : p));
-    if (archiving) setActiveId(null); // close the drawer — the project moves to the Archived tab
+    setActiveId(null); // close the drawer — the project moves to the Archived tab
   };
 
   const logPayment = async () => {
@@ -3949,6 +3972,31 @@ export default function AdminProjectsPage() {
           project={sendReceiptModal.project}
           onClose={() => setSendReceiptModal(null)}
         />
+      )}
+
+      {/* Unarchive: reopen or just restore visibility */}
+      {unarchiveChoice && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setUnarchiveChoice(null)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div>
+              <h3 className="text-sm font-bold text-[#111827]">Bring back “{unarchiveChoice.project_name}”?</h3>
+              <p className="text-xs text-gray-400 mt-1">Tell the hub what this means for the project.</p>
+            </div>
+            <div className="space-y-2">
+              <button onClick={() => doUnarchive(unarchiveChoice, 'ongoing')}
+                className="w-full text-left rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50 p-3.5 cursor-pointer transition-colors">
+                <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1.5"><i className="ri-restart-line"></i>Work is resuming</p>
+                <p className="text-xs text-gray-500 mt-0.5">Reopen as an Active project — it returns to the team's lists and boards.</p>
+              </button>
+              <button onClick={() => doUnarchive(unarchiveChoice, unarchiveChoice.status === 'cancelled' ? 'completed' : null)}
+                className="w-full text-left rounded-xl border border-gray-200 hover:bg-gray-50 p-3.5 cursor-pointer transition-colors">
+                <p className="text-sm font-semibold text-gray-700 flex items-center gap-1.5"><i className="ri-eye-line"></i>Just bring it back into view</p>
+                <p className="text-xs text-gray-500 mt-0.5">Keep it marked Completed — visible for reference, nothing reactivates.</p>
+              </button>
+            </div>
+            <button onClick={() => setUnarchiveChoice(null)} className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 cursor-pointer">Cancel — leave it archived</button>
+          </div>
+        </div>
       )}
 
       {lightboxUrl && <ReceiptLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />}
