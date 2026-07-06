@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { exitDemo } from '@/lib/demoBooking';
+import { useSidebarTip } from './SidebarTip';
 
 const baseNavItems = [
   { to: '/hub/contractor/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
@@ -28,6 +29,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
   const { isDemo } = useDemo();
   const navigate = useNavigate();
   const location = useLocation();
+  const { bind: tipFor, tipEl, clearTip } = useSidebarTip(collapsed);
 
   const isProjectBased = hubUser?.payment_type === 'project_based';
   const filteredBase = isProjectBased
@@ -68,7 +70,8 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
         {/* Logo */}
         <div className={`flex items-center gap-2.5 px-4 h-[66px] border-b border-white/60 ${collapsed ? 'justify-center px-0' : ''}`}>
           <div
-            onClick={collapsed ? onToggle : undefined}
+            onClick={collapsed ? () => { clearTip(); onToggle(); } : undefined}
+            {...(collapsed ? tipFor('Expand sidebar') : {})}
             className={`w-10 h-10 rounded-2xl bg-[#FF6B35] text-white flex items-center justify-center shadow-sm flex-shrink-0 ${collapsed ? 'cursor-pointer hover:bg-[#e55a27] transition-colors' : ''}`}
           >
             <img src="/s-logo.png" alt="S" className="w-6 h-6 object-contain" style={{ filter: 'invert(1)' }} />
@@ -90,7 +93,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
         </div>
 
         {/* Nav */}
-        <nav className={`flex-1 min-h-0 overflow-y-auto pt-4 pb-3 ${collapsed ? 'px-2' : 'px-3'}`}>
+        <nav onScroll={clearTip} className={`flex-1 min-h-0 overflow-y-auto pt-4 pb-3 ${collapsed ? 'px-2' : 'px-3'}`}>
           {navItems.map((item, idx) => {
             if ((item as any).divider) {
               return !collapsed ? (
@@ -110,7 +113,7 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
                       : 'text-gray-500 hover:bg-white/50 hover:text-gray-800'
                   } ${collapsed ? 'justify-center px-2' : ''}`
                 }
-                title={item.label}
+                {...tipFor(item.label)}
               >
                 <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                   <i className={`${item.icon} text-[16px]`}></i>
@@ -146,13 +149,14 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
               </button>
             </div>
           ) : collapsed ? (
-            <button onClick={handleSignOut} title="Sign out"
+            <button onClick={handleSignOut} {...tipFor('Sign out')}
               className="flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors cursor-pointer w-full rounded-2xl px-0 py-2 hover:bg-white/50">
               <i className="ri-logout-box-r-line text-[18px]"></i>
             </button>
           ) : null}
         </div>
       </div>
+      {tipEl}
     </aside>
   );
 }

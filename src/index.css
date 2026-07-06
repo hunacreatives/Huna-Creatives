@@ -47,6 +47,16 @@
   100% { transform: translateX(-33.333%); }
 }
 
+/* Collapsed-sidebar hover label (macOS Dock style) — pops out beside the icon */
+@keyframes sidebar-tip-in {
+  from { opacity: 0; transform: translateY(-50%) translateX(-6px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(-50%) translateX(0) scale(1); }
+}
+.sidebar-tip {
+  transform: translateY(-50%);
+  animation: sidebar-tip-in 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
 .animate-marquee {
   animation: marquee 30s linear infinite;
 }
