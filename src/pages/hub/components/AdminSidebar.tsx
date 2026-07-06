@@ -24,6 +24,7 @@ const navItems = [
   { to: '/hub/admin/applications', label: 'Applications', icon: 'ri-user-search-line' },
   { to: '/hub/admin/contact', label: 'Contact Inbox', icon: 'ri-mail-line' },
   { to: '/hub/admin/rsvps', label: 'Event RSVPs', icon: 'ri-coupon-line', demoHidden: true },
+  { to: '/hub/admin/questionnaires', label: 'Questionnaires', icon: 'ri-questionnaire-line', devOnly: true },
   { divider: true, label: 'Finance' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
   { to: '/hub/admin/invoice-log', label: 'Invoice Log', icon: 'ri-bill-line' },
