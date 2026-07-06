@@ -989,13 +989,22 @@ export default function AdminProjectsPage() {
     // dashboard's outstanding-invoices banner reflects money already received.
     try {
       const { data: openInvoices } = await supabase.from('hub_invoice_log')
-        .select('id, balance')
+        .select('id, invoice_number, balance')
         .eq('project_id', activeId)
         .eq('settled', false)
         .gt('balance', 0)
         .order('sent_at', { ascending: true });
-      let remaining = amountPHP;
+      // Resends/reminders can duplicate rows per invoice — group by invoice
+      // number (newest balance wins) so one payment isn't applied twice.
+      const byInvoice = new Map<string, { ids: number[]; invoice_number: string; balance: number }>();
       for (const inv of openInvoices ?? []) {
+        const key = inv.invoice_number || `row-${inv.id}`;
+        const g = byInvoice.get(key);
+        if (g) { g.ids.push(inv.id); g.balance = inv.balance; }
+        else byInvoice.set(key, { ids: [inv.id], invoice_number: inv.invoice_number, balance: inv.balance });
+      }
+      let remaining = amountPHP;
+      for (const inv of byInvoice.values()) {
         if (remaining <= 0) break;
         const applied = Math.min(remaining, inv.balance);
         remaining -= applied;
@@ -1004,7 +1013,7 @@ export default function AdminProjectsPage() {
         const { error: invErr } = await supabase.from('hub_invoice_log').update({
           balance: settledNow ? 0 : newBalance,
           ...(settledNow ? { settled: true, settled_at: new Date().toISOString() } : {}),
-        }).eq('id', inv.id);
+        }).in('id', inv.ids);
         if (invErr) { console.error('Invoice log sync failed:', invErr.message); break; }
       }
     } catch (e) {

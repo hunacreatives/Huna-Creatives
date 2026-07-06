@@ -216,7 +216,7 @@ export default function AdminDashboardPage() {
         supabase.from('hub_projects').select('contract_price, status, deadline, project_type, monthly_rate, monthly_rate_currency, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
-        supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, sent_at').gt('balance', 0).eq('settled', false).order('sent_at', { ascending: false }),
+        supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, settled, sent_at').order('id', { ascending: false }),
         supabase.from('hub_invoice_payment_links').select('invoice_number, project_id, due_date').order('created_at', { ascending: false }),
       ]);
       if (!slackResult.error && slackResult.data?.attendance) {
@@ -298,6 +298,9 @@ export default function AdminDashboardPage() {
         const key = `${lnk.invoice_number}__${lnk.project_id}`;
         if (!(key in dueDateMap)) dueDateMap[key] = lnk.due_date ?? null;
       }
+      // Dedupe first (newest row per invoice wins — same rule as the Invoice
+      // Log page), then filter: a settled invoice must hide its stale
+      // unsettled duplicate rows, not be hidden by them.
       const seen = new Set<string>();
       const outstanding: OutstandingInvoice[] = ((invResult.data as any[]) ?? [])
         .filter((inv: any) => {
@@ -306,6 +309,8 @@ export default function AdminDashboardPage() {
           seen.add(key);
           return true;
         })
+        .filter((inv: any) => !inv.settled && (inv.balance ?? 0) > 0)
+        .sort((a: any, b: any) => (b.sent_at ?? '').localeCompare(a.sent_at ?? ''))
         .map((inv: any) => ({
           ...inv,
           due_date: dueDateMap[`${inv.invoice_number}__${inv.project_id}`] ?? null,

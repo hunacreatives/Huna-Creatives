@@ -440,6 +440,11 @@ export default function InvoiceLogPage() {
         await supabase.from('hub_invoice_log').update({ settled: true, settled_at: verified_at }).eq('id', matchedInvoiceId);
         setInvoices(prev => prev.map(i => i.id === matchedInvoiceId ? { ...i, settled: true, settled_at: verified_at } : i));
       }
+      // Also settle any duplicate rows for the same invoice (resends/reminders)
+      if (proof.invoice_number && proof.project_id) {
+        await supabase.from('hub_invoice_log').update({ settled: true, settled_at: verified_at })
+          .eq('invoice_number', proof.invoice_number).eq('project_id', proof.project_id).eq('settled', false);
+      }
 
       // 5. Slack notification
       supabase.functions.invoke('notify-internal-request', {
@@ -497,7 +502,12 @@ export default function InvoiceLogPage() {
   const settleInvoice = async (inv: InvoiceLog) => {
     if (!window.confirm(`Mark invoice #${inv.invoice_number.padStart(4, '0')} for ${inv.client_name} as settled?`)) return;
     const settled_at = new Date().toISOString();
-    await supabase.from('hub_invoice_log').update({ settled: true, settled_at }).eq('id', inv.id);
+    // Settle every row for this invoice — resends/reminders can leave duplicate
+    // rows that the log's dedupe hides but the dashboard banner still counts.
+    let q = supabase.from('hub_invoice_log').update({ settled: true, settled_at }).eq('invoice_number', inv.invoice_number);
+    q = inv.project_id != null ? q.eq('project_id', inv.project_id) : q.eq('id', inv.id);
+    const { error } = await q;
+    if (error) { alert('Failed to settle invoice: ' + error.message); return; }
     setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, settled: true, settled_at } : i));
   };
 
