@@ -1,7 +1,13 @@
+import { useLayoutEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { exitDemo } from '@/lib/demoBooking';
+
+// Each page mounts its own AdminLayout, so this component remounts on every
+// navigation — keep the nav's scroll position outside the component so the
+// sidebar doesn't snap back to the top on each click.
+let savedNavScroll = 0;
 
 const navItems = [
   { to: '/hub/admin/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
@@ -39,6 +45,10 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
   const { hubUser, signOut } = useAuth();
   const { isDemo, demoUser } = useDemo();
   const navigate = useNavigate();
+  const navScrollRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (navScrollRef.current) navScrollRef.current.scrollTop = savedNavScroll;
+  }, []);
   const activeUser = isDemo ? demoUser : hubUser;
   const visibleNavItems = navItems
     .filter((item) => !(item as { devOnly?: boolean }).devOnly || hubUser?.is_developer)
@@ -96,7 +106,8 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
         </div>
 
         {/* Nav */}
-        <nav className={`flex-1 min-h-0 overflow-y-auto pt-4 pb-3 ${collapsed ? 'px-2' : 'px-3'}`}>
+        <nav ref={navScrollRef} onScroll={e => { savedNavScroll = e.currentTarget.scrollTop; }}
+          className={`flex-1 min-h-0 overflow-y-auto pt-4 pb-3 ${collapsed ? 'px-2' : 'px-3'}`}>
           {visibleNavItems.map((item, idx) => {
             if ((item as any).divider) {
               return !collapsed ? (

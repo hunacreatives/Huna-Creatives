@@ -1513,7 +1513,7 @@ export default function AdminProjectsPage() {
             <div className="px-5 md:px-6 pt-4 pb-2 flex-shrink-0">
               {/* Back button row */}
               <div className="flex items-center gap-2 mb-3">
-                <button onClick={() => { setWorkspaceOpen(false); setCollapsedGroups({}); }}
+                <button onClick={() => { setWorkspaceOpen(false); setActiveId(null); setCollapsedGroups({}); }}
                   className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
                   <i className="ri-arrow-left-s-line text-base"></i>
                 </button>
