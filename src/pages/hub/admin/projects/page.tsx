@@ -61,6 +61,7 @@ interface Project {
   contract_price: number; monthly_rate: number | null; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
   monthly_deliverables?: number | null;
   client_status_token?: string | null;
+  archived_at?: string | null;
   hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
   hub_payment_reminders: PaymentReminder[];
@@ -178,7 +179,7 @@ export default function AdminProjectsPage() {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'archived'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [pageView, setPageView] = useState<'projects' | 'tasks'>('projects');
   const [allTasks, setAllTasks] = useState<any[]>([]);
@@ -724,6 +725,16 @@ export default function AdminProjectsPage() {
   };
 
   const fetchAll = async () => {
+    // Auto-archive: completed projects untouched for 30 days move to the
+    // Archived tab (never deleted — their workspaces stay openable).
+    const archiveCutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+    await supabase.from('hub_projects')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('status', 'completed')
+      .is('archived_at', null)
+      .lt('updated_at', archiveCutoff)
+      .then(({ error }) => { if (error) console.error('Auto-archive failed:', error); });
+
     const [pRes, cRes, clientRes] = await Promise.all([
       supabase.from('hub_projects')
         .select('*, hub_project_payments(id, amount, paid_at, notes, receipt_url), hub_project_costs(id, label, amount, date), hub_payment_reminders(id, send_date, amount_due, notes, status, sent_at), hub_project_contractors(id, percentage, payout_type, fixed_amount, payout_status, paid_at, notes, exclude_from_payout, hub_users(id, full_name, avatar_url, email), hub_project_contractor_payouts(id, amount, paid_at, notes, receipt_url))')
@@ -915,6 +926,17 @@ export default function AdminProjectsPage() {
       setWorkspaceOpen(false);
     }
     fetchAll();
+  };
+
+  const toggleArchiveProject = async (project: Project) => {
+    if (isDemo) return;
+    const archiving = !project.archived_at;
+    const archived_at = archiving ? new Date().toISOString() : null;
+    const { error } = await supabase.from('hub_projects').update({ archived_at, updated_at: new Date().toISOString() }).eq('id', project.id);
+    if (error) { window.alert(`Failed to ${archiving ? 'archive' : 'unarchive'} project: ${error.message}`); return; }
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'project', entity_id: String(project.id), description: `${archiving ? 'Archived' : 'Unarchived'} project "${project.project_name}"` });
+    setProjects(prev => prev.map(p => p.id === project.id ? { ...p, archived_at } : p));
+    if (archiving) setActiveId(null); // close the drawer — the project moves to the Archived tab
   };
 
   const logPayment = async () => {
@@ -1230,10 +1252,16 @@ export default function AdminProjectsPage() {
   const projectTypes = Array.from(new Set(projects.map(p => p.service).filter(Boolean) as string[])).sort();
 
   // Main grid: one-time + internal only (retainers shown in Clients section below)
+  // Archived = explicitly archived (or legacy 'cancelled' status). Archived
+  // projects only appear under the Archived tab; their workspaces stay openable.
+  const isArchivedProject = (p: Project) => !!p.archived_at || p.status === 'cancelled';
+
   const filtered = projects.filter(p => {
     if (p.project_type === 'retainer') return false;
     const matchesSearch = !search || p.client_name.toLowerCase().includes(search.toLowerCase()) || p.project_name.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+    const matchesStatus = statusFilter === 'archived'
+      ? isArchivedProject(p)
+      : !isArchivedProject(p) && (statusFilter === 'all' || p.status === statusFilter);
     const matchesType = typeFilter === 'all' || p.service === typeFilter;
     const matchesProjectType = projectTypeFilter === 'all' || p.project_type === projectTypeFilter;
     return matchesSearch && matchesStatus && matchesType && matchesProjectType;
@@ -1255,11 +1283,11 @@ export default function AdminProjectsPage() {
   };
 
   const statusTabs = [
-    { key: 'all' as const, label: 'All', icon: 'ri-apps-2-line', count: projects.length },
-    { key: 'ongoing' as const, label: 'Active', icon: 'ri-flashlight-line', count: projects.filter(p => p.status === 'ongoing').length },
-    { key: 'paused' as const, label: 'Paused', icon: 'ri-pause-circle-line', count: projects.filter(p => p.status === 'paused').length },
-    { key: 'completed' as const, label: 'Completed', icon: 'ri-check-double-line', count: projects.filter(p => p.status === 'completed').length },
-    { key: 'cancelled' as const, label: 'Archived', icon: 'ri-archive-line', count: projects.filter(p => p.status === 'cancelled').length },
+    { key: 'all' as const, label: 'All', icon: 'ri-apps-2-line', count: projects.filter(p => !isArchivedProject(p)).length },
+    { key: 'ongoing' as const, label: 'Active', icon: 'ri-flashlight-line', count: projects.filter(p => p.status === 'ongoing' && !isArchivedProject(p)).length },
+    { key: 'paused' as const, label: 'Paused', icon: 'ri-pause-circle-line', count: projects.filter(p => p.status === 'paused' && !isArchivedProject(p)).length },
+    { key: 'completed' as const, label: 'Completed', icon: 'ri-check-double-line', count: projects.filter(p => p.status === 'completed' && !isArchivedProject(p)).length },
+    { key: 'archived' as const, label: 'Archived', icon: 'ri-archive-line', count: projects.filter(isArchivedProject).length },
   ];
 
   useEffect(() => {
@@ -2733,7 +2761,9 @@ export default function AdminProjectsPage() {
                   ]);
                   const extraIntl = intlClients.filter(c => !retainerNames.has(c.client_name.toLowerCase()));
                   const sortedRetainers = [...retainerProjects]
-                    .filter(p => statusFilter === 'all' || p.status === statusFilter)
+                    .filter(p => statusFilter === 'archived'
+                      ? isArchivedProject(p)
+                      : !isArchivedProject(p) && (statusFilter === 'all' || p.status === statusFilter))
                     .sort((a, b) => a.project_name.localeCompare(b.project_name));
                   const sortedIntl = [...extraIntl].sort((a, b) => a.client_name.localeCompare(b.client_name));
                   const totalCount = sortedRetainers.length + sortedIntl.length;
@@ -2982,6 +3012,12 @@ export default function AdminProjectsPage() {
                         </button>
                       </>}
                     </div>
+
+                    <button onClick={() => void toggleArchiveProject(activeProject)}
+                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-amber-100"
+                      title={activeProject.archived_at ? 'Unarchive project' : 'Archive project (kept — reopen anytime from the Archived tab)'}>
+                      <i className={`${activeProject.archived_at ? 'ri-inbox-unarchive-line' : 'ri-archive-line'} text-sm`}></i>
+                    </button>
 
                     {/* Delete — quiet danger */}
                     <button onClick={() => void deleteProject(activeProject)}

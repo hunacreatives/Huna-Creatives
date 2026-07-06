@@ -61,6 +61,7 @@ interface ProjectRow {
     drive_url: string | null;
     slug: string | null;
     monthly_deliverables?: number | null;
+    archived_at?: string | null;
     hub_project_payments: { amount: number }[];
     hub_project_costs: { amount: number }[];
   };
@@ -467,7 +468,7 @@ export default function ContractorProjectsPage() {
           { data: paymentsData },
           { data: costsData },
         ] = await Promise.all([
-          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, slug, monthly_deliverables').in('id', projectIds),
+          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, slug, monthly_deliverables, archived_at').in('id', projectIds),
           supabase.from('hub_project_contractor_payouts').select('id, amount, paid_at, notes, receipt_url, project_contractor_id').in('project_contractor_id', pcIds),
           supabase.from('hub_project_payments').select('amount, project_id').in('project_id', projectIds),
           supabase.from('hub_project_costs').select('amount, project_id').in('project_id', projectIds),
@@ -525,7 +526,7 @@ export default function ContractorProjectsPage() {
         // Fetch retainer clients + international assignments
         const [{ data: pcRetainers }, { data: assignData }] = await Promise.all([
           supabase.from('hub_project_contractors')
-            .select('id, hub_project_contractor_payouts(amount), hub_projects(id, client_name, project_name, service, status, project_type, monthly_rate)')
+            .select('id, hub_project_contractor_payouts(amount), hub_projects(id, client_name, project_name, service, status, project_type, monthly_rate, archived_at)')
             .eq('contractor_id', hubUser.id),
           supabase.from('hub_client_assignments')
             .select('id, role, hub_clients(id, client_name, platform, status, notes)')
@@ -533,7 +534,7 @@ export default function ContractorProjectsPage() {
         ]);
 
         const retainerEntries = (pcRetainers ?? [])
-          .filter((r: any) => { const p = Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects; return p?.project_type === 'retainer'; })
+          .filter((r: any) => { const p = Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects; return p?.project_type === 'retainer' && !p?.archived_at && p?.status !== 'cancelled'; })
           .map((r: any) => {
             const p = Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects;
             const totalPaid = (r.hub_project_contractor_payouts ?? []).reduce((s: number, x: any) => s + x.amount, 0);
@@ -709,7 +710,8 @@ export default function ContractorProjectsPage() {
 
   const searchLower = search.toLowerCase();
   // My Work = one-time + internal only (retainers live in My Clients)
-  const workRows = rows.filter(r => r.hub_projects?.project_type !== 'retainer');
+  // Archived projects are hidden from employees (admins reopen them from the Archived tab)
+  const workRows = rows.filter(r => r.hub_projects?.project_type !== 'retainer' && !r.hub_projects?.archived_at && r.hub_projects?.status !== 'cancelled');
   const filteredRows = search
     ? workRows.filter(r => {
         const p = r.hub_projects;
