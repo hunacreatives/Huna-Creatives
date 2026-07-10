@@ -2829,16 +2829,19 @@ export default function AdminProjectsPage() {
                     ...retainerProjects.map(p => p.project_name.toLowerCase()),
                   ]);
                   const extraIntl = intlClients.filter(c => !retainerNames.has(c.client_name.toLowerCase()));
-                  const sortedRetainers = [...retainerProjects]
+                  const visibleRetainers = [...retainerProjects]
                     .filter(p => statusFilter === 'archived'
                       ? isArchivedProject(p)
                       : !isArchivedProject(p) && (statusFilter === 'all' || p.status === statusFilter))
                     .sort((a, b) => a.project_name.localeCompare(b.project_name));
+                  const licenseClients = visibleRetainers.filter(isLicenseProject);
+                  const sortedRetainers = visibleRetainers.filter(p => !isLicenseProject(p));
                   const sortedIntl = [...extraIntl].sort((a, b) => a.client_name.localeCompare(b.client_name));
                   const totalCount = sortedRetainers.length + sortedIntl.length;
-                  if (totalCount === 0) return null;
+                  if (totalCount === 0 && licenseClients.length === 0) return null;
                   return (
-                    <div>
+                    <>
+                    {totalCount > 0 && <div>
                       <div className="flex items-center gap-2 mb-3">
                         <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Retainer Clients</p>
                         <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{totalCount}</span>
@@ -2875,7 +2878,7 @@ export default function AdminProjectsPage() {
                                 </span>
                               )}
                               {isOwner && p.monthly_rate ? (
-                                <span className="text-xs font-semibold text-gray-700 tabular-nums flex-shrink-0">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}<span className="text-[10px] font-normal text-gray-400">/mo</span></span>
+                                <span className="text-xs font-semibold text-gray-700 tabular-nums flex-shrink-0">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
                               ) : (
                                 <span className="text-[11px] text-gray-400 flex-shrink-0">Retainer</span>
                               )}
@@ -2915,7 +2918,47 @@ export default function AdminProjectsPage() {
                           );
                         })}
                       </div>
-                    </div>
+                    </div>}
+
+                    {/* ── Sentro Hub Clients — license instances, billing only ── */}
+                    {licenseClients.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Sentro Hub Clients</p>
+                          <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{licenseClients.length}</span>
+                        </div>
+                        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
+                          {licenseClients.map(p => {
+                            const isSelected = activeId === p.id;
+                            const totalPaid = p.hub_project_payments.reduce((s: number, x: any) => s + x.amount, 0);
+                            return (
+                              <div key={p.id} role="button" tabIndex={0}
+                                onClick={() => { setActiveClientId(null); setActiveId(p.id); }}
+                                onKeyDown={e => { if (e.key === 'Enter') { setActiveClientId(null); setActiveId(p.id); } }}
+                                className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/60'}`}>
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm bg-[#FF6B35]">
+                                  <img src="/s-logo.png" alt="S" className="w-5 h-5 object-contain" style={{ filter: 'invert(1)' }} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.client_name}</p>
+                                  <p className="text-xs text-gray-400 truncate mt-0.5">Sentro Hub License{p.start_date ? ` · since ${fmtDate(p.start_date)}` : ''}</p>
+                                </div>
+                                {isOwner && <>
+                                  {totalPaid > 0 && (
+                                    <span className="text-[11px] text-emerald-600 font-medium flex-shrink-0 hidden sm:inline">{fmt(totalPaid)} collected</span>
+                                  )}
+                                  {p.monthly_rate ? (
+                                    <span className="text-xs font-semibold text-gray-700 tabular-nums flex-shrink-0">{fmtRate(p.monthly_rate, (p as any).monthly_rate_currency)}</span>
+                                  ) : null}
+                                </>}
+                                <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    </>
                   );
                 })()}
 
