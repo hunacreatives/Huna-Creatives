@@ -814,6 +814,9 @@ export default function AdminProjectsPage() {
 
   const isRetainerProject = (project: Project | null | undefined) => project?.project_type === 'retainer';
 
+  // License clients (Sentro Hub instances) have no tasks/team — just billing + contract.
+  const isLicenseProject = (project: Project | null | undefined) => project?.service === 'Sentro Hub License';
+
   const derived = (p: Project) => {
     const totalPaid = p.hub_project_payments.reduce((s, x) => s + x.amount, 0);
     const totalCosts = p.hub_project_costs.reduce((s, x) => s + x.amount, 0);
@@ -2977,10 +2980,10 @@ export default function AdminProjectsPage() {
                     ))}
                   </div>
                   {/* Actions */}
-                  <button onClick={() => { setWorkspaceOpen(true); }}
+                  {!isLicenseProject(activeProject) && <button onClick={() => { setWorkspaceOpen(true); }}
                     className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF6B35] text-white text-sm font-semibold rounded-xl cursor-pointer">
                     <i className="ri-layout-grid-line"></i> Open Workspace
-                  </button>
+                  </button>}
                   <div className="flex gap-2">
                     {!internalProject && <button onClick={() => navigate(`/hub/admin/invoices/${activeProject.id}`)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
@@ -2995,7 +2998,7 @@ export default function AdminProjectsPage() {
                     </button>
                   </div>
                   {/* Team */}
-                  {activeProject.hub_project_contractors.length > 0 && (
+                  {!isLicenseProject(activeProject) && activeProject.hub_project_contractors.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-gray-500 mb-2">Team</p>
                       <div className="space-y-2">
@@ -3101,10 +3104,10 @@ export default function AdminProjectsPage() {
                       className="text-xs px-3 py-2 bg-[#111827] hover:bg-gray-800 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors font-medium">
                       <i className="ri-mail-send-line text-sm"></i> Send Invoice
                     </button>}
-                    <button onClick={() => setWorkspaceOpen(true)}
+                    {!isLicenseProject(activeProject) && <button onClick={() => setWorkspaceOpen(true)}
                       className="text-xs px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors font-medium">
                       <i className="ri-layout-grid-line text-sm"></i> Workspace
-                    </button>
+                    </button>}
                 </div>
 
                 {/* Ops stats strip — always shown, finance only for client */}
@@ -3209,7 +3212,7 @@ export default function AdminProjectsPage() {
                   );
                 })()}
                 {/* Team inline */}
-                {activeProject.hub_project_contractors.length > 0 && (
+                {!isLicenseProject(activeProject) && activeProject.hub_project_contractors.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mr-1">Team</span>
                     <div className="flex items-center">
@@ -3472,7 +3475,7 @@ export default function AdminProjectsPage() {
               </div>}
 
               {/* Team — payouts config, avatars shown in header */}
-              <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
+              {!isLicenseProject(activeProject) && <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                 <button onClick={() => toggleSection('team')} className="w-full flex items-center justify-between cursor-pointer group">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team & Payouts</p>
                   <div className="flex items-center gap-2">
@@ -3698,7 +3701,7 @@ export default function AdminProjectsPage() {
                   )}
                   </>
                 )}
-              </div>
+              </div>}
 
               {/* Client Contract */}
               {!internalProject && (

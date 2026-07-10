@@ -115,19 +115,19 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <label className="text-xs font-medium text-gray-700">{form.project_type === 'internal' ? 'Owner / Label' : 'Client Name'}{form.project_type !== 'internal' ? ' *' : ''}</label>
                   <input value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} placeholder={form.project_type === 'internal' ? 'e.g. Internal, Marketing, Ops' : 'e.g. Blue Collar Nutrition'}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <label className="text-xs font-medium text-gray-700">Project Name *</label>
                   <input value={form.project_name} onChange={e => setForm({ ...form, project_name: e.target.value })} placeholder="e.g. bluecollarmealplan.com"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <label className="text-xs font-medium text-gray-700">Service</label>
                   <select value={SERVICES.includes(form.service) ? form.service : 'Other'}
                     onChange={e => setForm({ ...form, service: e.target.value === 'Other' ? '' : e.target.value })}
@@ -141,39 +141,47 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
                   )}
                 </div>
                 {form.project_type === 'client' && (
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0">
                     <label className="text-xs font-medium text-gray-700">Contract Price (PHP) *</label>
                     <input type="number" value={form.contract_price} onChange={e => setForm({ ...form, contract_price: e.target.value })} placeholder="0.00"
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                   </div>
                 )}
-                {form.project_type === 'retainer' && (
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-700">Setup Fee (PHP) <span className="text-gray-400 font-normal">(optional, one-time)</span></label>
-                    <input type="number" value={form.contract_price} onChange={e => setForm({ ...form, contract_price: e.target.value })} placeholder="0.00"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] mb-2" />
-                    <label className="text-xs font-medium text-gray-700">Monthly Rate *</label>
-                    <div className="flex gap-0">
-                      <select value={(form as any).monthly_rate_currency} onChange={e => setForm({ ...form, monthly_rate_currency: e.target.value } as any)}
-                        className="px-2.5 py-2 text-sm border border-gray-200 rounded-l-lg focus:outline-none bg-gray-50 border-r-0 text-gray-600">
-                        <option value="PHP">₱ PHP</option>
-                        <option value="USD">$ USD</option>
-                      </select>
-                      <input type="number" value={(form as any).monthly_rate} onChange={e => setForm({ ...form, monthly_rate: e.target.value } as any)} placeholder="0.00"
-                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+              </div>
+              {form.project_type === 'retainer' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <label className="text-xs font-medium text-gray-700">Setup Fee (PHP) <span className="text-gray-400 font-normal">(optional)</span></label>
+                      <input type="number" value={form.contract_price} onChange={e => setForm({ ...form, contract_price: e.target.value })} placeholder="0.00"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                     </div>
-                    {(form as any).monthly_rate_currency === 'USD' && (form as any).monthly_rate && (
-                      <p className="text-xs text-gray-400 mt-1">≈ ₱{((parseFloat((form as any).monthly_rate) || 0) * usdRate).toLocaleString()}/mo at current rate (₱{usdRate}/USD)</p>
-                    )}
-                    <label className="text-xs font-medium text-gray-700 block mt-2">Deliverables per month <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <div className="space-y-1 min-w-0">
+                      <label className="text-xs font-medium text-gray-700">Monthly Rate *</label>
+                      <div className="flex gap-0">
+                        <select value={(form as any).monthly_rate_currency} onChange={e => setForm({ ...form, monthly_rate_currency: e.target.value } as any)}
+                          className="shrink-0 px-2 py-2 text-sm border border-gray-200 rounded-l-lg focus:outline-none bg-gray-50 border-r-0 text-gray-600">
+                          <option value="PHP">₱</option>
+                          <option value="USD">$</option>
+                        </select>
+                        <input type="number" value={(form as any).monthly_rate} onChange={e => setForm({ ...form, monthly_rate: e.target.value } as any)} placeholder="0.00"
+                          className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      </div>
+                      {(form as any).monthly_rate_currency === 'USD' && (form as any).monthly_rate && (
+                        <p className="text-[11px] text-gray-400">≈ ₱{((parseFloat((form as any).monthly_rate) || 0) * usdRate).toLocaleString()}/mo (₱{usdRate}/USD)</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <label className="text-xs font-medium text-gray-700">Deliverables per month <span className="text-gray-400 font-normal">(optional)</span></label>
                     <input type="number" min="1" value={(form as any).monthly_deliverables} onChange={e => setForm({ ...form, monthly_deliverables: e.target.value } as any)} placeholder="e.g. 8"
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                     <p className="text-[10px] text-gray-400">Tracks tasks completed each month against this target.</p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <label className="text-xs font-medium text-gray-700">Status</label>
                   <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
                     <option value="ongoing">Ongoing</option>
@@ -182,12 +190,12 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <label className="text-xs font-medium text-gray-700">Start Date</label>
                   <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
                 </div>
                 {form.project_type !== 'retainer' && (
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0">
                     <label className="text-xs font-medium text-gray-700">Deadline</label>
                     <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none" />
                   </div>
