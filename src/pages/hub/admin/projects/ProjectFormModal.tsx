@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-const SERVICES = ['Website Design', 'Website Maintenance', 'E-vite / Event Website', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Marketing', 'Other'];
+const SERVICES = ['Website Design', 'Website Maintenance', 'E-vite / Event Website', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Marketing', 'Sentro Hub License', 'Other'];
 
 export interface ProjectFormState {
   project_type: 'client' | 'internal' | 'retainer';
@@ -105,7 +105,7 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setForm({ ...form, project_type: option.value as 'client' | 'internal' | 'retainer', client_name: option.value === 'internal' && !form.client_name ? 'Internal' : form.client_name, contract_price: option.value !== 'client' ? '' : form.contract_price, monthly_rate: option.value !== 'retainer' ? '' : (form as any).monthly_rate, contact_email: option.value === 'internal' ? '' : form.contact_email } as any)}
+                      onClick={() => setForm({ ...form, project_type: option.value as 'client' | 'internal' | 'retainer', client_name: option.value === 'internal' && !form.client_name ? 'Internal' : form.client_name, contract_price: option.value === 'internal' ? '' : form.contract_price, monthly_rate: option.value !== 'retainer' ? '' : (form as any).monthly_rate, contact_email: option.value === 'internal' ? '' : form.contact_email } as any)}
                       className={`rounded-xl border px-2 py-3 text-left transition-colors cursor-pointer ${form.project_type === option.value ? 'border-[#111827] bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}
                     >
                       <p className="text-sm font-medium text-gray-800">{option.label}</p>
@@ -149,6 +149,9 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
                 )}
                 {form.project_type === 'retainer' && (
                   <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700">Setup Fee (PHP) <span className="text-gray-400 font-normal">(optional, one-time)</span></label>
+                    <input type="number" value={form.contract_price} onChange={e => setForm({ ...form, contract_price: e.target.value })} placeholder="0.00"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] mb-2" />
                     <label className="text-xs font-medium text-gray-700">Monthly Rate *</label>
                     <div className="flex gap-0">
                       <select value={(form as any).monthly_rate_currency} onChange={e => setForm({ ...form, monthly_rate_currency: e.target.value } as any)}

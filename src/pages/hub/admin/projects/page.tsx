@@ -333,6 +333,7 @@ export default function AdminProjectsPage() {
           contact_email: activeProject.contact_email ?? '',
           total_value: activeProject.contract_price || activeProject.monthly_rate,
           currency: (activeProject as any).currency || 'PHP',
+          service: activeProject.service ?? '',
         },
       });
       if (error) throw new Error(error.message);
@@ -842,7 +843,7 @@ export default function AdminProjectsPage() {
       client_name: isInternal ? (form.client_name.trim() || 'Internal') : form.client_name.trim(),
       project_name: form.project_name.trim(),
       service: form.service || null,
-      contract_price: isInternal || isRetainer ? 0 : parseFloat(form.contract_price),
+      contract_price: isInternal ? 0 : (isRetainer ? (parseFloat(form.contract_price) || 0) : parseFloat(form.contract_price)),
       monthly_rate: isRetainer ? parseFloat((form as any).monthly_rate) : null,
       monthly_rate_currency: isRetainer ? (form as any).monthly_rate_currency : 'PHP',
       monthly_deliverables: isRetainer && (form as any).monthly_deliverables ? parseInt((form as any).monthly_deliverables, 10) : null,
@@ -2503,6 +2504,12 @@ export default function AdminProjectsPage() {
                       <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Financials</p>
                       <div className="space-y-2">
                         {isRetainerProject(p) ? (<>
+                          {p.contract_price > 0 && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-400">Setup Fee</span>
+                              <span className="font-semibold text-gray-700">{fmt(p.contract_price)}</span>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-400">Monthly Rate</span>
                             <span className="font-semibold text-indigo-600">{isOwner ? fmtRate(p.monthly_rate, (p as any).monthly_rate_currency) : 'Retainer'}</span>
@@ -2946,6 +2953,7 @@ export default function AdminProjectsPage() {
                       { label: 'Status', value: cfg.label, cls: 'text-gray-500' },
                     ] : isRetainerProject(activeProject) ? [
                       ...(isOwner ? [
+                        ...(activeProject.contract_price > 0 ? [{ label: 'Setup Fee', value: fmt(activeProject.contract_price), cls: 'text-gray-800' }] : []),
                         { label: 'Monthly', value: fmtRate(activeProject.monthly_rate, (activeProject as any).monthly_rate_currency), cls: 'text-indigo-600' },
                         { label: 'Collected', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
                         { label: 'Months Paid', value: String(d.monthsCollected ?? '—'), cls: 'text-gray-700' },
@@ -2978,7 +2986,7 @@ export default function AdminProjectsPage() {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>}
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', monthly_rate_currency: (activeProject as any).monthly_rate_currency ?? 'PHP', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'internal' ? '' : String(activeProject.contract_price || ''), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', monthly_rate_currency: (activeProject as any).monthly_rate_currency ?? 'PHP', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
                       className="px-4 flex items-center gap-1.5 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-xl cursor-pointer">
                       <i className="ri-edit-line"></i>
                     </button>
@@ -3059,7 +3067,7 @@ export default function AdminProjectsPage() {
                 <div className="flex items-center gap-1.5 flex-wrap mt-4 pt-3 border-t border-gray-50">
                     {/* Secondary actions */}
                     <div className="flex items-center gap-0.5 bg-white/60 border border-gray-200 rounded-xl px-1 py-1">
-                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: activeProject.project_type === 'retainer' ? '' : String(activeProject.contract_price), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
+                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: activeProject.project_type === 'internal' ? '' : String(activeProject.contract_price || ''), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
                         className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors">
                         <i className="ri-edit-line text-sm"></i> Edit
                       </button>
@@ -3114,6 +3122,8 @@ export default function AdminProjectsPage() {
                   <>
                     {/* Retainer finance strip — owner only */}
                     {isOwner && <><div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
+                      {activeProject.contract_price > 0 && <><span>Setup Fee: <strong className="text-gray-700">{fmt(activeProject.contract_price)}</strong></span>
+                      <span className="text-gray-200">|</span></>}
                       <span>Monthly: <strong className="text-indigo-600">{fmtRate(activeProject.monthly_rate, (activeProject as any).monthly_rate_currency)}</strong></span>
                       <span className="text-gray-200">|</span>
                       <span>Collected: <strong className="text-emerald-600">{fmt(d.totalPaid)}</strong></span>
@@ -3700,7 +3710,9 @@ export default function AdminProjectsPage() {
                       const p = activeProject;
                       const lines = [
                         p.service ? `Service: ${p.service}` : '',
-                        p.contract_price ? `Total fee: ₱${p.contract_price.toLocaleString()}` : p.monthly_rate ? `Monthly retainer: ₱${p.monthly_rate.toLocaleString()}/mo` : '',
+                        p.project_type === 'retainer'
+                          ? [p.contract_price ? `Setup fee: ₱${p.contract_price.toLocaleString()} (one-time)` : '', p.monthly_rate ? `Monthly fee: ₱${p.monthly_rate.toLocaleString()}/mo` : ''].filter(Boolean).join('\n')
+                          : (p.contract_price ? `Total fee: ₱${p.contract_price.toLocaleString()}` : ''),
                         p.start_date && p.deadline ? `Timeline: ${fmtDate(p.start_date)} – ${fmtDate(p.deadline)}` : p.deadline ? `Deadline: ${fmtDate(p.deadline)}` : '',
                         p.notes ? `Notes: ${p.notes}` : '',
                       ].filter(Boolean);
