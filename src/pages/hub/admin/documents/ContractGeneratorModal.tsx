@@ -12,11 +12,40 @@ interface Props {
 
 const DEFAULT_TOOLS = ['Canva Pro', 'Adobe Photoshop (if required)'];
 
-function generateCustomContractHTML(contractorName: string, effectiveDate: string, body: string, sigData: string, logoData: string): string {
+function generateCustomContractHTML(contractorName: string, effectiveDate: string, body: string, sigData: string, logoData: string, docTitle = 'Independent Contractor Agreement'): string {
   const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  // The AI emits plain text: numbered ALL-CAPS section headings, "• " bullet
+  // lists, and prose paragraphs. Render them with the same structure/styling
+  // as the standard template so custom and template contracts look identical.
+  const isHeading = (para: string) =>
+    /^\d+\.\s+\S/.test(para) && !para.includes('\n') && para === para.toUpperCase() && para.length < 90;
+  const toTitleCase = (s: string) =>
+    s.toLowerCase().replace(/(^|[\s(/&-])([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase())
+      .replace(/\b(And|Or|Of|The|To|In|For|With)\b/g, w => w.toLowerCase());
   const bodyHtml = body
     .split(/\n\n+/)
-    .map(para => `<p>${para.replace(/\n/g, '<br />')}</p>`)
+    .map(raw => {
+      const para = raw.trim();
+      if (!para) return '';
+      if (isHeading(para)) {
+        const numMatch = para.match(/^(\d+\.)\s+(.*)$/);
+        const label = numMatch ? `${numMatch[1]} ${toTitleCase(numMatch[2])}` : toTitleCase(para);
+        return `<hr class="divider" />\n<div class="section-title">${label}</div>`;
+      }
+      const lines = para.split('\n');
+      if (lines.every(l => l.trim().startsWith('•'))) {
+        return `<ul>${lines.map(l => `<li>${l.trim().replace(/^•\s*/, '')}</li>`).join('\n')}</ul>`;
+      }
+      // Mixed paragraph: intro line(s) followed by bullets
+      if (lines.some(l => l.trim().startsWith('•'))) {
+        const intro = lines.filter(l => !l.trim().startsWith('•')).join('<br />');
+        const items = lines.filter(l => l.trim().startsWith('•')).map(l => `<li>${l.trim().replace(/^•\s*/, '')}</li>`).join('\n');
+        return `${intro ? `<p>${intro}</p>` : ''}<ul>${items}</ul>`;
+      }
+      return `<p>${para.replace(/\n/g, '<br />')}</p>`;
+    })
+    .filter(Boolean)
     .join('\n');
 
   return `<!DOCTYPE html>
@@ -32,9 +61,13 @@ function generateCustomContractHTML(contractorName: string, effectiveDate: strin
   .logo-tagline { font-size: 8.5pt; color: #333; margin-top: 4pt; font-style: italic; }
   .header-contact { text-align: right; font-size: 8.5pt; color: #333; line-height: 1.7; }
   .header-rule { border: none; border-top: 2.5pt solid #D64F1E; margin: 6pt 0 14pt 0; width: 100%; }
+  .doc-title { font-size: 15pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5pt; margin-bottom: 14pt; font-family: Arial, sans-serif; }
   p { text-align: justify; margin-bottom: 7pt; font-size: 11pt; }
+  ul { margin: 4pt 0 8pt 24pt; }
+  ul li { margin-bottom: 3pt; font-size: 11pt; }
+  .section-title { font-size: 13pt; font-weight: bold; margin: 20pt 0 8pt 0; font-family: Arial, sans-serif; }
   .divider { border: none; border-top: 0.75pt solid #ccc; margin: 14pt 0; }
-  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20pt; margin-top: 28pt; }
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20pt; margin-top: 14pt; }
   .sig-label { font-size: 9pt; color: #555; }
   @media print { body { background: #fff; } .page { margin: 0; padding: 15mm 18mm 18mm 18mm; } @page { size: A4; margin: 0; } }
 </style>
@@ -54,9 +87,12 @@ function generateCustomContractHTML(contractorName: string, effectiveDate: strin
   </div>
   <hr class="header-rule" />
 
+  <div class="doc-title">${docTitle}</div>
   ${bodyHtml}
 
   <hr class="divider" style="margin-top:28pt;" />
+  <div class="section-title">Signatures</div>
+  <p>By signing below, both parties acknowledge that they have read, understood, and agree to be bound by all terms and conditions of this Agreement.</p>
   <div class="sig-grid">
     <div>
       <p><strong>Huna Creatives</strong><br />("Client")</p>
@@ -577,8 +613,11 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
   };
 
   const handlePreview = () => {
+    const customTitle = fields.amendmentType && fields.amendmentType !== 'initial'
+      ? 'Amendment to Independent Contractor Agreement'
+      : 'Independent Contractor Agreement';
     const html = contractMode === 'custom'
-      ? generateCustomContractHTML(fields.contractorName, fields.effectiveDate, customBody, FRANCIS_SIG, HUNA_LOGO)
+      ? generateCustomContractHTML(fields.contractorName, fields.effectiveDate, customBody, FRANCIS_SIG, HUNA_LOGO, customTitle)
       : generateContractHTML(fields, FRANCIS_SIG, HUNA_LOGO);
     setPreviewHtml(html);
     setStep('preview');
