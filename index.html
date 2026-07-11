@@ -2,6 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Installed app saved on the install guide (older iOS uses the saved
+      // page, not the manifest start_url) — leave BEFORE the app boots so
+      // the guide never flashes on launch.
+      if (location.pathname === '/hub/install' && (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)) {
+        location.replace('/hub/login');
+      }
+    </script>
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />

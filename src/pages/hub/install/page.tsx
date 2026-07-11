@@ -34,10 +34,12 @@ export default function InstallPage() {
   const [installing, setInstalling] = useState(false);
   const [copied, setCopied] = useState(false);
   const [step, setStep] = useState(0);
+  // Older iOS launches the exact page that was saved instead of the manifest
+  // start_url — index.html redirects before boot; this guards the rare case
+  // where the app still mounts, rendering nothing instead of flashing the guide.
+  const [redirecting] = useState(isStandalone);
 
   useEffect(() => {
-    // Older iOS launches the exact page that was saved instead of the
-    // manifest start_url — if the installed app opens here, go to the hub.
     if (isStandalone()) {
       window.location.replace('/hub/login');
       return;
@@ -118,6 +120,8 @@ export default function InstallPage() {
   ].filter(s => s.onlyIf === undefined || s.onlyIf);
 
   const steps = platform === 'ios' ? iosSteps : androidSteps;
+
+  if (redirecting) return null;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] px-5 py-10 overflow-x-clip">
