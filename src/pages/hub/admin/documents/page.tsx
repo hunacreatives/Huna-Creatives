@@ -6,6 +6,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import ContractGeneratorModal from './ContractGeneratorModal';
 
+// Custom/AI contractor contracts sent through the public /c/<slug> flow
+interface LinkContract {
+  id: string;
+  slug: string;
+  title: string;
+  status: 'draft' | 'sent' | 'signed';
+  signed_at: string | null;
+  signer_name: string | null;
+  created_at: string;
+  contractor_id: string;
+  hub_users: { full_name: string; avatar_url: string | null } | null;
+}
+
 const DR_STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
   in_progress: 'bg-orange-100 text-orange-700',
@@ -118,6 +131,8 @@ export default function AdminDocumentsPage() {
     </AdminLayout>
   );
   const [docs, setDocs] = useState<HubSignDocument[]>([]);
+  const [linkContracts, setLinkContracts] = useState<LinkContract[]>([]);
+  const [confirmDeleteLinkId, setConfirmDeleteLinkId] = useState<string | null>(null);
   const [contractors, setContractors] = useState<HubUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
@@ -214,12 +229,28 @@ export default function AdminDocumentsPage() {
 
   const fetchDocs = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('hub_sign_documents')
-      .select('*, hub_sign_assignments(id, contractor_id, status, signed_at, signed_name, hub_users(full_name, avatar_url))')
-      .order('created_at', { ascending: false });
+    const [{ data }, { data: links }] = await Promise.all([
+      supabase
+        .from('hub_sign_documents')
+        .select('*, hub_sign_assignments(id, contractor_id, status, signed_at, signed_name, hub_users(full_name, avatar_url))')
+        .order('created_at', { ascending: false }),
+      // Custom/AI contractor contracts sent through the public /c/ link flow
+      supabase
+        .from('hub_client_contracts')
+        .select('id, slug, title, status, signed_at, signer_name, created_at, contractor_id, hub_users!contractor_id(full_name, avatar_url)')
+        .not('contractor_id', 'is', null)
+        .order('created_at', { ascending: false }),
+    ]);
     setDocs((data as HubSignDocument[]) ?? []);
+    setLinkContracts((links as LinkContract[]) ?? []);
     setLoading(false);
+  };
+
+  const deleteLinkContract = async (id: string) => {
+    await supabase.from('hub_client_contracts').delete().eq('id', id);
+    setLinkContracts(prev => prev.filter(lc => lc.id !== id));
+    setConfirmDeleteLinkId(null);
+    showToast('Contract deleted.');
   };
 
   const fetchContractors = async () => {
@@ -415,7 +446,7 @@ export default function AdminDocumentsPage() {
 
         {loading ? (
           <div className="text-center py-12 text-gray-400 text-sm">Loading…</div>
-        ) : docs.length === 0 ? (
+        ) : docs.length === 0 && linkContracts.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-100 py-14 text-center">
             <i className="ri-file-text-line text-4xl text-gray-200 block mb-3"></i>
             <p className="text-gray-400 text-sm">No documents sent yet.</p>
@@ -433,6 +464,81 @@ export default function AdminDocumentsPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {linkContracts.map(lc => {
+                    const u = lc.hub_users;
+                    const signed = lc.status === 'signed';
+                    const link = `https://www.hunacreatives.com/c/${lc.slug}`;
+                    return (
+                      <>
+                        <tr key={lc.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                          onClick={() => window.open(`/c/${lc.slug}`, '_blank')}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i className="ri-links-line text-indigo-500 text-xs"></i>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900 truncate max-w-[220px]">{lc.title}</p>
+                                <p className="text-xs text-gray-400 truncate max-w-[220px]">Signing link · /c/{lc.slug.slice(0, 28)}…</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {u?.avatar_url
+                                ? <img src={u.avatar_url} alt={u.full_name} className="w-5 h-5 rounded-full object-cover object-top flex-shrink-0" />
+                                : <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 ${signed ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'}`}>{u?.full_name?.[0] ?? '?'}</div>
+                              }
+                              <span className={`text-xs truncate max-w-[140px] ${signed ? 'text-emerald-600' : 'text-gray-500'}`}>{u?.full_name}</span>
+                              {signed
+                                ? <i className="ri-checkbox-circle-fill text-emerald-500 text-xs flex-shrink-0"></i>
+                                : <i className="ri-time-line text-gray-300 text-xs flex-shrink-0"></i>
+                              }
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 bg-gray-100 rounded-full h-1.5">
+                                <div className={`h-1.5 rounded-full ${signed ? 'bg-emerald-500' : 'bg-[#FF6B35]'}`} style={{ width: signed ? '100%' : '0%' }} />
+                              </div>
+                              <span className={`text-xs font-medium ${signed ? 'text-emerald-600' : 'text-amber-600'}`}>{signed ? '1/1' : '0/1'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                            {new Date(lc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(link).then(() => showToast('Signing link copied.')).catch(() => showToast(link)); }}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-indigo-500 hover:bg-indigo-50 transition-colors cursor-pointer"
+                                title="Copy signing link">
+                                <i className="ri-link text-sm"></i>
+                              </button>
+                              <button onClick={e => { e.stopPropagation(); setConfirmDeleteLinkId(confirmDeleteLinkId === lc.id ? null : lc.id); }}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Delete">
+                                <i className="ri-delete-bin-line text-sm"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {confirmDeleteLinkId === lc.id && (
+                          <tr key={`${lc.id}-del`} className="bg-red-50">
+                            <td colSpan={5} className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center gap-3">
+                                <i className="ri-error-warning-line text-red-500 flex-shrink-0"></i>
+                                <p className="text-xs text-red-700 flex-1">
+                                  {signed ? 'This contract has already been signed. ' : 'The signing link will stop working. '}Delete permanently?
+                                </p>
+                                <button onClick={() => deleteLinkContract(lc.id)} className="text-xs font-semibold text-red-600 hover:text-red-800 cursor-pointer px-2 py-1 rounded hover:bg-red-100">Yes, delete</button>
+                                <button onClick={() => setConfirmDeleteLinkId(null)} className="text-xs text-gray-500 cursor-pointer px-2 py-1 rounded hover:bg-gray-100">Cancel</button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
                   {docs.map(doc => {
                     const signed = signedCount(doc);
                     const total = totalCount(doc);
