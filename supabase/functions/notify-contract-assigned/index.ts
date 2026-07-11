@@ -5,7 +5,7 @@ const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const FROM_EMAIL = 'hr@hunacreatives.com';
-const HUB_URL = 'https://hunacreatives.com/hub/contractor/documents';
+const HUB_URL = 'https://www.hunacreatives.com/hub/contractor/documents';
 
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
@@ -116,7 +116,7 @@ async function run(assignment_id: string) {
     <div style="padding:28px 32px;">
       <p style="font-size:14px;color:#374151;margin:0 0 20px;">Hi <strong>${firstName}</strong>,</p>
       <p style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 20px;">
-        A document has been sent to you for signature. Please review and sign it through your Huna hub.
+        A document has been sent to you for signature. Click the button below, <strong>sign in with your Huna hub account</strong>, and you'll be taken straight to the document under <strong>Documents → To Sign</strong>.
       </p>
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
         <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Document</p>

@@ -628,9 +628,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
     setSaving(true);
 
     const html = previewHtml;
-    const title = contractMode === 'custom'
-      ? `Custom Agreement – ${fields.contractorName}`
-      : `Independent Contractor Agreement – ${fields.contractorName}`;
+    const title = `${fields.amendmentType && fields.amendmentType !== 'initial' ? 'Amendment to Independent Contractor Agreement' : 'Independent Contractor Agreement'} – ${fields.contractorName}`;
 
     const { data: doc, error } = await supabase
       .from('hub_sign_documents')
