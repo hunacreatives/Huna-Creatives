@@ -50,7 +50,12 @@ function App() {
         <DemoProvider>
           <AuthProvider>
             <PageTransitionWrapper>
-              <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0a0a0a' }} />}>
+              <Suspense fallback={
+                <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 32, height: 32, border: '3px solid rgba(255,107,53,0.9)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'app-boot-spin 0.8s linear infinite' }} />
+                  <style>{`@keyframes app-boot-spin{to{transform:rotate(360deg)}}`}</style>
+                </div>
+              }>
                 <AppRoutes />
               </Suspense>
             </PageTransitionWrapper>
