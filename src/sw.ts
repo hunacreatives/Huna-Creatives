@@ -1,10 +1,15 @@
 /// <reference lib="webworker" />
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 declare const self: ServiceWorkerGlobalScope;
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST ?? []);
+
+// Serve all navigations from the precached app shell — the installed app
+// opens instantly instead of refetching index.html over the network.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 
 // Deliberately NO skipWaiting: an updated SW waits until every tab from the
 // old build closes before activating. Activating mid-session deleted the old
