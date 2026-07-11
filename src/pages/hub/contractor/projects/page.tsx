@@ -811,7 +811,6 @@ export default function ContractorProjectsPage() {
     { label: 'Timeline', description: `${wsProject.project_name} · Gantt chart`, icon: 'ri-bar-chart-grouped-line', id: 'ws-timeline', iconCls: 'bg-indigo-50 text-indigo-500', keywords: ['timeline', 'gantt', 'schedule', 'chart', 'dates', 'calendar', 'deadline'] },
     { label: 'Tasks', description: `${wsProject.project_name} · Task list`, icon: 'ri-task-line', id: 'ws-tasks', iconCls: 'bg-sky-50 text-sky-500', keywords: ['tasks', 'list', 'todo', 'work', 'items', 'progress', 'backlog'] },
     { label: 'Overview', description: `${wsProject.project_name} · Stats & progress`, icon: 'ri-bar-chart-2-line', id: 'ws-stats', iconCls: 'bg-emerald-50 text-emerald-500', keywords: ['stats', 'overview', 'total', 'count', 'numbers', 'summary', 'progress'] },
-    { label: 'Team', description: `${wsProject.project_name} · Members`, icon: 'ri-team-line', id: 'ws-sidebar', iconCls: 'bg-purple-50 text-purple-500', keywords: ['team', 'members', 'people', 'colleagues', 'who', 'assigned'] },
     { label: 'Notes & Dates', description: `${wsProject.project_name} · Start & deadline`, icon: 'ri-sticky-note-line', id: 'ws-sidebar', iconCls: 'bg-amber-50 text-amber-500', keywords: ['notes', 'brief', 'description', 'info', 'details', 'start', 'due', 'date', 'deadline'] },
   ].concat(wsProject.project_type === 'internal' ? [] : [
     { label: 'Payout', description: `${wsProject.project_name} · Your earnings`, icon: 'ri-money-dollar-circle-line', id: 'ws-sidebar', iconCls: 'bg-orange-50 text-[#FF6B35]', keywords: ['payout', 'payment', 'earnings', 'salary', 'money', 'fee', 'income', 'receive'] },
@@ -1008,7 +1007,7 @@ export default function ContractorProjectsPage() {
     const priorityCfg = PRIORITY_CFG[task.priority];
     return (
       <div key={task.id} onClick={() => openViewTask(task)}
-        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group border-l-4 ${task.color ? '' : color.border}`}
+        className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3 sm:p-3.5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group border-l-4 ${task.color ? '' : color.border}`}
         style={task.color ? { borderLeftColor: task.color } : undefined}>
         {/* Top row */}
         <div className="flex items-start gap-2.5">
@@ -1016,14 +1015,14 @@ export default function ContractorProjectsPage() {
             <i className={`${si.icon} text-lg`}></i>
           </button>
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
-            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
+            <p className={`text-sm font-semibold leading-snug line-clamp-1 sm:line-clamp-none ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1 hidden sm:block">{getTaskDescriptionPreview(task.description)}</p>}
             {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
           </div>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 hidden sm:inline ${priorityCfg.cls}`}>{priorityCfg.label}</span>
         </div>
         {/* Bottom row */}
-        <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
+        <div className="flex items-center gap-2 mt-1.5 pt-0 border-t-0 pl-[26px] sm:pl-0 sm:mt-3 sm:pt-2.5 sm:border-t border-gray-50">
           {task.due_date && (
             <div className="flex items-center gap-1">
               <i className="ri-calendar-line text-[10px] text-gray-400"></i>
@@ -1053,7 +1052,7 @@ export default function ContractorProjectsPage() {
                       : <div key={assignee.id} className="w-5 h-5 rounded-full border border-white bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
                   ))}
                 </div>
-                <span className="text-[10px] text-gray-500 font-medium">{assignees.length === 1 ? assignees[0].full_name.split(' ')[0] : `${assignees.length} assignees`}</span>
+                <span className="text-[10px] text-gray-500 font-medium hidden sm:inline">{assignees.length === 1 ? assignees[0].full_name.split(' ')[0] : `${assignees.length} assignees`}</span>
               </div>
             )}
 
@@ -1180,7 +1179,7 @@ export default function ContractorProjectsPage() {
             title={linkCopied ? 'Copied!' : 'Copy project link'}
             className={`flex items-center gap-1.5 h-8 px-2.5 rounded-xl border cursor-pointer transition-all shadow-sm flex-shrink-0 text-xs font-medium ${linkCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200'}`}>
             <i className={`text-base ${linkCopied ? 'ri-check-line' : 'ri-link'}`}></i>
-            {linkCopied ? 'Copied!' : 'Copy link'}
+            <span className="hidden sm:inline">{linkCopied ? 'Copied!' : 'Copy link'}</span>
           </button>
         </div>
       ) : clientWorkspace ? (
@@ -1386,7 +1385,7 @@ export default function ContractorProjectsPage() {
 
 
             {/* Stats */}
-            <div id="ws-stats" className={`grid grid-cols-4 gap-2 ${wsFocusSection && wsFocusSection !== 'ws-stats' ? 'hidden' : ''}`}>
+            <div id="ws-stats" className={`grid grid-cols-2 sm:grid-cols-4 gap-2 ${wsFocusSection && wsFocusSection !== 'ws-stats' ? 'hidden' : ''}`}>
               {[
                 { label: 'Total', value: wsTasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
                 { label: 'Done', value: wsDone, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
@@ -1419,19 +1418,19 @@ export default function ContractorProjectsPage() {
               {/* Task list */}
               <div id="ws-tasks" className={`min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden ${taskView === 'board' ? 'flex-[1_1_100%]' : 'flex-1'} ${wsFocusSection && wsFocusSection !== 'ws-tasks' ? 'hidden' : ''}`}>
                 <div className="px-5 py-4 border-b border-gray-50 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
                       <h3 className="font-semibold text-gray-800">Tasks</h3>
                       {wsTasks.length > 0 && (
                         <div className="flex items-center gap-2">
-                          <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="w-14 sm:w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${wsPct}%` }} />
                           </div>
                           <span className="text-xs text-gray-400">{wsDone}/{wsTasks.length}</span>
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <div className="flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
                         <button
                           type="button"
@@ -1450,7 +1449,7 @@ export default function ContractorProjectsPage() {
                       </div>
                       <button onClick={openAddTask}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
-                        <i className="ri-add-line"></i> Add Task
+                        <i className="ri-add-line"></i> <span className="hidden sm:inline">Add Task</span><span className="sm:hidden">Add</span>
                       </button>
                     </div>
                   </div>
@@ -1734,24 +1733,6 @@ export default function ContractorProjectsPage() {
                     </div>
                   );
                 })()}
-
-                {/* Team */}
-                {wsTeam.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Team</p>
-                    <div className="space-y-2.5">
-                      {wsTeam.map(m => (
-                        <div key={m.id} className="flex items-center gap-2.5">
-                          {m.avatar_url
-                            ? <img src={m.avatar_url} alt={m.full_name} className="w-7 h-7 rounded-full object-cover object-top flex-shrink-0" />
-                            : <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">{m.full_name[0]}</div>
-                          }
-                          <span className="text-sm text-gray-700 truncate">{m.full_name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Questionnaires */}
                 {wsQuestionnaires.length > 0 && (

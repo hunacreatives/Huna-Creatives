@@ -108,7 +108,15 @@ interface Comment {
   attachment_name: string | null;
   attachment_size: number | null;
   attachment_mime: string | null;
+  attachments: CommentAttachment[] | null;
   reactions: Record<string, string[]>;
+}
+
+interface CommentAttachment {
+  url: string;
+  name: string;
+  size: number | null;
+  mime: string | null;
 }
 
 interface Attachment {
@@ -350,7 +358,7 @@ export default function TaskDetailPanel({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPosting] = useState(false);
-  const [commentFile, setCommentFile] = useState<File | null>(null);
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const [commentFileError, setCommentFileError] = useState<string | null>(null);
   const commentFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading]   = useState(false);
@@ -525,7 +533,7 @@ export default function TaskDetailPanel({
         .eq('id', taskId)
         .single(),
       supabase.from('hub_project_task_comments')
-        .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime, reactions')
+        .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime, attachments, reactions')
         .eq('task_id', taskId).order('created_at', { ascending: true }),
       supabase.from('hub_project_task_attachments')
         .select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
@@ -848,7 +856,7 @@ export default function TaskDetailPanel({
 
   const postComment = async () => {
     const body = commentRef.current?.innerHTML?.trim() || newComment.trim();
-    if ((!body || body === '<br>') && !commentFile || !task) return;
+    if (((!body || body === '<br>') && commentFiles.length === 0) || !task) return;
     setPosting(true);
     setCommentFileError(null);
 
@@ -856,7 +864,7 @@ export default function TaskDetailPanel({
       setComments(prev => [...prev, {
         id: Date.now(), user_id: currentUserId, body, created_at: new Date().toISOString(),
         author_name: currentUserName, author_avatar_url: currentUserAvatarUrl ?? null,
-        attachment_url: null, attachment_name: null, attachment_size: null, attachment_mime: null,
+        attachment_url: null, attachment_name: null, attachment_size: null, attachment_mime: null, attachments: null,
         reactions: {}, hub_users: { full_name: currentUserName, avatar_url: currentUserAvatarUrl ?? null },
       } as Comment]);
       setNewComment('');
@@ -865,21 +873,18 @@ export default function TaskDetailPanel({
       return;
     }
 
-    let attachmentUrl: string | null = null;
-    let attachmentName: string | null = null;
-    let attachmentSize: number | null = null;
-    let attachmentMime: string | null = null;
+    const uploaded: CommentAttachment[] = [];
 
-    if (commentFile) {
+    if (commentFiles.length > 0) {
       try {
         setUploadProgress(5);
         uploadProgressTimer.current = setInterval(() => {
           setUploadProgress(p => (p !== null && p < 88) ? p + 2 : p);
         }, 250);
-        attachmentUrl = await uploadFileToDrive(commentFile, 'task_attachment', { project_name: projectName });
-        attachmentName = commentFile.name;
-        attachmentSize = commentFile.size;
-        attachmentMime = commentFile.type || null;
+        for (const f of commentFiles) {
+          const url = await uploadFileToDrive(f, 'task_attachment', { project_name: projectName });
+          uploaded.push({ url, name: f.name, size: f.size, mime: f.type || null });
+        }
         if (uploadProgressTimer.current) clearInterval(uploadProgressTimer.current);
         setUploadProgress(100);
         await new Promise(r => setTimeout(r, 400));
@@ -893,6 +898,8 @@ export default function TaskDetailPanel({
       }
     }
 
+    // Legacy single-attachment columns mirror the first file so older readers keep working.
+    const first = uploaded[0] ?? null;
     const { data } = await supabase
       .from('hub_project_task_comments')
       .insert({
@@ -901,12 +908,13 @@ export default function TaskDetailPanel({
         body: (commentRef.current?.innerHTML?.trim() || newComment).replace(/&nbsp;/g, ' ').replace(/<br\s*\/?>/gi,'\n').trim(),
         author_name: currentUserName,
         author_avatar_url: currentUserAvatarUrl ?? null,
-        attachment_url: attachmentUrl,
-        attachment_name: attachmentName,
-        attachment_size: attachmentSize,
-        attachment_mime: attachmentMime,
+        attachment_url: first?.url ?? null,
+        attachment_name: first?.name ?? null,
+        attachment_size: first?.size ?? null,
+        attachment_mime: first?.mime ?? null,
+        attachments: uploaded.length > 0 ? uploaded : null,
       })
-      .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime')
+      .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime, attachments')
       .single();
     if (data) {
       const { data: commenter } = await supabase.from('hub_users').select('full_name, avatar_url').eq('id', currentUserId).single();
@@ -933,7 +941,7 @@ export default function TaskDetailPanel({
       }
     }
     setNewComment('');
-    setCommentFile(null);
+    setCommentFiles([]);
     if (commentFileRef.current) commentFileRef.current.value = '';
     if (commentRef.current) commentRef.current.innerHTML = '';
     setPosting(false);
@@ -949,8 +957,9 @@ export default function TaskDetailPanel({
     const comment = comments.find(c => c.id === commentId);
     await supabase.from('hub_project_task_comments').delete().eq('id', commentId);
     setComments(prev => prev.filter(c => c.id !== commentId));
-    if (comment?.attachment_url) {
-      const fileId = driveFileIdFromUrl(comment.attachment_url);
+    const urls = comment?.attachments?.length ? comment.attachments.map(a => a.url) : (comment?.attachment_url ? [comment.attachment_url] : []);
+    for (const url of urls) {
+      const fileId = driveFileIdFromUrl(url);
       if (fileId) supabase.functions.invoke('delete-from-drive', { body: { fileId } }).catch(console.error);
     }
   };
@@ -1882,32 +1891,58 @@ export default function TaskDetailPanel({
                           className={`text-sm text-gray-700 leading-relaxed ${renderCommentBody(c.body).isHtml ? '[&_a]:text-blue-600 [&_a]:underline [&_ul]:list-disc [&_ul]:ml-5 [&_ol]:list-decimal [&_ol]:ml-5 [&_li]:my-0.5' : 'whitespace-pre-wrap'}`}
                           dangerouslySetInnerHTML={{ __html: renderCommentBody(c.body).html }}
                         />}
-                        {c.attachment_url && (() => {
-                          const fid = driveFileIdFromUrl(c.attachment_url);
-                          const isImage = c.attachment_mime?.startsWith('image/');
-                          const thumbUrl = fid ? `https://drive.google.com/thumbnail?id=${fid}&sz=w400` : null;
-                          const downloadUrl = fid ? `https://drive.google.com/uc?export=download&id=${fid}` : c.attachment_url;
+                        {(() => {
+                          const atts: CommentAttachment[] = c.attachments?.length
+                            ? c.attachments
+                            : c.attachment_url
+                              ? [{ url: c.attachment_url, name: c.attachment_name ?? 'File', size: c.attachment_size, mime: c.attachment_mime }]
+                              : [];
+                          if (atts.length === 0) return null;
+                          const images = atts.filter(a => a.mime?.startsWith('image/'));
+                          const files = atts.filter(a => !a.mime?.startsWith('image/'));
                           return (
-                            <div className="mt-1.5 space-y-1">
-                              {isImage && thumbUrl && (
-                                <button onClick={() => setCommentPreview({ url: c.attachment_url!, name: c.attachment_name ?? 'Image', mime: c.attachment_mime ?? null })}
-                                  className="block rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity max-w-[220px]">
-                                  <img src={thumbUrl} alt={c.attachment_name ?? ''} className="w-full object-cover" />
-                                </button>
+                            <div className="mt-1.5 space-y-1.5">
+                              {images.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {images.map((a, i) => {
+                                    const fid = driveFileIdFromUrl(a.url);
+                                    const thumbUrl = fid ? `https://drive.google.com/thumbnail?id=${fid}&sz=w400` : a.url;
+                                    const downloadUrl = fid ? `https://drive.google.com/uc?export=download&id=${fid}` : a.url;
+                                    return (
+                                      <div key={i} className="relative group/att">
+                                        <button onClick={() => setCommentPreview({ url: a.url, name: a.name, mime: a.mime })}
+                                          className={`block rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity cursor-pointer ${images.length === 1 ? 'max-w-[220px]' : 'w-[106px] h-[106px]'}`}>
+                                          <img src={thumbUrl} alt={a.name} className={`w-full object-cover ${images.length === 1 ? '' : 'h-full'}`} />
+                                        </button>
+                                        <a href={downloadUrl} target="_blank" rel="noopener noreferrer" download title="Download"
+                                          onClick={e => e.stopPropagation()}
+                                          className="absolute top-1 right-1 w-6 h-6 rounded-md bg-black/50 text-white flex items-center justify-center opacity-0 group-hover/att:opacity-100 transition-opacity">
+                                          <i className="ri-download-line text-xs"></i>
+                                        </a>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
-                              <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 max-w-xs">
-                                <i className={`${isImage ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
-                                <span className="text-xs text-gray-700 truncate flex-1">{c.attachment_name}</span>
-                                {c.attachment_size && <span className="text-[10px] text-gray-400 flex-shrink-0">{(c.attachment_size / 1024).toFixed(0)} KB</span>}
-                                <button onClick={() => setCommentPreview({ url: c.attachment_url!, name: c.attachment_name ?? 'File', mime: c.attachment_mime ?? null })}
-                                  title="Preview" className="ml-1 text-gray-400 hover:text-sky-500 transition-colors cursor-pointer flex-shrink-0">
-                                  <i className="ri-eye-line text-xs"></i>
-                                </button>
-                                <a href={downloadUrl} target="_blank" rel="noopener noreferrer" download
-                                  title="Download" className="text-gray-400 hover:text-emerald-500 transition-colors flex-shrink-0">
-                                  <i className="ri-download-line text-xs"></i>
-                                </a>
-                              </div>
+                              {files.map((a, i) => {
+                                const fid = driveFileIdFromUrl(a.url);
+                                const downloadUrl = fid ? `https://drive.google.com/uc?export=download&id=${fid}` : a.url;
+                                return (
+                                  <div key={i} className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 max-w-xs mr-1.5">
+                                    <i className="ri-file-line text-gray-400 text-sm flex-shrink-0"></i>
+                                    <span className="text-xs text-gray-700 truncate flex-1">{a.name}</span>
+                                    {a.size != null && <span className="text-[10px] text-gray-400 flex-shrink-0">{(a.size / 1024).toFixed(0)} KB</span>}
+                                    <button onClick={() => setCommentPreview({ url: a.url, name: a.name, mime: a.mime })}
+                                      title="Preview" className="ml-1 text-gray-400 hover:text-sky-500 transition-colors cursor-pointer flex-shrink-0">
+                                      <i className="ri-eye-line text-xs"></i>
+                                    </button>
+                                    <a href={downloadUrl} target="_blank" rel="noopener noreferrer" download
+                                      title="Download" className="text-gray-400 hover:text-emerald-500 transition-colors flex-shrink-0">
+                                      <i className="ri-download-line text-xs"></i>
+                                    </a>
+                                  </div>
+                                );
+                              })}
                             </div>
                           );
                         })()}
@@ -2004,26 +2039,32 @@ export default function TaskDetailPanel({
                     data-placeholder="Add a comment… (@mention)"
                     className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[60px] break-all empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
                   />
-                  {/* Selected file preview */}
-                  {commentFile && (
+                  {/* Selected files preview */}
+                  {commentFiles.length > 0 && (
                     <div className="mt-1.5 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
-                      <div className="flex items-center gap-2 px-2.5 py-1.5">
-                        <i className={`${commentFile.type.startsWith('image/') ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
-                        <span className="text-xs text-gray-600 truncate flex-1">{commentFile.name}</span>
-                        <span className="text-[10px] text-gray-400 flex-shrink-0">{(commentFile.size / 1024).toFixed(0)} KB</span>
-                        {uploadProgress !== null
-                          ? <span className="text-[10px] text-[#FF6B35] flex-shrink-0 font-medium">{uploadProgress}%</span>
-                          : <button type="button" onClick={() => { setCommentFile(null); setCommentFileError(null); if (commentFileRef.current) commentFileRef.current.value = ''; }}
+                      {commentFiles.map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 border-b border-gray-100 last:border-b-0">
+                          <i className={`${f.type.startsWith('image/') ? 'ri-image-line' : 'ri-file-line'} text-gray-400 text-sm flex-shrink-0`}></i>
+                          <span className="text-xs text-gray-600 truncate flex-1">{f.name}</span>
+                          <span className="text-[10px] text-gray-400 flex-shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+                          {uploadProgress === null && (
+                            <button type="button" onClick={() => { setCommentFiles(prev => prev.filter((_, j) => j !== i)); setCommentFileError(null); if (commentFileRef.current) commentFileRef.current.value = ''; }}
                               className="text-gray-300 hover:text-red-400 flex-shrink-0 cursor-pointer">
                               <i className="ri-close-line text-sm"></i>
                             </button>
-                        }
-                      </div>
-                      {uploadProgress !== null && (
-                        <div className="h-0.5 bg-gray-200">
-                          <div className="h-full bg-[#FF6B35] transition-all duration-300 ease-out"
-                            style={{ width: `${uploadProgress}%` }} />
+                          )}
                         </div>
+                      ))}
+                      {uploadProgress !== null && (
+                        <>
+                          <div className="px-2.5 py-1 text-right">
+                            <span className="text-[10px] text-[#FF6B35] font-medium">{uploadProgress}%</span>
+                          </div>
+                          <div className="h-0.5 bg-gray-200">
+                            <div className="h-full bg-[#FF6B35] transition-all duration-300 ease-out"
+                              style={{ width: `${uploadProgress}%` }} />
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -2049,19 +2090,21 @@ export default function TaskDetailPanel({
                       className="w-7 h-7 flex items-center justify-center rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 cursor-pointer transition-colors">
                       <i className="ri-attachment-2 text-sm"></i>
                     </button>
-                    <input ref={commentFileRef} type="file" className="hidden" onChange={e => {
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      if (f.size > 100 * 1024 * 1024) {
-                        setCommentFileError(`File too large (max 100 MB). This file is ${(f.size / 1024 / 1024).toFixed(1)} MB.`);
+                    <input ref={commentFileRef} type="file" multiple className="hidden" onChange={e => {
+                      const picked = Array.from(e.target.files ?? []);
+                      if (picked.length === 0) return;
+                      const tooBig = picked.find(f => f.size > 100 * 1024 * 1024);
+                      if (tooBig) {
+                        setCommentFileError(`File too large (max 100 MB). "${tooBig.name}" is ${(tooBig.size / 1024 / 1024).toFixed(1)} MB.`);
                         return;
                       }
-                      setCommentFile(f);
+                      setCommentFiles(prev => [...prev, ...picked]);
                       setCommentFileError(null);
+                      e.target.value = '';
                     }} />
                     <div className="ml-auto flex items-center gap-1.5">
                       <span className="text-[10px] text-gray-300">Enter to send</span>
-                      <button onClick={postComment} disabled={postingComment || (!newComment.trim() && !commentFile)}
+                      <button onClick={postComment} disabled={postingComment || (!newComment.trim() && commentFiles.length === 0)}
                         className="w-7 h-7 bg-[#FF6B35] disabled:opacity-25 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0 transition-opacity">
                         <i className={`${postingComment ? 'ri-loader-4-line animate-spin' : 'ri-send-plane-fill'} text-white text-xs`}></i>
                       </button>

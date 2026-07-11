@@ -1645,7 +1645,7 @@ export default function AdminProjectsPage() {
                   title={linkCopied ? 'Copied!' : 'Copy project link'}
                   className={`flex items-center gap-1.5 h-8 px-2.5 rounded-xl border cursor-pointer transition-all shadow-sm flex-shrink-0 text-xs font-medium ${linkCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-gray-200 text-gray-500 hover:text-indigo-600 hover:border-indigo-200'}`}>
                   <i className={`text-base ${linkCopied ? 'ri-check-line' : 'ri-link'}`}></i>
-                  {linkCopied ? 'Copied!' : 'Copy link'}
+                  <span className="hidden sm:inline">{linkCopied ? 'Copied!' : 'Copy link'}</span>
                 </button>
                 {!isInternalProject(p) && (
                   <button
@@ -1653,7 +1653,7 @@ export default function AdminProjectsPage() {
                     title={clientLinkCopied ? 'Copied!' : 'Copy the client-facing status page link'}
                     className={`flex items-center gap-1.5 h-8 px-2.5 rounded-xl border cursor-pointer transition-all shadow-sm flex-shrink-0 text-xs font-medium ${clientLinkCopied ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-gray-200 text-gray-500 hover:text-[#FF6B35] hover:border-orange-200'}`}>
                     <i className={`text-base ${clientLinkCopied ? 'ri-check-line' : 'ri-global-line'}`}></i>
-                    {clientLinkCopied ? 'Copied!' : 'Client link'}
+                    <span className="hidden sm:inline">{clientLinkCopied ? 'Copied!' : 'Client link'}</span>
                   </button>
                 )}
               </div>
@@ -1775,7 +1775,7 @@ export default function AdminProjectsPage() {
 
             <div className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
               {/* ── Stats row ── */}
-              <div id="ws-stats" className="grid grid-cols-4 gap-2">
+              <div id="ws-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { label: 'Total', value: wsActiveTasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
                   { label: 'Done', value: wsDoneCt, icon: 'ri-checkbox-circle-fill', iconBg: 'bg-emerald-100', iconClr: 'text-emerald-600', valClr: 'text-emerald-700' },
@@ -1823,19 +1823,19 @@ export default function AdminProjectsPage() {
                   }`}
                 >
                   <div className="px-5 py-4 border-b border-gray-50 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
                         <h3 className="font-semibold text-gray-800">Tasks</h3>
                         {wsActiveTasks.length > 0 && (
                           <div className="flex items-center gap-2">
-                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="w-14 sm:w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                               <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${wsPct}%` }} />
                             </div>
                             <span className="text-xs text-gray-400">{wsDoneCt}/{wsActiveTasks.length}</span>
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <div className="flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
                           <button
                             type="button"
@@ -1864,7 +1864,7 @@ export default function AdminProjectsPage() {
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap"
                         >
                           <i className="ri-add-line"></i>
-                          Add Task
+                          <span className="hidden sm:inline">Add Task</span><span className="sm:hidden">Add</span>
                         </button>
                       </div>
                     </div>
@@ -2145,24 +2145,24 @@ export default function AdminProjectsPage() {
                               }}
                               onDragEnd={() => { listDragFromHandle.current = false; setDraggedTaskId(null); setListDragOverTaskId(null); setListDragOverPos(null); }}
                               onClick={() => openTaskDetail(task)}
-                              className={`select-none bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
+                              className={`select-none bg-white rounded-xl border border-gray-100 shadow-sm p-3 sm:p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
                               style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
                             <div className="flex items-start gap-2.5">
-                              <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base" onPointerDown={() => { listDragFromHandle.current = true; }} />
+                              <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base hidden sm:block" onPointerDown={() => { listDragFromHandle.current = true; }} />
                               <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                 <i className={`${sc.icon} text-lg`}></i>
                               </button>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+                                  <p className={`text-sm font-semibold leading-snug line-clamp-1 sm:line-clamp-none ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
                                   {isMyTask && <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-[#FF6B35]" title="Assigned to you" />}
                                 </div>
-                                {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
+                                {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1 hidden sm:block">{getTaskDescriptionPreview(task.description)}</p>}
                                 {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
                               </div>
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 hidden sm:inline ${priorityCfg.cls}`}>{priorityCfg.label}</span>
                             </div>
-                            <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
+                            <div className="flex items-center gap-2 mt-1.5 pt-0 border-t-0 pl-[26px] sm:pl-0 sm:mt-3 sm:pt-2.5 sm:border-t border-gray-50">
                               {task.due_date && (
                                 <div className="flex items-center gap-1">
                                   <i className="ri-calendar-line text-[10px] text-gray-400"></i>
@@ -2192,7 +2192,7 @@ export default function AdminProjectsPage() {
                                           : <div key={assignee.id} className="w-5 h-5 rounded-full border border-white bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
                                       ))}
                                     </div>
-                                    <span className="text-[10px] text-gray-500 font-medium">
+                                    <span className="text-[10px] text-gray-500 font-medium hidden sm:inline">
                                       {assignees.length === 1 ? assignees[0].full_name.split(' ')[0] : `${assignees.length} assignees`}
                                     </span>
                                   </div>
@@ -2276,21 +2276,21 @@ export default function AdminProjectsPage() {
                                         }}
                                         onDragEnd={() => { listDragFromHandle.current = false; setDraggedTaskId(null); setListDragOverTaskId(null); setListDragOverPos(null); }}
                                         onClick={() => openTaskDetail(task)}
-                                        className={`select-none bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
+                                        className={`select-none bg-white rounded-xl border border-gray-100 shadow-sm p-3 sm:p-3.5 border-l-4 group cursor-pointer hover:shadow-md hover:border-gray-200 transition-all ${(task as any).color ? '' : priorityBorder} ${draggedTaskId === task.id ? 'opacity-40' : ''}`}
                                         style={(task as any).color ? { borderLeftColor: (task as any).color } : undefined}>
                                         <div className="flex items-start gap-2.5">
-                                          <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base" onPointerDown={() => { listDragFromHandle.current = true; }} />
+                                          <i className="ri-draggable text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 text-base hidden sm:block" onPointerDown={() => { listDragFromHandle.current = true; }} />
                                           <button onClick={e => { e.stopPropagation(); toggleTask(task); }} className={`flex-shrink-0 cursor-pointer mt-0.5 ${sc.cls}`}>
                                             <i className={`${sc.icon} text-lg`}></i>
                                           </button>
                                           <div className="flex-1 min-w-0">
-                                            <p className={`text-sm font-semibold leading-snug ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
-                                            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
+                                            <p className={`text-sm font-semibold leading-snug line-clamp-1 sm:line-clamp-none ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
+                                            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1 hidden sm:block">{getTaskDescriptionPreview(task.description)}</p>}
                                 {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
                                           </div>
-                                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${priorityCfg.cls}`}>{priorityCfg.label}</span>
+                                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 hidden sm:inline ${priorityCfg.cls}`}>{priorityCfg.label}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-gray-50">
+                                        <div className="flex items-center gap-2 mt-1.5 pt-0 border-t-0 pl-[26px] sm:pl-0 sm:mt-3 sm:pt-2.5 sm:border-t border-gray-50">
                                           {task.due_date && (
                                             <div className="flex items-center gap-1">
                                               <i className="ri-calendar-line text-[10px] text-gray-400"></i>
@@ -2320,7 +2320,7 @@ export default function AdminProjectsPage() {
                                                       : <div key={assignee.id} className="w-5 h-5 rounded-full border border-white bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-500">{assignee.full_name[0]}</div>
                                                   ))}
                                                 </div>
-                                                <span className="text-[10px] text-gray-500 font-medium">
+                                                <span className="text-[10px] text-gray-500 font-medium hidden sm:inline">
                                                   {assignees.length === 1 ? assignees[0].full_name.split(' ')[0] : `${assignees.length} assignees`}
                                                 </span>
                                               </div>
