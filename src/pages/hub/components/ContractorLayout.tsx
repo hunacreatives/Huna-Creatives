@@ -12,6 +12,11 @@ import NotificationBell from './NotificationBell';
 import DevToolbar from './DevToolbar';
 import PushPermissionBanner from './PushPermissionBanner';
 
+// Each page mounts its own layout, so the bottom tab bar remounts on every
+// navigation — keep its scroll position outside the component so the strip
+// doesn't snap back to the left on each tap (feels native instead).
+let savedBottomNavScroll: number | null = null;
+
 const BOTTOM_NAV = [
   { to: '/hub/contractor/dashboard',    label: 'Dashboard',    icon: 'ri-layout-grid-line' },
   { to: '/hub/contractor/projects',     label: 'My Work',      icon: 'ri-folder-line' },
@@ -68,6 +73,24 @@ export default function ContractorLayout({ children, title, titleContent, action
   const [liveLoading, setLiveLoading] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const bottomNavRef = useRef<HTMLDivElement>(null);
+
+  // Restore the tab strip's scroll position across layout remounts, then make
+  // sure the active tab is actually in view (centered like a native tab bar).
+  useEffect(() => {
+    const el = bottomNavRef.current;
+    if (!el) return;
+    if (savedBottomNavScroll !== null) el.scrollLeft = savedBottomNavScroll;
+    const active = el.querySelector<HTMLElement>('[aria-current="page"]');
+    if (active) {
+      const left = active.offsetLeft;
+      const right = left + active.offsetWidth;
+      if (left < el.scrollLeft || right > el.scrollLeft + el.clientWidth) {
+        el.scrollLeft = Math.max(0, left - (el.clientWidth - active.offsetWidth) / 2);
+      }
+    }
+    savedBottomNavScroll = el.scrollLeft;
+  }, []);
 
   const q = globalSearch.trim().toLowerCase();
 
@@ -394,7 +417,7 @@ export default function ContractorLayout({ children, title, titleContent, action
           borderTop: '1px solid rgba(0,0,0,0.06)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}>
-        <div className="overflow-x-auto scrollbar-hide">
+        <div ref={bottomNavRef} onScroll={e => { savedBottomNavScroll = e.currentTarget.scrollLeft; }} className="overflow-x-auto scrollbar-hide">
           <div className="flex px-2 py-2 gap-1" style={{ minWidth: 'max-content' }}>
             {BOTTOM_NAV.map(item => (
               <NavLink key={item.to} to={item.to}
