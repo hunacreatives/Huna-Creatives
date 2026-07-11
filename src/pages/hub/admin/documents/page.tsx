@@ -225,7 +225,7 @@ export default function AdminDocumentsPage() {
   const fetchContractors = async () => {
     const { data } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, role, status, payment_type, hourly_rate, monthly_rate, currency')
+      .select('id, full_name, email, avatar_url, role, status, payment_type, hourly_rate, monthly_rate, currency')
       .in('role', ['contractor', 'admin'])
       .eq('status', 'active')
       .order('full_name');
