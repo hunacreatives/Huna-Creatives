@@ -6,8 +6,11 @@ declare const self: ServiceWorkerGlobalScope;
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST ?? []);
 
-// Skip waiting so new service worker activates immediately on next load
-self.addEventListener('install', () => self.skipWaiting());
+// Deliberately NO skipWaiting: an updated SW waits until every tab from the
+// old build closes before activating. Activating mid-session deleted the old
+// build's precache (cleanupOutdatedCaches) while open pages still needed its
+// lazy chunks — black screen until reload. The new build now applies on the
+// next cold visit instead.
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', (event) => {

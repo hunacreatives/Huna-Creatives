@@ -74,7 +74,9 @@
 }
 
 .page-enter {
-  animation: page-enter 0.3s ease both;
+  /* No fill mode: if the animation is suspended (in-app browsers, background
+     tabs), the element must default to visible — `both` held it at opacity 0. */
+  animation: page-enter 0.3s ease;
 }
 
 @keyframes fade-up {
