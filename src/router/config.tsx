@@ -64,6 +64,7 @@ const ClientStatusPage = lazy(() => import('../pages/status/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
 const HubDemoPage = lazy(() => import('../pages/hub/demo/page'));
+const HubInstallPage = lazy(() => import('../pages/hub/install/page'));
 const ClientContractPage = lazy(() => import('../pages/c/page'));
 const ClientContractSignPage = lazy(() => import('../pages/c/sign/page'));
 
@@ -180,6 +181,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/carlo-trixia-rsvps', element: withAdminGate(<HubAdminCarloTrixiaRsvps />) },
   { path: '/hub/admin/proposals/:id', element: withAdminGate(<HubAdminProposalBuilder />) },
   { path: '/hub/demo', element: <HubDemoPage /> },
+  { path: '/hub/install', element: <HubInstallPage /> },
   { path: '/p/capu-coffee', element: <ProposalCapuCoffee /> },
   { path: '/p/capu-coffee/approve', element: <ProposalCapuCoffeeApprove /> },
   { path: '/p/:slug', element: <PublicProposalPage /> },
