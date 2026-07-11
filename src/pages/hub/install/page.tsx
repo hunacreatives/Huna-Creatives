@@ -36,6 +36,12 @@ export default function InstallPage() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
+    // Older iOS launches the exact page that was saved instead of the
+    // manifest start_url — if the installed app opens here, go to the hub.
+    if (isStandalone()) {
+      window.location.replace('/hub/login');
+      return;
+    }
     setPlatform(detectPlatform());
     setInstalled(isStandalone());
     setInApp(isInAppBrowser());
