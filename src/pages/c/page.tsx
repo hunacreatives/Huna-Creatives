@@ -70,6 +70,11 @@ export default function ClientContractPage() {
 
   const isSigned = contract.status === 'signed';
   const canSign = contract.status === 'sent';
+  // Contractor agreements reuse this page; only the party labels change.
+  const isContractor = !!contract.contractor_id;
+  const hunaRole = isContractor ? 'Company' : 'Service Provider';
+  const signerParty = isContractor ? 'CONTRACTOR' : 'CLIENT';
+  const signerRole = isContractor ? 'Independent Contractor' : 'Authorized Representative';
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f4', fontFamily: 'system-ui, sans-serif' }}>
@@ -132,7 +137,7 @@ export default function ClientContractPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, marginTop: 32 }}>
                   <div>
                     <p style={{ fontSize: 10, fontWeight: 700, margin: '0 0 2px', fontFamily: 'Arial, sans-serif' }}>HUNA CREATIVES</p>
-                    <p style={{ fontSize: 9, color: '#6b7280', margin: '0 0 16px', fontFamily: 'Arial, sans-serif' }}>Service Provider</p>
+                    <p style={{ fontSize: 9, color: '#6b7280', margin: '0 0 16px', fontFamily: 'Arial, sans-serif' }}>{hunaRole}</p>
                     <div style={{ height: 60, marginBottom: 4, background: '#fafafa', borderRadius: 4, display: 'flex', alignItems: 'center' }}>
                       <img src={FRANCIS_SIG} style={{ height: 52, width: 'auto', maxWidth: 200, mixBlendMode: 'multiply' }} alt="Signature" />
                     </div>
@@ -141,8 +146,8 @@ export default function ClientContractPage() {
                     </div>
                   </div>
                   <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, margin: '0 0 2px', fontFamily: 'Arial, sans-serif' }}>CLIENT</p>
-                    <p style={{ fontSize: 9, color: '#6b7280', margin: '0 0 16px', fontFamily: 'Arial, sans-serif' }}>Authorized Representative</p>
+                    <p style={{ fontSize: 10, fontWeight: 700, margin: '0 0 2px', fontFamily: 'Arial, sans-serif' }}>{signerParty}</p>
+                    <p style={{ fontSize: 9, color: '#6b7280', margin: '0 0 16px', fontFamily: 'Arial, sans-serif' }}>{signerRole}</p>
                     <div style={{ height: 60, marginBottom: 4, borderBottom: '1px solid #111', display: 'flex', alignItems: 'flex-end' }}>
                       <span style={{ fontSize: 26, fontFamily: "'Dancing Script', Georgia, cursive", color: '#1f2937', paddingBottom: 6, lineHeight: 1 }}>{contract.signer_name}</span>
                     </div>

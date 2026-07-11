@@ -190,8 +190,13 @@ async function run(slug: string) {
   if (cErr || !contract) { console.error('Contract not found:', cErr); return; }
 
   const project = (contract as any).hub_projects;
-  const clientEmail = project?.contact_email;
-  const clientName = project?.client_name ?? contract.signer_name ?? 'Client';
+  let clientEmail = project?.contact_email;
+  let clientName = project?.client_name ?? contract.signer_name ?? 'Client';
+  // Contractor agreements have no project — send the signed copy to the contractor.
+  if (!clientEmail && (contract as any).contractor_id) {
+    const { data: hu } = await supabase.from('hub_users').select('full_name, email').eq('id', (contract as any).contractor_id).maybeSingle();
+    if (hu?.email) { clientEmail = hu.email; clientName = hu.full_name ?? clientName; }
+  }
   const firstName = clientName.split(' ')[0];
   const signedAt = contract.signed_at ? fmtDate(contract.signed_at) : new Date().toLocaleDateString();
   const contractUrl = `${SITE_URL}/c/${slug}`;

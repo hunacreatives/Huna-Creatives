@@ -223,7 +223,8 @@ export interface HubSignAssignment {
 
 export interface HubClientContract {
   id: string;
-  project_id: number;
+  project_id: number | null;
+  contractor_id?: string | null;
   slug: string;
   title: string;
   body: string;

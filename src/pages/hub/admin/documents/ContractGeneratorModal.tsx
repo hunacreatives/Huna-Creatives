@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { HubUser } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { FRANCIS_SIG, HUNA_LOGO } from './contractAssets';
+import { slugify } from '@/lib/formatUtils';
 
 interface Props {
   contractors: HubUser[];
@@ -12,27 +13,18 @@ interface Props {
 
 const DEFAULT_TOOLS = ['Canva Pro', 'Adobe Photoshop (if required)'];
 
-function generateCustomContractHTML(contractorName: string, effectiveDate: string, body: string, sigData: string, logoData: string, docTitle = 'Independent Contractor Agreement'): string {
-  const fmt = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-  // The AI emits plain text: numbered ALL-CAPS section headings, "• " bullet
-  // lists, and prose paragraphs. Render them with the same structure/styling
-  // as the standard template so custom and template contracts look identical.
+// Converts the AI's plain text (numbered ALL-CAPS headings, "•" bullets,
+// prose) into the client-contract HTML the public /c/ signing page renders
+// (contract-doc classes: h1.contract-title, h2 sections, hr.section-divider).
+function aiTextToContractBody(docTitle: string, subtitle: string, body: string): string {
   const isHeading = (para: string) =>
     /^\d+\.\s+\S/.test(para) && !para.includes('\n') && para === para.toUpperCase() && para.length < 90;
-  const toTitleCase = (s: string) =>
-    s.toLowerCase().replace(/(^|[\s(/&-])([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase())
-      .replace(/\b(And|Or|Of|The|To|In|For|With)\b/g, w => w.toLowerCase());
-  const bodyHtml = body
+  const sections = body
     .split(/\n\n+/)
     .map(raw => {
       const para = raw.trim();
       if (!para) return '';
-      if (isHeading(para)) {
-        const numMatch = para.match(/^(\d+\.)\s+(.*)$/);
-        const label = numMatch ? `${numMatch[1]} ${toTitleCase(numMatch[2])}` : toTitleCase(para);
-        return `<hr class="divider" />\n<div class="section-title">${label}</div>`;
-      }
+      if (isHeading(para)) return `<hr class="section-divider">\n<h2>${para}</h2>`;
       const lines = para.split('\n');
       if (lines.every(l => l.trim().startsWith('•'))) {
         return `<ul>${lines.map(l => `<li>${l.trim().replace(/^•\s*/, '')}</li>`).join('\n')}</ul>`;
@@ -47,72 +39,52 @@ function generateCustomContractHTML(contractorName: string, effectiveDate: strin
     })
     .filter(Boolean)
     .join('\n');
+  return `<h1 class="contract-title">${docTitle}</h1>\n<p class="contract-subtitle">${subtitle}</p>\n${sections}`;
+}
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: #111; background: #fff; line-height: 1.6; }
-  .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 18mm 20mm 20mm 20mm; }
-  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4pt; }
-  .logo-block img { height: 44pt; width: auto; display: block; }
-  .logo-tagline { font-size: 8.5pt; color: #333; margin-top: 4pt; font-style: italic; }
-  .header-contact { text-align: right; font-size: 8.5pt; color: #333; line-height: 1.7; }
-  .header-rule { border: none; border-top: 2.5pt solid #D64F1E; margin: 6pt 0 14pt 0; width: 100%; }
-  .doc-title { font-size: 15pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5pt; margin-bottom: 14pt; font-family: Arial, sans-serif; }
-  p { text-align: justify; margin-bottom: 7pt; font-size: 11pt; }
-  ul { margin: 4pt 0 8pt 24pt; }
-  ul li { margin-bottom: 3pt; font-size: 11pt; }
-  .section-title { font-size: 13pt; font-weight: bold; margin: 20pt 0 8pt 0; font-family: Arial, sans-serif; }
-  .divider { border: none; border-top: 0.75pt solid #ccc; margin: 14pt 0; }
-  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20pt; margin-top: 14pt; }
-  .sig-label { font-size: 9pt; color: #555; }
-  @media print { body { background: #fff; } .page { margin: 0; padding: 15mm 18mm 18mm 18mm; } @page { size: A4; margin: 0; } }
-</style>
-</head>
-<body>
-<div class="page">
-  <div class="header">
-    <div class="logo-block">
-      <img src="${logoData}" alt="Huna Creatives" />
-      <div class="logo-tagline">Let's bring your <em>hunahuna</em> to life.</div>
-    </div>
-    <div class="header-contact">
-      (032) 505 6921 | +63 952 447 2602<br />
-      contact@hunacreatives.com<br />
-      Cebu, Philippines, 6004
-    </div>
-  </div>
-  <hr class="header-rule" />
-
-  <div class="doc-title">${docTitle}</div>
-  ${bodyHtml}
-
-  <hr class="divider" style="margin-top:28pt;" />
-  <div class="section-title">Signatures</div>
-  <p>By signing below, both parties acknowledge that they have read, understood, and agree to be bound by all terms and conditions of this Agreement.</p>
-  <div class="sig-grid">
-    <div>
-      <p><strong>Huna Creatives</strong><br />("Client")</p>
-      <div style="height:44pt;display:flex;align-items:flex-end;padding-bottom:0;margin-top:16pt;">
-        <img src="${sigData}" style="height:70pt;width:auto;max-width:240pt;object-fit:contain;" />
+// Preview wrapper matching the public /c/ page look: Huna letterhead, the
+// contract-doc styles, and a note that the e-signature block is collected on
+// the signing page (no manual-looking blank signature lines).
+function clientStylePreviewHTML(bodyHtml: string, logoData: string): string {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f5f5f4; font-family: Arial, Helvetica, sans-serif; }
+  .page { max-width: 820px; margin: 24px auto 60px; background: #fff; box-shadow: 0 2px 20px rgba(0,0,0,0.07); border-radius: 4px; overflow: hidden; }
+  .lh { padding: 24px 52px 0; }
+  .lh-inner { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .lh-contact { text-align: right; font-size: 9pt; color: #444; line-height: 1.8; }
+  .accent { height: 3px; background: linear-gradient(to right, #D64F1E 40%, #e5e7eb 40%); margin-bottom: 28px; }
+  .contract-doc { padding: 0 52px 48px; font-size: 10.5pt; color: #111; line-height: 1.65; }
+  .contract-doc h1.contract-title { font-size: 20pt; font-weight: 800; color: #111; margin: 0 0 6pt; text-transform: uppercase; letter-spacing: 0.02em; }
+  .contract-doc p.contract-subtitle { font-size: 10.5pt; font-weight: 700; margin: 0 0 14pt; color: #111; }
+  .contract-doc h2 { font-size: 13pt; font-weight: 800; margin: 20pt 0 6pt; text-transform: uppercase; color: #111; }
+  .contract-doc h3 { font-size: 10.5pt; font-weight: 700; margin: 12pt 0 4pt; color: #111; }
+  .contract-doc p { margin: 0 0 8pt; text-align: justify; }
+  .contract-doc ul { margin: 4pt 0 8pt 18pt; padding: 0; }
+  .contract-doc ul li { margin-bottom: 4pt; text-align: justify; }
+  .contract-doc hr.section-divider { border: none; border-top: 1px solid #d1d5db; margin: 16pt 0; }
+  .contract-doc strong.highlight { color: #D64F1E; }
+  .esig-note { margin: 0 52px 32px; padding: 12px 16px; background: #fff7f5; border: 1px solid #fed7cc; border-radius: 8px; font-size: 11px; color: #9a3412; }
+  </style></head><body>
+  <div class="page">
+    <div class="lh">
+      <div class="lh-inner">
+        <div>
+          <img src="${logoData}" alt="Huna Creatives" style="height:52px;width:auto;display:block">
+          <p style="font-size:9pt;color:#555;font-style:italic;margin-top:4px">Let's bring your <em>hunahuna</em> to life.</p>
+        </div>
+        <div class="lh-contact">
+          (032) 505 6921 | +63 952 447 2602<br>
+          contact@hunacreatives.com<br>
+          Cebu, Philippines, 6004
+        </div>
       </div>
-      <div style="border-top:1pt solid #111;margin-bottom:4pt;"></div>
-      <p class="sig-label">Francis Fiel Roble &nbsp;|&nbsp; ${fmt(effectiveDate)}</p>
+      <div class="accent"></div>
     </div>
-    <div>
-      <p><strong>${contractorName}</strong><br />("Contractor")</p>
-      <div style="height:44pt;margin-top:16pt;border-bottom:1pt solid #111;"></div>
-      <p class="sig-label" style="margin-top:4pt;">Signature</p>
-      <div style="border-top:1pt solid #111;margin-top:20pt;margin-bottom:4pt;"></div>
-      <p class="sig-label">${contractorName} &nbsp;|&nbsp; Date</p>
-    </div>
+    <div class="contract-doc">${bodyHtml}</div>
+    <div class="esig-note">✍️ The e-signature block is added automatically on the signing page — the contractor signs electronically through their personal contract link.</div>
   </div>
-</div>
-</body>
-</html>`;
+  </body></html>`;
 }
 
 export function generateContractHTML(fields: ContractFields, sigData: string, logoData: string): string {
@@ -612,23 +584,81 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
     }));
   };
 
+  const customDocTitle = () => fields.amendmentType && fields.amendmentType !== 'initial'
+    ? 'AMENDMENT TO INDEPENDENT CONTRACTOR AGREEMENT'
+    : 'INDEPENDENT CONTRACTOR AGREEMENT';
+
+  const customContractBody = () => {
+    const effective = new Date(fields.effectiveDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return aiTextToContractBody(customDocTitle(), `${fields.contractorName} — Effective ${effective}`, customBody);
+  };
+
   const handlePreview = () => {
-    const customTitle = fields.amendmentType && fields.amendmentType !== 'initial'
-      ? 'Amendment to Independent Contractor Agreement'
-      : 'Independent Contractor Agreement';
     const html = contractMode === 'custom'
-      ? generateCustomContractHTML(fields.contractorName, fields.effectiveDate, customBody, FRANCIS_SIG, HUNA_LOGO, customTitle)
+      ? clientStylePreviewHTML(customContractBody(), HUNA_LOGO)
       : generateContractHTML(fields, FRANCIS_SIG, HUNA_LOGO);
     setPreviewHtml(html);
     setStep('preview');
+  };
+
+  // Custom/AI contracts go through the public client-contract flow: a
+  // hub_client_contracts row with its own /c/<slug> link, signed
+  // electronically on that page — same experience as client contracts.
+  const sendCustomContract = async () => {
+    const contractor = contractors.find(c => c.id === fields.contractorId);
+    if (!contractor?.email) {
+      setToast('This contractor has no email on file — add one first.');
+      setTimeout(() => setToast(''), 4000);
+      setSaving(false);
+      return;
+    }
+    const title = `${fields.amendmentType && fields.amendmentType !== 'initial' ? 'Amendment to Independent Contractor Agreement' : 'Independent Contractor Agreement'} — ${fields.contractorName}`;
+    const slug = `${slugify(`${fields.contractorName}-contractor-agreement`)}-${Date.now().toString(36)}`;
+
+    const { error } = await supabase.from('hub_client_contracts').insert({
+      project_id: null,
+      contractor_id: fields.contractorId,
+      slug,
+      title,
+      body: customContractBody(),
+      total_value: fields.paymentType === 'hourly'
+        ? (fields.hourlyRate ? Number(fields.hourlyRate) : null)
+        : (fields.monthlyRate ? Number(fields.monthlyRate) : null),
+      currency: fields.currency,
+      status: 'sent',
+    });
+    if (error) {
+      setToast(`Failed to save contract: ${error.message}`);
+      setTimeout(() => setToast(''), 5000);
+      setSaving(false);
+      return;
+    }
+
+    await supabase.functions.invoke('send-client-contract', {
+      body: {
+        slug,
+        client_email: contractor.email,
+        client_name: fields.contractorName,
+        contract_title: title,
+      },
+    }).catch(console.error);
+
+    const link = `https://www.hunacreatives.com/c/${slug}`;
+    try { await navigator.clipboard.writeText(link); } catch { /* clipboard unavailable */ }
+    setToast('Contract sent — signing link copied to clipboard.');
+    setTimeout(() => setToast(''), 5000);
+    setSaving(false);
+    onDone();
   };
 
   const handleSendForSignature = async () => {
     if (!fields.contractorId) return;
     setSaving(true);
 
+    if (contractMode === 'custom') { await sendCustomContract(); return; }
+
     const html = previewHtml;
-    const title = `${fields.amendmentType && fields.amendmentType !== 'initial' ? 'Amendment to Independent Contractor Agreement' : 'Independent Contractor Agreement'} – ${fields.contractorName}`;
+    const title = `Independent Contractor Agreement – ${fields.contractorName}`;
 
     const { data: doc, error } = await supabase
       .from('hub_sign_documents')
@@ -1074,7 +1104,9 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className="flex items-center gap-3 px-5 py-3 bg-amber-50 border-b border-amber-100 flex-shrink-0">
               <i className="ri-information-line text-amber-500"></i>
-              <p className="text-xs text-amber-700">Review the contract below. Your signature is already on it. Once sent, the contractor will be notified to sign.</p>
+              <p className="text-xs text-amber-700">{contractMode === 'custom'
+                ? 'Review the contract below. Sending emails the contractor a personal signing link — they sign electronically, no hub login needed.'
+                : 'Review the contract below. Your signature is already on it. Once sent, the contractor will be notified to sign.'}</p>
               <button onClick={openPreviewInTab} className="ml-auto text-xs text-[#FF6B35] cursor-pointer whitespace-nowrap hover:underline flex-shrink-0">
                 Open in new tab <i className="ri-external-link-line"></i>
               </button>
