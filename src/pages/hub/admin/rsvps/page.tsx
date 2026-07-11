@@ -7,7 +7,9 @@ type EventConfig = {
   label: string;
   client: string;
   date: string;
-  table: string;
+  /** RSVPs come from a Supabase table, or an edge function returning { entries } */
+  source: { table: string } | { fn: string };
+  key: string;
   route: string;
   emoji: string;
 };
@@ -17,9 +19,19 @@ const EVENTS: EventConfig[] = [
     label: "Claudy's 30th Birthday",
     client: 'Claudy',
     date: 'Jul 25, 2026',
-    table: 'claudy_rsvps',
+    source: { table: 'claudy_rsvps' },
+    key: 'claudy_rsvps',
     route: '/hub/admin/claudy-rsvps',
     emoji: '🎂',
+  },
+  {
+    label: 'Carlo & Trixia Wedding',
+    client: 'Carlo & Trixia',
+    date: 'Nov 28, 2026',
+    source: { fn: 'carlo-trixia-rsvps' },
+    key: 'carlo_trixia_rsvps',
+    route: '/hub/admin/carlo-trixia-rsvps',
+    emoji: '💍',
   },
   // Add future events here
 ];
@@ -30,10 +42,15 @@ export default function RsvpsIndexPage() {
 
   useEffect(() => {
     EVENTS.forEach(async (event) => {
-      const { count } = await supabase
-        .from(event.table)
-        .select('*', { count: 'exact', head: true });
-      setCounts((prev) => ({ ...prev, [event.table]: count ?? 0 }));
+      if ('table' in event.source) {
+        const { count } = await supabase
+          .from(event.source.table)
+          .select('*', { count: 'exact', head: true });
+        setCounts((prev) => ({ ...prev, [event.key]: count ?? 0 }));
+      } else {
+        const { data } = await supabase.functions.invoke(event.source.fn, { body: { action: 'list' } });
+        setCounts((prev) => ({ ...prev, [event.key]: data?.entries?.length ?? 0 }));
+      }
     });
   }, []);
 
@@ -45,7 +62,7 @@ export default function RsvpsIndexPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {EVENTS.map((event) => (
             <button
-              key={event.table}
+              key={event.key}
               onClick={() => navigate(event.route)}
               className="text-left bg-white rounded-2xl p-5 shadow-sm border border-white/60 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group"
             >
@@ -59,7 +76,7 @@ export default function RsvpsIndexPage() {
               <p className="text-xs text-gray-400">{event.client}</p>
               <div className="mt-4 flex items-center gap-2">
                 <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-                  {counts[event.table] ?? '—'} RSVPs
+                  {counts[event.key] ?? '—'} RSVPs
                 </span>
               </div>
             </button>
