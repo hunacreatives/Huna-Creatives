@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
       hoursMap[h.user_id][h.date] = h;
     }
 
-    const reminders: { slackId: string; name: string; message: string }[] = [];
+    const reminders: { slackId: string; userId: string; name: string; message: string; pushBody: string }[] = [];
 
     for (const c of contractors) {
       if (!c.email || !c.shift_start) continue;
@@ -102,7 +103,7 @@ Deno.serve(async (req) => {
       const hoursRow = hoursMap[c.id]?.[shiftDate];
       const firstName = c.full_name.split(' ')[0];
 
-      // Require a stored slack_id to send DMs
+      // Require a stored slack_id to send DMs (punches happen in Slack)
       if (!c.slack_id) continue;
 
       // ── Log-on reminder ───────────────────────────────────────────────────
@@ -112,8 +113,10 @@ Deno.serve(async (req) => {
         const timeLabel = c.shift_start.slice(0, 5);
         reminders.push({
           slackId: c.slack_id,
+          userId: c.id,
           name: firstName,
           message: `Hey ${firstName}! Your shift started at *${timeLabel}* and you haven't logged in yet. Please type \`on\` in <#${ATTENDANCE_CHANNEL_ID}> to log in. 🕐`,
+          pushBody: `Your shift started at ${timeLabel} and you haven't logged in yet — type "on" in the Slack attendance channel. 🕐`,
         });
       }
 
@@ -125,8 +128,10 @@ Deno.serve(async (req) => {
           const timeLabel = c.shift_end!.slice(0, 5);
           reminders.push({
             slackId: c.slack_id,
+            userId: c.id,
             name: firstName,
             message: `Hey ${firstName}! Your shift ended at *${timeLabel}* — don't forget to type \`off\` in <#${ATTENDANCE_CHANNEL_ID}> to log out. 👋`,
+            pushBody: `Your shift ended at ${timeLabel} — don't forget to type "off" in the Slack attendance channel. 👋`,
           });
         }
       }
@@ -138,6 +143,17 @@ Deno.serve(async (req) => {
     let sent = 0;
     const errors: string[] = [];
     for (const r of reminders) {
+      // App push when installed; Slack DM otherwise — never both.
+      if (await hasPush(r.userId)) {
+        await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: r.userId, title: 'Attendance reminder', body: r.pushBody, url: 'https://www.hunacreatives.com/hub/contractor/attendance' }),
+        }).catch(() => {});
+        sent++;
+        console.log(`[remind-attendance] Push sent to ${r.name}`);
+        continue;
+      }
       // Open DM channel first, then post
       const dm = await slackPost('conversations.open', { users: r.slackId });
       if (!dm.ok) {

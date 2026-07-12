@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
@@ -61,7 +62,7 @@ async function run(assignment_id: string) {
 
   // --- Slack DM ---
   const slackUserId = contractor.slack_id ?? null;
-  if (slackUserId) {
+  if (slackUserId && !(await hasPush(assignment.contractor_id))) {
     const dmOpen = await slackPost('conversations.open', { users: slackUserId });
     const dmChannel = dmOpen.ok ? dmOpen.channel?.id : slackUserId;
     const dmResult = await slackPost('chat.postMessage', {

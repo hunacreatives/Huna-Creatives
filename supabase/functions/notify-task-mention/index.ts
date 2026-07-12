@@ -1,3 +1,4 @@
+import { hasPush } from '../_shared/push.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
@@ -99,7 +100,7 @@ Deno.serve(async (req) => {
         read: false,
       });
 
-      if (mentioned.slack_id && SLACK_BOT_TOKEN) {
+      if (mentioned.slack_id && SLACK_BOT_TOKEN && !(await hasPush(mentioned.id))) {
         await fetch('https://slack.com/api/chat.postMessage', {
           method: 'POST',
           headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },

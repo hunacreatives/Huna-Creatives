@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -75,7 +76,7 @@ Deno.serve(async (req) => {
       notifBody = `Your ${leave_type} request for ${start_date} to ${end_date} was not approved.`;
     }
 
-    if (user?.slack_id) {
+    if (user?.slack_id && !(await hasPush(contractor_id))) {
       await slackDm(user.slack_id, slackText).catch(() => {});
     }
 

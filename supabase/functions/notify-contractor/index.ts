@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
@@ -117,7 +118,7 @@ async function sendNotification(payout_id: string, type: 'hr_approved' | 'disput
       }),
     });
 
-    if (SLACK_BOT_TOKEN && contractor.slack_id) {
+    if (SLACK_BOT_TOKEN && contractor.slack_id && !(await hasPush(payout.contractor_id))) {
       try {
         const dm = await slackPost('conversations.open', { users: contractor.slack_id });
         await slackPost('chat.postMessage', {
@@ -176,7 +177,7 @@ async function sendNotification(payout_id: string, type: 'hr_approved' | 'disput
       }),
     });
 
-    if (SLACK_BOT_TOKEN && contractor.slack_id) {
+    if (SLACK_BOT_TOKEN && contractor.slack_id && !(await hasPush(payout.contractor_id))) {
       try {
         const dm = await slackPost('conversations.open', { users: contractor.slack_id });
         await slackPost('chat.postMessage', {

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -98,6 +99,7 @@ Deno.serve(async (req) => {
     if (SLACK_BOT_TOKEN) {
       for (const user of users ?? []) {
         if (!user.slack_id) continue;
+        if (await hasPush(user.id)) continue; // app push covers it — skip the Slack DM
         await fetch('https://slack.com/api/chat.postMessage', {
           method: 'POST',
           headers: {

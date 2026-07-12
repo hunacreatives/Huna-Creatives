@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -193,7 +194,7 @@ Deno.serve(async (req) => {
           const { data: u } = await supabase.from('hub_users').select('slack_id').eq('email', to.toLowerCase()).single();
           slackId = u?.slack_id ?? null;
         }
-        if (slackId) {
+        if (slackId && !(contractor_id && await hasPush(contractor_id))) {
           const amountFmt = '₱' + (amount as number).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           const periodText = period_label ? ` · ${period_label}` : '';
           await slackDm(slackId, `💸 *Payment received*\n${amountFmt} has been sent for *${project_name}*${periodText}.\nPlease check your account. Reach out if anything looks off.\n<${HUB_URL}|Open Hub →>`);

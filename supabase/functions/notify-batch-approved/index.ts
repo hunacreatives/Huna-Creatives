@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
         const payoutFmt = '₱' + (finalPayout as number).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         // Send Slack DM if they have a slack_id
-        if (user?.slack_id && SLACK_BOT_TOKEN) {
+        if (user?.slack_id && SLACK_BOT_TOKEN && !(await hasPush(contractor_id))) {
           await slackDm(
             user.slack_id,
             `✅ *Payroll approved*\nYour payment of ${payoutFmt} for ${period_label} has been approved by the owner and is being processed.\nPayment typically arrives within 1–2 business days. 🙏\n<${PAYOUTS_URL}|View payslip →>`,

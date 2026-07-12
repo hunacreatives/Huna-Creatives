@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -236,7 +237,7 @@ async function sendPayslip(payout_id: string) {
 
   // Slack DM to contractor — isolated so a Slack failure doesn't shadow email success
   const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
-  if (SLACK_BOT_TOKEN && contractor.slack_id) {
+  if (SLACK_BOT_TOKEN && contractor.slack_id && !(await hasPush(payout.contractor_id))) {
     try {
       const slackPost = async (path: string, body: unknown) => {
         const res = await fetch(`https://slack.com/api/${path}`, {
@@ -259,6 +260,18 @@ async function sendPayslip(payout_id: string) {
       console.error('Slack DM failed (payslip already sent):', slackErr);
     }
   }
+
+  // App push for installed users (they skip the Slack DM above)
+  await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: payout.contractor_id,
+      title: 'Payment sent 💸',
+      body: `Your payslip for ${periodLabel} has been processed — ${fmt(payout.final_payout)} is on its way. Full receipt in your email.`,
+      url: 'https://www.hunacreatives.com/hub/contractor/payouts',
+    }),
+  }).catch(() => {});
 }
 
 Deno.serve(async (req) => {

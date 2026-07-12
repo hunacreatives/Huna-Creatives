@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -48,8 +49,8 @@ async function run(projectId: number, contractorId: string) {
   const contractor = (assignment as any)?.hub_users;
   const projectRole = (assignment as any)?.project_role as string | null | undefined;
 
-  if (!project || !contractor?.slack_id) {
-    console.log('[notify-project-assigned] missing project or slack_id, skipping DM');
+  if (!project || !contractor) {
+    console.log('[notify-project-assigned] missing project or contractor, skipping');
     return;
   }
 
@@ -57,6 +58,27 @@ async function run(projectId: number, contractorId: string) {
   const projectName = project.name ?? 'Untitled Project';
   const clientName = project.client_name ?? null;
   const roleLine = projectRole ? `*Role:*\n${projectRole}` : null;
+
+  // App push when installed; Slack DM as the fallback so nothing doubles up.
+  if (await hasPush(contractor.id)) {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: contractor.id,
+        title: 'Added to a project',
+        body: `You've been assigned to ${projectName}${clientName ? ` (${clientName})` : ''}${projectRole ? ` as ${projectRole}` : ''}.`,
+        url: PROJECTS_URL,
+      }),
+    }).catch(() => {});
+    console.log('[notify-project-assigned] push sent — skipping Slack DM');
+    return;
+  }
+
+  if (!contractor.slack_id) {
+    console.log('[notify-project-assigned] no slack_id and no push subscription, skipping');
+    return;
+  }
 
   const dmOpen = await slackPost('conversations.open', { users: contractor.slack_id });
   const dmChannel = dmOpen.ok ? dmOpen.channel?.id : contractor.slack_id;

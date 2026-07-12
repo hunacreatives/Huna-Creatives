@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { hasPush } from '../_shared/push.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
           read: false,
         }).catch(() => {});
 
-        if (assignee.slack_id && SLACK_BOT_TOKEN) {
+        if (assignee.slack_id && SLACK_BOT_TOKEN && !(await hasPush(assignee.id))) {
           await fetch('https://slack.com/api/chat.postMessage', {
             method: 'POST',
             headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
