@@ -108,7 +108,7 @@ export function renderPaymentSummaryHTML(
 
   .section { padding: 16px 28px; border-bottom: 1px solid #f9fafb; }
   .section-title { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
-  .note { font-size: 11px; color: #9ca3af; font-style: italic; margin: -4px 0 10px; }
+  .note { font-size: 11px; color: #9ca3af; font-style: italic; margin: -4px 0 10px; text-align: justify; }
 
   .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f9fafb; }
   .row:last-child { border-bottom: none; }
@@ -126,6 +126,7 @@ export function renderPaymentSummaryHTML(
   .total-row .value { font-size: 22px; font-weight: 800; color: #FF6B35; }
 
   .footer { max-width: 700px; margin: 18px auto 0; padding: 0 4px; font-size: 10.5px; color: #9ca3af; line-height: 1.6; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .footer span { text-align: justify; }
   .footer img { height: 20px; width: auto; opacity: 0.35; flex-shrink: 0; }
 
   @media print {
