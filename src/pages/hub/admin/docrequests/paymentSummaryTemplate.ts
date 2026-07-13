@@ -152,7 +152,7 @@ export function renderPaymentSummaryHTML(
   .doc { background: #fff; min-height: 273mm; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 
   .head { background: #111827; padding: 10mm 14mm 8mm; display: flex; align-items: flex-start; justify-content: space-between; }
-  .head-logo { height: 22pt; width: auto; display: block; margin-bottom: 5pt; filter: invert(1) brightness(1.6); }
+  .head-logo { height: 36pt; width: auto; display: block; margin-bottom: 6pt; filter: invert(1) brightness(1.6); }
   .head-left .sub { color: rgba(255,255,255,0.5); font-size: 7.5pt; line-height: 1.6; }
   .head-right { text-align: right; }
   .head-right .tag { color: #FF6B35; font-weight: 700; font-size: 11pt; letter-spacing: 0.12em; }
@@ -165,9 +165,11 @@ export function renderPaymentSummaryHTML(
   .certify { background: #f9fafb; border-left: 2.5pt solid #FF6B35; border-radius: 0 6pt 6pt 0; padding: 9pt 12pt; margin-bottom: 14pt; }
   .certify p { font-size: 8.5pt; line-height: 1.65; color: #374151; text-align: justify; }
 
-  .info { margin-bottom: 14pt; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12pt; }
+  .info { margin-bottom: 14pt; display: grid; grid-template-columns: 1fr 1fr 1fr; border: 0.75pt solid #e5e7eb; border-radius: 6pt; overflow: hidden; }
+  .info > div { padding: 8pt 12pt; border-left: 0.75pt solid #e5e7eb; }
+  .info > div:first-child { border-left: none; }
   .info .lbl { font-size: 7pt; color: #9ca3af; margin-bottom: 2pt; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-  .info .val { font-size: 10pt; font-weight: 700; color: #111827; }
+  .info .val { font-size: 9.5pt; font-weight: 700; color: #111827; white-space: nowrap; }
   .info .sub2 { font-size: 7.5pt; color: #9ca3af; margin-top: 1pt; }
 
   .section-title { font-size: 8pt; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin: 12pt 0 6pt; }
