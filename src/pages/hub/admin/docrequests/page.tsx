@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { HubDocRequest } from '@/lib/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { renderCertificateHTML } from './certificateTemplate';
-import { renderPaymentSummaryHTML, PayoutRow } from './paymentSummaryTemplate';
+import { renderPaymentSummaryHTML, PayoutRow, ProjectPayoutRow } from './paymentSummaryTemplate';
 import { HUNA_LOGO, FRANCIS_SIG } from '../documents/contractAssets';
 
 // Doc types formal enough for the AI to draft as a standalone HR certificate.
@@ -103,25 +103,55 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
     setGenError('');
     setSendError('');
     try {
-      const { data, error } = await supabase
-        .from('hub_payouts')
-        .select('cutoff_start, cutoff_end, approved_hours, base_pay, overtime_pay, bonus, incentives, reimbursements, deductions, advances, penalties, final_payout, payment_date')
-        .eq('contractor_id', req.contractor_id)
-        .eq('status', 'paid')
-        .gte('cutoff_start', dateFrom)
-        .lte('cutoff_end', dateTo)
-        .order('cutoff_start', { ascending: true });
+      const [{ data: payrollData, error: payrollErr }, { data: pcData, error: pcErr }] = await Promise.all([
+        supabase
+          .from('hub_payouts')
+          .select('cutoff_start, cutoff_end, approved_hours, base_pay, overtime_pay, bonus, incentives, reimbursements, deductions, advances, penalties, final_payout, payment_date')
+          .eq('contractor_id', req.contractor_id)
+          .eq('status', 'paid')
+          .gte('cutoff_start', dateFrom)
+          .lte('cutoff_end', dateTo)
+          .order('cutoff_start', { ascending: true }),
+        supabase
+          .from('hub_project_contractors')
+          .select('id, hub_projects(project_name, client_name)')
+          .eq('contractor_id', req.contractor_id),
+      ]);
 
-      if (error) {
-        setGenError(error.message);
-        return;
+      if (payrollErr) { setGenError(payrollErr.message); return; }
+      if (pcErr) { setGenError(pcErr.message); return; }
+
+      const pcRows = (pcData as any[]) ?? [];
+      const pcIds = pcRows.map(p => p.id);
+      const pcLabelById = new Map(pcRows.map(p => {
+        const proj = p.hub_projects as any;
+        return [p.id, proj ? `${proj.project_name} — ${proj.client_name}` : 'Unknown Project'];
+      }));
+
+      let projectRows: ProjectPayoutRow[] = [];
+      if (pcIds.length > 0) {
+        const { data: payoutData, error: payoutErr } = await supabase
+          .from('hub_project_contractor_payouts')
+          .select('amount, paid_at, notes, project_contractor_id')
+          .in('project_contractor_id', pcIds)
+          .gte('paid_at', dateFrom)
+          .lte('paid_at', dateTo)
+          .order('paid_at', { ascending: true });
+        if (payoutErr) { setGenError(payoutErr.message); return; }
+        projectRows = ((payoutData as any[]) ?? []).map(r => ({
+          paid_at: r.paid_at,
+          amount: r.amount,
+          notes: r.notes,
+          project_label: pcLabelById.get(r.project_contractor_id) ?? 'Unknown Project',
+        }));
       }
 
       const title = 'Payment Summary';
       const html = renderPaymentSummaryHTML(
         requester?.full_name ?? '',
         requester?.currency ?? 'PHP',
-        (data as PayoutRow[]) ?? [],
+        (payrollData as PayoutRow[]) ?? [],
+        projectRows,
         dateFrom,
         dateTo,
         req.contractor_id,

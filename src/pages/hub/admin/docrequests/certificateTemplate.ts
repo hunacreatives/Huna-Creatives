@@ -78,7 +78,7 @@ export function renderCertificateHTML(
   .sign-name { font-weight: 600; font-size: 9.5pt; color: #111; }
   .sign-title { font-size: 8pt; color: #777; margin-top: 1pt; }
 
-  .footer { position: absolute; bottom: 12mm; left: 18mm; right: 18mm; border-top: 0.75pt solid #e5e5e5; padding-top: 8pt; }
+  .footer { margin-top: 36pt; border-top: 0.75pt solid #e5e5e5; padding-top: 8pt; }
   .footer p { text-align: left; margin: 0 0 3pt; font-size: 6.8pt; line-height: 1.5; color: #9a9a9a; }
   .footer p:last-child { margin-bottom: 0; }
   .footer strong { color: #7a7a7a; }
