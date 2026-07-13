@@ -49,6 +49,11 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
   const [purpose, setPurpose] = useState(req.notes || '');
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
+  const [generatedHtml, setGeneratedHtml] = useState('');
+  const [generatedTitle, setGeneratedTitle] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [sent, setSent] = useState(false);
 
   const requester = req.hub_users as any;
   const canGenerate = AI_GENERATABLE_TYPES.has(req.doc_type);
@@ -56,6 +61,7 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
   const generateCertificate = async () => {
     setGenerating(true);
     setGenError('');
+    setSendError('');
     try {
       const { data, error } = await supabase.functions.invoke('generate-hr-certificate', {
         body: {
@@ -72,7 +78,10 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
         setGenError(data?.error ?? error?.message ?? 'Generation failed — try again.');
         return;
       }
-      const html = renderCertificateHTML(data.title || req.doc_type, data.body, req.contractor_id, HUNA_LOGO, FRANCIS_SIG);
+      const title = data.title || req.doc_type;
+      const html = renderCertificateHTML(title, data.body, req.contractor_id, HUNA_LOGO, FRANCIS_SIG);
+      setGeneratedHtml(html);
+      setGeneratedTitle(title);
       const blob = new Blob([html], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
@@ -80,6 +89,27 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
       setGenError(e instanceof Error ? e.message : 'Generation failed — try again.');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const sendCertificate = async () => {
+    if (!generatedHtml) return;
+    setSending(true);
+    setSendError('');
+    try {
+      const { data, error } = await supabase.functions.invoke('send-hr-certificate', {
+        body: { request_id: req.id, title: generatedTitle, html: generatedHtml },
+      });
+      if (error || data?.error) {
+        setSendError(data?.error ?? error?.message ?? 'Send failed — try again.');
+        return;
+      }
+      setSent(true);
+      setStatus('completed');
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : 'Send failed — try again.');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -141,7 +171,30 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
                   ? <><i className="ri-loader-4-line animate-spin text-sm"></i> Drafting…</>
                   : <><i className="ri-magic-line text-sm"></i> Generate & Preview Certificate</>}
               </button>
-              <p className="text-[10px] text-indigo-400">Opens a formatted certificate in a new tab — review, then print/save as PDF before sending it to the employee.</p>
+              <p className="text-[10px] text-indigo-400">Opens a formatted certificate in a new tab for review.</p>
+
+              {generatedHtml && (
+                <>
+                  {sendError && <p className="text-xs text-red-500">{sendError}</p>}
+                  {sent ? (
+                    <p className="text-xs text-emerald-600 flex items-center gap-1.5 font-medium">
+                      <i className="ri-checkbox-circle-fill"></i> Sent to {requester?.full_name} — request marked completed.
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={sendCertificate}
+                      disabled={sending || !requester?.email}
+                      className="w-full py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer disabled:opacity-40 font-medium flex items-center justify-center gap-1.5"
+                    >
+                      {sending
+                        ? <><i className="ri-loader-4-line animate-spin text-sm"></i> Sending…</>
+                        : <><i className="ri-mail-send-line text-sm"></i> Send PDF to {requester?.full_name?.split(' ')[0] || 'Employee'}</>}
+                    </button>
+                  )}
+                  {!requester?.email && !sent && <p className="text-[10px] text-red-400">This employee has no email on file — add one before sending.</p>}
+                </>
+              )}
             </div>
           )}
 
@@ -221,7 +274,7 @@ export default function AdminDocRequestsPage() {
     setLoading(true);
     const { data } = await supabase
       .from('hub_doc_requests')
-      .select('*, hub_users(full_name, avatar_url, department, role, start_date, status)')
+      .select('*, hub_users(full_name, email, avatar_url, department, role, start_date, status)')
       .order('created_at', { ascending: false });
     setRequests((data as HubDocRequest[]) ?? []);
     setLoading(false);
