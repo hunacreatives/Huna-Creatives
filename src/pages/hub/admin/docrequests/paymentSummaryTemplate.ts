@@ -28,9 +28,10 @@ const sym = (currency: string) => (currency === 'USD' ? '$' : '₱');
 const fmtMoney = (n: number | null | undefined, currency: string) =>
   `${sym(currency)}${(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// Branded to match the in-app payslip look (dark navy header, orange accent,
-// rounded card, stat tiles) instead of a plain legal-letter style — this is
-// an internal/financial statement, not a certificate for embassies/banks.
+// Branded like the in-app payslip (dark navy header, orange accent, stat
+// tiles) but laid out as a proper A4 printable page — same page mechanics
+// as certificateTemplate.ts — so it reads as an official document rather
+// than a browser-width web card.
 export function renderPaymentSummaryHTML(
   contractorName: string,
   rateCurrency: string,
@@ -84,66 +85,69 @@ export function renderPaymentSummaryHTML(
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif;
-    font-size: 13px; color: #111827; background: #f3f4f6; -webkit-font-smoothing: antialiased;
+    font-size: 9.5pt; color: #111827; background: #e9e9ea; -webkit-font-smoothing: antialiased;
   }
-  .sheet { max-width: 700px; margin: 32px auto 60px; }
-  .card { background: #fff; border-radius: 16px; border: 1px solid #f3f4f6; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 12mm; }
+  .doc { background: #fff; min-height: 273mm; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 
-  .head { background: #111827; padding: 24px 28px; display: flex; align-items: flex-start; justify-content: space-between; }
-  .head-left p:first-child { color: #fff; font-weight: 700; font-size: 16px; }
-  .head-left p:last-child { color: rgba(255,255,255,0.4); font-size: 12px; margin-top: 2px; }
+  .head { background: #111827; padding: 14mm 16mm 10mm; display: flex; align-items: flex-start; justify-content: space-between; }
+  .head-logo { height: 22pt; width: auto; display: block; margin-bottom: 6pt; filter: invert(1) brightness(1.6); }
+  .head-left .sub { color: rgba(255,255,255,0.45); font-size: 8pt; }
   .head-right { text-align: right; }
-  .head-right .tag { color: #FF6B35; font-weight: 700; font-size: 13px; letter-spacing: 0.15em; }
-  .head-right .sub { color: rgba(255,255,255,0.4); font-size: 12px; margin-top: 4px; }
+  .head-right .tag { color: #FF6B35; font-weight: 700; font-size: 10.5pt; letter-spacing: 0.12em; }
+  .head-right .sub { color: rgba(255,255,255,0.45); font-size: 8pt; margin-top: 4pt; }
 
-  .info { padding: 16px 28px; border-bottom: 1px solid #f9fafb; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  .info .lbl { font-size: 11px; color: #9ca3af; margin-bottom: 2px; }
-  .info .val { font-size: 14px; font-weight: 600; color: #111827; }
-  .info .sub2 { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+  .body-pad { padding: 0 16mm; }
 
-  .stats { padding: 16px 28px; border-bottom: 1px solid #f9fafb; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center; }
-  .stats .tile { background: #f9fafb; border-radius: 12px; padding: 12px 8px; }
-  .stats .tile .num { font-size: 18px; font-weight: 700; color: #111827; }
-  .stats .tile .lbl { font-size: 10.5px; color: #9ca3af; margin-top: 2px; }
+  .info { padding: 10pt 0; border-bottom: 1pt solid #f0f0f0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12pt; }
+  .info .lbl { font-size: 7.5pt; color: #9ca3af; margin-bottom: 2pt; text-transform: uppercase; letter-spacing: 0.04em; }
+  .info .val { font-size: 10pt; font-weight: 600; color: #111827; }
+  .info .sub2 { font-size: 7.5pt; color: #9ca3af; margin-top: 2pt; }
 
-  .section { padding: 16px 28px; border-bottom: 1px solid #f9fafb; }
-  .section-title { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
-  .note { font-size: 11px; color: #9ca3af; font-style: italic; margin: -4px 0 10px; text-align: justify; }
+  .stats { padding: 10pt 0; border-bottom: 1pt solid #f0f0f0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt; text-align: center; }
+  .stats .tile { background: #f9fafb; border-radius: 6pt; padding: 8pt 6pt; }
+  .stats .tile .num { font-size: 13pt; font-weight: 700; color: #111827; }
+  .stats .tile .lbl { font-size: 7.5pt; color: #9ca3af; margin-top: 2pt; }
 
-  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f9fafb; }
+  .section { padding: 10pt 0; border-bottom: 1pt solid #f0f0f0; }
+  .section-title { font-size: 8pt; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 7pt; }
+  .note { font-size: 8pt; color: #9ca3af; font-style: italic; margin: -3pt 0 7pt; text-align: justify; }
+
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8pt; padding: 6pt 0; border-bottom: 0.5pt solid #f5f5f5; }
   .row:last-child { border-bottom: none; }
   .row-main { display: flex; flex-direction: column; min-width: 0; }
-  .row-title { font-size: 13px; font-weight: 500; color: #111827; }
-  .row-sub { font-size: 11px; color: #9ca3af; margin-top: 1px; }
-  .row-amount { font-size: 13px; font-weight: 600; color: #111827; white-space: nowrap; }
-  .empty { text-align: center; color: #9ca3af; font-size: 12px; padding: 16px 0; }
+  .row-title { font-size: 9pt; font-weight: 500; color: #111827; }
+  .row-sub { font-size: 7.5pt; color: #9ca3af; margin-top: 1pt; }
+  .row-amount { font-size: 9pt; font-weight: 600; color: #111827; white-space: nowrap; }
+  .empty { text-align: center; color: #9ca3af; font-size: 8.5pt; padding: 10pt 0; }
 
-  .subtotal { display: flex; justify-content: space-between; padding-top: 8px; margin-top: 2px; border-top: 1px solid #f3f4f6; font-size: 12px; color: #6b7280; }
+  .subtotal { display: flex; justify-content: space-between; padding-top: 6pt; margin-top: 1pt; border-top: 0.75pt solid #eee; font-size: 8pt; color: #6b7280; }
   .subtotal .amt { font-weight: 700; color: #374151; }
 
-  .total-row { padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; }
-  .total-row .label { font-weight: 600; color: #111827; font-size: 14px; }
-  .total-row .value { font-size: 22px; font-weight: 800; color: #FF6B35; }
+  .total-row { padding: 12pt 0; display: flex; align-items: center; justify-content: space-between; }
+  .total-row .label { font-weight: 600; color: #111827; font-size: 10pt; }
+  .total-row .value { font-size: 15pt; font-weight: 800; color: #FF6B35; }
 
-  .footer { max-width: 700px; margin: 18px auto 0; padding: 0 4px; font-size: 10.5px; color: #9ca3af; line-height: 1.6; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-  .footer span { text-align: justify; }
-  .footer img { height: 20px; width: auto; opacity: 0.35; flex-shrink: 0; }
+  .footer { margin-top: 20pt; padding: 0 16mm 12mm; border-top: 0.75pt solid #e5e5e5; padding-top: 8pt; }
+  .footer p { text-align: justify; margin: 0 0 3pt; font-size: 6.8pt; line-height: 1.5; color: #9a9a9a; }
+  .footer p:last-child { margin-bottom: 0; }
+  .footer strong { color: #7a7a7a; }
 
   @media print {
     body { background: #fff; }
-    .sheet { margin: 0 auto; }
-    .card { box-shadow: none; }
-    @page { size: A4; margin: 12mm; }
+    .sheet { margin: 0; padding: 0; }
+    .doc { box-shadow: none; min-height: auto; }
+    @page { size: A4; margin: 0; }
   }
 </style>
 </head>
 <body>
 <div class="sheet">
-  <div class="card">
+  <div class="doc">
     <div class="head">
       <div class="head-left">
-        <p>Huna Creatives</p>
-        <p>Employee Payment Summary</p>
+        <img src="${logoData}" alt="Huna Creatives" class="head-logo" />
+        <p class="sub">Employee Payment Summary</p>
       </div>
       <div class="head-right">
         <p class="tag">PAYMENT SUMMARY</p>
@@ -151,59 +155,62 @@ export function renderPaymentSummaryHTML(
       </div>
     </div>
 
-    <div class="info">
-      <div>
-        <p class="lbl">Employee</p>
-        <p class="val">${contractorName}</p>
+    <div class="body-pad">
+      <div class="info">
+        <div>
+          <p class="lbl">Employee</p>
+          <p class="val">${contractorName}</p>
+        </div>
+        <div>
+          <p class="lbl">Period Covered</p>
+          <p class="val">${fmtDate(dateFrom)} &ndash; ${fmtDate(dateTo)}</p>
+        </div>
+        <div>
+          <p class="lbl">Reference No.</p>
+          <p class="val">${ref}</p>
+          <p class="sub2">Issued ${issued}</p>
+        </div>
       </div>
-      <div>
-        <p class="lbl">Period Covered</p>
-        <p class="val">${fmtDate(dateFrom)} &ndash; ${fmtDate(dateTo)}</p>
+
+      <div class="stats">
+        <div class="tile">
+          <p class="num">${payrollRows.length}</p>
+          <p class="lbl">Pay Periods</p>
+        </div>
+        <div class="tile">
+          <p class="num">${payrollTotals.hours.toLocaleString()}h</p>
+          <p class="lbl">Hours Logged</p>
+        </div>
+        <div class="tile">
+          <p class="num">${projectRows.length}</p>
+          <p class="lbl">Project Payments</p>
+        </div>
       </div>
-      <div>
-        <p class="lbl">Reference No.</p>
-        <p class="val">${ref}</p>
-        <p class="sub2">Issued ${issued}</p>
+
+      <div class="section">
+        <p class="section-title">Regular Payroll</p>
+        ${showsConversionNote ? `<p class="note">Base pay, overtime, and deductions are quoted in ${rateCurrency}; amounts shown per period are the actual PHP disbursement.</p>` : ''}
+        ${payrollListRows || '<p class="empty">No paid payroll records found for this period.</p>'}
+        ${payrollRows.length > 0 ? `<div class="subtotal"><span>Payroll Subtotal</span><span class="amt">${fmtMoney(payrollTotals.net, 'PHP')}</span></div>` : ''}
+      </div>
+
+      <div class="section">
+        <p class="section-title">Project-Based Payments</p>
+        ${projectListRows || '<p class="empty">No project-based payments found for this period.</p>'}
+        ${projectRows.length > 0 ? `<div class="subtotal"><span>Project Subtotal</span><span class="amt">${fmtMoney(projectTotal, 'PHP')}</span></div>` : ''}
+      </div>
+
+      <div class="total-row">
+        <span class="label">Grand Total Paid (PHP)</span>
+        <span class="value">${fmtMoney(grandTotalPhp, 'PHP')}</span>
       </div>
     </div>
 
-    <div class="stats">
-      <div class="tile">
-        <p class="num">${payrollRows.length}</p>
-        <p class="lbl">Pay Periods</p>
-      </div>
-      <div class="tile">
-        <p class="num">${payrollTotals.hours.toLocaleString()}h</p>
-        <p class="lbl">Hours Logged</p>
-      </div>
-      <div class="tile">
-        <p class="num">${projectRows.length}</p>
-        <p class="lbl">Project Payments</p>
-      </div>
+    <div class="footer">
+      <p><strong>Huna Creatives</strong> &middot; Cebu, Philippines &middot; This document is an officially issued payment summary generated from payroll and project payment records, and is valid without a physical signature.</p>
+      <p>This document is confidential and intended solely for the named recipient and the party or institution for which it was requested. It may be presented to banks, government agencies, or other institutions as proof of income.</p>
+      <p>To verify the authenticity of this document, contact Huna Creatives at contact@hunacreatives.com quoting Reference No. ${ref}.</p>
     </div>
-
-    <div class="section">
-      <p class="section-title">Regular Payroll</p>
-      ${showsConversionNote ? `<p class="note">Base pay, overtime, and deductions are quoted in ${rateCurrency}; amounts shown per period are the actual PHP disbursement.</p>` : ''}
-      ${payrollListRows || '<p class="empty">No paid payroll records found for this period.</p>'}
-      ${payrollRows.length > 0 ? `<div class="subtotal"><span>Payroll Subtotal</span><span class="amt">${fmtMoney(payrollTotals.net, 'PHP')}</span></div>` : ''}
-    </div>
-
-    <div class="section">
-      <p class="section-title">Project-Based Payments</p>
-      ${projectListRows || '<p class="empty">No project-based payments found for this period.</p>'}
-      ${projectRows.length > 0 ? `<div class="subtotal"><span>Project Subtotal</span><span class="amt">${fmtMoney(projectTotal, 'PHP')}</span></div>` : ''}
-    </div>
-
-    <div class="total-row">
-      <span class="label">Grand Total Paid (PHP)</span>
-      <span class="value">${fmtMoney(grandTotalPhp, 'PHP')}</span>
-    </div>
-  </div>
-
-  <div class="footer">
-    <span>This document is an officially issued payment summary by Huna Creatives, generated from payroll and project payment records. It may be presented to banks, government agencies, or other institutions as proof of income. For verification, contact contact@hunacreatives.com quoting Reference No. ${ref}.</span>
-    <img src="${logoData}" alt="Huna Creatives" />
   </div>
 </div>
 </body>
