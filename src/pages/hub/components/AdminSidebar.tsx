@@ -20,6 +20,7 @@ const navItems = [
   { to: '/hub/admin/performance', label: 'Performance', icon: 'ri-medal-line', devOnly: true },
   { divider: true, label: 'Approvals' },
   { to: '/hub/admin/requests', label: 'Request Center', icon: 'ri-inbox-line' },
+  { to: '/hub/admin/docrequests', label: 'Doc Requests', icon: 'ri-file-list-3-line' },
   { divider: true, label: 'Inbound' },
   { to: '/hub/admin/applications', label: 'Applications', icon: 'ri-user-search-line' },
   { to: '/hub/admin/contact', label: 'Contact Inbox', icon: 'ri-mail-line' },

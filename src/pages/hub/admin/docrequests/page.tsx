@@ -3,6 +3,18 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { HubDocRequest } from '@/lib/types';
 import { useDemo } from '@/contexts/DemoContext';
+import { renderCertificateHTML } from './certificateTemplate';
+import { HUNA_LOGO, FRANCIS_SIG } from '../documents/contractAssets';
+
+// Doc types formal enough for the AI to draft as a standalone HR certificate.
+// Others (Payment Summary, Agreement Copy, NDA Copy, ...) are source documents
+// an admin retrieves/uploads rather than something to generate from scratch.
+const AI_GENERATABLE_TYPES = new Set([
+  'Certificate of Engagement',
+  'Work Completion Certificate',
+  'Clearance Certificate',
+  'Client Assignment Letter',
+]);
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
@@ -34,6 +46,42 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
   const [fileName, setFileName] = useState(req.file_name || '');
   const [fileUrl, setFileUrl] = useState(req.file_url || '');
   const [saving, setSaving] = useState(false);
+  const [purpose, setPurpose] = useState(req.notes || '');
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
+
+  const requester = req.hub_users as any;
+  const canGenerate = AI_GENERATABLE_TYPES.has(req.doc_type);
+
+  const generateCertificate = async () => {
+    setGenerating(true);
+    setGenError('');
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-hr-certificate', {
+        body: {
+          doc_type: req.doc_type,
+          contractor_name: requester?.full_name ?? '',
+          role: requester?.role ?? '',
+          department: requester?.department ?? '',
+          start_date: requester?.start_date ?? null,
+          status: requester?.status ?? 'active',
+          purpose: purpose.trim(),
+        },
+      });
+      if (error || data?.error || !data?.body) {
+        setGenError(data?.error ?? error?.message ?? 'Generation failed — try again.');
+        return;
+      }
+      const html = renderCertificateHTML(data.title || req.doc_type, data.body, req.contractor_id, HUNA_LOGO, FRANCIS_SIG);
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : 'Generation failed — try again.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -69,6 +117,33 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
             {req.notes && <p className="text-sm text-gray-600 mt-1">{req.notes}</p>}
             <p className="text-xs text-gray-400">{new Date(req.created_at!).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
           </div>
+
+          {canGenerate && (
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 space-y-2">
+              <p className="text-xs font-semibold text-indigo-700 flex items-center gap-1.5">
+                <i className="ri-sparkling-2-line"></i> Generate with AI
+              </p>
+              <input
+                type="text"
+                className="w-full border border-indigo-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                placeholder="Purpose (e.g. visa application) — optional"
+                value={purpose}
+                onChange={e => setPurpose(e.target.value)}
+              />
+              {genError && <p className="text-xs text-red-500">{genError}</p>}
+              <button
+                type="button"
+                onClick={generateCertificate}
+                disabled={generating}
+                className="w-full py-2 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 cursor-pointer disabled:opacity-40 font-medium flex items-center justify-center gap-1.5"
+              >
+                {generating
+                  ? <><i className="ri-loader-4-line animate-spin text-sm"></i> Drafting…</>
+                  : <><i className="ri-magic-line text-sm"></i> Generate & Preview Certificate</>}
+              </button>
+              <p className="text-[10px] text-indigo-400">Opens a formatted certificate in a new tab — review, then print/save as PDF before sending it to the employee.</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
@@ -146,7 +221,7 @@ export default function AdminDocRequestsPage() {
     setLoading(true);
     const { data } = await supabase
       .from('hub_doc_requests')
-      .select('*, hub_users(full_name, avatar_url, department)')
+      .select('*, hub_users(full_name, avatar_url, department, role, start_date, status)')
       .order('created_at', { ascending: false });
     setRequests((data as HubDocRequest[]) ?? []);
     setLoading(false);
