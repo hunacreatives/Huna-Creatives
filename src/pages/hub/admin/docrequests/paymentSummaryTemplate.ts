@@ -160,8 +160,6 @@ export function renderPaymentSummaryHTML(
 
   .body-pad { padding: 10pt 14mm 0; }
 
-  .meta-row { display: flex; justify-content: space-between; font-size: 7.5pt; color: #8a8a8a; margin-bottom: 12pt; letter-spacing: 0.02em; text-transform: uppercase; }
-
   .certify { background: #f9fafb; border-left: 2.5pt solid #FF6B35; border-radius: 0 6pt 6pt 0; padding: 9pt 12pt; margin-bottom: 14pt; }
   .certify p { font-size: 8.5pt; line-height: 1.65; color: #374151; text-align: justify; }
 
@@ -186,9 +184,8 @@ export function renderPaymentSummaryHTML(
   .empty-cell { text-align: center; color: #9ca3af; font-style: italic; }
 
   .grand { margin-top: 14pt; border: 1pt solid #e5e7eb; border-radius: 6pt; overflow: hidden; }
-  .grand-row { display: flex; justify-content: space-between; padding: 7pt 12pt; font-size: 8.5pt; color: #4b5563; border-bottom: 0.75pt solid #f0f0f0; }
-  .grand-row span:last-child { font-weight: 600; color: #111827; }
-  .grand-row.main { background: #fff7f4; border-bottom: none; padding: 10pt 12pt; }
+  .grand-row { display: flex; justify-content: space-between; align-items: center; }
+  .grand-row.main { background: #fff7f4; padding: 10pt 12pt; }
   .grand-row.main span:first-child { font-weight: 800; font-size: 10pt; color: #111827; }
   .grand-row.main span:last-child { font-weight: 800; font-size: 14pt; color: #FF6B35; }
   .in-words { padding: 7pt 12pt; background: #fff; border-top: 0.75pt solid #f0f0f0; font-size: 7.5pt; color: #6b7280; }
@@ -196,8 +193,7 @@ export function renderPaymentSummaryHTML(
 
   .issued-line { margin-top: 14pt; color: #555; font-size: 8.5pt; }
 
-  .sign-block { margin-top: 22pt; display: flex; justify-content: space-between; align-items: flex-end; }
-  .sign-note { font-size: 7.5pt; color: #9ca3af; max-width: 220pt; line-height: 1.6; }
+  .sign-block { margin-top: 22pt; display: flex; justify-content: flex-end; }
   .sign-col { text-align: center; width: 190pt; }
   .sign-label { font-size: 7.5pt; color: #6b7280; text-align: left; margin-bottom: 2pt; }
   .sign-img { height: 42pt; width: auto; max-width: 170pt; object-fit: contain; margin: 0 auto 2pt; display: block; }
@@ -228,16 +224,11 @@ export function renderPaymentSummaryHTML(
       </div>
       <div class="head-right">
         <p class="tag">PAYMENT SUMMARY</p>
-        <p class="sub">Certification of Compensation Paid<br />${fmtDate(dateFrom)} &ndash; ${fmtDate(dateTo)}</p>
+        <p class="sub">Certification of Compensation Paid</p>
       </div>
     </div>
 
     <div class="body-pad">
-      <div class="meta-row">
-        <span>Ref. No. ${ref}</span>
-        <span>Date Issued: ${issued}</span>
-      </div>
-
       <div class="certify">
         <p><strong>TO WHOM IT MAY CONCERN:</strong> This is to certify that the records set out below constitute a true, complete, and accurate summary of all compensation paid by <strong>Huna Creatives</strong> to <strong>${contractorName}</strong> for the period of <strong>${fmtDateLong(dateFrom)}</strong> to <strong>${fmtDateLong(dateTo)}</strong>, as extracted from the company's official payroll and project payment records. All figures reflect finalized, disbursed amounts only.</p>
       </div>
@@ -311,8 +302,6 @@ export function renderPaymentSummaryHTML(
       </table>
 
       <div class="grand">
-        <div class="grand-row"><span>Total Regular Payroll (PHP)</span><span>${fmtMoney(payrollTotals.net, 'PHP')}</span></div>
-        <div class="grand-row"><span>Total Project-Based Payments (PHP)</span><span>${fmtMoney(projectTotal, 'PHP')}</span></div>
         <div class="grand-row main"><span>GRAND TOTAL PAID (PHP)</span><span>${fmtMoney(grandTotalPhp, 'PHP')}</span></div>
         <div class="in-words">Amount in words: <strong>${amountInWordsPhp(grandTotalPhp)}</strong></div>
       </div>
@@ -320,7 +309,6 @@ export function renderPaymentSummaryHTML(
       <p class="issued-line">${issuedLine()}</p>
 
       <div class="sign-block">
-        <p class="sign-note">This certification is signed by an authorized representative of Huna Creatives and may be verified against company records using the reference number above.</p>
         <div class="sign-col">
           <p class="sign-label">Certified true and correct:</p>
           <img src="${sigData}" class="sign-img" alt="Signature" />
@@ -333,9 +321,8 @@ export function renderPaymentSummaryHTML(
     </div>
 
     <div class="footer">
-      <p><strong>Huna Creatives</strong> &middot; Cebu, Philippines &middot; This document is an officially issued payment certification generated from the company's payroll and project payment records.</p>
-      <p>This document is confidential and intended solely for the named recipient and the party or institution for which it was requested. It may be presented to banks, government agencies, or other institutions as proof of income. Unauthorized reproduction, alteration, or redistribution is prohibited.</p>
-      <p>To verify the authenticity of this document, contact Huna Creatives at contact@hunacreatives.com quoting Reference No. ${ref}.</p>
+      <p><strong>Huna Creatives</strong> &middot; Cebu, Philippines &middot; This certification is issued electronically, is valid without a physical signature, and may be presented to banks, government agencies, or other institutions as proof of income. Unauthorized reproduction or alteration is prohibited.</p>
+      <p>To verify authenticity, contact contact@hunacreatives.com quoting Reference No. ${ref}.</p>
     </div>
   </div>
 </div>
