@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { HubDocRequest } from '@/lib/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { renderCertificateHTML } from './certificateTemplate';
+import { renderPaymentSummaryHTML, PayoutRow } from './paymentSummaryTemplate';
 import { HUNA_LOGO, FRANCIS_SIG } from '../documents/contractAssets';
 
 // Doc types formal enough for the AI to draft as a standalone HR certificate.
@@ -15,6 +16,8 @@ const AI_GENERATABLE_TYPES = new Set([
   'Clearance Certificate',
   'Client Assignment Letter',
 ]);
+
+const PAYMENT_SUMMARY_TYPE = 'Payment Summary';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
@@ -54,9 +57,12 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
   const [sent, setSent] = useState(false);
+  const [dateFrom, setDateFrom] = useState(req.hub_users?.start_date?.slice(0, 10) || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+  const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0, 10));
 
   const requester = req.hub_users as any;
   const canGenerate = AI_GENERATABLE_TYPES.has(req.doc_type);
+  const isPaymentSummary = req.doc_type === PAYMENT_SUMMARY_TYPE;
 
   const generateCertificate = async () => {
     setGenerating(true);
@@ -80,6 +86,48 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
       }
       const title = data.title || req.doc_type;
       const html = renderCertificateHTML(title, data.body, req.contractor_id, HUNA_LOGO, FRANCIS_SIG);
+      setGeneratedHtml(html);
+      setGeneratedTitle(title);
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : 'Generation failed — try again.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const generatePaymentSummary = async () => {
+    setGenerating(true);
+    setGenError('');
+    setSendError('');
+    try {
+      const { data, error } = await supabase
+        .from('hub_payouts')
+        .select('cutoff_start, cutoff_end, approved_hours, base_pay, overtime_pay, bonus, incentives, reimbursements, deductions, advances, penalties, final_payout, payment_date')
+        .eq('contractor_id', req.contractor_id)
+        .eq('status', 'paid')
+        .gte('cutoff_start', dateFrom)
+        .lte('cutoff_end', dateTo)
+        .order('cutoff_start', { ascending: true });
+
+      if (error) {
+        setGenError(error.message);
+        return;
+      }
+
+      const title = 'Payment Summary';
+      const html = renderPaymentSummaryHTML(
+        requester?.full_name ?? '',
+        requester?.currency ?? 'PHP',
+        (data as PayoutRow[]) ?? [],
+        dateFrom,
+        dateTo,
+        req.contractor_id,
+        HUNA_LOGO,
+        FRANCIS_SIG,
+      );
       setGeneratedHtml(html);
       setGeneratedTitle(title);
       const blob = new Blob([html], { type: 'text/html' });
@@ -172,29 +220,59 @@ function ReviewModal({ req, onClose, onSaved }: ReviewModalProps) {
                   : <><i className="ri-magic-line text-sm"></i> Generate & Preview Certificate</>}
               </button>
               <p className="text-[10px] text-indigo-400">Opens a formatted certificate in a new tab for review.</p>
+            </div>
+          )}
 
-              {generatedHtml && (
-                <>
-                  {sendError && <p className="text-xs text-red-500">{sendError}</p>}
-                  {sent ? (
-                    <p className="text-xs text-emerald-600 flex items-center gap-1.5 font-medium">
-                      <i className="ri-checkbox-circle-fill"></i> Sent to {requester?.full_name} — request marked completed.
-                    </p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={sendCertificate}
-                      disabled={sending || !requester?.email}
-                      className="w-full py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer disabled:opacity-40 font-medium flex items-center justify-center gap-1.5"
-                    >
-                      {sending
-                        ? <><i className="ri-loader-4-line animate-spin text-sm"></i> Sending…</>
-                        : <><i className="ri-mail-send-line text-sm"></i> Send PDF to {requester?.full_name?.split(' ')[0] || 'Employee'}</>}
-                    </button>
-                  )}
-                  {!requester?.email && !sent && <p className="text-[10px] text-red-400">This employee has no email on file — add one before sending.</p>}
-                </>
+          {isPaymentSummary && (
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 space-y-2">
+              <p className="text-xs font-semibold text-indigo-700 flex items-center gap-1.5">
+                <i className="ri-bar-chart-2-line"></i> Generate from Payroll Records
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] text-indigo-500 mb-0.5">From</label>
+                  <input type="date" className="w-full border border-indigo-200 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-indigo-500 mb-0.5">To</label>
+                  <input type="date" className="w-full border border-indigo-200 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-300" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                </div>
+              </div>
+              {genError && <p className="text-xs text-red-500">{genError}</p>}
+              <button
+                type="button"
+                onClick={generatePaymentSummary}
+                disabled={generating}
+                className="w-full py-2 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 cursor-pointer disabled:opacity-40 font-medium flex items-center justify-center gap-1.5"
+              >
+                {generating
+                  ? <><i className="ri-loader-4-line animate-spin text-sm"></i> Pulling records…</>
+                  : <><i className="ri-magic-line text-sm"></i> Generate & Preview Summary</>}
+              </button>
+              <p className="text-[10px] text-indigo-400">Pulls real, paid payout records from the hub for this date range — no figures are AI-generated.</p>
+            </div>
+          )}
+
+          {(canGenerate || isPaymentSummary) && generatedHtml && (
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 space-y-2">
+              {sendError && <p className="text-xs text-red-500">{sendError}</p>}
+              {sent ? (
+                <p className="text-xs text-emerald-600 flex items-center gap-1.5 font-medium">
+                  <i className="ri-checkbox-circle-fill"></i> Sent to {requester?.full_name} — request marked completed.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={sendCertificate}
+                  disabled={sending || !requester?.email}
+                  className="w-full py-2 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer disabled:opacity-40 font-medium flex items-center justify-center gap-1.5"
+                >
+                  {sending
+                    ? <><i className="ri-loader-4-line animate-spin text-sm"></i> Sending…</>
+                    : <><i className="ri-mail-send-line text-sm"></i> Send PDF to {requester?.full_name?.split(' ')[0] || 'Employee'}</>}
+                </button>
               )}
+              {!requester?.email && !sent && <p className="text-[10px] text-red-400">This employee has no email on file — add one before sending.</p>}
             </div>
           )}
 
@@ -274,7 +352,7 @@ export default function AdminDocRequestsPage() {
     setLoading(true);
     const { data } = await supabase
       .from('hub_doc_requests')
-      .select('*, hub_users(full_name, email, avatar_url, department, role, start_date, status)')
+      .select('*, hub_users(full_name, email, avatar_url, department, role, start_date, status, currency)')
       .order('created_at', { ascending: false });
     setRequests((data as HubDocRequest[]) ?? []);
     setLoading(false);
