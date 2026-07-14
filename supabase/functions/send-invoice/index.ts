@@ -18,8 +18,13 @@ const cors = {
   'Content-Type': 'application/json',
 };
 
-const fmt = (n: number) =>
-  '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const makeFmt = (currency: 'PHP' | 'USD') => (n: number) =>
+  new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'en-PH', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
 
 function normalizeRecipients(input: unknown) {
   if (Array.isArray(input)) {
@@ -61,7 +66,9 @@ Deno.serve(async (req) => {
       existing_invoice_log_id,
       preview_only,
       issue_date,
+      currency,
     } = await req.json();
+    const fmt = makeFmt(currency === 'USD' ? 'USD' : 'PHP');
     const toList = normalizeRecipients(to);
     const ccList = normalizeRecipients(cc);
 
@@ -77,15 +84,28 @@ Deno.serve(async (req) => {
 
     const totalPaid: number = (payments ?? []).reduce((s: number, p: any) => s + p.amount, 0);
     const requestedAmount = amount_requested != null && String(amount_requested).trim() !== '' ? Number(amount_requested) : NaN;
-    const invoiceTotal: number = Number.isFinite(requestedAmount) ? requestedAmount : lineItemsTotal;
-    const amountDue: number = showPayments ? invoiceTotal - totalPaid : invoiceTotal;
+    // A requested amount is authoritative. Otherwise: line-item subtotal capped
+    // at the remaining contract balance, so full-contract invoices deduct
+    // payments while installment invoices bill their own amount.
+    const contractRemaining = Number(contract_price) > 0
+      ? Math.max(Number(contract_price) - totalPaid, 0)
+      : Number.POSITIVE_INFINITY;
+    const amountDue: number = Number.isFinite(requestedAmount)
+      ? Math.max(requestedAmount, 0)
+      : Math.max(Math.min(lineItemsTotal, contractRemaining), 0);
+    // Only render "− Total paid" in the summary when the arithmetic is real.
+    const paymentsDeducted = Math.abs(lineItemsTotal - totalPaid - amountDue) < 0.005;
     const isPaid = amountDue <= 0;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
     const fmtDate = (d: string | null | undefined) => d
       ? new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
       : '—';
     const issueDateFmt = fmtDate(issue_date || new Date().toISOString().slice(0, 10));
-    const dueDateFmt = fmtDate(deadline);
+    // Never send an invoice dated due in the past (e.g. a stale project
+    // deadline, or a scheduled invoice processed after its stored date).
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const safeDueDate = deadline && deadline >= todayIso ? deadline : null;
+    const dueDateFmt = fmtDate(safeDueDate);
     const billedTo = bill_to_name || client_name;
     if (existing_invoice_log_id) {
       await supabase
@@ -105,7 +125,7 @@ Deno.serve(async (req) => {
         project_name,
         to_email: toList.join(', '),
         amount_due: amountDue,
-        due_date: deadline ?? null,
+        due_date: safeDueDate,
         line_items: lineItems,
         payment_terms: payment_terms ?? null,
         reference: reference ?? null,
@@ -259,7 +279,7 @@ Deno.serve(async (req) => {
                   <td style="padding:7px 0;font-size:13px;color:#6b7280;">Subtotal</td>
                   <td style="padding:7px 0;font-size:13px;color:#6b7280;text-align:right;white-space:nowrap;">${fmt(lineItemsTotal)}</td>
                 </tr>
-                ${showPayments ? `<tr>
+                ${showPayments && paymentsDeducted ? `<tr>
                   <td style="padding:7px 0;font-size:13px;color:#6b7280;">Total paid so far</td>
                   <td style="padding:7px 0;font-size:13px;color:#059669;font-weight:600;text-align:right;white-space:nowrap;">− ${fmt(totalPaid)}</td>
                 </tr>` : ''}

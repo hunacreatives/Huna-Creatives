@@ -46,7 +46,7 @@ export const emptyInvoiceBuilderForm = (): InvoiceBuilderFormState => ({
   billing_address: '',
   reference: '',
   invoice_number: '',
-  issue_date: new Date().toISOString().slice(0, 10),
+  issue_date: todayLocalIso(),
   due_date: '',
   payment_terms: 'Due on receipt',
   currency: 'PHP',
@@ -55,7 +55,16 @@ export const emptyInvoiceBuilderForm = (): InvoiceBuilderFormState => ({
   amount_requested: '',
 });
 
+// Local-timezone YYYY-MM-DD (toISOString is UTC, which is a day behind during PH mornings).
+export function todayLocalIso() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
 export function buildInvoiceDefaults(project: InvoiceProjectSnapshot, invoiceNumber: string): InvoiceBuilderFormState {
+  const today = todayLocalIso();
+  // A project deadline that has already passed must not become the invoice due date.
+  const defaultDueDate = project.deadline && project.deadline >= today ? project.deadline : '';
   return {
     send_to: project.contact_email ?? '',
     cc: '',
@@ -63,9 +72,9 @@ export function buildInvoiceDefaults(project: InvoiceProjectSnapshot, invoiceNum
     billing_address: '',
     reference: '',
     invoice_number: invoiceNumber,
-    issue_date: new Date().toISOString().slice(0, 10),
-    due_date: project.deadline ?? '',
-    payment_terms: project.deadline ? 'Due by stated date' : 'Due on receipt',
+    issue_date: today,
+    due_date: defaultDueDate,
+    payment_terms: defaultDueDate ? 'Due by stated date' : 'Due on receipt',
     currency: 'PHP',
     customer_notes: '',
     payment_instructions: '',
@@ -86,6 +95,33 @@ export function parseEmailList(value: string) {
 
 export function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+// Single source of truth for what an invoice asks the client to pay.
+// A typed-in override is authoritative; otherwise the amount due is the
+// line-item subtotal capped at the remaining contract balance, so both
+// full-contract invoices (subtotal minus payments) and installment
+// invoices (subtotal as-is) come out right without a mode switch.
+export function computeInvoiceAmountDue(params: {
+  lineItemsTotal: number;
+  totalPaid: number;
+  contractPrice: number | null;
+  amountRequested: number | null;
+}) {
+  const { lineItemsTotal, totalPaid, contractPrice, amountRequested } = params;
+  let amountDue: number;
+  if (amountRequested != null && Number.isFinite(amountRequested)) {
+    amountDue = Math.max(amountRequested, 0);
+  } else {
+    const contractRemaining = contractPrice != null && contractPrice > 0
+      ? Math.max(contractPrice - totalPaid, 0)
+      : Number.POSITIVE_INFINITY;
+    amountDue = Math.max(Math.min(lineItemsTotal, contractRemaining), 0);
+  }
+  // Whether "subtotal − total paid = amount due" actually holds, so the
+  // summary only renders the deduction row when the arithmetic is real.
+  const paymentsDeducted = Math.abs(lineItemsTotal - totalPaid - amountDue) < 0.005;
+  return { amountDue, paymentsDeducted };
 }
 
 export function formatInvoiceCurrency(amount: number, currency: 'PHP' | 'USD') {
@@ -113,8 +149,12 @@ export function buildInvoicePreviewHtml(params: {
   const lineItemsTotal = normalizedLineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   const totalPaid = project.hub_project_payments.reduce((sum, item) => sum + item.amount, 0);
   const amountRequested = form.amount_requested ? parseFloat(form.amount_requested) : NaN;
-  const invoiceTotal = Number.isFinite(amountRequested) ? amountRequested : lineItemsTotal;
-  const balanceDue = invoiceTotal - totalPaid;
+  const { amountDue: balanceDue, paymentsDeducted } = computeInvoiceAmountDue({
+    lineItemsTotal,
+    totalPaid,
+    contractPrice: project.contract_price,
+    amountRequested: Number.isFinite(amountRequested) ? amountRequested : null,
+  });
   const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
   const currency = form.currency;
   const fmt = (amount: number) => formatInvoiceCurrency(amount, currency);
@@ -238,12 +278,11 @@ ${includePaymentHistory && project.hub_project_payments.length > 0 ? `
   <div class="summary-card">
     <div class="summary-title">Invoice Summary</div>
     <table class="totals">
-      ${includePaymentHistory ? `
       <tr><td>Subtotal</td><td>${fmt(lineItemsTotal)}</td></tr>
-      <tr><td>Total paid</td><td style="color:#059669">− ${fmt(totalPaid)}</td></tr>
+      ${includePaymentHistory && paymentsDeducted ? `
+      <tr><td>Total paid</td><td style="color:#059669">− ${fmt(totalPaid)}</td></tr>` : ''}
       <tr class="divider"><td colspan="2"><div class="divider-line"></div></td></tr>
-      <tr class="balance"><td>Amount due</td><td>${balanceDue <= 0 ? 'Paid in full' : fmt(balanceDue)}</td></tr>` : `
-      <tr class="balance"><td>Amount due</td><td>${fmt(lineItemsTotal)}</td></tr>`}
+      <tr class="balance"><td>Amount due</td><td>${balanceDue <= 0 ? 'Paid in full' : fmt(balanceDue)}</td></tr>
     </table>
       ${balanceDue > 0 && payUrl ? `
       <div style="margin-top:12px;text-align:center">

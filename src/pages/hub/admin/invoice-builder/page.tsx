@@ -7,6 +7,7 @@ import {
   buildDefaultInvoiceLineItems,
   buildInvoiceDefaults,
   buildInvoicePreviewHtml,
+  computeInvoiceAmountDue,
   emptyInvoiceBuilderForm,
   formatInvoiceCurrency,
   InvoiceBuilderFormState,
@@ -14,6 +15,7 @@ import {
   InvoiceProjectSnapshot,
   isValidEmail,
   parseEmailList,
+  todayLocalIso,
 } from '@/lib/invoiceBuilder';
 
 // Sample project used only in the interactive demo so the full "build & send
@@ -47,14 +49,21 @@ export default function AdminInvoiceBuilderPage() {
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
   const draftKey = `hub_invoice_draft_${projectId}`;
+  const todayIso = todayLocalIso();
 
   async function previewPaymentPage() {
     if (!project) return;
     // compute amount due same as preview renderer
     const validLineItemsLocal = lineItems.filter((item) => item.description.trim() && item.amount !== '');
     const subtotalLocal = validLineItemsLocal.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    const totalPaidLocal = project.hub_project_payments.reduce((sum, payment) => sum + payment.amount, 0);
     const amountRequestedLocal = form.amount_requested ? parseFloat(form.amount_requested) : NaN;
-    const amountDue = Number.isFinite(amountRequestedLocal) ? amountRequestedLocal : subtotalLocal;
+    const { amountDue } = computeInvoiceAmountDue({
+      lineItemsTotal: subtotalLocal,
+      totalPaid: totalPaidLocal,
+      contractPrice: project.contract_price,
+      amountRequested: Number.isFinite(amountRequestedLocal) ? amountRequestedLocal : null,
+    });
 
     const fmt = (n: number) => new Intl.NumberFormat(form.currency === 'USD' ? 'en-US' : 'en-PH', { style: 'currency', currency: form.currency, minimumFractionDigits: 2 }).format(n);
 
@@ -206,7 +215,13 @@ export default function AdminInvoiceBuilderPage() {
   );
   const totalPaid = (project?.hub_project_payments ?? []).reduce((sum, payment) => sum + payment.amount, 0);
   const amountRequested = form.amount_requested ? parseFloat(form.amount_requested) : NaN;
-  const balanceDue = Number.isFinite(amountRequested) ? amountRequested : subtotal;
+  const { amountDue: derivedAmountDue } = computeInvoiceAmountDue({
+    lineItemsTotal: subtotal,
+    totalPaid,
+    contractPrice: project?.contract_price ?? null,
+    amountRequested: null,
+  });
+  const balanceDue = Number.isFinite(amountRequested) ? Math.max(amountRequested, 0) : derivedAmountDue;
 
   const previewHtml = useMemo(() => {
     if (!project) return '';
@@ -308,6 +323,15 @@ export default function AdminInvoiceBuilderPage() {
     const recipientError = validateRecipients();
     if (recipientError) {
       setStatus({ ok: false, text: recipientError });
+      return;
+    }
+
+    if (form.due_date && form.due_date < todayIso) {
+      setStatus({ ok: false, text: 'Due date cannot be in the past. Update it before sending.' });
+      return;
+    }
+    if (form.due_date && form.issue_date && form.due_date < form.issue_date) {
+      setStatus({ ok: false, text: 'Due date cannot be before the issue date.' });
       return;
     }
 
@@ -489,7 +513,11 @@ export default function AdminInvoiceBuilderPage() {
                 <label className="space-y-1.5">
                   <span className="text-xs font-medium text-gray-600">Due Date</span>
                   <input type="date" value={form.due_date} onChange={(e) => updateForm({ due_date: e.target.value })}
+                    min={form.issue_date && form.issue_date > todayIso ? form.issue_date : todayIso}
                     className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                  {form.due_date && (form.due_date < todayIso || (form.issue_date && form.due_date < form.issue_date)) && (
+                    <p className="text-xs text-rose-500">Due date is {form.due_date < todayIso ? 'in the past' : 'before the issue date'} — fix it before sending.</p>
+                  )}
                 </label>
                 <label className="space-y-1.5 md:col-span-2">
                   <span className="text-xs font-medium text-gray-600">Payment Terms</span>
@@ -575,9 +603,11 @@ export default function AdminInvoiceBuilderPage() {
                     className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
                 </label>
                 <label className="space-y-1.5">
-                  <span className="text-xs font-medium text-gray-600">Amount due</span>
+                  <span className="text-xs font-medium text-gray-600">Amount to collect (override)</span>
                   <input value={form.amount_requested} onChange={(e) => updateForm({ amount_requested: e.target.value })}
+                    placeholder={formatInvoiceCurrency(derivedAmountDue, form.currency)}
                     className="w-full rounded-xl border border-[#FF6B35] px-3 py-2.5 text-sm font-semibold text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/25 focus:border-[#FF6B35]" />
+                  <p className="text-xs text-gray-400">This is what the Pay Now link charges. Leave blank to auto-calculate from line items, payments, and the contract balance.</p>
                 </label>
               </div>
             </section>
