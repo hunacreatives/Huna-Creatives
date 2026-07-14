@@ -438,6 +438,7 @@ export default function AdminProjectsPage() {
       supabase.from('hub_project_tasks')
         .select('*')
         .eq('project_id', projectId)
+        .order('due_date', { ascending: true, nullsFirst: false })
         .order('sort_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true }),
       supabase.from('hub_project_activity')
@@ -2157,7 +2158,7 @@ export default function AdminProjectsPage() {
                                   <p className={`text-sm font-semibold leading-snug line-clamp-1 sm:line-clamp-none ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
                                   {isMyTask && <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-[#FF6B35]" title="Assigned to you" />}
                                 </div>
-                                {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1 hidden sm:block">{getTaskDescriptionPreview(task.description)}</p>}
+                                {task.description && <p className="text-xs text-gray-400 mt-0.5 hidden sm:line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
                                 {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
                               </div>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 hidden sm:inline ${priorityCfg.cls}`}>{priorityCfg.label}</span>
@@ -2285,7 +2286,7 @@ export default function AdminProjectsPage() {
                                           </button>
                                           <div className="flex-1 min-w-0">
                                             <p className={`text-sm font-semibold leading-snug line-clamp-1 sm:line-clamp-none ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
-                                            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1 hidden sm:block">{getTaskDescriptionPreview(task.description)}</p>}
+                                            {task.description && <p className="text-xs text-gray-400 mt-0.5 hidden sm:line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
                                 {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
                                           </div>
                                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 hidden sm:inline ${priorityCfg.cls}`}>{priorityCfg.label}</span>

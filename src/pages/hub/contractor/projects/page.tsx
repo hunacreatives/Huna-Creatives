@@ -506,7 +506,7 @@ export default function ContractorProjectsPage() {
 
         // 3. tasks + team
         const [{ data: taskData }, { data: pcTeamData }] = await Promise.all([
-          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta, archived, archived_at, completed_at, deleted_at').in('project_id', projectIds),
+          supabase.from('hub_project_tasks').select('id, project_id, title, description, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta, archived, archived_at, completed_at, deleted_at').in('project_id', projectIds).order('due_date', { ascending: true, nullsFirst: false }),
           supabase.from('hub_project_contractors').select('project_id, contractor_id').in('project_id', projectIds),
         ]);
         setTasks((taskData as ProjectTask[]) ?? []);
@@ -1016,7 +1016,7 @@ export default function ContractorProjectsPage() {
           </button>
           <div className="flex-1 min-w-0">
             <p className={`text-sm font-semibold leading-snug line-clamp-1 sm:line-clamp-none ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-900'}`}>{task.title}</p>
-            {task.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1 hidden sm:block">{getTaskDescriptionPreview(task.description)}</p>}
+            {task.description && <p className="text-xs text-gray-400 mt-0.5 hidden sm:line-clamp-1">{getTaskDescriptionPreview(task.description)}</p>}
             {task.status === 'blocked' && task.meta?.blocked_reason && <p className="text-[11px] text-rose-600 mt-1 line-clamp-1"><i className="ri-indeterminate-circle-line mr-0.5"></i> Blocked: {task.meta.blocked_reason}</p>}
           </div>
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 hidden sm:inline ${priorityCfg.cls}`}>{priorityCfg.label}</span>
