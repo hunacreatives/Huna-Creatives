@@ -94,19 +94,27 @@ export default function EditHoursModal({ userId, date, fullName, currentHours, o
     setReverting(true);
     setError('');
 
-    const { error: err } = await supabase
-      .from('hub_daily_hours')
-      .update({
-        hours_raw: existingRecord.original_hours_raw,
-        hours_capped: existingRecord.original_hours_capped,
-        is_manual: false,
-        override_reason: null,
-        original_hours_raw: null,
-        original_hours_capped: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId)
-      .eq('date', date);
+    // No saved originals means the override created this row on a day with no
+    // logged hours — undo by removing the row, not by writing null hours.
+    const { error: err } = existingRecord.original_hours_raw == null
+      ? await supabase
+          .from('hub_daily_hours')
+          .delete()
+          .eq('user_id', userId)
+          .eq('date', date)
+      : await supabase
+          .from('hub_daily_hours')
+          .update({
+            hours_raw: existingRecord.original_hours_raw,
+            hours_capped: existingRecord.original_hours_capped,
+            is_manual: false,
+            override_reason: null,
+            original_hours_raw: null,
+            original_hours_capped: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId)
+          .eq('date', date);
 
     setReverting(false);
     if (err) { setError(err.message); return; }
@@ -141,11 +149,11 @@ export default function EditHoursModal({ userId, date, fullName, currentHours, o
               <div>
                 <p className="text-xs font-medium text-amber-700">Previously overridden</p>
                 <p className="text-xs text-amber-600 mt-0.5">{existingRecord.override_reason}</p>
-                {existingRecord.original_hours_raw != null && (
-                  <p className="text-xs text-amber-500 mt-1">
-                    Original: {Number(existingRecord.original_hours_raw).toFixed(2)}h
-                  </p>
-                )}
+                <p className="text-xs text-amber-500 mt-1">
+                  Original: {existingRecord.original_hours_raw != null
+                    ? `${Number(existingRecord.original_hours_raw).toFixed(2)}h`
+                    : 'no hours logged'}
+                </p>
               </div>
               <button
                 type="button"
