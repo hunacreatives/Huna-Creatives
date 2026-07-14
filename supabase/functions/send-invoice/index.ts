@@ -77,7 +77,8 @@ Deno.serve(async (req) => {
 
     const totalPaid: number = (payments ?? []).reduce((s: number, p: any) => s + p.amount, 0);
     const requestedAmount = amount_requested != null && String(amount_requested).trim() !== '' ? Number(amount_requested) : NaN;
-    const amountDue: number = Number.isFinite(requestedAmount) ? requestedAmount : lineItemsTotal;
+    const invoiceTotal: number = Number.isFinite(requestedAmount) ? requestedAmount : lineItemsTotal;
+    const amountDue: number = showPayments ? invoiceTotal - totalPaid : invoiceTotal;
     const isPaid = amountDue <= 0;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
     const fmtDate = (d: string | null | undefined) => d

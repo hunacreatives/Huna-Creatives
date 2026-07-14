@@ -113,7 +113,8 @@ export function buildInvoicePreviewHtml(params: {
   const lineItemsTotal = normalizedLineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   const totalPaid = project.hub_project_payments.reduce((sum, item) => sum + item.amount, 0);
   const amountRequested = form.amount_requested ? parseFloat(form.amount_requested) : NaN;
-  const balanceDue = Number.isFinite(amountRequested) ? amountRequested : lineItemsTotal;
+  const invoiceTotal = Number.isFinite(amountRequested) ? amountRequested : lineItemsTotal;
+  const balanceDue = invoiceTotal - totalPaid;
   const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
   const currency = form.currency;
   const fmt = (amount: number) => formatInvoiceCurrency(amount, currency);
