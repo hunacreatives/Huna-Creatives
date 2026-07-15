@@ -30,23 +30,43 @@ async function getGoogleAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-// Uploads the rendered certificate HTML to Drive as a Google Doc (so Drive's
-// export endpoint can convert it to a real PDF), returns the Drive file id.
-async function uploadHtmlAsDoc(filename: string, html: string): Promise<string> {
+// Renders the certificate HTML to a real PDF via PDFShift (actual Chromium
+// rendering — full flex/grid/box-shadow/border-radius/@page support). This
+// replaced uploading the HTML to Drive as a Google Doc and exporting that:
+// Google Docs' HTML importer only understands a very limited, old-web
+// subset and silently dropped all of the template's modern CSS, producing
+// a PDF that looked nothing like the source.
+async function htmlToPdf(html: string): Promise<Uint8Array> {
+  const apiKey = Deno.env.get('PDFSHIFT_API_KEY');
+  if (!apiKey) throw new Error('PDFSHIFT_API_KEY secret is not set');
+  const res = await fetch('https://api.pdfshift.io/v3/convert/pdf', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${btoa(`api:${apiKey}`)}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ source: html, use_print: true }),
+  });
+  if (!res.ok) throw new Error(`PDFShift conversion failed: ${res.status} ${await res.text()}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+// Archives the rendered PDF to the same Drive folder used for contract
+// documents, for the record-keeping link shown on the Document Requests page.
+async function uploadPdfToDrive(filename: string, pdfBytes: Uint8Array): Promise<string> {
   const accessToken = await getGoogleAccessToken();
-  const meta = JSON.stringify({ name: filename, parents: [FOLDER_ID], mimeType: 'application/vnd.google-apps.document' });
+  const meta = JSON.stringify({ name: filename, parents: [FOLDER_ID], mimeType: 'application/pdf' });
   const boundary = 'hr_certificate_boundary_xyz';
   const enc = new TextEncoder();
-  const fileBytes = enc.encode(html);
   const part1 = enc.encode(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n`);
-  const part2 = enc.encode(`--${boundary}\r\nContent-Type: text/html\r\n\r\n`);
+  const part2 = enc.encode(`--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`);
   const part3 = enc.encode(`\r\n--${boundary}--`);
 
-  const combined = new Uint8Array(part1.length + part2.length + fileBytes.length + part3.length);
+  const combined = new Uint8Array(part1.length + part2.length + pdfBytes.length + part3.length);
   combined.set(part1, 0);
   combined.set(part2, part1.length);
-  combined.set(fileBytes, part1.length + part2.length);
-  combined.set(part3, part1.length + part2.length + fileBytes.length);
+  combined.set(pdfBytes, part1.length + part2.length);
+  combined.set(part3, part1.length + part2.length + pdfBytes.length);
 
   const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
     method: 'POST',
@@ -56,15 +76,6 @@ async function uploadHtmlAsDoc(filename: string, html: string): Promise<string> 
   const result = await uploadRes.json();
   if (!uploadRes.ok) throw new Error('Drive API error: ' + JSON.stringify(result));
   return result.id;
-}
-
-async function exportAsPdf(fileId: string): Promise<Uint8Array> {
-  const accessToken = await getGoogleAccessToken();
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/pdf`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error(`Drive PDF export failed: ${res.status} ${await res.text()}`);
-  return new Uint8Array(await res.arrayBuffer());
 }
 
 function emailHtml(contractorFirstName: string, title: string): string {
@@ -120,8 +131,8 @@ Deno.serve(async (req) => {
     }
 
     const safeTitle = title.replace(/[^a-zA-Z0-9 _-]/g, '');
-    const fileId = await uploadHtmlAsDoc(`${safeTitle} - ${contractor.full_name}`, html);
-    const pdfBytes = await exportAsPdf(fileId);
+    const pdfBytes = await htmlToPdf(html);
+    const fileId = await uploadPdfToDrive(`${safeTitle} - ${contractor.full_name}.pdf`, pdfBytes);
 
     let binary = '';
     for (let i = 0; i < pdfBytes.length; i++) binary += String.fromCharCode(pdfBytes[i]);
