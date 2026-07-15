@@ -51,6 +51,7 @@ export default function ContractorCredentialsPage() {
   const [loading, setLoading] = useState(true);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [showPassIds, setShowPassIds] = useState<Set<string>>(new Set());
+  const [revealLoading, setRevealLoading] = useState<Set<string>>(new Set());
   const [requestModal, setRequestModal] = useState<CredentialCatalog | null>(null);
   const [requestReason, setRequestReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -100,24 +101,9 @@ export default function ContractorCredentialsPage() {
     setAssignedClients(autoClientNames);
     setExpandedClients(new Set(credList.map((c) => c.client_name)));
 
-    // Fetch full data for: auto-access clients + approved requests
-    const approvedIds = new Set(reqList.filter((r) => r.status === 'approved').map((r) => r.credential_id));
-    const needFullIds = credList
-      .filter((c) => autoClientNames.has(c.client_name) || approvedIds.has(c.id))
-      .map((c) => c.id);
-
-    if (needFullIds.length > 0) {
-      const { data: full } = await supabase
-        .from('hub_credentials')
-        .select('id, password, additional_info')
-        .in('id', needFullIds);
-      const map: Record<string, FullData> = {};
-      (full ?? []).forEach((c: any) => { map[c.id] = { password: c.password, additional_info: c.additional_info }; });
-      setFullData(map);
-    } else {
-      setFullData({});
-    }
-
+    // Secrets are column-revoked in Postgres — they're fetched one at a time
+    // through the credentials-vault function when the employee hits reveal.
+    setFullData({});
     setLoading(false);
   };
 
@@ -155,11 +141,25 @@ export default function ContractorCredentialsPage() {
   };
 
   const togglePassVis = (id: string) => {
+    const revealing = !showPassIds.has(id);
     setShowPassIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+    if (revealing && !isDemo && !(id in fullData)) {
+      setRevealLoading((prev) => new Set(prev).add(id));
+      supabase.functions.invoke('credentials-vault', { body: { action: 'decrypt', credential_id: id } })
+        .then(({ data, error }) => {
+          if (error || data?.error) {
+            showToast(`Could not reveal: ${data?.error ?? error?.message ?? 'unknown error'}`);
+            setShowPassIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+          } else {
+            setFullData((prev) => ({ ...prev, [id]: { password: data?.password ?? null, additional_info: data?.additional_info ?? null } }));
+          }
+        })
+        .finally(() => setRevealLoading((prev) => { const next = new Set(prev); next.delete(id); return next; }));
+    }
   };
 
   const submitRequest = async () => {
@@ -301,10 +301,10 @@ export default function ContractorCredentialsPage() {
                                 {(cred.login_type === 'email_password' || cred.login_type === 'api_key') && (
                                   <div className="flex items-center gap-2">
                                     <i className="ri-lock-line text-gray-400 text-xs"></i>
-                                    {isApproved && credFullData ? (
+                                    {isApproved ? (
                                       <>
                                         <span className="text-xs text-gray-700 font-mono">
-                                          {passVisible ? (credFullData.password ?? '—') : '••••••••'}
+                                          {passVisible ? (revealLoading.has(cred.id) ? '…' : credFullData?.password ?? '—') : '••••••••'}
                                         </span>
                                         <button onClick={() => togglePassVis(cred.id)} className="text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
                                           <i className={`text-xs ${passVisible ? 'ri-eye-off-line' : 'ri-eye-line'}`}></i>
@@ -322,7 +322,7 @@ export default function ContractorCredentialsPage() {
                                   </p>
                                 )}
 
-                                {isApproved && credFullData?.additional_info && (
+                                {isApproved && passVisible && credFullData?.additional_info && (
                                   <p className="text-xs text-gray-400">{credFullData.additional_info}</p>
                                 )}
 

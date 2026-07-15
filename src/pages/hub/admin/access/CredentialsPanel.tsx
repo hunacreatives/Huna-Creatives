@@ -3,21 +3,25 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 
+// Secrets (password, additional info) are column-revoked in Postgres and can
+// only be read through the credentials-vault function — never selected here.
 interface Credential {
   id: string;
   client_name: string;
   platform: string;
   account_email: string | null;
-  password: string | null;        // legacy plaintext — nulled once migrated
-  password_enc: string | null;    // AES-GCM ciphertext (credentials-vault)
   login_type: string;
   otp_contact: string | null;
-  additional_info: string | null;
   status: string;
   notes: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface RevealedSecret {
+  password: string | null;
+  additional_info: string | null;
 }
 
 interface CredentialRequest {
@@ -83,8 +87,8 @@ export default function CredentialsPanel() {
   const [saving, setSaving] = useState(false);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [showPassIds, setShowPassIds] = useState<Set<string>>(new Set());
-  // Decrypted passwords, fetched on demand from the credentials-vault function
-  const [revealedPass, setRevealedPass] = useState<Record<string, string | null>>({});
+  // Decrypted secrets, fetched on demand from the credentials-vault function
+  const [revealedPass, setRevealedPass] = useState<Record<string, RevealedSecret>>({});
   const [revealLoading, setRevealLoading] = useState<Set<string>>(new Set());
   const [showFormPass, setShowFormPass] = useState(false);
   const [toast, setToast] = useState('');
@@ -99,7 +103,9 @@ export default function CredentialsPanel() {
   const fetchData = async () => {
     setLoading(true);
     const [credsRes, reqsRes] = await Promise.all([
-      supabase.from('hub_credentials').select('*').order('client_name').order('platform'),
+      supabase.from('hub_credentials')
+        .select('id, client_name, platform, account_email, login_type, otp_contact, status, notes, created_by, created_at, updated_at')
+        .order('client_name').order('platform'),
       supabase
         .from('hub_credential_requests')
         .select('*, hub_users!contractor_id(full_name, avatar_url), hub_credentials!credential_id(platform, client_name)')
@@ -120,23 +126,8 @@ export default function CredentialsPanel() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // One-time self-migration: encrypt any legacy plaintext rows via the vault
-  const migrationStarted = useRef(false);
-  useEffect(() => {
-    if (migrationStarted.current) return;
-    if (!credentials.some(c => c.password)) return;
-    migrationStarted.current = true;
-    supabase.functions.invoke('credentials-vault', { body: { action: 'migrate' } })
-      .then(({ data, error }) => {
-        if (error || data?.error) {
-          console.error('Credential migration failed:', data?.error ?? error?.message);
-          migrationStarted.current = false; // retry on next visit
-        } else if (data?.migrated > 0) {
-          fetchData();
-        }
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [credentials]);
+  // Legacy plaintext rows are lazily encrypted by the vault function on
+  // decrypt; the client can no longer see secret columns to detect them.
 
   // Group credentials by client
   const filtered = credentials.filter((c) =>
@@ -180,7 +171,7 @@ export default function CredentialsPanel() {
             showToast(`Could not decrypt: ${data?.error ?? error?.message ?? 'unknown error'}`);
             setShowPassIds(prev => { const next = new Set(prev); next.delete(id); return next; });
           } else {
-            setRevealedPass(prev => ({ ...prev, [id]: data?.password ?? null }));
+            setRevealedPass(prev => ({ ...prev, [id]: { password: data?.password ?? null, additional_info: data?.additional_info ?? null } }));
           }
         })
         .finally(() => setRevealLoading(prev => { const next = new Set(prev); next.delete(id); return next; }));
@@ -203,7 +194,7 @@ export default function CredentialsPanel() {
       account_email: c.account_email ?? '',
       password: '', // blank = keep the current (encrypted) password
       otp_contact: c.otp_contact ?? '',
-      additional_info: c.additional_info ?? '',
+      additional_info: '', // blank = keep the current (encrypted) additional info
       status: c.status,
       notes: c.notes ?? '',
     });
@@ -214,29 +205,42 @@ export default function CredentialsPanel() {
   const save = async () => {
     if (!form.client_name.trim() || !form.platform.trim()) return;
     setSaving(true);
-    // Passwords are never stored in plaintext: encrypt via the vault function.
-    let passwordFields: { password: string | null; password_enc: string | null } | Record<string, never> = {};
-    if (form.password.trim()) {
+    // Secrets are never stored in plaintext: encrypt via the vault function.
+    const encryptField = async (plaintext: string) => {
       const { data: enc, error: encErr } = await supabase.functions.invoke('credentials-vault', {
-        body: { action: 'encrypt', plaintext: form.password.trim() },
+        body: { action: 'encrypt', plaintext },
       });
       if (encErr || !enc?.ciphertext) {
-        setSaving(false);
-        showToast(`Could not encrypt password — nothing saved. ${enc?.error ?? encErr?.message ?? ''}`);
-        return;
+        throw new Error(enc?.error ?? encErr?.message ?? 'encryption failed');
       }
-      passwordFields = { password: null, password_enc: enc.ciphertext };
-    } else if (!editingCred) {
-      passwordFields = { password: null, password_enc: null };
-    } // editing with a blank field: leave the stored password untouched
+      return enc.ciphertext as string;
+    };
+
+    let secretFields: Record<string, string | null> = {};
+    try {
+      if (form.password.trim()) {
+        secretFields = { ...secretFields, password: null, password_enc: await encryptField(form.password.trim()) };
+      } else if (!editingCred) {
+        secretFields = { ...secretFields, password: null, password_enc: null };
+      } // editing with a blank field: leave the stored password untouched
+      if (form.additional_info.trim()) {
+        secretFields = { ...secretFields, additional_info: null, additional_info_enc: await encryptField(form.additional_info.trim()) };
+      } else if (!editingCred) {
+        secretFields = { ...secretFields, additional_info: null, additional_info_enc: null };
+      } // editing with a blank field: leave the stored additional info untouched
+    } catch (err) {
+      setSaving(false);
+      showToast(`Could not encrypt — nothing saved. ${err instanceof Error ? err.message : ''}`);
+      return;
+    }
+
     const payload = {
-      ...passwordFields,
+      ...secretFields,
       client_name: form.client_name.trim(),
       platform: form.platform.trim(),
       login_type: form.login_type,
       account_email: form.account_email.trim() || null,
       otp_contact: form.otp_contact.trim() || null,
-      additional_info: form.additional_info.trim() || null,
       status: form.status,
       notes: form.notes.trim() || null,
       updated_at: new Date().toISOString(),
@@ -401,7 +405,7 @@ export default function CredentialsPanel() {
                                   <div className="flex items-center gap-2">
                                     <i className="ri-lock-line text-gray-400 text-xs"></i>
                                     <span className="text-xs text-gray-700 font-mono">
-                                      {passVisible ? (revealLoading.has(cred.id) ? '…' : revealedPass[cred.id] ?? '—') : (cred.password_enc || cred.password ? '••••••••' : '—')}
+                                      {passVisible ? (revealLoading.has(cred.id) ? '…' : revealedPass[cred.id]?.password ?? '—') : '••••••••'}
                                     </span>
                                     <button
                                       onClick={() => togglePassVis(cred.id)}
@@ -420,9 +424,9 @@ export default function CredentialsPanel() {
                                   </p>
                                 )}
 
-                                {/* Additional info */}
-                                {cred.additional_info && (
-                                  <p className="text-xs text-gray-400">{cred.additional_info}</p>
+                                {/* Additional info — encrypted, shown only after reveal */}
+                                {passVisible && revealedPass[cred.id]?.additional_info && (
+                                  <p className="text-xs text-gray-400">{revealedPass[cred.id].additional_info}</p>
                                 )}
 
                                 {/* Notes */}
@@ -643,7 +647,7 @@ export default function CredentialsPanel() {
                 <input
                   value={form.additional_info}
                   onChange={(e) => setForm({ ...form, additional_info: e.target.value })}
-                  placeholder="e.g. backup codes, 2FA app..."
+                  placeholder={editingCred ? 'Leave blank to keep current info' : 'e.g. backup codes, 2FA app...'}
                   className={inputCls}
                 />
               </div>

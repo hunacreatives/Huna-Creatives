@@ -5,10 +5,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 //   npx supabase secrets set CREDENTIALS_KEY="$(openssl rand -base64 32)"
 // Ciphertext format: "v1:" + base64(iv) + ":" + base64(cipher)
 //
-// Actions (admin/owner/hr only — caller JWT is verified):
-//   { action: 'encrypt', plaintext }        → { ciphertext }
-//   { action: 'decrypt', credential_id }    → { password }  (lazy-migrates legacy plaintext rows)
-//   { action: 'migrate' }                   → { migrated }  (encrypts all remaining plaintext rows)
+// Actions (caller JWT is verified):
+//   { action: 'encrypt', plaintext }        → { ciphertext }   (admin/owner/hr)
+//   { action: 'decrypt', credential_id }    → { password, additional_info }
+//       admin/owner/hr, or an employee assigned to the credential's client /
+//       with an approved access request; lazy-migrates legacy plaintext rows
+//   { action: 'migrate' }                   → { migrated }     (admin/owner/hr)
 
 const admin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -54,18 +56,20 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    // Verify the caller is a logged-in hub admin/owner/hr
+    // Verify the caller is a logged-in hub user; role gates are per-action.
     const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
     const { data: { user } = { user: null } } = await admin.auth.getUser(jwt);
     if (!user) {
       return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401, headers: cors });
     }
     const { data: hubUser } = await admin.from('hub_users').select('role').eq('id', user.id).maybeSingle();
-    if (!hubUser || !['owner', 'admin', 'hr'].includes(hubUser.role)) {
-      return new Response(JSON.stringify({ error: 'Not authorized' }), { status: 403, headers: cors });
-    }
+    const isPrivileged = !!hubUser && ['owner', 'admin', 'hr'].includes(hubUser.role);
 
     const { action, plaintext, credential_id } = await req.json();
+
+    if (action !== 'decrypt' && !isPrivileged) {
+      return new Response(JSON.stringify({ error: 'Not authorized' }), { status: 403, headers: cors });
+    }
 
     if (action === 'encrypt') {
       if (typeof plaintext !== 'string' || !plaintext) {
@@ -77,34 +81,78 @@ Deno.serve(async (req) => {
     if (action === 'decrypt') {
       const { data: cred, error } = await admin
         .from('hub_credentials')
-        .select('id, password, password_enc')
+        .select('id, client_name, password, password_enc, additional_info, additional_info_enc')
         .eq('id', credential_id)
         .single();
       if (error || !cred) {
         return new Response(JSON.stringify({ error: 'Credential not found' }), { status: 404, headers: cors });
       }
+
+      // Employees may decrypt only credentials they're entitled to: assigned
+      // to the credential's client, or holding an approved access request.
+      if (!isPrivileged) {
+        const [{ data: assignedClient }, { data: approvedReq }] = await Promise.all([
+          admin.from('hub_clients')
+            .select('id')
+            .eq('client_name', cred.client_name)
+            .eq('assigned_contractor_id', user.id)
+            .limit(1)
+            .maybeSingle(),
+          admin.from('hub_credential_requests')
+            .select('id')
+            .eq('credential_id', cred.id)
+            .eq('contractor_id', user.id)
+            .eq('status', 'approved')
+            .limit(1)
+            .maybeSingle(),
+        ]);
+        if (!assignedClient && !approvedReq) {
+          return new Response(JSON.stringify({ error: 'Not authorized' }), { status: 403, headers: cors });
+        }
+      }
+
+      let password: string | null = null;
       if (cred.password_enc) {
-        return new Response(JSON.stringify({ ok: true, password: await decrypt(cred.password_enc) }), { headers: cors });
-      }
-      if (cred.password) {
+        password = await decrypt(cred.password_enc);
+      } else if (cred.password) {
         // Legacy plaintext row — encrypt it now and clear the plaintext
-        const ciphertext = await encrypt(cred.password);
-        await admin.from('hub_credentials').update({ password_enc: ciphertext, password: null }).eq('id', cred.id);
-        return new Response(JSON.stringify({ ok: true, password: cred.password }), { headers: cors });
+        password = cred.password;
+        await admin.from('hub_credentials')
+          .update({ password_enc: await encrypt(cred.password), password: null })
+          .eq('id', cred.id);
       }
-      return new Response(JSON.stringify({ ok: true, password: null }), { headers: cors });
+
+      let additionalInfo: string | null = null;
+      if (cred.additional_info_enc) {
+        additionalInfo = await decrypt(cred.additional_info_enc);
+      } else if (cred.additional_info) {
+        additionalInfo = cred.additional_info;
+        await admin.from('hub_credentials')
+          .update({ additional_info_enc: await encrypt(cred.additional_info), additional_info: null })
+          .eq('id', cred.id);
+      }
+
+      return new Response(JSON.stringify({ ok: true, password, additional_info: additionalInfo }), { headers: cors });
     }
 
     if (action === 'migrate') {
       const { data: rows } = await admin
         .from('hub_credentials')
-        .select('id, password')
-        .not('password', 'is', null);
+        .select('id, password, additional_info')
+        .or('password.not.is.null,additional_info.not.is.null');
       let migrated = 0;
       for (const row of rows ?? []) {
-        if (!row.password) continue;
-        const ciphertext = await encrypt(row.password);
-        const { error } = await admin.from('hub_credentials').update({ password_enc: ciphertext, password: null }).eq('id', row.id);
+        const patch: Record<string, string | null> = {};
+        if (row.password) {
+          patch.password_enc = await encrypt(row.password);
+          patch.password = null;
+        }
+        if (row.additional_info) {
+          patch.additional_info_enc = await encrypt(row.additional_info);
+          patch.additional_info = null;
+        }
+        if (Object.keys(patch).length === 0) continue;
+        const { error } = await admin.from('hub_credentials').update(patch).eq('id', row.id);
         if (!error) migrated += 1;
       }
       return new Response(JSON.stringify({ ok: true, migrated }), { headers: cors });
