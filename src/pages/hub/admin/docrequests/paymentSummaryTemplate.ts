@@ -208,7 +208,7 @@ export function renderPaymentSummaryHTML(
 
   @media print {
     body { background: #fff; }
-    .sheet { margin: 0; padding: 0; }
+    .sheet { margin: 0; padding: 0; min-height: auto; }
     .doc { box-shadow: none; min-height: auto; }
     @page { size: A4; margin: 0; }
   }

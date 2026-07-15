@@ -141,7 +141,7 @@ export function generateContractHTML(fields: ContractFields, sigData: string, lo
   .divider { border: none; border-top: 0.75pt solid #ccc; margin: 14pt 0; }
   .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20pt; margin-top: 14pt; }
   .sig-label { font-size: 9pt; color: #555; }
-  @media print { body { background: #fff; } .page { margin: 0; padding: 15mm 18mm 18mm 18mm; } @page { size: A4; margin: 0; } }
+  @media print { body { background: #fff; } .page { margin: 0; padding: 15mm 18mm 18mm 18mm; min-height: auto; } @page { size: A4; margin: 0; } }
 </style>
 </head>
 <body>

@@ -64,8 +64,7 @@ export function renderCertificateHTML(
 
   .meta-row { display: flex; justify-content: space-between; font-size: 7.5pt; color: #8a8a8a; margin-bottom: 26pt; letter-spacing: 0.02em; text-transform: uppercase; }
 
-  .doc-title { font-size: 13.5pt; font-weight: 600; letter-spacing: 0.01em; margin: 0 0 3pt; color: #111; }
-  .doc-underline { width: 34pt; height: 2pt; background: #D64F1E; margin: 0 0 22pt; }
+  .doc-title { font-size: 13.5pt; font-weight: 600; letter-spacing: 0.01em; margin: 0 0 22pt; color: #111; }
   .salutation { font-weight: 600; font-size: 9.5pt; margin-bottom: 14pt; color: #111; }
 
   p { text-align: justify; margin-bottom: 11pt; line-height: 1.6; font-size: 9.5pt; color: #222; }
@@ -85,7 +84,7 @@ export function renderCertificateHTML(
 
   @media print {
     body { background: #fff; }
-    .sheet { margin: 0; padding: 0; }
+    .sheet { margin: 0; padding: 0; min-height: auto; }
     .doc { box-shadow: none; min-height: auto; }
     @page { size: A4; margin: 12mm; }
   }
@@ -111,7 +110,6 @@ export function renderCertificateHTML(
     </div>
 
     <div class="doc-title">${title}</div>
-    <div class="doc-underline"></div>
     <div class="salutation">To Whom It May Concern,</div>
 
     ${paragraphs}
