@@ -41,6 +41,13 @@ const STATUS_DOT: Record<string, string> = {
   unverified: 'bg-gray-400',
 };
 
+// Some legacy rows have the literal text "null" instead of a real NULL from
+// back when this was a free-text field — treat that the same as empty.
+function normalizeGroupName(clientName: string | null | undefined) {
+  const trimmed = (clientName ?? '').trim();
+  return trimmed && trimmed.toLowerCase() !== 'null' ? trimmed : 'Internal';
+}
+
 export default function ContractorCredentialsPage() {
   const { hubUser } = useAuth();
   const { isDemo } = useDemo();
@@ -58,6 +65,7 @@ export default function ContractorCredentialsPage() {
   const [toast, setToast] = useState('');
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [search, setSearch] = useState('');
+  const hasLoadedOnceRef = useRef(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -82,7 +90,7 @@ export default function ContractorCredentialsPage() {
       setCredentials(credList);
       setMyRequests(DEMO_CREDENTIAL_REQUESTS as MyRequest[]);
       setAssignedClients(new Set(DEMO_CREDENTIAL_ASSIGNED_CLIENTS));
-      setExpandedClients(new Set(credList.map((c) => c.client_name?.trim() || 'Internal')));
+      setExpandedClients(new Set(credList.map((c) => normalizeGroupName(c.client_name))));
       setFullData(DEMO_CREDENTIAL_FULL);
       setLoading(false);
       return;
@@ -122,7 +130,12 @@ export default function ContractorCredentialsPage() {
     setCredentials(credList);
     setMyRequests(reqList);
     setAssignedClients(autoClientNames);
-    setExpandedClients(new Set(credList.map((c) => c.client_name?.trim() || 'Internal')));
+    // Default-expand only on first load; a later refetch (e.g. after
+    // revealing a password) must not snap a manually collapsed group back open.
+    if (!hasLoadedOnceRef.current) {
+      setExpandedClients(new Set(credList.map((c) => normalizeGroupName(c.client_name))));
+      hasLoadedOnceRef.current = true;
+    }
 
     // Secrets are column-revoked in Postgres — they're fetched one at a time
     // through the credentials-vault function when the employee hits reveal.
@@ -130,31 +143,40 @@ export default function ContractorCredentialsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [hubUser, isDemo]);
+  // hubUser?.id (not the whole object) avoids refetching whenever the auth
+  // context hands back a new-but-equivalent hubUser object.
+  useEffect(() => { fetchData(); }, [hubUser?.id, isDemo]);
 
   const requestMap = Object.fromEntries(myRequests.map((r) => [r.credential_id, r]));
 
   const filtered = credentials.filter((c) =>
     !search ||
-    (c.client_name?.trim() || 'Internal').toLowerCase().includes(search.toLowerCase()) ||
+    (normalizeGroupName(c.client_name)).toLowerCase().includes(search.toLowerCase()) ||
     c.platform.toLowerCase().includes(search.toLowerCase())
   );
 
   const groups = filtered.reduce<Record<string, CredentialCatalog[]>>((acc, c) => {
-    const key = c.client_name?.trim() || 'Internal';
+    const key = normalizeGroupName(c.client_name);
     if (!acc[key]) acc[key] = [];
     acc[key].push(c);
     return acc;
   }, {});
 
-  const clientNames = Object.keys(groups).sort((a, b) => {
-    // Assigned clients first
-    const aAssigned = assignedClients.has(a);
-    const bAssigned = assignedClients.has(b);
-    if (aAssigned && !bAssigned) return -1;
-    if (!aAssigned && bAssigned) return 1;
-    return a.localeCompare(b);
-  });
+  // Access to a new client is admin-initiated (Manage Access), not
+  // self-service browsing — only show a client's group at all if she's on
+  // its active team, or already has some history with it (a past or
+  // pending request for one of its credentials). 'Internal' has no client
+  // to be "on the team" of, so it's always visible.
+  const clientNames = Object.keys(groups)
+    .filter((name) => name === 'Internal' || assignedClients.has(name) || groups[name].some((c) => requestMap[c.id]))
+    .sort((a, b) => {
+      // Assigned clients first
+      const aAssigned = assignedClients.has(a);
+      const bAssigned = assignedClients.has(b);
+      if (aAssigned && !bAssigned) return -1;
+      if (!aAssigned && bAssigned) return 1;
+      return a.localeCompare(b);
+    });
 
   const toggleClient = (name: string) => {
     setExpandedClients((prev) => {

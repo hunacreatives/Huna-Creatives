@@ -68,6 +68,13 @@ const STATUS_DOT: Record<string, string> = {
   unverified: 'bg-gray-400',
 };
 
+// Some legacy rows have the literal text "null" instead of a real NULL from
+// back when this was a free-text field — treat that the same as empty.
+function normalizeGroupName(clientName: string | null | undefined) {
+  const trimmed = (clientName ?? '').trim();
+  return trimmed && trimmed.toLowerCase() !== 'null' ? trimmed : 'Internal';
+}
+
 // Rendered as the Credentials tab of the Access page (was its own page).
 export default function CredentialsPanel() {
   const { hubUser } = useAuth();
@@ -92,6 +99,7 @@ export default function CredentialsPanel() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const hasLoadedOnceRef = useRef(false);
   const [clientOptions, setClientOptions] = useState<string[]>([]);
   const [showPassIds, setShowPassIds] = useState<Set<string>>(new Set());
   // Decrypted secrets, fetched on demand from the credentials-vault function
@@ -182,9 +190,12 @@ export default function CredentialsPanel() {
     (clientsRes.data ?? []).forEach((c: any) => clientNames.add(c.client_name));
     (projRes.data ?? []).forEach((p: any) => { if (p.project_name) clientNames.add(p.project_name); });
     setClientOptions(Array.from(clientNames).sort());
-    // Default all clients expanded
-    const clients = new Set(credList.map((c) => c.client_name?.trim() || 'Internal'));
-    setExpandedClients(clients);
+    // Default-expand only on first load; later refetches (after a grant,
+    // save, etc.) must not snap a manually collapsed group back open.
+    if (!hasLoadedOnceRef.current) {
+      setExpandedClients(new Set(credList.map((c) => normalizeGroupName(c.client_name))));
+      hasLoadedOnceRef.current = true;
+    }
     setLoading(false);
   };
 
@@ -194,7 +205,7 @@ export default function CredentialsPanel() {
   // decrypt; the client can no longer see secret columns to detect them.
 
   // Group credentials by client; client-less credentials group under Internal
-  const groupName = (c: Credential) => c.client_name?.trim() || 'Internal';
+  const groupName = (c: Credential) => normalizeGroupName(c.client_name);
   const filtered = credentials.filter((c) =>
     !search ||
     groupName(c).toLowerCase().includes(search.toLowerCase()) ||
