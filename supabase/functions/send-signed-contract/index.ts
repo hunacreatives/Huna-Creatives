@@ -59,7 +59,10 @@ async function run(assignment_id: string) {
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
-  // For generated contracts, upload to Drive first (creates a Google Doc), then export that as a PDF
+  // For generated contracts, sync-contract-to-drive renders a real PDF (via
+  // PDFShift) and uploads it to Drive directly — download it with the Drive
+  // API's file-content endpoint, not /export (which is only for Google-native
+  // Docs/Sheets/Slides and would 400 on an actual PDF file).
   let pdfAttachment: Uint8Array | null = null;
   if (doc?.is_generated && doc?.content) {
     try {
@@ -67,18 +70,18 @@ async function run(assignment_id: string) {
       const fileId = driveResult?.fileId;
       if (fileId) {
         const accessToken = await getGoogleAccessToken();
-        const exportRes = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/pdf`,
+        const downloadRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
-        if (exportRes.ok) {
-          pdfAttachment = new Uint8Array(await exportRes.arrayBuffer());
+        if (downloadRes.ok) {
+          pdfAttachment = new Uint8Array(await downloadRes.arrayBuffer());
         } else {
-          console.error('Drive PDF export failed:', exportRes.status, await exportRes.text());
+          console.error('Drive PDF download failed:', downloadRes.status, await downloadRes.text());
         }
       }
     } catch (e) {
-      console.error('Drive upload/export error:', e);
+      console.error('Drive upload/download error:', e);
     }
   }
 

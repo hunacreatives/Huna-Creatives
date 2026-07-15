@@ -42,6 +42,26 @@ function buildSignedHtml(content: string, signedName: string, signedAt: string):
   return result;
 }
 
+// Renders HTML to a real PDF via PDFShift (actual Chromium rendering).
+// Previously, generated contracts were uploaded to Drive as a Google Doc and
+// exported from there — but Google Docs' HTML importer only understands a
+// very limited, old-web subset and silently dropped ContractGeneratorModal's
+// flex/grid/box-shadow/border-radius/@page CSS, producing a mangled PDF.
+async function htmlToPdf(html: string): Promise<Uint8Array> {
+  const apiKey = Deno.env.get('PDFSHIFT_API_KEY');
+  if (!apiKey) throw new Error('PDFSHIFT_API_KEY secret is not set');
+  const res = await fetch('https://api.pdfshift.io/v3/convert/pdf', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${btoa(`api:${apiKey}`)}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ source: html, use_print: true }),
+  });
+  if (!res.ok) throw new Error(`PDFShift conversion failed: ${res.status} ${await res.text()}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
 async function getGoogleAccessToken(): Promise<string> {
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -60,11 +80,9 @@ async function getGoogleAccessToken(): Promise<string> {
 
 const FOLDER_ID = '1Pvqf6N4ZkBWimTVlbwzn1zKi04cP1jkM'; // contractors_agreements
 
-async function uploadToDrive(filename: string, mimeType: string, fileBytes: Uint8Array, targetMimeType?: string): Promise<string> {
+async function uploadToDrive(filename: string, mimeType: string, fileBytes: Uint8Array): Promise<string> {
   const accessToken = await getGoogleAccessToken();
-  const meta: Record<string, unknown> = { name: filename, parents: [FOLDER_ID] };
-  if (targetMimeType) meta.mimeType = targetMimeType;
-  const metadata = JSON.stringify(meta);
+  const metadata = JSON.stringify({ name: filename, parents: [FOLDER_ID] });
 
   const boundary = 'contract_boundary_xyz';
   const enc = new TextEncoder();
@@ -131,10 +149,9 @@ Deno.serve(async (req) => {
 
     if (doc?.is_generated && doc?.content) {
       const signedHtml = buildSignedHtml(doc.content, assignment.signed_name, assignment.signed_at);
-      const enc = new TextEncoder();
-      fileBytes = enc.encode(signedHtml);
-      mimeType = 'text/html';
-      filename = `${safeName}`;
+      fileBytes = await htmlToPdf(signedHtml);
+      mimeType = 'application/pdf';
+      filename = `${safeName}.pdf`;
     } else if (doc?.file_url) {
       console.log('Fetching file from URL:', doc.file_url);
       const fileRes = await fetch(doc.file_url);
@@ -147,11 +164,8 @@ Deno.serve(async (req) => {
       return fail('No content to upload (no generated content and no file_url)');
     }
 
-    // Convert HTML contracts to Google Docs so they're viewable in Drive
-    const targetMimeType = mimeType === 'text/html' ? 'application/vnd.google-apps.document' : undefined;
-
-    console.log(`Uploading "${filename}" (${fileBytes.length} bytes, ${mimeType}${targetMimeType ? ' → ' + targetMimeType : ''}) to Drive`);
-    const fileId = await uploadToDrive(filename, mimeType, fileBytes, targetMimeType);
+    console.log(`Uploading "${filename}" (${fileBytes.length} bytes, ${mimeType}) to Drive`);
+    const fileId = await uploadToDrive(filename, mimeType, fileBytes);
     console.log('Drive upload success, fileId:', fileId);
 
     await supabase
