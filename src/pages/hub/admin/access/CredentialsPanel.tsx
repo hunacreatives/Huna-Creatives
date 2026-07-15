@@ -108,7 +108,21 @@ export default function CredentialsPanel() {
   const showToast = (msg: string) => {
     setToast(msg);
     if (toastRef.current) clearTimeout(toastRef.current);
-    toastRef.current = setTimeout(() => setToast(''), 3000);
+    toastRef.current = setTimeout(() => setToast(''), 6000);
+  };
+
+  // supabase-js hides the function's actual error body behind a generic
+  // "non-2xx status code" message; the real reason is on error.context (a
+  // Response) and must be read out explicitly.
+  const describeInvokeError = async (data: any, error: any) => {
+    if (data?.error) return data.error;
+    if (error?.context && typeof error.context.json === 'function') {
+      try {
+        const body = await error.context.clone().json();
+        if (body?.error) return body.error;
+      } catch { /* not JSON */ }
+    }
+    return error?.message ?? 'unknown error';
   };
 
   const fetchData = async () => {
@@ -179,9 +193,9 @@ export default function CredentialsPanel() {
     if (revealing && !(id in revealedPass)) {
       setRevealLoading(prev => new Set(prev).add(id));
       supabase.functions.invoke('credentials-vault', { body: { action: 'decrypt', credential_id: id } })
-        .then(({ data, error }) => {
+        .then(async ({ data, error }) => {
           if (error || data?.error) {
-            showToast(`Could not decrypt: ${data?.error ?? error?.message ?? 'unknown error'}`);
+            showToast(`Could not decrypt: ${await describeInvokeError(data, error)}`);
             setShowPassIds(prev => { const next = new Set(prev); next.delete(id); return next; });
           } else {
             setRevealedPass(prev => ({ ...prev, [id]: { password: data?.password ?? null, additional_info: data?.additional_info ?? null } }));
