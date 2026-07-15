@@ -129,6 +129,7 @@ Deno.serve(async (req) => {
     const emailPayload = {
       from: `Huna Creatives HR <${FROM_EMAIL}>`,
       to: contractor.email,
+      cc: 'contact@hunacreatives.com',
       subject: `Your ${title}`,
       html: emailHtml(contractor.full_name.split(' ')[0], title),
       attachments: [{ filename: `${safeTitle}.pdf`, content: btoa(binary) }],
