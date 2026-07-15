@@ -129,7 +129,7 @@ export default function CredentialsPanel() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [credsRes, reqsRes, empRes, assignRes] = await Promise.all([
+    const [credsRes, reqsRes, empRes, clientsRes, projRes] = await Promise.all([
       supabase.from('hub_credentials')
         .select('id, client_name, platform, account_email, login_type, otp_contact, status, notes, created_by, created_at, updated_at')
         .order('client_name').order('platform'),
@@ -139,9 +139,16 @@ export default function CredentialsPanel() {
         .order('created_at', { ascending: false }),
       // Admins/owners are always privileged in the vault; only employees show as grantable.
       supabase.from('hub_users').select('id, full_name, avatar_url').not('role', 'in', '("owner","admin")').order('full_name'),
-      // Current source of truth for client assignment (many-to-many); the legacy
-      // hub_clients.assigned_contractor_id column is stale and can hold removed people.
-      supabase.from('hub_clients').select('client_name, hub_client_assignments(contractor_id)').order('client_name'),
+      supabase.from('hub_clients').select('client_name').order('client_name'),
+      // Current source of truth for "who works with this client": active
+      // project team membership. hub_client_assignments and the legacy
+      // hub_clients.assigned_contractor_id are both one-time snapshots that
+      // nothing keeps in sync — removing someone from a project's team
+      // never touches either, so they silently go stale.
+      supabase.from('hub_projects')
+        .select('client_name, status, archived_at, hub_project_contractors(contractor_id)')
+        .is('archived_at', null)
+        .neq('status', 'cancelled'),
     ]);
     // A failed load must never masquerade as an empty vault.
     setLoadError(credsRes.error?.message ?? reqsRes.error?.message ?? '');
@@ -151,13 +158,20 @@ export default function CredentialsPanel() {
     setCredentials(credList);
     setRequests((reqs as CredentialRequest[]) ?? []);
     setEmployees((empRes.data as Employee[]) ?? []);
-    const assignMap: Record<string, string[]> = {};
-    (assignRes.data ?? []).forEach((c: any) => {
-      const ids = (Array.isArray(c.hub_client_assignments) ? c.hub_client_assignments : []).map((a: any) => a.contractor_id);
-      if (ids.length) assignMap[c.client_name] = ids;
+    // Client names are matched case-insensitively, same convention the rest
+    // of the app uses to line up hub_clients rows with hub_projects rows.
+    const assignMap: Record<string, Set<string>> = {};
+    (projRes.data ?? []).forEach((p: any) => {
+      const key = String(p.client_name ?? '').trim().toLowerCase();
+      if (!key) return;
+      const ids: string[] = (Array.isArray(p.hub_project_contractors) ? p.hub_project_contractors : []).map((pc: any) => pc.contractor_id);
+      ids.forEach((id) => (assignMap[key] ??= new Set()).add(id));
     });
-    setClientAssignments(assignMap);
-    setClientOptions((assignRes.data ?? []).map((c: any) => c.client_name as string));
+    setClientAssignments(Object.fromEntries(Object.entries(assignMap).map(([k, v]) => [k, Array.from(v)])));
+    const clientNames = new Set<string>();
+    (clientsRes.data ?? []).forEach((c: any) => clientNames.add(c.client_name));
+    (projRes.data ?? []).forEach((p: any) => { if (p.client_name) clientNames.add(p.client_name); });
+    setClientOptions(Array.from(clientNames).sort());
     // Default all clients expanded
     const clients = new Set(credList.map((c) => c.client_name?.trim() || 'Internal'));
     setExpandedClients(clients);
@@ -331,7 +345,7 @@ export default function CredentialsPanel() {
   // --- Manage access (proactive grants, no request needed) ---
 
   const autoAccessIdsFor = (c: Credential): Set<string> =>
-    new Set(c.client_name ? clientAssignments[c.client_name] ?? [] : []);
+    new Set(c.client_name ? clientAssignments[c.client_name.trim().toLowerCase()] ?? [] : []);
 
   const pendingRequestsFor = (credentialId: string) =>
     requests.filter((r) => r.credential_id === credentialId && r.status === 'pending');

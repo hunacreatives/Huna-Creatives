@@ -88,18 +88,21 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Credential not found' }), { status: 404, headers: cors });
       }
 
-      // Employees may decrypt only credentials they're entitled to: assigned
-      // to the credential's client (via hub_client_assignments — the legacy
-      // hub_clients.assigned_contractor_id column is stale and unused here),
+      // Employees may decrypt only credentials they're entitled to: on the
+      // active team for the credential's client (via hub_project_contractors
+      // — hub_client_assignments and hub_clients.assigned_contractor_id are
+      // one-time snapshots nothing keeps in sync, so they're not used here),
       // minus an explicit per-credential revoke override, or holding an
       // approved access request. Client-less credentials need a request.
       if (!isPrivileged) {
         const [{ data: assignedClient }, { data: revokedOverride }, { data: approvedReq }] = await Promise.all([
           cred.client_name
-            ? admin.from('hub_clients')
-                .select('id, hub_client_assignments!inner(contractor_id)')
-                .eq('client_name', cred.client_name)
-                .eq('hub_client_assignments.contractor_id', user.id)
+            ? admin.from('hub_projects')
+                .select('id, hub_project_contractors!inner(contractor_id)')
+                .ilike('client_name', cred.client_name)
+                .eq('hub_project_contractors.contractor_id', user.id)
+                .is('archived_at', null)
+                .neq('status', 'cancelled')
                 .limit(1)
                 .maybeSingle()
             : Promise.resolve({ data: null }),

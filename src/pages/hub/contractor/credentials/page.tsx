@@ -97,11 +97,16 @@ export default function ContractorCredentialsPage() {
       supabase.from('hub_credential_requests')
         .select('id, credential_id, status, reason')
         .eq('contractor_id', hubUser.id),
-      // Current source of truth for client assignment (many-to-many); the legacy
-      // hub_clients.assigned_contractor_id column is stale and can hold removed people.
-      supabase.from('hub_clients')
-        .select('client_name, hub_client_assignments!inner(contractor_id)')
-        .eq('hub_client_assignments.contractor_id', hubUser.id),
+      // Current source of truth for "which clients I currently work with":
+      // active project team membership. hub_client_assignments and the legacy
+      // hub_clients.assigned_contractor_id are one-time snapshots nothing
+      // keeps in sync — being removed from a project's team never touches
+      // either, so they silently go stale.
+      supabase.from('hub_projects')
+        .select('client_name, hub_project_contractors!inner(contractor_id)')
+        .eq('hub_project_contractors.contractor_id', hubUser.id)
+        .is('archived_at', null)
+        .neq('status', 'cancelled'),
     ]);
 
     if (credsRes.error) showToast(`Couldn't load credentials: ${credsRes.error.message}`);
