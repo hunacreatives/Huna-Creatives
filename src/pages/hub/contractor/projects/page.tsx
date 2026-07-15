@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
@@ -126,7 +126,9 @@ export default function ContractorProjectsPage() {
   const hubUser = realHubUser ?? demoHubUser;
   const { isDemo } = useDemo();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const deepLinkDone = useRef<string | null>(null);
+  const deepLinkTaskDone = useRef<string | null>(null);
   const [rows, setRows] = useState<ProjectRow[]>([]);
   const [clientEntries, setClientEntries] = useState<{ id: string; rowId?: number; name: string; type: 'retainer' | 'assignment'; status: string; service?: string | null; monthly_rate?: number | null; months_paid?: number; platform?: string | null; role?: string | null; notes?: string | null; clientId?: number }[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
@@ -618,25 +620,29 @@ export default function ContractorProjectsPage() {
     if (loading) return;
     const workspaceParam = searchParams.get('workspace');
     const taskParam = searchParams.get('task');
-    if (!workspaceParam) { deepLinkDone.current = null; return; }
-    const paramKey = `${workspaceParam}:${taskParam}`;
-    if (deepLinkDone.current === paramKey) return;
-    deepLinkDone.current = paramKey;
+    if (!workspaceParam) { deepLinkDone.current = null; deepLinkTaskDone.current = null; return; }
+    // location.key changes on every navigation, so re-clicking the same
+    // notification re-opens the task instead of hitting the done-guard.
+    const paramKey = `${location.key}:${workspaceParam}:${taskParam}`;
     const projectId = Number(workspaceParam);
-    const row = rows.find(r => r.hub_projects?.id === projectId);
-    if (!row) return;
-    setWorkspaceRow(row);
-    setTaskFilter('all');
-    setTaskSearch('');
-    setWsSearch('');
-    setWsSearchOpen(false);
-    setWsFocusSection('ws-tasks');
-    if (taskParam) {
-      const taskId = Number(taskParam);
-      const task = tasks.find(t => t.id === taskId);
-      if (task) openViewTask(task);
+    if (deepLinkDone.current !== paramKey) {
+      const row = rows.find(r => r.hub_projects?.id === projectId);
+      if (!row) return; // rows still loading/refreshing — retry when they change
+      deepLinkDone.current = paramKey;
+      setWorkspaceRow(row);
+      setTaskFilter('all');
+      setTaskSearch('');
+      setWsSearch('');
+      setWsSearchOpen(false);
+      setWsFocusSection('ws-tasks');
     }
-  }, [loading, rows, tasks, searchParams]);
+    if (taskParam && deepLinkTaskDone.current !== paramKey) {
+      const task = tasks.find(t => t.id === Number(taskParam));
+      if (!task) return; // tasks can lag behind rows — retry when they change
+      deepLinkTaskDone.current = paramKey;
+      openViewTask(task);
+    }
+  }, [loading, rows, tasks, searchParams, location.key]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -1142,7 +1148,7 @@ export default function ContractorProjectsPage() {
       actions={wsSearchActions}
       titleContent={workspaceRow && wsProject ? (
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); setTaskSearch(''); setWsSearch(''); setWsSearchOpen(false); setWsFocusSection(null); deepLinkDone.current = null; setSearchParams(new URLSearchParams(), { replace: true }); }}
+          <button onClick={() => { setWorkspaceRow(null); setTaskFilter('all'); setTaskSearch(''); setWsSearch(''); setWsSearchOpen(false); setWsFocusSection(null); deepLinkDone.current = null; deepLinkTaskDone.current = null; setSearchParams(new URLSearchParams(), { replace: true }); }}
             className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all shadow-sm flex-shrink-0">
             <i className="ri-arrow-left-s-line text-base"></i>
           </button>

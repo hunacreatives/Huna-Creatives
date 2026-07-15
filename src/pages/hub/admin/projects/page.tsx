@@ -286,7 +286,10 @@ export default function AdminProjectsPage() {
   const [wsQModal, setWsQModal] = useState<WsQuestionnaireRow | null>(null);
 
   // Workspace overlay
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  // ?ws=1 must be honored from the very first render — the URL-sync effect
+  // below runs on mount and rewrites the query string, which would strip it
+  // before projects load (breaking notification deep links).
+  const [workspaceOpen, setWorkspaceOpen] = useState(() => !!activeId && searchParams.get('ws') === '1');
   const openWorkspaceOnLoad = useRef(false);
   const detailPanelRef = useRef<HTMLDivElement>(null);
   // Collapsible detail sections (all closed by default)
@@ -1450,23 +1453,30 @@ export default function AdminProjectsPage() {
     }
   }, [projects, searchParams]);
 
-  // Deep-link: ?task=TASK_ID — capture task ID immediately so URL sync can't strip it
-  const pendingTaskId = useRef<number | null>(null);
+  // Deep-link: ?task=TASK_ID — capture immediately so URL sync can't strip it.
+  // Held as state (not a ref) so the opener effect below fires even when
+  // workspace and tasks haven't changed, e.g. clicking a notification for a
+  // task in the workspace that's already open.
+  const [pendingTask, setPendingTask] = useState<{ id: number; projectId: number | null } | null>(null);
   useEffect(() => {
     const taskParam = searchParams.get('task');
-    if (taskParam) pendingTaskId.current = parseInt(taskParam);
+    if (!taskParam) return;
+    const w = searchParams.get('w');
+    setPendingTask({ id: parseInt(taskParam), projectId: w ? parseInt(w) : null });
   }, [searchParams]);
 
-  // Open pending task once workspace + tasks are loaded
+  // Open the pending task once its workspace + tasks are loaded
   useEffect(() => {
-    if (!pendingTaskId.current || tasks.length === 0 || !workspaceOpen) return;
-    const taskId = pendingTaskId.current;
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      pendingTaskId.current = null;
-      openTaskDetail(task);
-    }
-  }, [tasks, workspaceOpen]);
+    if (!pendingTask || !workspaceOpen) return;
+    // Workspace switched to a different project — the link's task no longer applies
+    if (pendingTask.projectId && activeId && pendingTask.projectId !== activeId) { setPendingTask(null); return; }
+    // Wait until the loaded tasks actually belong to the active project (the
+    // previous project's tasks linger in state while the new fetch is in flight)
+    if (!tasks.some(t => t.project_id === activeId)) return;
+    const task = tasks.find(t => t.id === pendingTask.id);
+    setPendingTask(null);
+    if (task) openTaskDetail(task);
+  }, [pendingTask, tasks, workspaceOpen, activeId]);
 
   const wsToday = localToday();
   const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';

@@ -3,7 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { UserRole } from '@/lib/types';
-import { getHubHomePath } from '@/lib/hubAuth';
+import { getHubHomePath, isAdminRole } from '@/lib/hubAuth';
+import { adminTaskLinkFromContractorLink } from '@/lib/hubLinks';
 
 const HubPageSpinner = () => (
   <div className="flex h-screen items-center justify-center bg-[#FAFAFA]">
@@ -36,7 +37,13 @@ export default function HubRouteGate({ allowedRoles, children }: HubRouteGatePro
   }
 
   if (!allowedRoles.includes(effectiveRole as UserRole)) {
-    return <Navigate to={getHubHomePath(effectiveRole)} replace />;
+    // Admin-side users arrive here via employee-form task links (push
+    // notifications, Slack buttons) — send them to the admin workspace
+    // equivalent instead of bouncing to their dashboard.
+    const adminTaskLink = isAdminRole(effectiveRole)
+      ? adminTaskLinkFromContractorLink(location.pathname + location.search)
+      : null;
+    return <Navigate to={adminTaskLink ?? getHubHomePath(effectiveRole)} replace />;
   }
 
   return <Suspense fallback={<HubPageSpinner />}>{children}</Suspense>;

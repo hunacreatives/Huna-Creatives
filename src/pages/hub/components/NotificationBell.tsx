@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { isAdminRole } from '@/lib/hubAuth';
+import { adminTaskLinkFromContractorLink } from '@/lib/hubLinks';
 
 interface Notif {
   id: string;
@@ -527,18 +529,10 @@ export default function NotificationBell() {
     }
     if (!n.link) return;
     let link = n.link;
-    const isAdmin = hubUser?.role === 'admin' || hubUser?.role === 'owner';
-    if (isAdmin && link.includes('/hub/contractor/projects')) {
-      try {
-        const url = new URL(link, window.location.origin);
-        const workspace = url.searchParams.get('workspace');
-        const task = url.searchParams.get('task');
-        const params = new URLSearchParams();
-        if (workspace) params.set('w', workspace);
-        params.set('ws', '1');
-        if (task) params.set('task', task);
-        link = `/hub/admin/projects?${params.toString()}`;
-      } catch {}
+    const isAdmin = isAdminRole(hubUser?.role);
+    const adminTaskLink = isAdmin ? adminTaskLinkFromContractorLink(link) : null;
+    if (adminTaskLink) {
+      link = adminTaskLink;
     } else if (isAdmin && link.includes('/hub/admin/projects')) {
       // Fix admin task links that are missing ws=1 (e.g. from DB webhooks)
       try {
