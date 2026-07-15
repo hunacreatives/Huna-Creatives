@@ -98,14 +98,16 @@ export default function ContractorCredentialsPage() {
         .select('id, credential_id, status, reason')
         .eq('contractor_id', hubUser.id),
       // Current source of truth for "which clients I currently work with":
-      // active project team membership. hub_client_assignments and the legacy
-      // hub_clients.assigned_contractor_id are one-time snapshots nothing
-      // keeps in sync — being removed from a project's team never touches
-      // either, so they silently go stale. Only retainer projects count —
-      // a one-off project's client_name is often the individual commissioning
-      // it, not an ongoing client credentials are organized under.
+      // active retainer-project team membership. hub_client_assignments and
+      // the legacy hub_clients.assigned_contractor_id are one-time snapshots
+      // nothing keeps in sync — being removed from a project's team never
+      // touches either, so they silently go stale.
+      //
+      // Use project_name, not client_name — for this hub's retainer rows,
+      // client_name holds the billing contact's personal name (e.g. "Victor
+      // Romero"), while project_name holds the actual company.
       supabase.from('hub_projects')
-        .select('client_name, hub_project_contractors!inner(contractor_id)')
+        .select('project_name, hub_project_contractors!inner(contractor_id)')
         .eq('hub_project_contractors.contractor_id', hubUser.id)
         .eq('project_type', 'retainer')
         .is('archived_at', null)
@@ -115,7 +117,7 @@ export default function ContractorCredentialsPage() {
     if (credsRes.error) showToast(`Couldn't load credentials: ${credsRes.error.message}`);
     const credList = (credsRes.data as CredentialCatalog[]) ?? [];
     const reqList = (reqsRes.data as MyRequest[]) ?? [];
-    const autoClientNames = new Set<string>((clientsRes.data ?? []).map((c: any) => c.client_name));
+    const autoClientNames = new Set<string>((clientsRes.data ?? []).map((c: any) => c.project_name));
 
     setCredentials(credList);
     setMyRequests(reqList);

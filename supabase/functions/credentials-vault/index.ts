@@ -97,12 +97,16 @@ Deno.serve(async (req) => {
       // the individual commissioning that project), minus an explicit
       // per-credential revoke override, or holding an approved access
       // request. Client-less credentials need a request.
+      //
+      // Matched on project_name, not client_name — for this hub's retainer
+      // rows, client_name holds the billing contact's personal name (e.g.
+      // "Victor Romero"), while project_name holds the actual company.
       if (!isPrivileged) {
         const [{ data: assignedClient }, { data: revokedOverride }, { data: approvedReq }] = await Promise.all([
           cred.client_name
             ? admin.from('hub_projects')
                 .select('id, hub_project_contractors!inner(contractor_id)')
-                .ilike('client_name', cred.client_name)
+                .ilike('project_name', cred.client_name)
                 .eq('hub_project_contractors.contractor_id', user.id)
                 .eq('project_type', 'retainer')
                 .is('archived_at', null)

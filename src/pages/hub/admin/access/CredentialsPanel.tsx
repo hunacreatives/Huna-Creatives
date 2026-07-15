@@ -141,15 +141,18 @@ export default function CredentialsPanel() {
       supabase.from('hub_users').select('id, full_name, avatar_url').not('role', 'in', '("owner","admin")').order('full_name'),
       supabase.from('hub_clients').select('client_name').order('client_name'),
       // Current source of truth for "who works with this client": active
-      // project team membership. hub_client_assignments and the legacy
-      // hub_clients.assigned_contractor_id are both one-time snapshots that
-      // nothing keeps in sync — removing someone from a project's team
-      // never touches either, so they silently go stale. Only retainer
-      // projects count as "clients" here — a one-off project's client_name
-      // is often just the individual commissioning it (e.g. "Jonathan
-      // Cruz"), not an ongoing client credentials should be organized under.
+      // retainer-project team membership. hub_client_assignments and the
+      // legacy hub_clients.assigned_contractor_id are both one-time
+      // snapshots nothing keeps in sync — removing someone from a project's
+      // team never touches either, so they silently go stale.
+      //
+      // For retainer projects, match on project_name, NOT client_name — for
+      // this hub's retainer rows, client_name holds the billing contact's
+      // personal name (e.g. "Victor Romero"), while project_name holds the
+      // actual company ("Blue Collar Nutrition"). Verified against the data:
+      // every retainer row follows this pattern.
       supabase.from('hub_projects')
-        .select('client_name, project_type, status, archived_at, hub_project_contractors(contractor_id)')
+        .select('project_name, project_type, status, archived_at, hub_project_contractors(contractor_id)')
         .eq('project_type', 'retainer')
         .is('archived_at', null)
         .neq('status', 'cancelled'),
@@ -166,15 +169,18 @@ export default function CredentialsPanel() {
     // of the app uses to line up hub_clients rows with hub_projects rows.
     const assignMap: Record<string, Set<string>> = {};
     (projRes.data ?? []).forEach((p: any) => {
-      const key = String(p.client_name ?? '').trim().toLowerCase();
+      const key = String(p.project_name ?? '').trim().toLowerCase();
       if (!key) return;
       const ids: string[] = (Array.isArray(p.hub_project_contractors) ? p.hub_project_contractors : []).map((pc: any) => pc.contractor_id);
       ids.forEach((id) => (assignMap[key] ??= new Set()).add(id));
     });
     setClientAssignments(Object.fromEntries(Object.entries(assignMap).map(([k, v]) => [k, Array.from(v)])));
+    // hub_clients and hub_projects (retainer) are two overlapping-but-not-
+    // identical rosters — e.g. "FS Architects" only exists as a retainer
+    // project, never got a hub_clients row — so both are unioned.
     const clientNames = new Set<string>();
     (clientsRes.data ?? []).forEach((c: any) => clientNames.add(c.client_name));
-    (projRes.data ?? []).forEach((p: any) => { if (p.client_name) clientNames.add(p.client_name); });
+    (projRes.data ?? []).forEach((p: any) => { if (p.project_name) clientNames.add(p.project_name); });
     setClientOptions(Array.from(clientNames).sort());
     // Default all clients expanded
     const clients = new Set(credList.map((c) => c.client_name?.trim() || 'Internal'));
