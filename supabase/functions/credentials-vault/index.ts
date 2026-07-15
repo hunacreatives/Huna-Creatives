@@ -89,18 +89,27 @@ Deno.serve(async (req) => {
       }
 
       // Employees may decrypt only credentials they're entitled to: assigned
-      // to the credential's client, or holding an approved access request.
-      // Client-less credentials are reachable only via approved requests.
+      // to the credential's client (via hub_client_assignments — the legacy
+      // hub_clients.assigned_contractor_id column is stale and unused here),
+      // minus an explicit per-credential revoke override, or holding an
+      // approved access request. Client-less credentials need a request.
       if (!isPrivileged) {
-        const [{ data: assignedClient }, { data: approvedReq }] = await Promise.all([
+        const [{ data: assignedClient }, { data: revokedOverride }, { data: approvedReq }] = await Promise.all([
           cred.client_name
             ? admin.from('hub_clients')
-                .select('id')
+                .select('id, hub_client_assignments!inner(contractor_id)')
                 .eq('client_name', cred.client_name)
-                .eq('assigned_contractor_id', user.id)
+                .eq('hub_client_assignments.contractor_id', user.id)
                 .limit(1)
                 .maybeSingle()
             : Promise.resolve({ data: null }),
+          admin.from('hub_credential_requests')
+            .select('id')
+            .eq('credential_id', cred.id)
+            .eq('contractor_id', user.id)
+            .eq('status', 'revoked')
+            .limit(1)
+            .maybeSingle(),
           admin.from('hub_credential_requests')
             .select('id')
             .eq('credential_id', cred.id)
@@ -109,7 +118,8 @@ Deno.serve(async (req) => {
             .limit(1)
             .maybeSingle(),
         ]);
-        if (!assignedClient && !approvedReq) {
+        const hasAutoAccess = !!assignedClient && !revokedOverride;
+        if (!hasAutoAccess && !approvedReq) {
           return new Response(JSON.stringify({ error: 'Not authorized' }), { status: 403, headers: cors });
         }
       }

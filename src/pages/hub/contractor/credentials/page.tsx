@@ -97,9 +97,11 @@ export default function ContractorCredentialsPage() {
       supabase.from('hub_credential_requests')
         .select('id, credential_id, status, reason')
         .eq('contractor_id', hubUser.id),
+      // Current source of truth for client assignment (many-to-many); the legacy
+      // hub_clients.assigned_contractor_id column is stale and can hold removed people.
       supabase.from('hub_clients')
-        .select('client_name')
-        .eq('assigned_contractor_id', hubUser.id),
+        .select('client_name, hub_client_assignments!inner(contractor_id)')
+        .eq('hub_client_assignments.contractor_id', hubUser.id),
     ]);
 
     if (credsRes.error) showToast(`Couldn't load credentials: ${credsRes.error.message}`);

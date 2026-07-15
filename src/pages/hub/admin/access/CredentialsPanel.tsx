@@ -92,6 +92,7 @@ export default function CredentialsPanel() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [clientOptions, setClientOptions] = useState<string[]>([]);
   const [showPassIds, setShowPassIds] = useState<Set<string>>(new Set());
   // Decrypted secrets, fetched on demand from the credentials-vault function
   const [revealedPass, setRevealedPass] = useState<Record<string, RevealedSecret>>({});
@@ -138,7 +139,9 @@ export default function CredentialsPanel() {
         .order('created_at', { ascending: false }),
       // Admins/owners are always privileged in the vault; only employees show as grantable.
       supabase.from('hub_users').select('id, full_name, avatar_url').not('role', 'in', '("owner","admin")').order('full_name'),
-      supabase.from('hub_clients').select('client_name, assigned_contractor_id').not('assigned_contractor_id', 'is', null),
+      // Current source of truth for client assignment (many-to-many); the legacy
+      // hub_clients.assigned_contractor_id column is stale and can hold removed people.
+      supabase.from('hub_clients').select('client_name, hub_client_assignments(contractor_id)').order('client_name'),
     ]);
     // A failed load must never masquerade as an empty vault.
     setLoadError(credsRes.error?.message ?? reqsRes.error?.message ?? '');
@@ -149,10 +152,12 @@ export default function CredentialsPanel() {
     setRequests((reqs as CredentialRequest[]) ?? []);
     setEmployees((empRes.data as Employee[]) ?? []);
     const assignMap: Record<string, string[]> = {};
-    (assignRes.data ?? []).forEach((r: any) => {
-      (assignMap[r.client_name] ??= []).push(r.assigned_contractor_id);
+    (assignRes.data ?? []).forEach((c: any) => {
+      const ids = (Array.isArray(c.hub_client_assignments) ? c.hub_client_assignments : []).map((a: any) => a.contractor_id);
+      if (ids.length) assignMap[c.client_name] = ids;
     });
     setClientAssignments(assignMap);
+    setClientOptions((assignRes.data ?? []).map((c: any) => c.client_name as string));
     // Default all clients expanded
     const clients = new Set(credList.map((c) => c.client_name?.trim() || 'Internal'));
     setExpandedClients(clients);
@@ -334,13 +339,21 @@ export default function CredentialsPanel() {
   const approvedRequestFor = (credentialId: string, employeeId: string) =>
     requests.find((r) => r.credential_id === credentialId && r.contractor_id === employeeId && r.status === 'approved');
 
-  // Everyone entitled to reveal this credential — auto (client-assigned) or granted.
+  // An explicit override that blocks a client-assigned employee's auto access
+  // to this one credential, without touching the underlying client assignment.
+  const revokedOverrideFor = (credentialId: string, employeeId: string) =>
+    requests.find((r) => r.credential_id === credentialId && r.contractor_id === employeeId && r.status === 'revoked');
+
+  // Everyone entitled to reveal this credential — auto (client-assigned,
+  // minus any explicit revoke) or granted.
   const entitledEmployeesFor = (c: Credential): Employee[] => {
     const autoIds = autoAccessIdsFor(c);
     const grantedIds = new Set(
       requests.filter((r) => r.credential_id === c.id && r.status === 'approved').map((r) => r.contractor_id)
     );
-    return employees.filter((e) => autoIds.has(e.id) || grantedIds.has(e.id));
+    return employees.filter((e) =>
+      (autoIds.has(e.id) && !revokedOverrideFor(c.id, e.id)) || grantedIds.has(e.id)
+    );
   };
 
   const grantAccess = async (c: Credential, emp: Employee) => {
@@ -378,6 +391,35 @@ export default function CredentialsPanel() {
     setGrantBusy((prev) => { const next = new Set(prev); next.delete(emp.id); return next; });
     if (error) { showToast(`Could not revoke access: ${error.message}`); return; }
     showToast(`Access revoked for ${emp.full_name}.`);
+    fetchData();
+  };
+
+  // Blocks a client-assigned employee's auto access to this one credential
+  // without touching the client assignment itself.
+  const revokeAutoAccess = async (c: Credential, emp: Employee) => {
+    setGrantBusy((prev) => new Set(prev).add(emp.id));
+    const { error } = await supabase.from('hub_credential_requests').insert({
+      credential_id: c.id,
+      contractor_id: emp.id,
+      reason: 'Revoked by admin (overrides client assignment)',
+      status: 'revoked',
+      reviewed_by: hubUser?.id,
+      reviewed_at: new Date().toISOString(),
+    });
+    setGrantBusy((prev) => { const next = new Set(prev); next.delete(emp.id); return next; });
+    if (error) { showToast(`Could not revoke access: ${error.message}`); return; }
+    showToast(`Access revoked for ${emp.full_name}.`);
+    fetchData();
+  };
+
+  const restoreAutoAccess = async (c: Credential, emp: Employee) => {
+    const override = revokedOverrideFor(c.id, emp.id);
+    if (!override) return;
+    setGrantBusy((prev) => new Set(prev).add(emp.id));
+    const { error } = await supabase.from('hub_credential_requests').delete().eq('id', override.id);
+    setGrantBusy((prev) => { const next = new Set(prev); next.delete(emp.id); return next; });
+    if (error) { showToast(`Could not restore access: ${error.message}`); return; }
+    showToast(`Access restored for ${emp.full_name}.`);
     fetchData();
   };
 
@@ -654,6 +696,7 @@ export default function CredentialsPanel() {
                 <p className="text-sm text-gray-400 text-center py-8">No employees found.</p>
               ) : employees.map((emp) => {
                 const isAuto = autoAccessIdsFor(manageCred).has(emp.id);
+                const isRevoked = isAuto && !!revokedOverrideFor(manageCred.id, emp.id);
                 const hasGrant = !!approvedRequestFor(manageCred.id, emp.id);
                 const busy = grantBusy.has(emp.id);
                 return (
@@ -662,10 +705,33 @@ export default function CredentialsPanel() {
                       ? <img src={emp.avatar_url} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
                       : <div className="w-7 h-7 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0"><i className="ri-user-line text-[#FF6B35] text-xs"></i></div>}
                     <span className="flex-1 text-sm text-gray-800 truncate">{emp.full_name}</span>
-                    {isAuto ? (
-                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
-                        <i className="ri-shield-check-line"></i> Client assigned
-                      </span>
+                    {isAuto && isRevoked ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+                          <i className="ri-shield-cross-line"></i> Access revoked
+                        </span>
+                        <button
+                          onClick={() => restoreAutoAccess(manageCred, emp)}
+                          disabled={busy}
+                          className="text-xs font-medium text-gray-600 border border-gray-200 bg-white rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {busy ? '…' : 'Restore'}
+                        </button>
+                      </div>
+                    ) : isAuto ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+                          <i className="ri-shield-check-line"></i> Client assigned
+                        </span>
+                        <button
+                          onClick={() => revokeAutoAccess(manageCred, emp)}
+                          disabled={busy}
+                          title="Block just this credential for this employee, without changing their client assignment"
+                          className="text-xs font-medium text-red-600 border border-red-200 bg-red-50 rounded-lg px-3 py-1.5 hover:bg-red-100 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {busy ? '…' : 'Revoke'}
+                        </button>
+                      </div>
                     ) : hasGrant ? (
                       <button
                         onClick={() => revokeAccess(manageCred, emp)}
@@ -710,13 +776,18 @@ export default function CredentialsPanel() {
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Client (optional)</label>
-                  <input
+                  <label className="text-xs font-medium text-gray-700">Client</label>
+                  <select
                     value={form.client_name}
                     onChange={(e) => setForm({ ...form, client_name: e.target.value })}
-                    placeholder="Blank = internal credential"
-                    className={inputCls}
-                  />
+                    className={`${inputCls} bg-white`}
+                  >
+                    <option value="">Internal (no client)</option>
+                    {/* Include the current value even if it's since been removed from the roster or was hand-typed before this became a dropdown. */}
+                    {(form.client_name && !clientOptions.includes(form.client_name) ? [form.client_name, ...clientOptions] : clientOptions).map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">Platform *</label>
