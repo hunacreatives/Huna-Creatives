@@ -151,7 +151,10 @@ export function renderPaymentSummaryHTML(
   .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 12mm; }
   .doc { background: #fff; min-height: 273mm; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 
-  .head { background: #111827; padding: 10mm 14mm 8mm; display: flex; align-items: flex-start; justify-content: space-between; }
+  /* box-shadow bleed: PDF renderers can leave a sub-pixel white seam at the
+     edges of a solid-color block — painting a 1px ring in the same color
+     swallows that gap without changing how the header looks. */
+  .head { background: #111827; padding: 10mm 14mm 8mm; display: flex; align-items: flex-start; justify-content: space-between; box-shadow: 0 0 0 1px #111827; }
   .head-logo { height: 36pt; width: auto; display: block; margin-bottom: 6pt; filter: invert(1) brightness(1.6); }
   .head-left .sub { color: rgba(255,255,255,0.5); font-size: 7.5pt; line-height: 1.6; }
   .head-right { text-align: right; }
