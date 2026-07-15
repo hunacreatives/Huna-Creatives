@@ -7,7 +7,7 @@ import { useDemo } from '@/contexts/DemoContext';
 // only be read through the credentials-vault function — never selected here.
 interface Credential {
   id: string;
-  client_name: string;
+  client_name: string | null;
   platform: string;
   account_email: string | null;
   login_type: string;
@@ -34,7 +34,13 @@ interface CredentialRequest {
   reviewed_at: string | null;
   created_at: string;
   hub_users?: { full_name: string; avatar_url?: string };
-  hub_credentials?: { platform: string; client_name: string };
+  hub_credentials?: { platform: string; client_name: string | null };
+}
+
+interface Employee {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
 }
 
 const emptyForm = {
@@ -91,6 +97,11 @@ export default function CredentialsPanel() {
   const [revealedPass, setRevealedPass] = useState<Record<string, RevealedSecret>>({});
   const [revealLoading, setRevealLoading] = useState<Set<string>>(new Set());
   const [showFormPass, setShowFormPass] = useState(false);
+  // Manage-access modal: grant/revoke credential access without a request
+  const [manageCred, setManageCred] = useState<Credential | null>(null);
+  const [employees, setEmployees] = useState<Employee[] | null>(null);
+  const [autoAccessIds, setAutoAccessIds] = useState<Set<string>>(new Set());
+  const [grantBusy, setGrantBusy] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState('');
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -119,7 +130,7 @@ export default function CredentialsPanel() {
     setCredentials(credList);
     setRequests((reqs as CredentialRequest[]) ?? []);
     // Default all clients expanded
-    const clients = new Set(credList.map((c) => c.client_name));
+    const clients = new Set(credList.map((c) => c.client_name?.trim() || 'Internal'));
     setExpandedClients(clients);
     setLoading(false);
   };
@@ -129,17 +140,19 @@ export default function CredentialsPanel() {
   // Legacy plaintext rows are lazily encrypted by the vault function on
   // decrypt; the client can no longer see secret columns to detect them.
 
-  // Group credentials by client
+  // Group credentials by client; client-less credentials group under Internal
+  const groupName = (c: Credential) => c.client_name?.trim() || 'Internal';
   const filtered = credentials.filter((c) =>
     !search ||
-    c.client_name.toLowerCase().includes(search.toLowerCase()) ||
+    groupName(c).toLowerCase().includes(search.toLowerCase()) ||
     c.platform.toLowerCase().includes(search.toLowerCase()) ||
     (c.account_email ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   const groups = filtered.reduce<Record<string, Credential[]>>((acc, c) => {
-    if (!acc[c.client_name]) acc[c.client_name] = [];
-    acc[c.client_name].push(c);
+    const key = groupName(c);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(c);
     return acc;
   }, {});
 
@@ -188,7 +201,7 @@ export default function CredentialsPanel() {
   const openEdit = (c: Credential) => {
     setEditingCred(c);
     setForm({
-      client_name: c.client_name,
+      client_name: c.client_name ?? '',
       platform: c.platform,
       login_type: c.login_type,
       account_email: c.account_email ?? '',
@@ -203,7 +216,7 @@ export default function CredentialsPanel() {
   };
 
   const save = async () => {
-    if (!form.client_name.trim() || !form.platform.trim()) return;
+    if (!form.platform.trim()) return;
     setSaving(true);
     // Secrets are never stored in plaintext: encrypt via the vault function.
     const encryptField = async (plaintext: string) => {
@@ -236,7 +249,7 @@ export default function CredentialsPanel() {
 
     const payload = {
       ...secretFields,
-      client_name: form.client_name.trim(),
+      client_name: form.client_name.trim() || null,
       platform: form.platform.trim(),
       login_type: form.login_type,
       account_email: form.account_email.trim() || null,
@@ -284,6 +297,71 @@ export default function CredentialsPanel() {
         },
       }).catch(console.error);
     }
+    fetchData();
+  };
+
+  // --- Manage access (proactive grants, no request needed) ---
+
+  const openManageAccess = async (c: Credential) => {
+    setManageCred(c);
+    setAutoAccessIds(new Set());
+    if (!employees) {
+      // Admins/owners/HR always have vault access; only list regular employees.
+      const { data } = await supabase
+        .from('hub_users')
+        .select('id, full_name, avatar_url')
+        .not('role', 'in', '("owner","admin","hr")')
+        .order('full_name');
+      setEmployees((data as Employee[]) ?? []);
+    }
+    if (c.client_name) {
+      const { data: assigned } = await supabase
+        .from('hub_clients')
+        .select('assigned_contractor_id')
+        .eq('client_name', c.client_name)
+        .not('assigned_contractor_id', 'is', null);
+      setAutoAccessIds(new Set((assigned ?? []).map((r: any) => r.assigned_contractor_id as string)));
+    }
+  };
+
+  const approvedRequestFor = (credentialId: string, employeeId: string) =>
+    requests.find((r) => r.credential_id === credentialId && r.contractor_id === employeeId && r.status === 'approved');
+
+  const grantAccess = async (c: Credential, emp: Employee) => {
+    setGrantBusy((prev) => new Set(prev).add(emp.id));
+    // Approve a pending request if one exists, otherwise create a pre-approved one.
+    const pending = requests.find((r) => r.credential_id === c.id && r.contractor_id === emp.id && r.status === 'pending');
+    const { error } = pending
+      ? await supabase.from('hub_credential_requests').update({
+          status: 'approved',
+          reviewed_by: hubUser?.id,
+          reviewed_at: new Date().toISOString(),
+        }).eq('id', pending.id)
+      : await supabase.from('hub_credential_requests').insert({
+          credential_id: c.id,
+          contractor_id: emp.id,
+          reason: 'Granted by admin',
+          status: 'approved',
+          reviewed_by: hubUser?.id,
+          reviewed_at: new Date().toISOString(),
+        });
+    setGrantBusy((prev) => { const next = new Set(prev); next.delete(emp.id); return next; });
+    if (error) { showToast(`Could not grant access: ${error.message}`); return; }
+    supabase.functions.invoke('notify-credential-decision', {
+      body: { contractor_id: emp.id, platform: c.platform, client_name: c.client_name ?? '', decision: 'approved' },
+    }).catch(console.error);
+    showToast(`Access granted to ${emp.full_name}.`);
+    fetchData();
+  };
+
+  const revokeAccess = async (c: Credential, emp: Employee) => {
+    const approved = approvedRequestFor(c.id, emp.id);
+    if (!approved) return;
+    setGrantBusy((prev) => new Set(prev).add(emp.id));
+    const { error } = await supabase.from('hub_credential_requests').delete().eq('id', approved.id);
+    setGrantBusy((prev) => { const next = new Set(prev); next.delete(emp.id); return next; });
+    if (error) { showToast(`Could not revoke access: ${error.message}`); return; }
+    showToast(`Access revoked for ${emp.full_name}.`);
     fetchData();
   };
 
@@ -438,6 +516,13 @@ export default function CredentialsPanel() {
                               {/* Actions */}
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <button
+                                  onClick={() => openManageAccess(cred)}
+                                  className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-[#FF6B35] hover:bg-[#FF6B35]/10 rounded-lg transition-colors cursor-pointer"
+                                  title="Manage access"
+                                >
+                                  <i className="ri-user-add-line text-sm"></i>
+                                </button>
+                                <button
                                   onClick={() => openEdit(cred)}
                                   className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-[#FF6B35] hover:bg-[#FF6B35]/10 rounded-lg transition-colors cursor-pointer"
                                   title="Edit"
@@ -544,6 +629,68 @@ export default function CredentialsPanel() {
         </div>
       </div>
 
+      {/* Manage Access Modal */}
+      {manageCred && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md my-4">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <i className="ri-user-add-line text-[#FF6B35]"></i>
+                  <h2 className="font-semibold text-[#111827]">Manage Access</h2>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {manageCred.platform}{manageCred.client_name ? ` — ${manageCred.client_name}` : ''} · grants take effect immediately, no request needed.
+                </p>
+              </div>
+              <button onClick={() => setManageCred(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <i className="ri-close-line text-lg"></i>
+              </button>
+            </div>
+            <div className="max-h-[420px] overflow-y-auto divide-y divide-gray-50">
+              {employees == null ? (
+                <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i></div>
+              ) : employees.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">No employees found.</p>
+              ) : employees.map((emp) => {
+                const isAuto = autoAccessIds.has(emp.id);
+                const hasGrant = !!approvedRequestFor(manageCred.id, emp.id);
+                const busy = grantBusy.has(emp.id);
+                return (
+                  <div key={emp.id} className="flex items-center gap-3 px-5 py-3">
+                    {emp.avatar_url
+                      ? <img src={emp.avatar_url} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                      : <div className="w-7 h-7 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0"><i className="ri-user-line text-[#FF6B35] text-xs"></i></div>}
+                    <span className="flex-1 text-sm text-gray-800 truncate">{emp.full_name}</span>
+                    {isAuto ? (
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+                        <i className="ri-shield-check-line"></i> Client assigned
+                      </span>
+                    ) : hasGrant ? (
+                      <button
+                        onClick={() => revokeAccess(manageCred, emp)}
+                        disabled={busy}
+                        className="text-xs font-medium text-red-600 border border-red-200 bg-red-50 rounded-lg px-3 py-1.5 hover:bg-red-100 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {busy ? '…' : 'Revoke'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => grantAccess(manageCred, emp)}
+                        disabled={busy}
+                        className="text-xs font-medium text-emerald-700 border border-emerald-200 bg-emerald-50 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {busy ? '…' : 'Grant access'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add / Edit Modal */}
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4 overflow-y-auto">
@@ -563,11 +710,11 @@ export default function CredentialsPanel() {
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Client Name *</label>
+                  <label className="text-xs font-medium text-gray-700">Client (optional)</label>
                   <input
                     value={form.client_name}
                     onChange={(e) => setForm({ ...form, client_name: e.target.value })}
-                    placeholder="e.g. BCN Dental"
+                    placeholder="Blank = internal credential"
                     className={inputCls}
                   />
                 </div>
@@ -687,7 +834,7 @@ export default function CredentialsPanel() {
               </button>
               <button
                 onClick={save}
-                disabled={saving || !form.client_name.trim() || !form.platform.trim()}
+                disabled={saving || !form.platform.trim()}
                 className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 cursor-pointer transition-colors whitespace-nowrap"
               >
                 {saving ? 'Saving...' : editingCred ? 'Save Changes' : 'Add Credential'}

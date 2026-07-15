@@ -7,7 +7,7 @@ import { DEMO_CREDENTIALS, DEMO_CREDENTIAL_FULL, DEMO_CREDENTIAL_ASSIGNED_CLIENT
 
 interface CredentialCatalog {
   id: string;
-  client_name: string;
+  client_name: string | null;
   platform: string;
   login_type: string;
   status: string;
@@ -71,7 +71,7 @@ export default function ContractorCredentialsPage() {
       setCredentials(credList);
       setMyRequests(DEMO_CREDENTIAL_REQUESTS as MyRequest[]);
       setAssignedClients(new Set(DEMO_CREDENTIAL_ASSIGNED_CLIENTS));
-      setExpandedClients(new Set(credList.map((c) => c.client_name)));
+      setExpandedClients(new Set(credList.map((c) => c.client_name?.trim() || 'Internal')));
       setFullData(DEMO_CREDENTIAL_FULL);
       setLoading(false);
       return;
@@ -99,7 +99,7 @@ export default function ContractorCredentialsPage() {
     setCredentials(credList);
     setMyRequests(reqList);
     setAssignedClients(autoClientNames);
-    setExpandedClients(new Set(credList.map((c) => c.client_name)));
+    setExpandedClients(new Set(credList.map((c) => c.client_name?.trim() || 'Internal')));
 
     // Secrets are column-revoked in Postgres — they're fetched one at a time
     // through the credentials-vault function when the employee hits reveal.
@@ -113,13 +113,14 @@ export default function ContractorCredentialsPage() {
 
   const filtered = credentials.filter((c) =>
     !search ||
-    c.client_name.toLowerCase().includes(search.toLowerCase()) ||
+    (c.client_name?.trim() || 'Internal').toLowerCase().includes(search.toLowerCase()) ||
     c.platform.toLowerCase().includes(search.toLowerCase())
   );
 
   const groups = filtered.reduce<Record<string, CredentialCatalog[]>>((acc, c) => {
-    if (!acc[c.client_name]) acc[c.client_name] = [];
-    acc[c.client_name].push(c);
+    const key = c.client_name?.trim() || 'Internal';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(c);
     return acc;
   }, {});
 
@@ -174,14 +175,14 @@ export default function ContractorCredentialsPage() {
     setSubmitting(false);
     if (error) { showToast('Failed to submit request. Try again.'); return; }
     supabase.functions.invoke('notify-internal-request', {
-      body: { type: 'credential_request', contractor_name: hubUser!.full_name, detail: `${requestModal.platform} — ${requestModal.client_name}`, notes: requestReason },
+      body: { type: 'credential_request', contractor_name: hubUser!.full_name, detail: `${requestModal.platform}${requestModal.client_name ? ` — ${requestModal.client_name}` : ''}`, notes: requestReason },
     });
     setRequestModal(null);
     showToast('Access request submitted!');
     fetchData();
   };
 
-  const autoAccessCount = credentials.filter((c) => assignedClients.has(c.client_name)).length;
+  const autoAccessCount = credentials.filter((c) => c.client_name != null && assignedClients.has(c.client_name)).length;
   const approvedCount = myRequests.filter((r) => r.status === 'approved').length;
   const myPending = myRequests.filter((r) => r.status === 'pending').length;
 
@@ -364,7 +365,7 @@ export default function ContractorCredentialsPage() {
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-semibold text-[#111827]">Request Access</h2>
-                <p className="text-xs text-gray-500 mt-0.5">{requestModal.platform} — {requestModal.client_name}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{requestModal.platform}{requestModal.client_name ? ` — ${requestModal.client_name}` : ''}</p>
               </div>
               <button onClick={() => setRequestModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center">
                 <i className="ri-close-line text-lg"></i>

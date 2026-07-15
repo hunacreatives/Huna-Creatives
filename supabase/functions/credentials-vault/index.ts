@@ -90,14 +90,17 @@ Deno.serve(async (req) => {
 
       // Employees may decrypt only credentials they're entitled to: assigned
       // to the credential's client, or holding an approved access request.
+      // Client-less credentials are reachable only via approved requests.
       if (!isPrivileged) {
         const [{ data: assignedClient }, { data: approvedReq }] = await Promise.all([
-          admin.from('hub_clients')
-            .select('id')
-            .eq('client_name', cred.client_name)
-            .eq('assigned_contractor_id', user.id)
-            .limit(1)
-            .maybeSingle(),
+          cred.client_name
+            ? admin.from('hub_clients')
+                .select('id')
+                .eq('client_name', cred.client_name)
+                .eq('assigned_contractor_id', user.id)
+                .limit(1)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
           admin.from('hub_credential_requests')
             .select('id')
             .eq('credential_id', cred.id)
