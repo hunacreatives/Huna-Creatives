@@ -99,8 +99,9 @@ export default function CredentialsPanel() {
   const [showFormPass, setShowFormPass] = useState(false);
   // Manage-access modal: grant/revoke credential access without a request
   const [manageCred, setManageCred] = useState<Credential | null>(null);
-  const [employees, setEmployees] = useState<Employee[] | null>(null);
-  const [autoAccessIds, setAutoAccessIds] = useState<Set<string>>(new Set());
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  // client_name -> employee ids auto-entitled via client assignment
+  const [clientAssignments, setClientAssignments] = useState<Record<string, string[]>>({});
   const [grantBusy, setGrantBusy] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState('');
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,7 +128,7 @@ export default function CredentialsPanel() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [credsRes, reqsRes] = await Promise.all([
+    const [credsRes, reqsRes, empRes, assignRes] = await Promise.all([
       supabase.from('hub_credentials')
         .select('id, client_name, platform, account_email, login_type, otp_contact, status, notes, created_by, created_at, updated_at')
         .order('client_name').order('platform'),
@@ -135,6 +136,9 @@ export default function CredentialsPanel() {
         .from('hub_credential_requests')
         .select('*, hub_users!contractor_id(full_name, avatar_url), hub_credentials!credential_id(platform, client_name)')
         .order('created_at', { ascending: false }),
+      // Admins/owners are always privileged in the vault; only employees show as grantable.
+      supabase.from('hub_users').select('id, full_name, avatar_url').not('role', 'in', '("owner","admin")').order('full_name'),
+      supabase.from('hub_clients').select('client_name, assigned_contractor_id').not('assigned_contractor_id', 'is', null),
     ]);
     // A failed load must never masquerade as an empty vault.
     setLoadError(credsRes.error?.message ?? reqsRes.error?.message ?? '');
@@ -143,6 +147,12 @@ export default function CredentialsPanel() {
     const credList = (creds as Credential[]) ?? [];
     setCredentials(credList);
     setRequests((reqs as CredentialRequest[]) ?? []);
+    setEmployees((empRes.data as Employee[]) ?? []);
+    const assignMap: Record<string, string[]> = {};
+    (assignRes.data ?? []).forEach((r: any) => {
+      (assignMap[r.client_name] ??= []).push(r.assigned_contractor_id);
+    });
+    setClientAssignments(assignMap);
     // Default all clients expanded
     const clients = new Set(credList.map((c) => c.client_name?.trim() || 'Internal'));
     setExpandedClients(clients);
@@ -173,7 +183,6 @@ export default function CredentialsPanel() {
   const clientNames = Object.keys(groups).sort();
 
   const pendingRequests = requests.filter((r) => r.status === 'pending');
-  const otherRequests = requests.filter((r) => r.status !== 'pending');
 
   const toggleClient = (name: string) => {
     setExpandedClients((prev) => {
@@ -316,30 +325,23 @@ export default function CredentialsPanel() {
 
   // --- Manage access (proactive grants, no request needed) ---
 
-  const openManageAccess = async (c: Credential) => {
-    setManageCred(c);
-    setAutoAccessIds(new Set());
-    if (!employees) {
-      // Admins/owners/HR always have vault access; only list regular employees.
-      const { data } = await supabase
-        .from('hub_users')
-        .select('id, full_name, avatar_url')
-        .not('role', 'in', '("owner","admin","hr")')
-        .order('full_name');
-      setEmployees((data as Employee[]) ?? []);
-    }
-    if (c.client_name) {
-      const { data: assigned } = await supabase
-        .from('hub_clients')
-        .select('assigned_contractor_id')
-        .eq('client_name', c.client_name)
-        .not('assigned_contractor_id', 'is', null);
-      setAutoAccessIds(new Set((assigned ?? []).map((r: any) => r.assigned_contractor_id as string)));
-    }
-  };
+  const autoAccessIdsFor = (c: Credential): Set<string> =>
+    new Set(c.client_name ? clientAssignments[c.client_name] ?? [] : []);
+
+  const pendingRequestsFor = (credentialId: string) =>
+    requests.filter((r) => r.credential_id === credentialId && r.status === 'pending');
 
   const approvedRequestFor = (credentialId: string, employeeId: string) =>
     requests.find((r) => r.credential_id === credentialId && r.contractor_id === employeeId && r.status === 'approved');
+
+  // Everyone entitled to reveal this credential — auto (client-assigned) or granted.
+  const entitledEmployeesFor = (c: Credential): Employee[] => {
+    const autoIds = autoAccessIdsFor(c);
+    const grantedIds = new Set(
+      requests.filter((r) => r.credential_id === c.id && r.status === 'approved').map((r) => r.contractor_id)
+    );
+    return employees.filter((e) => autoIds.has(e.id) || grantedIds.has(e.id));
+  };
 
   const grantAccess = async (c: Credential, emp: Employee) => {
     setGrantBusy((prev) => new Set(prev).add(emp.id));
@@ -403,10 +405,16 @@ export default function CredentialsPanel() {
               />
             </div>
             {pendingRequests.length > 0 && (
-              <a href="#access-requests" className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-100 transition-colors cursor-pointer whitespace-nowrap">
+              <button
+                onClick={() => {
+                  const cred = credentials.find((c) => c.id === pendingRequests[0].credential_id);
+                  if (cred) setManageCred(cred);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium rounded-lg hover:bg-amber-100 transition-colors cursor-pointer whitespace-nowrap"
+              >
                 <i className="ri-key-line text-sm"></i>
                 {pendingRequests.length} Pending Request{pendingRequests.length > 1 ? 's' : ''}
-              </a>
+              </button>
             )}
           </div>
           <button
@@ -468,6 +476,8 @@ export default function CredentialsPanel() {
                       {clientCreds.map((cred) => {
                         const typeInfo = LOGIN_TYPE_LABELS[cred.login_type] ?? { label: cred.login_type, color: 'bg-gray-100 text-gray-600' };
                         const passVisible = showPassIds.has(cred.id);
+                        const entitled = entitledEmployeesFor(cred);
+                        const pendingCount = pendingRequestsFor(cred.id).length;
                         return (
                           <div key={cred.id} className="px-5 py-4 hover:bg-gray-50/50 transition-colors">
                             <div className="flex items-start justify-between gap-3">
@@ -525,12 +535,42 @@ export default function CredentialsPanel() {
                                 {cred.notes && (
                                   <p className="text-xs text-gray-400 italic">{cred.notes}</p>
                                 )}
+
+                                {/* Who has access */}
+                                <button
+                                  onClick={() => setManageCred(cred)}
+                                  className="flex items-center gap-1.5 pt-0.5 cursor-pointer group"
+                                >
+                                  {entitled.length > 0 ? (
+                                    <div className="flex -space-x-1.5">
+                                      {entitled.slice(0, 5).map((e) => (
+                                        e.avatar_url
+                                          ? <img key={e.id} src={e.avatar_url} title={e.full_name} className="w-5 h-5 rounded-full object-cover ring-2 ring-white" />
+                                          : <div key={e.id} title={e.full_name} className="w-5 h-5 rounded-full bg-[#FF6B35]/10 ring-2 ring-white flex items-center justify-center text-[9px] font-semibold text-[#FF6B35]">
+                                              {e.full_name.charAt(0).toUpperCase()}
+                                            </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <i className="ri-user-forbid-line text-gray-300 text-sm"></i>
+                                  )}
+                                  <span className="text-xs text-gray-400 group-hover:text-[#FF6B35] transition-colors">
+                                    {entitled.length > 0
+                                      ? `${entitled.length} ${entitled.length === 1 ? 'person has' : 'people have'} access`
+                                      : 'No one has access yet'}
+                                  </span>
+                                  {pendingCount > 0 && (
+                                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+                                      {pendingCount} pending
+                                    </span>
+                                  )}
+                                </button>
                               </div>
 
                               {/* Actions */}
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <button
-                                  onClick={() => openManageAccess(cred)}
+                                  onClick={() => setManageCred(cred)}
                                   className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-[#FF6B35] hover:bg-[#FF6B35]/10 rounded-lg transition-colors cursor-pointer"
                                   title="Manage access"
                                 >
@@ -563,84 +603,6 @@ export default function CredentialsPanel() {
           </div>
         )}
 
-        {/* Access Requests Section — always visible */}
-        <div id="access-requests" className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100">
-            <i className="ri-key-line text-[#FF6B35]"></i>
-            <h2 className="text-sm font-semibold text-[#111827]">Access Requests</h2>
-            {pendingRequests.length > 0 && (
-              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                {pendingRequests.length} pending
-              </span>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i></div>
-          ) : requests.length === 0 ? (
-            <div className="py-8 text-center">
-              <i className="ri-key-line text-2xl text-gray-200 block mb-2"></i>
-              <p className="text-sm text-gray-400">No access requests yet.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {pendingRequests.map((req) => {
-                const user = req.hub_users;
-                const cred = req.hub_credentials;
-                return (
-                  <div key={req.id} className="px-5 py-4 flex items-center gap-3 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <div className="w-6 h-6 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
-                          <i className="ri-user-line text-[#FF6B35] text-xs"></i>
-                        </div>
-                        <span className="text-sm font-medium text-gray-800">{user?.full_name ?? 'Unknown'}</span>
-                        <span className="text-xs text-gray-400">wants access to</span>
-                        <span className="text-sm font-medium text-gray-800">{cred?.platform ?? '—'}</span>
-                        <span className="text-xs text-gray-400">({cred?.client_name ?? '—'})</span>
-                      </div>
-                      {req.reason && (
-                        <p className="text-xs text-gray-500 mt-1 ml-8">{req.reason}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => reviewRequest(req.id, 'approved')}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
-                      >
-                        <i className="ri-check-line"></i> Approve
-                      </button>
-                      <button
-                        onClick={() => reviewRequest(req.id, 'denied')}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
-                      >
-                        <i className="ri-close-line"></i> Deny
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {otherRequests.slice(0, 10).map((req) => {
-                const user = req.hub_users;
-                const cred = req.hub_credentials;
-                const isApproved = req.status === 'approved';
-                return (
-                  <div key={req.id} className="px-5 py-3 flex items-center gap-3 opacity-50">
-                    <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-gray-500">{user?.full_name ?? 'Unknown'}</span>
-                      <span className="text-xs text-gray-400">—</span>
-                      <span className="text-xs text-gray-500">{cred?.platform ?? '—'}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isApproved ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-                        {req.status}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Manage Access Modal */}
@@ -661,13 +623,37 @@ export default function CredentialsPanel() {
                 <i className="ri-close-line text-lg"></i>
               </button>
             </div>
+
+            {pendingRequestsFor(manageCred.id).length > 0 && (
+              <div className="border-b border-gray-100 bg-amber-50/50 divide-y divide-amber-100">
+                {pendingRequestsFor(manageCred.id).map((req) => (
+                  <div key={req.id} className="px-5 py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-800"><span className="font-medium">{req.hub_users?.full_name ?? 'Unknown'}</span> requested access</p>
+                      {req.reason && <p className="text-xs text-gray-500 mt-0.5">{req.reason}</p>}
+                    </div>
+                    <button
+                      onClick={() => reviewRequest(req.id, 'approved')}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
+                    >
+                      <i className="ri-check-line"></i> Approve
+                    </button>
+                    <button
+                      onClick={() => reviewRequest(req.id, 'denied')}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-600 border border-red-200 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                    >
+                      <i className="ri-close-line"></i> Deny
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="max-h-[420px] overflow-y-auto divide-y divide-gray-50">
-              {employees == null ? (
-                <div className="flex justify-center py-8"><i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i></div>
-              ) : employees.length === 0 ? (
+              {employees.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-8">No employees found.</p>
               ) : employees.map((emp) => {
-                const isAuto = autoAccessIds.has(emp.id);
+                const isAuto = autoAccessIdsFor(manageCred).has(emp.id);
                 const hasGrant = !!approvedRequestFor(manageCred.id, emp.id);
                 const busy = grantBusy.has(emp.id);
                 return (
