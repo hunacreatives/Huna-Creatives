@@ -169,7 +169,7 @@ export default function SettingsPage() {
               <h3 className="font-semibold text-[#111827]">System Info</h3>
               <div className="space-y-3">
                 {[
-                  { label: 'Platform', value: 'Huna Hub' },
+                  { label: 'Platform', value: 'Sentro OS' },
                   { label: 'Version', value: '1.0.0' },
                   { label: 'Agency', value: 'Huna Creatives' },
                   { label: 'Timezone', value: 'Asia/Manila (PHT)' },
