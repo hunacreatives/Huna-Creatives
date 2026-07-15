@@ -75,6 +75,7 @@ export default function CredentialsPanel() {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [requests, setRequests] = useState<CredentialRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editingCred, setEditingCred] = useState<Credential | null>(null);
@@ -97,13 +98,17 @@ export default function CredentialsPanel() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: creds }, { data: reqs }] = await Promise.all([
+    const [credsRes, reqsRes] = await Promise.all([
       supabase.from('hub_credentials').select('*').order('client_name').order('platform'),
       supabase
         .from('hub_credential_requests')
         .select('*, hub_users!contractor_id(full_name, avatar_url), hub_credentials!credential_id(platform, client_name)')
         .order('created_at', { ascending: false }),
     ]);
+    // A failed load must never masquerade as an empty vault.
+    setLoadError(credsRes.error?.message ?? reqsRes.error?.message ?? '');
+    const creds = credsRes.data;
+    const reqs = reqsRes.data;
     const credList = (creds as Credential[]) ?? [];
     setCredentials(credList);
     setRequests((reqs as CredentialRequest[]) ?? []);
@@ -317,6 +322,17 @@ export default function CredentialsPanel() {
         </div>
 
         {/* Credentials grouped by client */}
+        {loadError && (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-rose-700">
+              <i className="ri-error-warning-line mr-1.5"></i>
+              Couldn't load credentials: {loadError}
+            </p>
+            <button onClick={fetchData} className="text-xs font-semibold text-rose-700 border border-rose-200 rounded-lg px-3 py-1.5 hover:bg-rose-100 cursor-pointer whitespace-nowrap">
+              Retry
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="flex justify-center py-12">
             <i className="ri-loader-4-line animate-spin text-xl text-gray-400"></i>

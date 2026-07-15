@@ -90,6 +90,7 @@ export default function ContractorCredentialsPage() {
         .eq('assigned_contractor_id', hubUser.id),
     ]);
 
+    if (credsRes.error) showToast(`Couldn't load credentials: ${credsRes.error.message}`);
     const credList = (credsRes.data as CredentialCatalog[]) ?? [];
     const reqList = (reqsRes.data as MyRequest[]) ?? [];
     const autoClientNames = new Set<string>((clientsRes.data ?? []).map((c: any) => c.client_name));
