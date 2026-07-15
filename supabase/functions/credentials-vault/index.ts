@@ -89,11 +89,14 @@ Deno.serve(async (req) => {
       }
 
       // Employees may decrypt only credentials they're entitled to: on the
-      // active team for the credential's client (via hub_project_contractors
-      // — hub_client_assignments and hub_clients.assigned_contractor_id are
-      // one-time snapshots nothing keeps in sync, so they're not used here),
-      // minus an explicit per-credential revoke override, or holding an
-      // approved access request. Client-less credentials need a request.
+      // active retainer team for the credential's client (via
+      // hub_project_contractors — hub_client_assignments and
+      // hub_clients.assigned_contractor_id are one-time snapshots nothing
+      // keeps in sync, so they're not used here; one-off project_type
+      // 'client' projects don't count since their client_name is often just
+      // the individual commissioning that project), minus an explicit
+      // per-credential revoke override, or holding an approved access
+      // request. Client-less credentials need a request.
       if (!isPrivileged) {
         const [{ data: assignedClient }, { data: revokedOverride }, { data: approvedReq }] = await Promise.all([
           cred.client_name
@@ -101,6 +104,7 @@ Deno.serve(async (req) => {
                 .select('id, hub_project_contractors!inner(contractor_id)')
                 .ilike('client_name', cred.client_name)
                 .eq('hub_project_contractors.contractor_id', user.id)
+                .eq('project_type', 'retainer')
                 .is('archived_at', null)
                 .neq('status', 'cancelled')
                 .limit(1)

@@ -101,10 +101,13 @@ export default function ContractorCredentialsPage() {
       // active project team membership. hub_client_assignments and the legacy
       // hub_clients.assigned_contractor_id are one-time snapshots nothing
       // keeps in sync — being removed from a project's team never touches
-      // either, so they silently go stale.
+      // either, so they silently go stale. Only retainer projects count —
+      // a one-off project's client_name is often the individual commissioning
+      // it, not an ongoing client credentials are organized under.
       supabase.from('hub_projects')
         .select('client_name, hub_project_contractors!inner(contractor_id)')
         .eq('hub_project_contractors.contractor_id', hubUser.id)
+        .eq('project_type', 'retainer')
         .is('archived_at', null)
         .neq('status', 'cancelled'),
     ]);

@@ -144,9 +144,13 @@ export default function CredentialsPanel() {
       // project team membership. hub_client_assignments and the legacy
       // hub_clients.assigned_contractor_id are both one-time snapshots that
       // nothing keeps in sync — removing someone from a project's team
-      // never touches either, so they silently go stale.
+      // never touches either, so they silently go stale. Only retainer
+      // projects count as "clients" here — a one-off project's client_name
+      // is often just the individual commissioning it (e.g. "Jonathan
+      // Cruz"), not an ongoing client credentials should be organized under.
       supabase.from('hub_projects')
-        .select('client_name, status, archived_at, hub_project_contractors(contractor_id)')
+        .select('client_name, project_type, status, archived_at, hub_project_contractors(contractor_id)')
+        .eq('project_type', 'retainer')
         .is('archived_at', null)
         .neq('status', 'cancelled'),
     ]);
