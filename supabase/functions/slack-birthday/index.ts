@@ -148,7 +148,7 @@ async function updateMessage(ts: string, blocks: any[]) {
   const res = await fetch('https://slack.com/api/chat.update', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel: SLACK_CHANNEL, ts, text: 'Happy Birthday, Abigail! 🎈', blocks }),
+    body: JSON.stringify({ channel: SLACK_CHANNEL, ts, text: 'Happy Birthday, Abigail! 🎈', blocks , unfurl_links: false, unfurl_media: false }),
   });
   return res.json();
 }

@@ -19,7 +19,7 @@ async function slackDm(userId: string, text: string) {
   await fetch('https://slack.com/api/chat.postMessage', {
     method: 'POST',
     headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel, text }),
+    body: JSON.stringify({ channel, text , unfurl_links: false, unfurl_media: false }),
   });
 }
 

@@ -94,6 +94,8 @@ async function run(projectId: number, contractorId: string) {
   const dmResult = await slackPost('chat.postMessage', {
     channel: dmChannel,
     text: message,
+    unfurl_links: false,
+    unfurl_media: false,
     blocks: [
       {
         type: 'section',

@@ -23,6 +23,8 @@ async function postToSlack(channel: string, title: string, body: string, priorit
     headers: { 'Authorization': `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       channel,
+      unfurl_links: false,
+      unfurl_media: false,
       text: `${pEmoji} ${title}`,
       blocks: [
         { type: 'header', text: { type: 'plain_text', text: `${pEmoji} ${title}`, emoji: true } },

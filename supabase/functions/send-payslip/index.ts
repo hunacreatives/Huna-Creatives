@@ -243,7 +243,7 @@ async function sendPayslip(payout_id: string) {
         const res = await fetch(`https://slack.com/api/${path}`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify(path === 'chat.postMessage' ? { unfurl_links: false, unfurl_media: false, ...(body as Record<string, unknown>) } : body),
         });
         const json = await res.json();
         if (!res.ok || !json.ok) {

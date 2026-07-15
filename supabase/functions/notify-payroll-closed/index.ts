@@ -35,6 +35,8 @@ async function slackDm(userId: string, text: string) {
   await slackPost('chat.postMessage', {
     channel: opened.channel.id,
     text,
+    unfurl_links: false,
+    unfurl_media: false,
   });
 }
 

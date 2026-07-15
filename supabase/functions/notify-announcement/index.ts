@@ -49,7 +49,7 @@ async function postToSlack(channel: string, title: string, body: string, priorit
       'Authorization': `Bearer ${SLACK_BOT_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ channel, blocks, text: `${pEmoji} ${title}` }),
+    body: JSON.stringify({ channel, blocks, text: `${pEmoji} ${title}`, unfurl_links: false, unfurl_media: false }),
   });
 }
 

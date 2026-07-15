@@ -108,7 +108,7 @@ async function checkAndPost() {
     const res = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: { Authorization: `Bearer ${SLACK_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel: SLACK_CHANNEL, text: copy.headline, blocks }),
+      body: JSON.stringify({ channel: SLACK_CHANNEL, text: copy.headline, blocks , unfurl_links: false, unfurl_media: false }),
     });
 
     const result = await res.json();
