@@ -146,6 +146,14 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+    // Idempotence lives here (not in the frontend) so the close trigger, the
+    // manual "Save PDF to Drive" button, and retries can't double-upload.
+    const flagKey = `payroll_pdf_saved_${period_start}`;
+    const { data: flag } = await supabase.from('hub_settings').select('value').eq('key', flagKey).maybeSingle();
+    if (flag?.value === 'true') {
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: 'Report already saved for this period' }), { headers: cors });
+    }
+
     // The persisted payout rows are the source of truth for a closed period —
     // the admin UI's live table intentionally zeroes out hours already covered
     // by a paid payout, which is exactly the wrong data for an archive report.
@@ -249,6 +257,11 @@ Deno.serve(async (req) => {
     if (!uploadRes.ok || uploadResult?.error) {
       throw new Error(`Drive upload failed: ${JSON.stringify(uploadResult)}`);
     }
+
+    await supabase.from('hub_settings').upsert(
+      { key: flagKey, value: 'true', updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    );
 
     return new Response(JSON.stringify({ ok: true, filename, ...uploadResult }), { headers: cors });
   } catch (err) {

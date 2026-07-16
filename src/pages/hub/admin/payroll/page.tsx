@@ -123,6 +123,9 @@ export default function AdminPayrollPage() {
   const archivedPeriodsInMonth = periodsInMonth.filter(p => closedPeriods.has(p.start));
   const [selectedPeriod, setSelectedPeriod] = useState(defaultPeriod);
   const [openingNextPeriod, setOpeningNextPeriod] = useState(false);
+  // Which period is currently open for employees (the active_payroll_period
+  // setting) — used to hide "Open <next period>" once that period is open.
+  const [activePeriodStart, setActivePeriodStart] = useState('');
 
   const openNextPeriod = async () => {
     const idx = periods.findIndex(p => p.start === selectedPeriod.start);
@@ -130,6 +133,7 @@ export default function AdminPayrollPage() {
     const next = periods[idx + 1];
     setOpeningNextPeriod(true);
     await setSetting('active_payroll_period', next.start);
+    setActivePeriodStart(next.start);
     setSelectedYear(next.start.slice(0, 4));
     setSelectedMonth(next.start.slice(0, 7));
     setSelectedPeriod(next);
@@ -150,6 +154,7 @@ export default function AdminPayrollPage() {
     getSetting('usd_rate', '56').then(v => setUsdRate(parseFloat(v)));
     getSetting('active_payroll_period', '').then(v => {
       if (v) {
+        setActivePeriodStart(v);
         const found = periods.find(p => p.start === v);
         if (found) {
           setSelectedYear(found.start.slice(0, 4));
@@ -158,6 +163,7 @@ export default function AdminPayrollPage() {
         }
       } else {
         // First time — persist the current default so contractors see it too
+        setActivePeriodStart(defaultPeriod.start);
         setSetting('active_payroll_period', defaultPeriod.start).catch(console.error);
       }
     });
@@ -651,15 +657,15 @@ export default function AdminPayrollPage() {
     };
   }, [closedPeriods, isDemo, selectedPeriod.start]);
 
-  // Auto-save the closed period's report to Google Drive. Idempotent: the
-  // `payroll_pdf_saved_<period>` setting + stable filename guard against dupes.
-  // The report is built server-side from the period's persisted payout records
-  // and rendered with PDFShift — the live table intentionally zeroes out hours
-  // already covered by a paid payout, so UI state is the wrong data source.
+  // Save the period's report to Google Drive. The report is built server-side
+  // from the period's persisted payout records and rendered with PDFShift —
+  // the live table intentionally zeroes out hours already covered by a paid
+  // payout, so UI state is the wrong data source. Closing a period triggers
+  // the same edge function from a DB trigger on hub_payroll_batches, so this
+  // button is a manual retry; the function's own `payroll_pdf_saved_<period>`
+  // flag in hub_settings makes both paths idempotent.
   const savePayrollPdfToDrive = async (period: typeof selectedPeriod): Promise<boolean> => {
     if (isDemo) return false;
-    const already = await getSetting(`payroll_pdf_saved_${period.start}`, 'false');
-    if (already === 'true') return true;
     try {
       const { data, error } = await supabase.functions.invoke('save-payroll-report', {
         body: { period_start: period.start, period_end: period.end, period_label: period.label },
@@ -668,7 +674,6 @@ export default function AdminPayrollPage() {
         console.error('Payroll Drive upload failed:', error?.message || (data as any)?.error);
         return false;
       }
-      await setSetting(`payroll_pdf_saved_${period.start}`, 'true');
       setSavedPdfPeriods((prev) => new Set(prev).add(period.start));
       return true;
     } catch (e) {
@@ -711,13 +716,11 @@ export default function AdminPayrollPage() {
       }).catch((invokeError) => {
         console.error('Failed to queue payroll closed Slack notification:', invokeError);
       });
-      // Auto-save the landscape PDF report to Google Drive (guarded — no dupes).
-      const closedPeriod = selectedPeriod;
-      const saved = await savePayrollPdfToDrive(closedPeriod);
+      // The DB trigger on hub_payroll_batches fires save-payroll-report for
+      // this close — no browser-side save, so a dropped connection here can't
+      // lose the report. "Save PDF to Drive" remains as a manual retry.
       await fetchWorkflow();
-      alert(saved
-        ? `Payroll period closed. PDF report saved to Google Drive ✓`
-        : `Payroll period closed. (Drive PDF save failed — you can retry with "Save PDF to Drive".)`);
+      alert(`Payroll period closed. The PDF report is being saved to Google Drive automatically — it will appear in the Payroll folder within a minute.`);
     }
     setWorkflowLoading(false);
   };
@@ -1339,6 +1342,9 @@ export default function AdminPayrollPage() {
                   const idx = periods.findIndex(p => p.start === selectedPeriod.start);
                   const nextP = idx !== -1 && idx < periods.length - 1 ? periods[idx + 1] : null;
                   if (!nextP) return null;
+                  // Already open (or a later period is): offering to "open" it
+                  // again from an archived view would move payroll backwards.
+                  if (activePeriodStart && nextP.start <= activePeriodStart) return null;
                   return (
                     <span className="flex items-center gap-1.5">
                       <button
