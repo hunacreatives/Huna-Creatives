@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { hasPush } from '../_shared/push.ts';
+import { FRANCIS_SIG } from '../_shared/francisSig.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -239,7 +240,8 @@ function generatePayslipHTML(opts: {
   <!-- Signature block -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-bottom:32px;margin-top:16px;">
     <div>
-      <div style="border-top:1.5px solid #374151;padding-top:8px;margin-top:48px;">
+      <img src="${FRANCIS_SIG}" alt="Signature" style="height:44px;width:auto;max-width:170px;object-fit:contain;display:block;margin-bottom:4px;" />
+      <div style="border-top:1.5px solid #374151;padding-top:8px;">
         <div style="font-size:12px;font-weight:700;color:#111827;">Francis Fiel Roble</div>
         <div style="font-size:11px;color:#6b7280;">Owner, Huna Creatives</div>
         <div style="font-size:11px;color:#6b7280;">Date: ${generatedDate}</div>

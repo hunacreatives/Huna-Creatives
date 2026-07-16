@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { getPeriods, fmtTime, fmtDate, fmtPHP, localToday } from '@/lib/formatUtils';
 import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { FRANCIS_SIG } from '@/pages/hub/admin/documents/contractAssets';
 import { getSetting } from '@/lib/settings';
 
 interface DayRow {
@@ -206,7 +207,8 @@ function generatePayslipHTML(opts: {
   <!-- Signature block -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-bottom:32px;margin-top:16px;">
     <div>
-      <div style="border-top:1.5px solid #374151;padding-top:8px;margin-top:48px;">
+      <img src="${FRANCIS_SIG}" alt="Signature" style="height:44px;width:auto;max-width:170px;object-fit:contain;display:block;margin-bottom:4px;" />
+      <div style="border-top:1.5px solid #374151;padding-top:8px;">
         <div style="font-size:12px;font-weight:700;color:#111827;">Francis Fiel Roble</div>
         <div style="font-size:11px;color:#6b7280;">Owner, Huna Creatives</div>
         <div style="font-size:11px;color:#6b7280;">Date: ${generatedDate}</div>
