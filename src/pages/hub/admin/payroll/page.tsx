@@ -119,13 +119,18 @@ export default function AdminPayrollPage() {
   const [selectedMonth, setSelectedMonth] = useState(defaultPeriod.start.slice(0, 7));
 
   const periodsInMonth = periods.filter(p => p.start.startsWith(selectedMonth));
-  const openPeriodsInMonth = periodsInMonth.filter(p => !closedPeriods.has(p.start));
-  const archivedPeriodsInMonth = periodsInMonth.filter(p => closedPeriods.has(p.start));
   const [selectedPeriod, setSelectedPeriod] = useState(defaultPeriod);
   const [openingNextPeriod, setOpeningNextPeriod] = useState(false);
   // Which period is currently open for employees (the active_payroll_period
   // setting) — used to hide "Open <next period>" once that period is open.
   const [activePeriodStart, setActivePeriodStart] = useState('');
+  // A period is archived if its batch was formally closed, or if it predates
+  // the currently open period — old periods finished before the close
+  // workflow existed have no hub_payroll_batches row.
+  const isArchivedPeriod = (p: { start: string; end: string }) =>
+    closedPeriods.has(p.start) || (!!activePeriodStart && p.end < activePeriodStart);
+  const openPeriodsInMonth = periodsInMonth.filter(p => !isArchivedPeriod(p));
+  const archivedPeriodsInMonth = periodsInMonth.filter(p => isArchivedPeriod(p));
 
   const openNextPeriod = async () => {
     const idx = periods.findIndex(p => p.start === selectedPeriod.start);
