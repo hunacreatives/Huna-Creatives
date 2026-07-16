@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
-import html2canvas from 'html2canvas';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import InfoHint from '@/pages/hub/components/InfoHint';
 import Avatar from '@/pages/hub/components/Avatar';
@@ -94,73 +93,6 @@ function DailyBreakdownPanel({ days }: { days: DayHours[] }) {
   );
 }
 
-
-function uint8ToBase64(bytes: Uint8Array) {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
-function dataUrlToUint8Array(dataUrl: string) {
-  const base64 = dataUrl.split(',')[1] || '';
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-function concatUint8Arrays(parts: Uint8Array[]) {
-  const total = parts.reduce((sum, part) => sum + part.length, 0);
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const part of parts) {
-    out.set(part, offset);
-    offset += part.length;
-  }
-  return out;
-}
-
-function buildPdfFromJpeg(jpegBytes: Uint8Array, imageWidth: number, imageHeight: number, landscape = false) {
-  const encoder = new TextEncoder();
-  // US Letter: 612×792 portrait, swapped for landscape.
-  const pageWidth = landscape ? 792 : 612;
-  const pageHeight = landscape ? 612 : 792;
-  const margin = 36;
-  const maxWidth = pageWidth - margin * 2;
-  const maxHeight = pageHeight - margin * 2;
-  const scale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight);
-  const drawWidth = imageWidth * scale;
-  const drawHeight = imageHeight * scale;
-  const x = (pageWidth - drawWidth) / 2;
-  const y = pageHeight - margin - drawHeight;
-  const content = `q\n${drawWidth.toFixed(2)} 0 0 ${drawHeight.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm\n/Im0 Do\nQ`;
-
-  const objects: Uint8Array[] = [
-    encoder.encode('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'),
-    encoder.encode('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n'),
-    encoder.encode(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`),
-    concatUint8Arrays([
-      encoder.encode(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${Math.round(imageWidth)} /Height ${Math.round(imageHeight)} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`),
-      jpegBytes,
-      encoder.encode('\nendstream\nendobj\n'),
-    ]),
-    encoder.encode(`5 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`),
-  ];
-
-  const header = encoder.encode('%PDF-1.4\n%FFFF\n');
-  let offset = header.length;
-  const offsets = [0];
-  for (const object of objects) {
-    offsets.push(offset);
-    offset += object.length;
-  }
-  const xrefOffset = offset;
-  const xref = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map((entry) => `${String(entry).padStart(10, '0')} 00000 n `).join('\n')}\ntrailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return concatUint8Arrays([header, ...objects, encoder.encode(xref)]);
-}
 
 export default function AdminPayrollPage() {
   const { hubUser } = useAuth();
@@ -719,128 +651,18 @@ export default function AdminPayrollPage() {
     };
   }, [closedPeriods, isDemo, selectedPeriod.start]);
 
-  const buildPayrollReportMarkup = (label: string, generatedLabel: string) => {
-    const logoUrl = `${window.location.origin}/images/547b59870e776a20eb28e4f20931787c.png`;
-    const hourlyRows = rows.filter(r => r.contractor.payment_type === 'hourly').length;
-    const fixedRows = rows.length - hourlyRows;
-    const tableRows = rows.map(r => {
-      const c = r.contractor;
-      const isFixed = c.payment_type === 'fixed' || c.payment_type === 'fixed_flexible';
-      const isUSD = c.currency === 'USD';
-      const rate = isFixed
-        ? isUSD ? `$${(c.monthly_rate || 0).toLocaleString()}/mo` : `PHP ${(c.monthly_rate || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}/mo`
-        : isUSD ? `$${c.hourly_rate}/hr` : `PHP ${(c.hourly_rate || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}/hr`;
-      const override = rowOverrides[c.id];
-      const basePay = override?.pay !== undefined ? override.pay : r.pay;
-      const displayOTHours = override?.otHours !== undefined ? override.otHours : r.overtimeHours;
-      const displayOTPay = override?.otHours !== undefined && override?.otRate !== undefined ? override.otHours * override.otRate : r.overtimePay;
-      const p = payoutsMap[c.id];
-      const adjs: { amount: number }[] = p?.adjustments || [];
-      const adjTotal = adjs.reduce((sum, item) => sum + item.amount, 0);
-      const total = getRowDisplayTotal(r);
-      return `
-        <tr>
-          <td>${c.full_name}</td>
-          <td>${c.department || '—'}</td>
-          <td>${isFixed ? 'Fixed' : 'Hourly'}</td>
-          <td>${rate}</td>
-          <td>${r.days}</td>
-          <td>${r.cappedHours.toFixed(2)}h</td>
-          <td>${displayOTHours > 0 ? `${displayOTHours.toFixed(2)}h` : '—'}</td>
-          <td style="text-align:right;font-weight:700">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        </tr>
-      `;
-    }).join('');
-
-    return `
-      <div style="width:1080px;background:#ffffff;color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:40px 44px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #FF6B35;padding-bottom:20px;margin-bottom:28px;">
-          <div style="display:flex;align-items:center;gap:14px;">
-            <img src="${logoUrl}" alt="Huna Creatives" style="height:46px;object-fit:contain;" />
-            <div>
-              <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#9ca3af;font-weight:700;">Huna Creatives</div>
-              <div style="font-size:24px;font-weight:800;color:#111827;margin-top:2px;">Payroll Report</div>
-            </div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:16px;font-weight:700;">${label}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:4px;">${generatedLabel}</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px;">
-          ${[
-            { label: 'Total Payroll', value: fmt(displayTotalPay, 'PHP') },
-            { label: 'Total Hours', value: `${totalHours.toFixed(2)}h` },
-            { label: 'Employees', value: `${rows.length}` },
-            { label: 'Hourly / Fixed', value: `${hourlyRows} / ${fixedRows}` },
-          ].map((item) => `
-            <div style="border:1px solid #e5e7eb;border-radius:16px;background:#f9fafb;padding:14px 16px;">
-              <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#9ca3af;font-weight:700;">${item.label}</div>
-              <div style="font-size:20px;font-weight:800;color:${item.label === 'Total Payroll' ? '#FF6B35' : '#111827'};margin-top:6px;">${item.value}</div>
-            </div>
-          `).join('')}
-        </div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead>
-            <tr>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Employee</th>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Department</th>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Type</th>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Rate</th>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Days</th>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Billed Hours</th>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Overtime</th>
-              <th style="background:#111827;color:#ffffff;padding:11px 12px;text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Pay</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableRows}
-            <tr>
-              <td colspan="7" style="padding:12px;border-top:2px solid #111827;font-weight:800;font-size:14px;">Total</td>
-              <td style="padding:12px;border-top:2px solid #111827;text-align:right;font-weight:800;font-size:14px;">${fmt(displayTotalPay, 'PHP')}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-  };
-
-  // Render the formatted payroll report to landscape PDF bytes (shared by the
-  // on-close Drive auto-save and the manual hub download).
-  const generatePayrollPdfBytes = async (label: string, generatedLabel: string) => {
-    const markup = buildPayrollReportMarkup(label, generatedLabel);
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '-10000px';
-    container.style.top = '0';
-    container.style.zIndex = '-1';
-    container.innerHTML = markup;
-    document.body.appendChild(container);
-    try {
-      const target = container.firstElementChild as HTMLElement | null;
-      if (!target) throw new Error('Could not render payroll report for PDF export.');
-      const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 2, useCORS: true });
-      const jpegBytes = dataUrlToUint8Array(canvas.toDataURL('image/jpeg', 0.92));
-      return buildPdfFromJpeg(jpegBytes, canvas.width, canvas.height, true);
-    } finally {
-      document.body.removeChild(container);
-    }
-  };
-
   // Auto-save the closed period's report to Google Drive. Idempotent: the
   // `payroll_pdf_saved_<period>` setting + stable filename guard against dupes.
+  // The report is built server-side from the period's persisted payout records
+  // and rendered with PDFShift — the live table intentionally zeroes out hours
+  // already covered by a paid payout, so UI state is the wrong data source.
   const savePayrollPdfToDrive = async (period: typeof selectedPeriod): Promise<boolean> => {
     if (isDemo) return false;
     const already = await getSetting(`payroll_pdf_saved_${period.start}`, 'false');
     if (already === 'true') return true;
     try {
-      const year = period.start.slice(0, 4);
-      const generatedLabel = `Closed ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
-      const pdfBytes = await generatePayrollPdfBytes(period.label, generatedLabel);
-      const b64 = uint8ToBase64(pdfBytes);
-      const safeName = period.label.replace(/[^a-zA-Z0-9\s]/g, '_').replace(/\s+/g, '_');
-      const { data, error } = await supabase.functions.invoke('upload-to-drive', {
-        body: { type: 'payroll', year, filename: `Payroll_${safeName}.pdf`, base64Content: b64, mimeType: 'application/pdf', meta: { year } },
+      const { data, error } = await supabase.functions.invoke('save-payroll-report', {
+        body: { period_start: period.start, period_end: period.end, period_label: period.label },
       });
       if (error || (data as any)?.error) {
         console.error('Payroll Drive upload failed:', error?.message || (data as any)?.error);
