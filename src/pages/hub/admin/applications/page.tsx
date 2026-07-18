@@ -56,6 +56,10 @@ export default function ApplicationsPage() {
   const [newNote, setNewNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [savedNoteId, setSavedNoteId] = useState<number | null>(null);
+  const [showInterviewForm, setShowInterviewForm] = useState(false);
+  const [interviewDate, setInterviewDate] = useState('');
+  const [interviewTime, setInterviewTime] = useState('');
+  const [interviewLink, setInterviewLink] = useState('');
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -82,8 +86,12 @@ export default function ApplicationsPage() {
     shortlisted: applications.filter((app) => app.status === 'shortlisted').length,
   }), [applications]);
 
-  const updateApplication = async (status: ApplicationStatus) => {
+  const updateApplication = async (
+    status: ApplicationStatus,
+    interview?: { date: string; time: string; link: string }
+  ) => {
     if (!selected) return;
+    const prevStatus = selected.status;
     setUpdating(true);
     await supabase
       .from('hub_job_applications')
@@ -96,8 +104,32 @@ export default function ApplicationsPage() {
       })
       .eq('id', selected.id);
 
+    if ((status === 'reviewing' || status === 'archived') && status !== prevStatus) {
+      supabase.functions.invoke('notify-applicant-status', {
+        body: { to_email: selected.email, to_name: selected.name, role: selected.role, status },
+      }).catch(console.error);
+    }
+
+    if (status === 'shortlisted' && status !== prevStatus && interview) {
+      supabase.functions.invoke('notify-applicant-status', {
+        body: {
+          to_email: selected.email,
+          to_name: selected.name,
+          role: selected.role,
+          status,
+          interview_date: interview.date,
+          interview_time: interview.time,
+          interview_link: interview.link.trim() || undefined,
+        },
+      }).catch(console.error);
+    }
+
     setUpdating(false);
     setSelected(null);
+    setShowInterviewForm(false);
+    setInterviewDate('');
+    setInterviewTime('');
+    setInterviewLink('');
     fetchApplications();
   };
 
@@ -208,6 +240,10 @@ export default function ApplicationsPage() {
                 setAdminNotes(app.admin_notes || '');
                 setNewNote('');
                 setConfirmDelete(false);
+                setShowInterviewForm(false);
+                setInterviewDate('');
+                setInterviewTime('');
+                setInterviewLink('');
                 fetchNotes(app.id);
               }}
               className="w-full bg-white border border-gray-100 rounded-2xl p-4 text-left hover:border-gray-200 transition-colors cursor-pointer"
@@ -389,7 +425,13 @@ export default function ApplicationsPage() {
                 {statusOrder.map((status) => (
                   <button
                     key={status}
-                    onClick={() => updateApplication(status)}
+                    onClick={() => {
+                      if (status === 'shortlisted' && selected.status !== 'shortlisted') {
+                        setShowInterviewForm(true);
+                        return;
+                      }
+                      updateApplication(status);
+                    }}
                     disabled={updating || selected.status === status}
                     className={`flex-1 py-2 text-xs rounded-lg transition-colors cursor-pointer whitespace-nowrap capitalize disabled:opacity-40 ${
                       status === 'shortlisted'
@@ -405,6 +447,58 @@ export default function ApplicationsPage() {
                   </button>
                 ))}
               </div>
+
+              {showInterviewForm && (
+                <div className="border border-emerald-100 bg-emerald-50 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-emerald-700">Schedule interview & notify candidate</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-gray-500">Date</label>
+                      <input
+                        type="date"
+                        value={interviewDate}
+                        onChange={(e) => setInterviewDate(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-gray-500">Time</label>
+                      <input
+                        type="time"
+                        value={interviewTime}
+                        onChange={(e) => setInterviewTime(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500">Call link or location (optional)</label>
+                    <input
+                      type="text"
+                      value={interviewLink}
+                      onChange={(e) => setInterviewLink(e.target.value)}
+                      placeholder="Google Meet link, address, etc."
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowInterviewForm(false)}
+                      className="flex-1 py-2 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => updateApplication('shortlisted', { date: interviewDate, time: interviewTime, link: interviewLink })}
+                      disabled={updating || !interviewDate || !interviewTime}
+                      className="flex-1 py-2 text-xs bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-40 cursor-pointer"
+                    >
+                      {updating ? 'Sending...' : 'Confirm & Send'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {!confirmDelete ? (
                 <button
                   onClick={() => setConfirmDelete(true)}
