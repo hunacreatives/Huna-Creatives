@@ -1,5 +1,8 @@
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN')!;
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const NOTIFY_USERS = ['U091BL9PQ77', 'U0838LWSY4E']; // Abigail, Francis
+const NOTIFY_EMAILS = ['duterteabigaile@gmail.com', 'francisfielroble@gmail.com']; // Abigail, Francis
+const FROM_EMAIL = 'Sentro OS <noreply@hunacreatives.com>';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -16,6 +19,32 @@ async function slackPost(path: string, body: object) {
     body: JSON.stringify(path === 'chat.postMessage' ? { unfurl_links: false, unfurl_media: false, ...(body as Record<string, unknown>) } : body),
   });
   return res.json();
+}
+
+async function sendOvertimeSubmittedEmail(contractor_name: string, detail: string, notes: string | null, url: string) {
+  if (!RESEND_API_KEY) return;
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: NOTIFY_EMAILS,
+      subject: `Overtime Request: ${contractor_name}`,
+      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;padding:32px;margin:0">
+<div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+  <div style="background:#111827;padding:20px 24px"><span style="color:#fff;font-weight:700;font-size:14px;letter-spacing:0.05em">SENTRO <span style="color:#FF6B35">OS</span></span></div>
+  <div style="padding:24px">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#111827">⏰ New Overtime Request</h2>
+    <p style="color:#4b5563;font-size:14px;margin:0 0 16px"><strong>${contractor_name}</strong> submitted an overtime request.</p>
+    <div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px">
+      <p style="margin:0;font-size:13px;color:#111827;font-weight:600">${detail}</p>
+      ${notes ? `<p style="margin:8px 0 0;font-size:13px;color:#6b7280">${notes}</p>` : ''}
+    </div>
+    <a href="${url}" style="display:inline-block;background:#FF6B35;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">Review Request →</a>
+  </div>
+</div></body></html>`,
+    }),
+  }).catch(() => {});
 }
 
 async function pushToHubAdmins(title: string, body: string, url: string) {
@@ -90,6 +119,10 @@ Deno.serve(async (req) => {
     }));
 
     await pushToHubAdmins(pushTitle, pushBody, url);
+
+    if (type === 'overtime') {
+      await sendOvertimeSubmittedEmail(contractor_name, detail, notes, url);
+    }
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {

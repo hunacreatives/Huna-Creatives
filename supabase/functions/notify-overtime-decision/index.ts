@@ -4,7 +4,33 @@ import { hasPush } from '../_shared/push.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const NOTIFY_EMAILS = ['duterteabigaile@gmail.com', 'francisfielroble@gmail.com']; // Abigail, Francis
+const FROM_EMAIL = 'Sentro OS <noreply@hunacreatives.com>';
 const OT_URL = 'https://www.hunacreatives.com/hub/contractor/overtime';
+const ADMIN_OT_URL = 'https://www.hunacreatives.com/hub/admin/attendance';
+
+async function sendOvertimeApprovedEmail(contractor_name: string, hours: number, dateLabel: string) {
+  if (!RESEND_API_KEY) return;
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: NOTIFY_EMAILS,
+      subject: `Overtime Approved: ${contractor_name}`,
+      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;padding:32px;margin:0">
+<div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+  <div style="background:#111827;padding:20px 24px"><span style="color:#fff;font-weight:700;font-size:14px;letter-spacing:0.05em">SENTRO <span style="color:#FF6B35">OS</span></span></div>
+  <div style="padding:24px">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#111827">✅ Overtime Approved</h2>
+    <p style="color:#4b5563;font-size:14px;margin:0 0 16px"><strong>${contractor_name}</strong>'s ${hours}h overtime request for ${dateLabel} was approved and will be reflected in payroll.</p>
+    <a href="${ADMIN_OT_URL}" style="display:inline-block;background:#FF6B35;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">View Attendance →</a>
+  </div>
+</div></body></html>`,
+    }),
+  }).catch(() => {});
+}
 
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
@@ -37,7 +63,7 @@ Deno.serve(async (req) => {
 
     const { data: user } = await supabase
       .from('hub_users')
-      .select('slack_id')
+      .select('slack_id, full_name')
       .eq('id', contractor_id)
       .single();
 
@@ -91,6 +117,10 @@ Deno.serve(async (req) => {
     }
 
     await sendPush(contractor_id, notifTitle, notifBody, OT_URL);
+
+    if (approved) {
+      await sendOvertimeApprovedEmail(user?.full_name || 'A contractor', hours, dateLabel);
+    }
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {

@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
     }
 
     // Background: Drive upload + update record + notify — does not block the response
-    (async () => {
+    EdgeRuntime.waitUntil((async () => {
       try {
         if (resume_base64 && resume_filename && inserted?.id) {
           const driveUpload = await uploadResumeToDrive(resume_filename, resume_mime, resume_base64);
@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
         }
       } catch (_) { /* Drive upload failure is non-fatal */ }
       await notifyAdmins(supabase, name.trim(), role.trim()).catch(() => {});
-    })();
+    })());
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
