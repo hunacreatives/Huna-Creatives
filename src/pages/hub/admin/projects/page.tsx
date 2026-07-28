@@ -1581,20 +1581,15 @@ export default function AdminProjectsPage() {
         const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(wsToday + 'T00:00:00').getTime()) / 86400000) : null;
         const isDeadlineOver = daysLeft !== null && daysLeft < 0 && p.status !== 'completed';
         const d = derived(p);
-        // Color palette matching task list border colors
-        const ADMIN_PALETTE = [
-          { bar: '#ddd6fe', barText: '#4c1d95' },
-          { bar: '#bae6fd', barText: '#0c4a6e' },
-          { bar: '#a7f3d0', barText: '#064e3b' },
-          { bar: '#fde68a', barText: '#78350f' },
-          { bar: '#fbcfe8', barText: '#831843' },
-          { bar: '#fed7aa', barText: '#7c2d12' },
-          { bar: '#99f6e4', barText: '#134e4a' },
-          { bar: '#c7d2fe', barText: '#312e81' },
-          { bar: '#fecdd3', barText: '#881337' },
-          { bar: '#d9f99d', barText: '#365314' },
-        ];
-        const taskColorMap = Object.fromEntries(tasks.map((t, i) => [t.id, ADMIN_PALETTE[i % ADMIN_PALETTE.length]]));
+        // Uncolored tasks fall back to their priority tint so the calendar matches
+        // the task cards (rose = high, amber = medium, gray = low) instead of an
+        // index-based palette that shifts as tasks are added or reordered.
+        const PRIORITY_TINT = {
+          high: { bar: '#ffe4e6', barText: '#be123c' },
+          medium: { bar: '#fef3c7', barText: '#b45309' },
+          low: { bar: '#f3f4f6', barText: '#6b7280' },
+        } as const;
+        const taskColorMap = Object.fromEntries(tasks.map(t => [t.id, PRIORITY_TINT[t.priority] ?? PRIORITY_TINT.low]));
 
         // Map tasks for GanttTimeline (admin tasks have assignee_id, no start_date — compatible via any cast)
         const ganttTasks = wsActiveTasks.map(t => ({

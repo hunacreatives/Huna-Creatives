@@ -6,8 +6,11 @@ import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds, normalizeChecklistItems, normalizeTaskAssigneePayload, sameAssigneeIds } from '@/lib/taskAssignments';
 import { useDemo } from '@/contexts/DemoContext';
 import Avatar from '@/pages/hub/components/Avatar';
+import CommentEditor, { type CommentEditorHandle } from '@/pages/hub/components/CommentEditor';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '😮', '🔥', '👀', '✅', '🙏', '👏', '💯', '😢'];
 
 const LINK_STYLE = 'color:#1d4ed8;text-decoration:underline';
 const LINK_ATTRS = `target="_blank" rel="noopener noreferrer" style="${LINK_STYLE}"`;
@@ -23,6 +26,23 @@ function autoLinkUrls(text: string): string {
   );
 }
 
+function commentEditableToBody(html: string): string {
+  return html
+    .replace(/&nbsp;/g, ' ')
+    .replace(/<\/(div|p)>/gi, '\n')
+    .replace(/<(div|p)[^>]*>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Stored bodies are newline-delimited text (possibly with inline tags); Tiptap
+// needs paragraph-wrapped HTML to seed the edit-in-place editor.
+function bodyToEditorHTML(body: string): string {
+  const normalized = /<\/?(div|p)[^>]*>/i.test(body) ? commentEditableToBody(body) : body;
+  return `<p>${normalized.replace(/\n/g, '<br>')}</p>`;
+}
+
 function sanitizeHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -31,10 +51,13 @@ function sanitizeHtml(html: string): string {
     .replace(/(href|src|action)\s*=\s*(?:"(?:javascript|data):[^"]*"|'(?:javascript|data):[^']*'|(?:javascript|data):\S*)/gi, '$1="#"');
 }
 
-function renderCommentBody(body: string): { html: string; isHtml: boolean } {
+function renderCommentBody(rawBody: string): { html: string; isHtml: boolean } {
+  // Older comments may have stray <div>/<p> wrappers left over from a contentEditable
+  // save-path bug; normalize those to real newlines before deciding how to render.
+  const body = /<\/?(div|p)[^>]*>/i.test(rawBody) ? commentEditableToBody(rawBody) : rawBody;
   const hasHtml = /<[a-z][\s\S]*?>/i.test(body);
   if (hasHtml) {
-    const safe = sanitizeHtml(body);
+    const safe = sanitizeHtml(body).replace(/\n/g, '<br/>');
     return {
       html: autoLinkUrls(safe).replace(/(@[\w]+)/g, '<span style="color:#FF6B35;font-weight:500">$1</span>'),
       isHtml: true,
@@ -111,6 +134,7 @@ interface Comment {
   attachment_mime: string | null;
   attachments: CommentAttachment[] | null;
   reactions: Record<string, string[]>;
+  seen_by: string[];
 }
 
 interface CommentAttachment {
@@ -369,10 +393,10 @@ export default function TaskDetailPanel({
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
   const [commentPreview, setCommentPreview] = useState<{ url: string; name: string; mime: string | null } | null>(null);
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
-  const [mentionOpen, setMentionOpen] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
-  const [mentionStart, setMentionStart] = useState(0);
-  const commentRef = useRef<HTMLDivElement>(null);
+  const commentEditorRef = useRef<CommentEditorHandle>(null);
+  const editEditorRef = useRef<CommentEditorHandle>(null);
+  const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
+  const [showActivity, setShowActivity] = useState(false);
   const descRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // Task currently shown in the panel — a fetch response for any other task
@@ -485,6 +509,7 @@ export default function TaskDetailPanel({
           return [...prev, {
             ...row,
             reactions: row.reactions ?? {},
+            seen_by: row.seen_by ?? [],
             hub_users: teamMembers.find(m => m.id === row.user_id)
               ? { full_name: teamMembers.find(m => m.id === row.user_id)!.full_name, avatar_url: teamMembers.find(m => m.id === row.user_id)!.avatar_url ?? null }
               : null,
@@ -499,6 +524,31 @@ export default function TaskDetailPanel({
     if (!open || !editing || !descRef.current) return;
     descRef.current.innerHTML = description || '';
   }, [editing, open, task?.id]);
+
+  // Read receipts: viewing the panel marks others' comments as seen by you.
+  const markingSeenRef = useRef(false);
+  useEffect(() => {
+    if (!open || isDemo || !currentUserId) return;
+    const unseen = comments.filter(c => c.user_id !== currentUserId && !(c.seen_by ?? []).includes(currentUserId));
+    if (unseen.length === 0 || markingSeenRef.current) return;
+    markingSeenRef.current = true;
+    (async () => {
+      try {
+        await Promise.all(unseen.map(c =>
+          supabase.from('hub_project_task_comments')
+            .update({ seen_by: [...(c.seen_by ?? []), currentUserId] })
+            .eq('id', c.id)
+        ));
+        setComments(prev => prev.map(c =>
+          c.user_id !== currentUserId && !(c.seen_by ?? []).includes(currentUserId)
+            ? { ...c, seen_by: [...(c.seen_by ?? []), currentUserId] }
+            : c
+        ));
+      } finally {
+        markingSeenRef.current = false;
+      }
+    })();
+  }, [open, comments, currentUserId, isDemo]);
 
   const resetDescriptionEditor = useCallback(() => {
     const originalDescription = task?.description ?? '';
@@ -534,7 +584,7 @@ export default function TaskDetailPanel({
         .eq('id', taskId)
         .single(),
       supabase.from('hub_project_task_comments')
-        .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime, attachments, reactions')
+        .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime, attachments, reactions, seen_by')
         .eq('task_id', taskId).order('created_at', { ascending: true }),
       supabase.from('hub_project_task_attachments')
         .select('*').eq('task_id', taskId).order('created_at', { ascending: false }),
@@ -566,7 +616,7 @@ export default function TaskDetailPanel({
       // Build user map from teamMembers (already loaded, no RLS issues for contractors)
       const userMap: Record<string, { full_name: string; avatar_url: string | null }> = {};
       for (const m of teamMembers) userMap[m.id] = { full_name: m.full_name, avatar_url: m.avatar_url ?? null };
-      setComments(commRes.data.map((c: any) => ({ ...c, reactions: c.reactions ?? {}, hub_users: userMap[c.user_id] ?? null })));
+      setComments(commRes.data.map((c: any) => ({ ...c, reactions: c.reactions ?? {}, seen_by: c.seen_by ?? [], hub_users: userMap[c.user_id] ?? null })));
     }
     if (attRes.data)  setAttachments(attRes.data);
     if (actRes.data)  setActivity(actRes.data);
@@ -856,8 +906,9 @@ export default function TaskDetailPanel({
   // ── Comments ───────────────────────────────────────────────────────────────
 
   const postComment = async () => {
-    const body = commentRef.current?.innerHTML?.trim() || newComment.trim();
-    if (((!body || body === '<br>') && commentFiles.length === 0) || !task) return;
+    const editor = commentEditorRef.current;
+    const body = editor && !editor.isEmpty() ? commentEditableToBody(editor.getHTML()) : '';
+    if ((!body && commentFiles.length === 0) || !task) return;
     setPosting(true);
     setCommentFileError(null);
 
@@ -866,10 +917,10 @@ export default function TaskDetailPanel({
         id: Date.now(), user_id: currentUserId, body, created_at: new Date().toISOString(),
         author_name: currentUserName, author_avatar_url: currentUserAvatarUrl ?? null,
         attachment_url: null, attachment_name: null, attachment_size: null, attachment_mime: null, attachments: null,
-        reactions: {}, hub_users: { full_name: currentUserName, avatar_url: currentUserAvatarUrl ?? null },
+        reactions: {}, seen_by: [], hub_users: { full_name: currentUserName, avatar_url: currentUserAvatarUrl ?? null },
       } as Comment]);
       setNewComment('');
-      if (commentRef.current) commentRef.current.innerHTML = '';
+      editor?.clear();
       setPosting(false);
       return;
     }
@@ -906,7 +957,7 @@ export default function TaskDetailPanel({
       .insert({
         task_id: task.id,
         user_id: currentUserId,
-        body: (commentRef.current?.innerHTML?.trim() || newComment).replace(/&nbsp;/g, ' ').replace(/<br\s*\/?>/gi,'\n').trim(),
+        body,
         author_name: currentUserName,
         author_avatar_url: currentUserAvatarUrl ?? null,
         attachment_url: first?.url ?? null,
@@ -915,11 +966,11 @@ export default function TaskDetailPanel({
         attachment_mime: first?.mime ?? null,
         attachments: uploaded.length > 0 ? uploaded : null,
       })
-      .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime, attachments')
+      .select('id, user_id, body, created_at, author_name, author_avatar_url, attachment_url, attachment_name, attachment_size, attachment_mime, attachments, seen_by')
       .single();
     if (data) {
       const { data: commenter } = await supabase.from('hub_users').select('full_name, avatar_url').eq('id', currentUserId).single();
-      const norm = { ...data, reactions: {}, hub_users: commenter ? { full_name: commenter.full_name, avatar_url: commenter.avatar_url ?? null } : { full_name: currentUserName, avatar_url: null } };
+      const norm = { ...data, reactions: {}, seen_by: (data as any).seen_by ?? [], hub_users: commenter ? { full_name: commenter.full_name, avatar_url: commenter.avatar_url ?? null } : { full_name: currentUserName, avatar_url: null } };
       setComments(prev => [...prev, norm]);
       await logActivity(task.id, 'comment_added', 'added a comment');
       // Notify all assignees + admins about the comment
@@ -944,13 +995,23 @@ export default function TaskDetailPanel({
     setNewComment('');
     setCommentFiles([]);
     if (commentFileRef.current) commentFileRef.current.value = '';
-    if (commentRef.current) commentRef.current.innerHTML = '';
+    editor?.clear();
     setPosting(false);
   };
 
   const driveFileIdFromUrl = (url: string): string | null => {
     const m = url.match(/\/file\/d\/([^/]+)/);
     return m ? m[1] : null;
+  };
+
+  const saveEditedComment = async (commentId: number) => {
+    const editor = editEditorRef.current;
+    if (!editor || editor.isEmpty()) return;
+    const body = commentEditableToBody(editor.getHTML());
+    setComments(prev => prev.map(x => x.id === commentId ? { ...x, body } : x));
+    setEditingCommentId(null);
+    if (isDemo) return;
+    await supabase.from('hub_project_task_comments').update({ body }).eq('id', commentId);
   };
 
   const deleteComment = async (commentId: number) => {
@@ -980,58 +1041,6 @@ export default function TaskDetailPanel({
     if (isDemo) return;
     await supabase.from('hub_project_task_comments').update({ reactions: newReactions }).eq('id', commentId);
   };
-
-  // @mention handling
-  const handleCommentInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setNewComment(val);
-    const cursor = e.target.selectionStart;
-    const before = val.slice(0, cursor);
-    const atIdx = before.lastIndexOf('@');
-    if (atIdx >= 0 && !before.slice(atIdx).includes(' ')) {
-      setMentionQuery(before.slice(atIdx + 1).toLowerCase());
-      setMentionStart(atIdx);
-      setMentionOpen(true);
-    } else {
-      setMentionOpen(false);
-    }
-  };
-
-  const insertMention = (member: TeamMember) => {
-    const div = commentRef.current;
-    if (!div) { setMentionOpen(false); return; }
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      // Go back to find the @ character and replace query with mention
-      const node = range.startContainer;
-      const offset = range.startOffset;
-      if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent ?? '';
-        const atIdx = text.lastIndexOf('@', offset - 1);
-        if (atIdx >= 0) {
-          const newRange = document.createRange();
-          newRange.setStart(node, atIdx);
-          newRange.setEnd(node, offset);
-          newRange.deleteContents();
-          const mention = document.createTextNode(`@${member.full_name.split(' ')[0]} `);
-          newRange.insertNode(mention);
-          const after = document.createRange();
-          after.setStartAfter(mention);
-          after.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(after);
-        }
-      }
-    }
-    setNewComment(div.innerText);
-    setMentionOpen(false);
-    div.focus();
-  };
-
-  const mentionMatches = teamMembers.filter(m =>
-    m.full_name.toLowerCase().includes(mentionQuery) && m.id !== currentUserId
-  );
 
   // ── Attachments ────────────────────────────────────────────────────────────
 
@@ -1096,50 +1105,20 @@ export default function TaskDetailPanel({
       />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-[520px] bg-white z-50 flex flex-col shadow-2xl overflow-x-hidden">
+      <div className="fixed right-0 top-0 h-full w-full max-w-[680px] bg-white z-50 flex flex-col shadow-2xl overflow-x-hidden">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="px-5 pt-4 pb-3 flex-shrink-0" style={{ background: taskColor || '#111827' }}>
-          <div className="flex items-start gap-3">
-            <div className="flex-1 min-w-0">
-              {editing ? (
-                <input
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="Task title"
-                  className="w-full bg-white/10 text-white placeholder-white/30 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/30"
-                  autoFocus={isNew}
-                />
-              ) : (
-                <h2 className="text-white font-bold text-[15px] leading-snug">{title}</h2>
-              )}
-              {/* Meta row — status · priority · creator */}
-              <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold ${sc.bg} ${sc.text}`}>
-                  <i className={`${sc.icon} text-[10px]`}></i>{sc.label}
-                </span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${pc.cls}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${pc.dot}`}></span>{pc.label}
-                </span>
-                {!isNew && (() => {
-                  const creator = activity.find(a => a.type === 'created');
-                  return creator ? (
-                    <>
-                      <span className="text-white/20 text-xs">·</span>
-                      <span className="text-white/50 text-[11px]">by {creator.actor_name.split(' ')[0]}</span>
-                    </>
-                  ) : null;
-                })()}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+        {taskColor && <div className="h-1 flex-shrink-0" style={{ background: taskColor }} />}
+        <div className="px-8 pt-4 pb-2 flex-shrink-0 bg-white">
+          {/* Toolbar row — quiet ghost buttons, right-aligned */}
+          <div className="flex items-center justify-end gap-1 mb-1 -mr-2">
               {/* Color picker */}
               {(canEdit || isNew) && (
                 <div className="relative">
                   <button onClick={() => setShowColorPicker(p => !p)}
-                    className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                     title="Pick task color">
-                    <i className="ri-palette-line text-sm"></i>
+                    <i className="ri-palette-line text-base"></i>
                   </button>
                   {showColorPicker && (
                     <div className="absolute right-0 top-10 z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 w-[200px]">
@@ -1179,14 +1158,41 @@ export default function TaskDetailPanel({
                     if (editing) resetDescriptionEditor();
                     setEditing(e => !e);
                   }}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${editing ? 'bg-[#FF6B35] text-white' : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'}`}>
-                  <i className="ri-edit-line text-sm"></i>
+                  title={editing ? 'Done editing' : 'Edit task'}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${editing ? 'bg-[#FF6B35] text-white' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}>
+                  <i className="ri-edit-line text-base"></i>
                 </button>
               )}
-              <button onClick={() => { void requestClose(); }} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-colors cursor-pointer">
-                <i className="ri-close-line text-base"></i>
+              <button onClick={() => { void requestClose(); }} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
+                <i className="ri-close-line text-lg"></i>
               </button>
-            </div>
+          </div>
+
+          {/* Title + meta */}
+          {editing ? (
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Task title"
+              className="w-full text-xl font-semibold text-gray-900 placeholder-gray-300 focus:outline-none leading-snug"
+              autoFocus={isNew}
+            />
+          ) : (
+            <h2 className="text-xl font-semibold text-gray-900 leading-snug">{title}</h2>
+          )}
+          <div className="flex items-center gap-2 mt-2.5 flex-wrap pb-2">
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${sc.bg} ${sc.text}`}>
+              <i className={`${sc.icon} text-[11px]`}></i>{sc.label}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border ${pc.cls}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${pc.dot}`}></span>{pc.label}
+            </span>
+            {!isNew && (() => {
+              const creator = activity.find(a => a.type === 'created');
+              return creator ? (
+                <span className="text-gray-400 text-xs">by {creator.actor_name.split(' ')[0]}</span>
+              ) : null;
+            })()}
           </div>
         </div>
 
@@ -1194,12 +1200,12 @@ export default function TaskDetailPanel({
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
 
           {/* Properties */}
-          <div className="px-5 py-3 space-y-0.5 border-b border-gray-100">
+          <div className="px-8 py-4 space-y-1.5 border-b border-gray-100/80">
 
             {/* Status — only show in body when editing (header already shows it in view mode) */}
             {editing && (
               <div className="flex items-center h-8 gap-3">
-                <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Status</span>
+                <span className="text-xs text-gray-400 w-24 flex-shrink-0">Status</span>
                 <div className="relative">
                   <button type="button"
                     onClick={() => setShowStatusDropdown(v => !v)}
@@ -1228,7 +1234,7 @@ export default function TaskDetailPanel({
             )}
             {editing && status === 'blocked' && (
               <div className="flex items-center h-8 gap-3">
-                <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Blocked by</span>
+                <span className="text-xs text-gray-400 w-24 flex-shrink-0">Blocked by</span>
                 <input
                   value={blockedReason}
                   onChange={e => setBlockedReason(e.target.value)}
@@ -1247,7 +1253,7 @@ export default function TaskDetailPanel({
             {/* Priority — only show in body when editing */}
             {editing && (
               <div className="flex items-center h-8 gap-3">
-                <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Priority</span>
+                <span className="text-xs text-gray-400 w-24 flex-shrink-0">Priority</span>
                 <div className="flex gap-1.5">
                   {([['high','High','bg-rose-100 text-rose-600','bg-rose-400'],['medium','Medium','bg-amber-100 text-amber-700','bg-amber-400'],['low','Low','bg-gray-100 text-gray-500','bg-gray-300']] as const).map(([k, label, cls, dot]) => {
                     const active = priority === k;
@@ -1265,7 +1271,7 @@ export default function TaskDetailPanel({
 
             {/* Assignees */}
             <div className="flex items-start gap-3 py-1">
-              <span className="text-[11px] text-gray-400 w-16 flex-shrink-0 pt-1">Assignees</span>
+              <span className="text-xs text-gray-400 w-24 flex-shrink-0 pt-1">Assignees</span>
               {editing ? (
                 <div className="flex flex-wrap gap-1.5">
                   <button type="button" onClick={() => setAssigneeIds([])}
@@ -1287,18 +1293,18 @@ export default function TaskDetailPanel({
               ) : selectedAssignees.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-1.5">
                   {selectedAssignees.map((member) => (
-                    <div key={member.id} className="flex items-center gap-1.5 rounded-lg bg-gray-100 pl-1 pr-2.5 py-1">
-                      <Avatar name={member.full_name} url={member.avatar_url} size={4} />
-                      <span className="text-[11px] font-medium text-gray-700">{member.full_name.split(' ')[0]}</span>
+                    <div key={member.id} className="flex items-center gap-1.5 rounded-md hover:bg-gray-100 pl-0.5 pr-2 py-0.5 transition-colors">
+                      <Avatar name={member.full_name} url={member.avatar_url} size={5} />
+                      <span className="text-[13px] text-gray-700">{member.full_name.split(' ')[0]}</span>
                     </div>
                   ))}
                 </div>
-              ) : <span className="text-[11px] text-gray-400 pt-1">Unassigned</span>}
+              ) : <span className="text-[13px] text-gray-300 pt-1">Empty</span>}
             </div>
 
             {/* Dates */}
             <div className="flex items-center h-8 gap-3">
-              <span className="text-[11px] text-gray-400 w-16 flex-shrink-0">Dates</span>
+              <span className="text-xs text-gray-400 w-24 flex-shrink-0">Dates</span>
               {editing ? (
                 <div className="flex items-center gap-2 flex-1">
                   <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
@@ -1308,16 +1314,16 @@ export default function TaskDetailPanel({
                     className="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white" />
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-[11px]">
+                <div className="flex items-center gap-1.5 text-[13px]">
                   {startDate
-                    ? <span className="bg-gray-100 rounded-lg px-2.5 py-1 text-gray-700">{new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                    : <span className="text-gray-400">No start</span>}
-                  <i className="ri-arrow-right-line text-gray-300 text-[10px]"></i>
+                    ? <span className="text-gray-700 hover:bg-gray-100 rounded-md px-1.5 py-0.5 -mx-0.5 transition-colors">{new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    : <span className="text-gray-300">Empty</span>}
+                  <i className="ri-arrow-right-line text-gray-300 text-[11px]"></i>
                   {dueDate
-                    ? <span className={`rounded-lg px-2.5 py-1 font-medium ${dueDate < new Date().toISOString().split('T')[0] ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-700'}`}>
+                    ? <span className={`rounded-md px-1.5 py-0.5 font-medium transition-colors ${dueDate < new Date().toISOString().split('T')[0] ? 'bg-rose-50 text-rose-600' : 'text-gray-700 hover:bg-gray-100'}`}>
                         {new Date(dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
-                    : <span className="text-gray-400">No due date</span>}
+                    : <span className="text-gray-300">Empty</span>}
                 </div>
               )}
             </div>
@@ -1325,8 +1331,8 @@ export default function TaskDetailPanel({
           </div>
 
           {/* Description */}
-          <div className="px-5 py-4 border-b border-gray-100">
-            <p className="text-[11px] text-gray-400 font-medium mb-2">Description</p>
+          <div className="px-8 py-5">
+            <p className="text-xs font-medium text-gray-400 mb-2">Description</p>
             {editing ? (
               <div className="rounded-xl border border-gray-200 overflow-hidden">
                 {/* Toolbar */}
@@ -1435,22 +1441,22 @@ export default function TaskDetailPanel({
                 />
               </div>
             ) : (
-              <div className="text-sm text-gray-600 leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-gray-100 [&_img]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1">
+              <div
+                onClick={() => { if (canEdit && !isNew) setEditing(true); }}
+                title={canEdit && !isNew ? 'Click to edit' : undefined}
+                className={`text-sm text-gray-600 leading-relaxed rounded-lg -mx-2 px-2 py-1 transition-colors ${canEdit && !isNew ? 'cursor-text hover:bg-gray-50' : ''} [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-gray-100 [&_img]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1`}>
                 {description
                   ? <div dangerouslySetInnerHTML={{ __html: renderDescription(description) }} />
-                  : <span className="text-gray-400 italic">No description</span>}
+                  : <span className="text-gray-300">Add a description…</span>}
               </div>
             )}
           </div>
 
           {/* Checklist */}
-          <div className="px-5 py-4 border-b border-gray-100">
+          <div className="px-8 py-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <i className="ri-checkbox-multiple-line text-gray-300 text-sm"></i>
-                  <p className="text-[11px] text-gray-400 font-medium">Checklist</p>
-                </div>
+                <p className="text-xs font-medium text-gray-400">Checklist</p>
                 {checklist.length > 0 && (
                   <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-1.5 py-0.5 rounded-full">{checkDone}/{checklist.length}</span>
                 )}
@@ -1555,7 +1561,7 @@ export default function TaskDetailPanel({
               </div>
             )}
             {(canEdit || isNew) && (
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border border-gray-100">
+              <div className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-gray-50 focus-within:bg-gray-50 transition-colors">
                 <i className="ri-add-line text-gray-300 text-base flex-shrink-0"></i>
                 <input
                   value={newCheckItem}
@@ -1576,12 +1582,9 @@ export default function TaskDetailPanel({
 
           {/* Custom Fields */}
           {(canEdit || customFields.length > 0) && (
-          <div className="px-5 py-4 border-b border-gray-100">
+          <div className="px-8 py-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <i className="ri-price-tag-3-line text-gray-300 text-sm"></i>
-                <p className="text-[11px] text-gray-400 font-medium">Custom Fields</p>
-              </div>
+              <p className="text-xs font-medium text-gray-400">Custom Fields</p>
               {canEdit && (
                 <button onClick={() => setShowAddField(v => !v)}
                   className="flex items-center gap-1 text-[11px] text-[#FF6B35] hover:text-[#e55a25] cursor-pointer font-medium transition-colors">
@@ -1669,11 +1672,10 @@ export default function TaskDetailPanel({
           </div>
           )}
 
-          <div className="px-5 py-4 border-b border-gray-100">
+          <div className="px-8 py-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <i className="ri-attachment-2 text-gray-300 text-sm"></i>
-                <p className="text-[11px] text-gray-400 font-medium">Attachments</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-medium text-gray-400">Attachments</p>
                 {attachments.length > 0 && (
                   <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-1.5 py-0.5 rounded-full">{attachments.length}</span>
                 )}
@@ -1715,59 +1717,67 @@ export default function TaskDetailPanel({
               )
             ) : attachments.length === 0 ? (
               <button onClick={() => (canEdit || isNew) && fileRef.current?.click()}
-                className="flex items-center gap-2 text-xs text-gray-400 hover:text-[#FF6B35] transition-colors cursor-pointer">
-                <i className="ri-upload-cloud-2-line text-sm"></i>
-                No files yet — click to upload
+                className="w-full flex flex-col items-center gap-1.5 py-6 border border-dashed border-gray-200 rounded-xl text-gray-400 hover:border-[#FF6B35]/40 hover:text-[#FF6B35] hover:bg-orange-50/30 transition-all cursor-pointer">
+                <i className="ri-upload-cloud-2-line text-xl"></i>
+                <span className="text-xs">Click to upload a file</span>
               </button>
-            ) : (
-              <div className="space-y-2">
-                {attachments.map(att => {
-                  const isImg = isImageAttachment(att);
-                  const canPreview = canInlinePreview(att);
-                  return (
-                    <div key={att.id} className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl group">
-                      <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {isImg && getAttachmentThumbnailUrl(att)
-                          ? <img src={getAttachmentThumbnailUrl(att)!} alt={att.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
-                          : <i className={`${isImg ? 'ri-image-line text-sky-500' : 'ri-file-line text-gray-500'} text-sm`}></i>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {canPreview ? (
-                          <button
-                            type="button"
-                            onClick={() => setPreviewAttachment(att)}
-                            className="text-xs font-medium text-gray-700 hover:text-[#FF6B35] truncate block cursor-pointer"
-                          >
-                            {att.name}
+            ) : (() => {
+              const imageAtts = attachments.filter(att => isImageAttachment(att) && getAttachmentThumbnailUrl(att));
+              const fileAtts = attachments.filter(att => !(isImageAttachment(att) && getAttachmentThumbnailUrl(att)));
+              return (
+                <div className="space-y-2.5">
+                  {/* Image thumbnails — visual grid */}
+                  {imageAtts.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {imageAtts.map(att => (
+                        <div key={att.id} className="relative group aspect-video rounded-lg overflow-hidden bg-gray-50 border border-gray-100 cursor-pointer"
+                          onClick={() => canInlinePreview(att) ? setPreviewAttachment(att) : window.open(att.url, '_blank')}>
+                          <img src={getAttachmentThumbnailUrl(att)!} alt={att.name}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <p className="absolute bottom-1.5 left-2 right-2 text-[10px] text-white truncate opacity-0 group-hover:opacity-100 transition-opacity">{att.name}</p>
+                          <button onClick={e => { e.stopPropagation(); deleteAttachment(att); }}
+                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 backdrop-blur rounded-lg flex items-center justify-center text-white/80 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
+                            <i className="ri-delete-bin-line text-xs"></i>
                           </button>
-                        ) : (
-                          <a href={att.url} target="_blank" rel="noopener noreferrer"
-                            className="text-xs font-medium text-gray-700 hover:text-[#FF6B35] truncate block">{att.name}</a>
-                        )}
-                        <p className="text-[10px] text-gray-400">
-                          {att.size ? `${fmtBytes(att.size)} · ` : ''}
-                          {new Date(att.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
-                          {new Date(att.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      {canPreview && (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewAttachment(att)}
-                          className="text-[10px] text-sky-600 hover:text-sky-700 cursor-pointer whitespace-nowrap"
-                        >
-                          Preview
-                        </button>
-                      )}
-                      <button onClick={() => deleteAttachment(att)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 transition-all cursor-pointer">
-                        <i className="ri-delete-bin-line text-sm"></i>
-                      </button>
+                        </div>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  )}
+                  {/* Non-image files — quiet rows */}
+                  {fileAtts.map(att => {
+                    const canPreview = canInlinePreview(att);
+                    return (
+                      <div key={att.id} className="flex items-center gap-2.5 px-2 py-1.5 -mx-2 rounded-lg hover:bg-gray-50 group transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                          <i className="ri-file-text-line text-gray-400 text-sm"></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {canPreview ? (
+                            <button type="button" onClick={() => setPreviewAttachment(att)}
+                              className="text-[13px] text-gray-700 hover:text-[#FF6B35] truncate block cursor-pointer text-left">
+                              {att.name}
+                            </button>
+                          ) : (
+                            <a href={att.url} target="_blank" rel="noopener noreferrer"
+                              className="text-[13px] text-gray-700 hover:text-[#FF6B35] truncate block">{att.name}</a>
+                          )}
+                          <p className="text-[11px] text-gray-400">
+                            {att.size ? `${fmtBytes(att.size)} · ` : ''}
+                            {new Date(att.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </p>
+                        </div>
+                        <button onClick={() => deleteAttachment(att)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 transition-all cursor-pointer">
+                          <i className="ri-delete-bin-line text-sm"></i>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           {previewAttachment && (
@@ -1848,9 +1858,9 @@ export default function TaskDetailPanel({
 
           {/* Comments */}
           {!isNew && (
-            <div className="px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2 mb-3">
-                <p className="text-[11px] text-gray-400 font-medium">Comments</p>
+            <div className="px-8 py-5 border-t border-gray-100/80">
+              <div className="flex items-center gap-2 mb-4">
+                <p className="text-xs font-medium text-gray-400">Comments</p>
                 {comments.length > 0 && <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-1.5 py-0.5 rounded-full">{comments.length}</span>}
               </div>
               <div className="space-y-4 mb-4">
@@ -1864,9 +1874,16 @@ export default function TaskDetailPanel({
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-semibold text-gray-800">{c.hub_users?.full_name ?? c.author_name ?? 'Unknown'}</span>
                         <span className="text-[10px] text-gray-400">{timeAgo(c.created_at)}</span>
+                        {(c.seen_by ?? []).length > 0 && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-[10px] text-gray-300"
+                            title={`Seen by ${(c.seen_by ?? []).map(id => teamMembers.find(m => m.id === id)?.full_name.split(' ')[0] ?? 'someone').join(', ')}`}>
+                            <i className="ri-eye-line"></i>{(c.seen_by ?? []).length}
+                          </span>
+                        )}
                         {c.user_id === currentUserId && (
                           <div className="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
-                            <button onClick={() => { setEditingCommentId(c.id); setEditingCommentBody(c.body); }}
+                            <button onClick={() => { setEditingCommentId(c.id); setEditingCommentBody(bodyToEditorHTML(c.body)); }}
                               className="text-gray-300 hover:text-sky-500 text-xs cursor-pointer"><i className="ri-pencil-line"></i></button>
                             <button onClick={() => deleteComment(c.id)}
                               className="text-gray-300 hover:text-rose-500 text-xs cursor-pointer"><i className="ri-delete-bin-line"></i></button>
@@ -1875,14 +1892,18 @@ export default function TaskDetailPanel({
                       </div>
                       {editingCommentId === c.id ? (
                         <div className="space-y-1.5">
-                          <textarea value={editingCommentBody} onChange={e => setEditingCommentBody(e.target.value)} rows={2}
-                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#FF6B35]/30 resize-none" />
+                          <CommentEditor
+                            ref={editEditorRef}
+                            users={teamMembers.filter(m => m.id !== currentUserId)}
+                            initialHTML={editingCommentBody}
+                            autoFocus
+                            minHeight={40}
+                            onSubmit={() => saveEditedComment(c.id)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-white focus-within:ring-1 focus-within:ring-[#FF6B35]/30 transition-shadow"
+                          />
                           <div className="flex gap-2">
-                            <button onClick={async () => {
-                              await supabase.from('hub_project_task_comments').update({ body: editingCommentBody }).eq('id', c.id);
-                              setComments(prev => prev.map(x => x.id === c.id ? { ...x, body: editingCommentBody } : x));
-                              setEditingCommentId(null);
-                            }} className="px-3 py-1 text-xs bg-[#111827] text-white rounded-lg cursor-pointer">Save</button>
+                            <button onClick={() => saveEditedComment(c.id)}
+                              className="px-3 py-1 text-xs bg-[#111827] text-white rounded-lg cursor-pointer">Save</button>
                             <button onClick={() => setEditingCommentId(null)} className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600 cursor-pointer">Cancel</button>
                           </div>
                         </div>
@@ -1949,37 +1970,43 @@ export default function TaskDetailPanel({
                         })()}
                         {/* Reactions */}
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                          {(['❤️', '👍', '😂'] as const).map(emoji => {
-                            const reactors = c.reactions[emoji] ?? [];
+                          {Object.entries(c.reactions).map(([emoji, reactors]) => {
+                            if (!reactors || reactors.length === 0) return null;
                             const hasReacted = reactors.includes(currentUserId ?? '');
-                            if (reactors.length === 0 && !hasReacted) return null;
                             return (
                               <button
                                 key={emoji}
                                 onClick={() => toggleReaction(c.id, emoji)}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all cursor-pointer ${hasReacted ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all cursor-pointer ${hasReacted ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'}`}
                               >
                                 <span>{emoji}</span>
                                 <span className="font-medium">{reactors.length}</span>
                               </button>
                             );
                           })}
-                          {/* Add reaction button */}
-                          <div className="relative group/react">
-                            <button className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] border border-dashed border-gray-200 text-gray-300 hover:border-gray-300 hover:text-gray-500 transition-all cursor-pointer">
+                          {/* Add reaction button — click to open, stays open until you pick or dismiss */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setReactionPickerFor(p => p === c.id ? null : c.id)}
+                              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] border transition-all cursor-pointer ${reactionPickerFor === c.id ? 'border-gray-300 text-gray-500 bg-gray-50' : 'border-dashed border-gray-200 text-gray-300 hover:border-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100'} ${Object.values(c.reactions).some(r => r && r.length > 0) ? '!opacity-100' : ''}`}>
                               <i className="ri-emotion-line text-xs"></i>
                             </button>
-                            <div className="absolute bottom-full mb-1 left-0 hidden group-hover/react:flex bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-1.5 gap-0.5">
-                              {(['❤️', '👍', '😂'] as const).map(emoji => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => toggleReaction(c.id, emoji)}
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-base cursor-pointer transition-colors"
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
-                            </div>
+                            {reactionPickerFor === c.id && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setReactionPickerFor(null)} />
+                                <div className="absolute bottom-full mb-1.5 left-0 z-20 w-max bg-white border border-gray-200 rounded-xl shadow-xl p-1.5 grid grid-cols-6 gap-0.5">
+                                  {QUICK_REACTIONS.map(emoji => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => { toggleReaction(c.id, emoji); setReactionPickerFor(null); }}
+                                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-base cursor-pointer transition-colors hover:scale-110"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       </>
@@ -1992,53 +2019,13 @@ export default function TaskDetailPanel({
               <div className="flex gap-2.5 relative">
                 <Avatar name={currentUserName} url={currentUserAvatarUrl} size={7} />
                 <div className="flex-1 relative">
-                  {mentionOpen && mentionMatches.length > 0 && (
-                    <div className="absolute bottom-full mb-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 min-w-[160px] overflow-hidden">
-                      {mentionMatches.map(m => (
-                        <button key={m.id} onClick={() => insertMention(m)}
-                          className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer">
-                          <Avatar name={m.full_name} url={m.avatar_url} size={5} />
-                          {m.full_name.split(' ')[0]}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div
-                    ref={commentRef}
-                    contentEditable
-                    suppressContentEditableWarning
-                    onInput={e => {
-                      const text = (e.target as HTMLDivElement).innerText;
-                      setNewComment(text);
-                      // @mention detection
-                      const sel = window.getSelection();
-                      if (sel && sel.rangeCount > 0) {
-                        const range = sel.getRangeAt(0);
-                        const textBefore = range.startContainer.textContent?.slice(0, range.startOffset) ?? '';
-                        const atIdx = textBefore.lastIndexOf('@');
-                        if (atIdx >= 0 && !textBefore.slice(atIdx + 1).includes(' ')) {
-                          setMentionOpen(true);
-                          setMentionQuery(textBefore.slice(atIdx + 1));
-                          setMentionStart(atIdx);
-                        } else {
-                          setMentionOpen(false);
-                        }
-                      }
-                    }}
-                    onPaste={e => {
-                      e.preventDefault();
-                      const text = e.clipboardData.getData('text/plain');
-                      document.execCommand('insertText', false, text);
-                    }}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && !e.shiftKey && !mentionOpen) {
-                        e.preventDefault();
-                        postComment();
-                      }
-                      if (e.key === 'Escape') setMentionOpen(false);
-                    }}
-                    data-placeholder="Add a comment… (@mention)"
-                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 bg-white min-h-[60px] break-all empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+                  <CommentEditor
+                    ref={commentEditorRef}
+                    users={teamMembers.filter(m => m.id !== currentUserId)}
+                    placeholder="Add a comment… (@ to mention)"
+                    onSubmit={postComment}
+                    onTextChange={setNewComment}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 bg-white focus-within:ring-2 focus-within:ring-[#FF6B35]/30 transition-shadow"
                   />
                   {/* Selected files preview */}
                   {commentFiles.length > 0 && (
@@ -2072,21 +2059,6 @@ export default function TaskDetailPanel({
                   {commentFileError && <p className="text-xs text-red-500 mt-1">{commentFileError}</p>}
                   {/* Toolbar row */}
                   <div className="flex items-center gap-1 mt-1.5">
-                    {/* Color palette — collapsed into a hover popover */}
-                    <div className="relative group/colors">
-                      <button type="button" title="Text color"
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 cursor-pointer transition-colors">
-                        <i className="ri-font-color text-sm"></i>
-                      </button>
-                      <div className="absolute bottom-full mb-1 left-0 hidden group-hover/colors:flex bg-white border border-gray-200 rounded-xl shadow-lg z-10 p-1.5 gap-1">
-                        {['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#111827'].map(col => (
-                          <button key={col} type="button"
-                            onMouseDown={e => { e.preventDefault(); document.execCommand('foreColor', false, col); commentRef.current?.focus(); }}
-                            className="w-5 h-5 rounded-full cursor-pointer hover:scale-110 transition-transform border border-white shadow-sm"
-                            style={{ background: col }} />
-                        ))}
-                      </div>
-                    </div>
                     <button type="button" title="Attach file" onClick={() => commentFileRef.current?.click()}
                       className="w-7 h-7 flex items-center justify-center rounded-md text-gray-300 hover:text-gray-500 hover:bg-gray-100 cursor-pointer transition-colors">
                       <i className="ri-attachment-2 text-sm"></i>
@@ -2116,11 +2088,17 @@ export default function TaskDetailPanel({
             </div>
           )}
 
-          {/* Activity */}
+          {/* Activity — collapsed by default to keep the panel calm */}
           {!isNew && activity.length > 0 && (
-            <div className="px-5 py-4">
-              <p className="text-[11px] text-gray-400 font-medium mb-3">Activity</p>
-              <div className="space-y-2.5">
+            <div className="px-8 py-4 border-t border-gray-100/80">
+              <button onClick={() => setShowActivity(v => !v)}
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 cursor-pointer transition-colors">
+                <i className={`ri-arrow-right-s-line text-sm transition-transform ${showActivity ? 'rotate-90' : ''}`}></i>
+                Activity
+                <span className="text-[10px] bg-gray-100 text-gray-500 font-medium px-1.5 py-0.5 rounded-full">{activity.length}</span>
+              </button>
+              {showActivity && (
+              <div className="space-y-2.5 mt-3">
                 {activity.map(a => (
                   <div key={a.id} className="flex items-start gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-1.5 flex-shrink-0"></div>
@@ -2143,13 +2121,14 @@ export default function TaskDetailPanel({
                   </div>
                 ))}
               </div>
+              )}
             </div>
           )}
         </div>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         {(editing || isNew || hasUnsavedChanges) && (
-          <div className="border-t border-gray-100 px-5 py-4 flex items-center gap-3 bg-white flex-shrink-0">
+          <div className="border-t border-gray-100 px-8 py-4 flex items-center gap-3 bg-white flex-shrink-0">
             {!isNew && !confirmDelete && (
               <div className="flex items-center gap-3">
                 <button onClick={handleArchive}
