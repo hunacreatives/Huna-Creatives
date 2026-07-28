@@ -576,6 +576,18 @@ export default function TaskDetailPanel({
     syncDescriptionEditor();
   }, [focusDescriptionEditor, syncDescriptionEditor]);
 
+  // execCommand fontSize only accepts 1–7, so apply the magic value 7 and then
+  // rewrite the resulting <font> tags to an exact pixel size.
+  const applyDescriptionFontSize = useCallback((px: number) => {
+    focusDescriptionEditor();
+    document.execCommand('fontSize', false, '7');
+    descRef.current?.querySelectorAll('font[size="7"]').forEach(f => {
+      f.removeAttribute('size');
+      (f as HTMLElement).style.fontSize = `${px}px`;
+    });
+    syncDescriptionEditor();
+  }, [focusDescriptionEditor, syncDescriptionEditor]);
+
   const fetchTaskData = useCallback(async (taskId: number) => {
     if (isDemo) return;
     const [taskRes, commRes, attRes, actRes] = await Promise.all([
@@ -1363,13 +1375,22 @@ export default function TaskDetailPanel({
 
                   <div className="w-px h-4 bg-gray-200 mx-1" />
 
-                  {/* Size group */}
-                  <div className="flex items-center gap-0.5">
-                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontSize', '2'); }}
-                      className="h-7 px-2 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors text-[10px]">Sm</button>
-                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyDescriptionCommand('fontSize', '5'); }}
-                      className="h-7 px-2 flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-800 cursor-pointer transition-colors text-[11px]">Lg</button>
-                  </div>
+                  {/* Size group — numeric px sizes */}
+                  <select
+                    defaultValue=""
+                    onMouseDown={e => e.stopPropagation()}
+                    onChange={e => {
+                      const px = Number(e.target.value);
+                      if (px) applyDescriptionFontSize(px);
+                      e.target.value = '';
+                    }}
+                    title="Font size"
+                    className="h-7 px-1 rounded-md text-[11px] text-gray-500 bg-transparent hover:bg-gray-200 cursor-pointer focus:outline-none transition-colors">
+                    <option value="" disabled>Size</option>
+                    {[12, 13, 14, 16, 18, 20, 24, 28, 32].map(px => (
+                      <option key={px} value={px}>{px}px</option>
+                    ))}
+                  </select>
 
                   <div className="w-px h-4 bg-gray-200 mx-1" />
 
@@ -1721,63 +1742,41 @@ export default function TaskDetailPanel({
                 <i className="ri-upload-cloud-2-line text-xl"></i>
                 <span className="text-xs">Click to upload a file</span>
               </button>
-            ) : (() => {
-              const imageAtts = attachments.filter(att => isImageAttachment(att) && getAttachmentThumbnailUrl(att));
-              const fileAtts = attachments.filter(att => !(isImageAttachment(att) && getAttachmentThumbnailUrl(att)));
-              return (
-                <div className="space-y-2.5">
-                  {/* Image thumbnails — visual grid */}
-                  {imageAtts.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2">
-                      {imageAtts.map(att => (
-                        <div key={att.id} className="relative group aspect-video rounded-lg overflow-hidden bg-gray-50 border border-gray-100 cursor-pointer"
-                          onClick={() => canInlinePreview(att) ? setPreviewAttachment(att) : window.open(att.url, '_blank')}>
-                          <img src={getAttachmentThumbnailUrl(att)!} alt={att.name}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <p className="absolute bottom-1.5 left-2 right-2 text-[10px] text-white truncate opacity-0 group-hover:opacity-100 transition-opacity">{att.name}</p>
-                          <button onClick={e => { e.stopPropagation(); deleteAttachment(att); }}
-                            className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 backdrop-blur rounded-lg flex items-center justify-center text-white/80 hover:text-white hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
-                            <i className="ri-delete-bin-line text-xs"></i>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Non-image files — quiet rows */}
-                  {fileAtts.map(att => {
-                    const canPreview = canInlinePreview(att);
-                    return (
-                      <div key={att.id} className="flex items-center gap-2.5 px-2 py-1.5 -mx-2 rounded-lg hover:bg-gray-50 group transition-colors">
-                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                          <i className="ri-file-text-line text-gray-400 text-sm"></i>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          {canPreview ? (
-                            <button type="button" onClick={() => setPreviewAttachment(att)}
-                              className="text-[13px] text-gray-700 hover:text-[#FF6B35] truncate block cursor-pointer text-left">
-                              {att.name}
-                            </button>
-                          ) : (
-                            <a href={att.url} target="_blank" rel="noopener noreferrer"
-                              className="text-[13px] text-gray-700 hover:text-[#FF6B35] truncate block">{att.name}</a>
-                          )}
-                          <p className="text-[11px] text-gray-400">
-                            {att.size ? `${fmtBytes(att.size)} · ` : ''}
-                            {new Date(att.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </p>
-                        </div>
-                        <button onClick={() => deleteAttachment(att)}
-                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 transition-all cursor-pointer">
-                          <i className="ri-delete-bin-line text-sm"></i>
-                        </button>
+            ) : (
+              <div className="space-y-2">
+                {attachments.map(att => {
+                  const isImg = isImageAttachment(att);
+                  const canPreview = canInlinePreview(att);
+                  const openAtt = () => canPreview ? setPreviewAttachment(att) : window.open(att.url, '_blank');
+                  return (
+                    <div key={att.id}
+                      onClick={openAtt}
+                      className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-xl group cursor-pointer hover:bg-gray-100 transition-colors">
+                      <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {isImg && getAttachmentThumbnailUrl(att)
+                          ? <img src={getAttachmentThumbnailUrl(att)!} alt={att.name} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+                          : <i className={`${isImg ? 'ri-image-line text-sky-500' : 'ri-file-3-line text-gray-500'} text-lg`}></i>}
                       </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{att.name}</p>
+                        <p className="text-xs text-gray-400">
+                          {att.size ? `${fmtBytes(att.size)} · ` : ''}
+                          {new Date(att.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+                          {new Date(att.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {canPreview && (
+                        <span className="text-xs text-sky-600 group-hover:text-sky-700 whitespace-nowrap">Preview</span>
+                      )}
+                      <button onClick={e => { e.stopPropagation(); deleteAttachment(att); }}
+                        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-rose-500 transition-all cursor-pointer">
+                        <i className="ri-delete-bin-line text-sm"></i>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {previewAttachment && (
