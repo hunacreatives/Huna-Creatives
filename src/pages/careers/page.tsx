@@ -49,43 +49,6 @@ const JOB_LISTINGS: JobListing[] = [
       'Must be available to start ASAP',
     ],
   },
-  {
-    id: 'marketing-lead-coordinator',
-    title: 'Marketing & Lead Coordinator',
-    type: 'Full-Time',
-    shift: '11:00 PM – 7:00 AM (PH Time)',
-    startDate: 'ASAP',
-    location: 'Remote',
-    summary:
-      'We are looking for a full-time Marketing & Lead Coordinator to support our marketing operations and lead management across four home service brands in the Portland, Oregon area. This is a dual-role position — part marketing support, part lead coordination — working closely with the Marketing Coordinator and reporting to company leadership.',
-    whatYoullDo: [
-      'Follow up on inbound leads via outbound calls and messages — converting open and unresponsive leads into booked appointments',
-      'Log and track leads accurately in ServiceTitan with correct campaign sources',
-      'Coordinate with field technicians across departments to collect weekly job photos for social media',
-      'Send drafted social media posts to the appropriate department for approval, then schedule approved content in Hootsuite',
-      'Respond to Google reviews and comments across multiple brand profiles daily',
-      'Publish weekly Google Business Profile updates',
-      'Monitor Yelp, Thumbtack, and HouseHappy for new leads and messages',
-      'Assist with graphic design tasks and collateral in Canva as needed',
-      'Support the marketing calendar and day-to-day marketing operations',
-    ],
-    whatYouBring: [
-      'Experience in lead follow-up, outbound calling, or customer coordination',
-      'Strong written and verbal English communication skills',
-      'Proficiency in Canva — non-negotiable',
-      'Experience with social media scheduling tools (Hootsuite or similar)',
-      'Highly organized, self-directed, and comfortable managing multiple tasks',
-      'Bonus: Experience with ServiceTitan or similar CRM',
-      'Bonus: Background in home services, real estate, or property management',
-    ],
-    whyJoinUs: [
-      'Full-time remote position',
-      'Competitive salary based on experience',
-      'Work directly with the marketing team of a growing multi-brand home services company',
-      'Opportunity to grow into a broader marketing role over time',
-      'Must be available to start ASAP',
-    ],
-  },
 ];
 
 const HAS_OPENINGS = JOB_LISTINGS.length > 0;
@@ -301,7 +264,7 @@ export default function CareersPage() {
         <p className="text-white/40 text-xs md:text-sm leading-relaxed">
           {job.id === 'graphic-designer'
             ? 'This application is specifically for the Graphic Designer role. Share your portfolio and resume so we can review your fit clearly.'
-            : 'This application is specifically for the Marketing & Lead Coordinator role. Share your resume and tell us about your experience.'}
+            : `This application is specifically for the ${job.title} role. Share your resume and tell us about your experience.`}
         </p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
