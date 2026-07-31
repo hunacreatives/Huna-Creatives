@@ -354,6 +354,18 @@ async function sendPayslip(payout_id: string) {
       </td>
     </tr>`).join('');
 
+  // Day-by-day attendance, shown inline in the receipt email (not just the attached PDF).
+  const dailyRows = (dailyHours || []).map((d: any) => {
+    const dayName = fmtDateShort(d.date);
+    const checkIn = d.first_on ? fmtTimePH(d.first_on) : null;
+    const ot = (d.overtime_hours || 0) > 0 ? ` <span style="color:#7c3aed;font-size:11px;">+${Number(d.overtime_hours).toFixed(2)}h OT</span>` : '';
+    const checkInLabel = checkIn ? `<span style="font-size:10px;color:#d1d5db;margin-left:6px;">· in ${checkIn}</span>` : '';
+    return `<tr>
+      <td style="padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${dayName}${checkInLabel}</td>
+      <td style="padding:7px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#374151;font-weight:500;">${(d.hours_capped || 0).toFixed(2)}h${ot}</td>
+    </tr>`;
+  }).join('');
+
   // Attach the official payslip document (same template as the payouts page's
   // "Download Payslip" button) rendered to PDF via PDFShift. A PDF failure must
   // not block the payment receipt — it degrades to sending without attachment.
@@ -453,7 +465,7 @@ async function sendPayslip(payout_id: string) {
 
     <div style="padding:24px 36px;background:#fafafa;border-bottom:1px solid #f3f4f6;">
       <p style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 16px;">Attendance Summary</p>
-      <table style="border-collapse:collapse;"><tr>
+      <table style="border-collapse:collapse;margin-bottom:${dailyRows ? '16px' : '0'};"><tr>
         <td style="vertical-align:top;padding-right:32px;">
           <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">Days Worked</p>
           <p style="font-size:22px;font-weight:800;color:#111827;margin:0;">${daysWorked}</p>
@@ -470,6 +482,13 @@ async function sendPayslip(payout_id: string) {
           <p style="font-size:11px;color:#9ca3af;margin:2px 0 0;">hours</p>
         </td>` : ''}
       </tr></table>
+      ${dailyRows ? `<table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding-bottom:6px;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Date</td>
+          <td style="padding-bottom:6px;text-align:right;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Hours</td>
+        </tr>
+        ${dailyRows}
+      </table>` : ''}
     </div>
 
     <div style="padding:28px 36px;border-bottom:1px solid #f3f4f6;">
