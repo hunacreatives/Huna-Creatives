@@ -1291,23 +1291,23 @@ export default function AdminPayrollPage() {
         })()}
 
         {/* Header card */}
-        <div className="bg-[#111827] rounded-2xl p-5 text-white">
+        <div className="bg-[#111827] rounded-2xl p-4 sm:p-5 text-white">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             {/* Left: period selector + KPIs */}
             <div className="flex-1 min-w-0">
               {/* Period controls */}
-              <div className="flex items-center gap-2 flex-wrap mb-5">
+              <div className="flex items-center gap-2 flex-nowrap overflow-x-auto scrollbar-hide sm:flex-wrap mb-3 sm:mb-5">
                 <select
                   value={selectedYear}
                   onChange={e => handleYearChange(e.target.value)}
-                  className="bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
+                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
                 >
                   {years.map(y => <option key={y} value={y} className="text-gray-900 bg-white">{y}</option>)}
                 </select>
                 <select
                   value={selectedMonth}
                   onChange={e => handleMonthChange(e.target.value)}
-                  className="bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
+                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
                 >
                   {monthsInYear.map(m => (
                     <option key={m} value={m} className="text-gray-900 bg-white">{FULL_MONTHS[parseInt(m.slice(5, 7)) - 1]}</option>
@@ -1319,7 +1319,7 @@ export default function AdminPayrollPage() {
                     const picked = periodsInMonth.find(p => p.start === e.target.value);
                     if (picked) setSelectedPeriod(picked);
                   }}
-                  className="min-w-[220px] bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
+                  className="flex-shrink-0 min-w-[180px] sm:min-w-[220px] bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
                 >
                   {openPeriodsInMonth.map((p) => (
                     <option key={p.start} value={p.start} className="text-gray-900 bg-white">
@@ -1339,7 +1339,7 @@ export default function AdminPayrollPage() {
                   onClick={refreshPayrollPage}
                   disabled={refreshing || loading || workflowLoading}
                   title="Refresh payroll data and submission statuses"
-                  className="bg-white/10 border border-white/10 text-white/60 hover:text-white hover:bg-white/20 text-xs rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white/60 hover:text-white hover:bg-white/20 text-xs rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <i className={`${refreshing ? 'ri-loader-4-line animate-spin' : 'ri-refresh-line'}`}></i>
                 </button>
@@ -1351,12 +1351,12 @@ export default function AdminPayrollPage() {
                   // again from an archived view would move payroll backwards.
                   if (activePeriodStart && nextP.start <= activePeriodStart) return null;
                   return (
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex-shrink-0 flex items-center gap-1.5">
                       <button
                         onClick={openNextPeriod}
                         disabled={openingNextPeriod}
                         title={`Open ${nextP.label} for employees`}
-                        className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-50 text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 bg-[#FF6B35] hover:bg-[#e55a27] disabled:opacity-50 text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors cursor-pointer whitespace-nowrap"
                       >
                         {openingNextPeriod ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-arrow-right-circle-line"></i>}
                         Open {nextP.label}
@@ -1368,7 +1368,7 @@ export default function AdminPayrollPage() {
               </div>
 
               {/* KPIs inline */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 {[
                   { label: 'Total Payroll', value: fmt(displayTotalPay, 'PHP'), accent: true },
                   { label: 'Total Hours', value: `${totalHours.toFixed(1)}h` },
@@ -1436,7 +1436,8 @@ export default function AdminPayrollPage() {
                     title={isPdfSavedToDrive ? 'This closed payroll PDF has already been saved to Google Drive' : 'Save the closed payroll report as a PDF in Google Drive'}
                   >
                     <i className={`${savingToDrive ? 'ri-loader-4-line animate-spin' : isPdfSavedToDrive ? 'ri-check-line' : 'ri-google-fill'} text-sm`}></i>
-                    {savingToDrive ? 'Saving…' : isPdfSavedToDrive ? 'Already Saved to Drive' : 'Save PDF to Drive'}
+                    <span className="hidden sm:inline">{savingToDrive ? 'Saving…' : isPdfSavedToDrive ? 'Already Saved to Drive' : 'Save PDF to Drive'}</span>
+                    <span className="sm:hidden">{savingToDrive ? 'Saving…' : isPdfSavedToDrive ? 'Saved' : 'To Drive'}</span>
                   </button>
                 )}
               </div>
@@ -1467,7 +1468,7 @@ export default function AdminPayrollPage() {
           </div>
 
           {/* Info strip */}
-          <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-2">
+          <div className="hidden sm:flex mt-4 pt-4 border-t border-white/10 items-center gap-2">
             <i className="ri-information-line text-white/30 text-sm flex-shrink-0"></i>
             <p className="text-white/30 text-[11px]">
               Hours from Slack · 8h daily cap · Fixed-rate contractors earn <strong className="text-white/40 font-medium">day equivalents from capped hours</strong>

@@ -10,7 +10,7 @@ export default function PushPermissionBanner({ userId }: Props) {
   if (status !== 'default' || isDismissed) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(420px,90vw)] bg-white border border-gray-200 rounded-2xl shadow-xl px-5 py-4 flex items-start gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px)+5.5rem)] lg:bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(420px,90vw)] bg-white border border-gray-200 rounded-2xl shadow-xl px-5 py-4 flex items-start gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="text-2xl mt-0.5">🔔</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900 leading-snug">Stay in the loop</p>
