@@ -185,6 +185,7 @@ export default function AdminPayrollPage() {
   const [batch, setBatch] = useState<any>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [slackSyncFailed, setSlackSyncFailed] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   // Disputes map: payout_id → dispute
@@ -848,6 +849,7 @@ export default function AdminPayrollPage() {
       (!c.start_date || c.start_date <= selectedPeriod.end)
     );
 
+    if (isCurrentPeriod) setSlackSyncFailed(!!(slackRes as any)?.error || !(slackRes as any)?.data?.attendance);
     const liveAttendance = (slackRes as any)?.data?.attendance || [];
     const mergedHoursRows = mergeLiveAttendanceIntoDailyHours(
       (hoursRes.data || []).map((h: any) => ({ ...h })),
@@ -1289,6 +1291,22 @@ export default function AdminPayrollPage() {
             </div>
           );
         })()}
+
+        {slackSyncFailed && (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-red-50 border border-red-100">
+            <i className="ri-error-warning-line text-red-500"></i>
+            <p className="text-xs font-semibold text-red-700 flex-1 min-w-0">
+              Slack hours sync failed — today's hours may show as zero until this is fixed.
+            </p>
+            <button
+              onClick={refreshPayrollPage}
+              disabled={refreshing}
+              className="text-xs font-semibold text-red-700 underline underline-offset-2 hover:text-red-800 cursor-pointer disabled:opacity-50 flex-shrink-0"
+            >
+              {refreshing ? 'Retrying…' : 'Retry sync'}
+            </button>
+          </div>
+        )}
 
         {/* Header card */}
         <div className="bg-[#111827] rounded-2xl p-4 sm:p-5 text-white">
