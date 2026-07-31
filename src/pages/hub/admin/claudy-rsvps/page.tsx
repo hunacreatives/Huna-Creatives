@@ -149,9 +149,9 @@ export default function EventRsvpsPage() {
           </div>
         </div>
 
-        <div className="flex gap-5 items-start">
+        <div className="flex flex-col lg:flex-row gap-5 items-start">
           {/* Table */}
-          <div className="bg-white rounded-2xl shadow-sm border border-white/60 overflow-hidden flex-1">
+          <div className="bg-white rounded-2xl shadow-sm border border-white/60 overflow-hidden flex-1 w-full overflow-x-auto">
             {loading ? (
               <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
             ) : rsvps.length === 0 ? (
@@ -199,7 +199,7 @@ export default function EventRsvpsPage() {
 
           {/* Detail / edit panel */}
           {selected && (
-            <div className="w-72 flex-shrink-0 bg-white rounded-2xl shadow-sm border border-white/60 p-5">
+            <div className="w-full lg:w-72 flex-shrink-0 bg-white rounded-2xl shadow-sm border border-white/60 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-800 text-sm">
                   {editing ? 'Edit RSVP' : 'RSVP Detail'}

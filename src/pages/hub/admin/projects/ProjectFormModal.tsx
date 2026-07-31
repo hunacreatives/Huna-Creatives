@@ -96,7 +96,7 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
             <div className="p-5 space-y-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-700">Project Type</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     { value: 'client',   label: 'One-time',   sub: 'Fixed contract billing' },
                     { value: 'retainer', label: 'Retainer', sub: 'Monthly recurring' },

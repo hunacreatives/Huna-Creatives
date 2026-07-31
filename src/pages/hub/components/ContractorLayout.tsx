@@ -65,7 +65,6 @@ export default function ContractorLayout({ children, title, titleContent, action
   const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('contractor_sidebar_collapsed') === 'true');
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [liveProjects, setLiveProjects] = useState<{ name: string; client: string; status: string; id: number }[]>([]);
@@ -228,16 +227,6 @@ export default function ContractorLayout({ children, title, titleContent, action
       <div className="hidden lg:block relative z-10">
         <ContractorSidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       </div>
-
-      {/* Mobile sidebar overlay */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-[220px] flex-shrink-0 h-full">
-            <ContractorSidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
-          </div>
-          <div className="flex-1 bg-black/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-        </div>
-      )}
 
       {/* Main content */}
       <div className="relative z-10 flex-1 min-w-0 overflow-hidden lg:px-4 lg:pb-4 lg:pt-5 md:px-5 md:pb-5">

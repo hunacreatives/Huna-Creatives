@@ -148,7 +148,7 @@ export default function PayoutEditModal({ payout, contractors, onClose, onSaved 
           {/* Additions */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Additions</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 { key: 'bonus', label: 'Bonus' },
                 { key: 'incentives', label: 'Incentives' },
@@ -165,7 +165,7 @@ export default function PayoutEditModal({ payout, contractors, onClose, onSaved 
           {/* Deductions */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Deductions</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 { key: 'deductions', label: 'Deductions' },
                 { key: 'advances', label: 'Advances' },

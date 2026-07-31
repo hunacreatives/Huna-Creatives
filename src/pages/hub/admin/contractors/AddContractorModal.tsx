@@ -237,7 +237,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                       <div className="relative"><input type="number" min="0" max="100" value={profile.project_percentage} onChange={e => setP('project_percentage', e.target.value)} placeholder="e.g. 40" className={`${inputCls} pr-8`} />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">%</span></div></div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div><label className={labelCls}>Currency</label>
                         <select value={profile.currency} onChange={e => setP('currency', e.target.value)} className={`${inputCls} bg-white`}>
                           {['PHP', 'USD', 'EUR', 'GBP', 'AUD', 'CAD'].map(c => <option key={c}>{c}</option>)}
@@ -387,7 +387,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelCls}>Hours / Day</label>
                   <input type="number" value={cf.hoursPerDay} onChange={e => setC('hoursPerDay', e.target.value)} min="1" max="24" className={inputCls} />

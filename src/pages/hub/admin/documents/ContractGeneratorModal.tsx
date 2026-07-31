@@ -839,7 +839,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
             {/* Payment type */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-2">Payment Structure *</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {([
                   { key: 'fixed',          label: 'Fixed Monthly',      icon: 'ri-calendar-line',  desc: 'Same pay every month' },
                   { key: 'fixed_flexible', label: 'Fixed, Open Schedule', icon: 'ri-shield-line',    desc: 'Fixed pay, hours vary by project' },
@@ -993,7 +993,7 @@ export default function ContractGeneratorModal({ contractors, onClose, onDone }:
                   })}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 mt-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Hours/day</label>
                   <input type="number" value={fields.hoursPerDay} onChange={e => set('hoursPerDay', e.target.value)} min={1} max={24}

@@ -1000,7 +1000,7 @@ export default function ContractorDetailPage() {
                       </div>
                     </div>
 
-                    <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-4 gap-3 text-center">
+                    <div className="px-6 py-4 border-b border-gray-50 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                       {[
                         { label: 'Days Worked', value: totalDaysWorked, color: 'text-gray-900' },
                         { label: 'Hours Logged', value: `${totalHoursRaw.toFixed(1)}h`, color: 'text-gray-900' },

@@ -223,7 +223,6 @@ export default function AdminLayout({ children, title, actions }: Props) {
   const { isDemo, demoRole, demoSignOut, setDemoRole } = useDemo();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === 'true');
-  const [mobileOpen, setMobileOpen] = useState(false);
   const bottomNavRef = useRef<HTMLDivElement>(null);
 
   // Restore the tab strip's scroll position across layout remounts, then make
@@ -292,16 +291,6 @@ export default function AdminLayout({ children, title, actions }: Props) {
       <div data-tour="sidebar" className="hidden lg:block relative z-10">
         <AdminSidebar collapsed={collapsed} onToggle={() => toggleCollapsed()} />
       </div>
-
-      {/* Mobile sidebar overlay */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-[260px] flex-shrink-0 h-full">
-            <AdminSidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
-          </div>
-          <div className="flex-1 bg-black/20 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-        </div>
-      )}
 
       {/* Main content */}
       <div className="relative z-10 flex-1 min-w-0 overflow-hidden lg:px-4 lg:pb-4 lg:pt-5 md:px-5 md:pb-5">
