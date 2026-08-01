@@ -1734,7 +1734,7 @@ export default function AdminProjectsPage() {
                         );
                       })()}
 
-                      {daysLeft !== null && (
+                      {daysLeft !== null && p.status !== 'completed' && p.status !== 'cancelled' && (
                         isDeadlineOver ? (
                           <span className="inline-flex items-center gap-1 text-[11px] text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full font-medium">
                             <i className="ri-alarm-warning-line text-[10px]"></i>{Math.abs(daysLeft)}d overdue
