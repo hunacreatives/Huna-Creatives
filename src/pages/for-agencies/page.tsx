@@ -24,7 +24,7 @@ const PLANS = [
     cta: 'Book a Demo', highlight: false,
   },
   {
-    name: 'Growth', setup: '₱30,000', price: '₱9,999', per: '/month',
+    name: 'Growth', setup: '₱15,000', price: '₱5,999', per: '/month',
     perSeat: '+ per seat', seats: '10 seats included',
     desc: 'For growing teams managing multiple departments, clients, and projects.',
     features: ['Everything in Starter', 'Project-based payouts', 'Client questionnaires', 'Overtime & time-off approvals', 'Audit log', '2 rounds of workflow revisions', 'Priority support'],
@@ -988,7 +988,7 @@ export default function ForAgenciesPage() {
         areaServed: 'Philippines',
         offers: [
           { '@type': 'Offer', name: 'Starter', price: '2500', priceCurrency: 'PHP', description: 'For small teams ready to stop running on spreadsheets. Includes attendance, payroll, documents, and project management.' },
-          { '@type': 'Offer', name: 'Growth', price: '9999', priceCurrency: 'PHP', description: 'For growing agencies managing multiple departments, clients, and projects. Includes project-based payouts, overtime approvals, and audit log.' },
+          { '@type': 'Offer', name: 'Growth', price: '5999', priceCurrency: 'PHP', description: 'For growing agencies managing multiple departments, clients, and projects. Includes project-based payouts, overtime approvals, and audit log.' },
         ],
         provider: {
           '@type': 'Organization',
@@ -1050,7 +1050,7 @@ export default function ForAgenciesPage() {
             name: 'How much does Sentro OS cost?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'Sentro OS starts at ₱2,500/month (Starter plan, ₱15,000 one-time setup) for small teams. The Growth plan is ₱9,999/month (₱30,000 setup) for larger agencies. Enterprise pricing is available for custom builds.',
+              text: 'Sentro OS starts at ₱2,500/month (Starter plan, ₱15,000 one-time setup) for small teams. The Growth plan is ₱5,999/month (₱15,000 setup) for larger agencies. Enterprise pricing is available for custom builds.',
             },
           },
           {

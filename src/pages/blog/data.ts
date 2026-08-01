@@ -1373,7 +1373,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Sentro OS starts at ₱2,500 per month with a one-time ₱15,000 setup fee for small teams on the Starter plan. The Growth plan — designed for larger agencies with more complex payroll and project tracking needs — runs ₱9,999 per month with a ₱30,000 setup. Enterprise pricing is available for custom builds and agencies that need white-labeled versions for their own clients. Every plan includes onboarding support — we set the system up with you, not just for you.',
+          'Sentro OS starts at ₱2,500 per month with a one-time ₱15,000 setup fee for small teams on the Starter plan. The Growth plan — designed for larger agencies with more complex payroll and project tracking needs — runs ₱5,999 per month with a ₱15,000 setup. Enterprise pricing is available for custom builds and agencies that need white-labeled versions for their own clients. Every plan includes onboarding support — we set the system up with you, not just for you.',
       },
       {
         type: 'heading',
