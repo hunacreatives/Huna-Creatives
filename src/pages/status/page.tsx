@@ -87,6 +87,8 @@ export default function ClientStatusPage() {
     .sort((a, b) => (b.completed_at ?? b.created_at).localeCompare(a.completed_at ?? a.created_at))
     .slice(0, 8);
 
+  const allWrappedUp = tasks.length > 0 && inProgress.length === 0 && upNext.length === 0 && done.length === tasks.length;
+
   const statusChip: Record<string, { label: string; cls: string }> = {
     ongoing:   { label: 'Active',    cls: 'bg-emerald-100 text-emerald-700' },
     completed: { label: 'Completed', cls: 'bg-blue-100 text-blue-700' },
@@ -121,7 +123,7 @@ export default function ClientStatusPage() {
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Project Status</p>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-1">Project Update</p>
               <h1 className="text-xl font-bold text-gray-900 leading-tight">{project.project_name}</h1>
               <p className="text-sm text-gray-400 mt-0.5">
                 {project.client_name}{project.service ? ` · ${project.service}` : ''}
@@ -141,7 +143,7 @@ export default function ClientStatusPage() {
           {tasks.length > 0 && (
             <div className="mt-5">
               <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                <span>{done.length} of {tasks.length} tasks complete</span>
+                <span>{allWrappedUp ? 'All tasks complete' : `${done.length} of ${tasks.length} tasks complete`}</span>
                 <span className="font-semibold text-gray-700">{pct}%</span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -164,6 +166,17 @@ export default function ClientStatusPage() {
           )}
         </div>
 
+        {/* All wrapped up */}
+        {allWrappedUp && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 text-center">
+            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <i className="ri-checkbox-circle-fill text-2xl text-emerald-500"></i>
+            </div>
+            <h2 className="text-base font-bold text-gray-900">Everything's delivered</h2>
+            <p className="text-sm text-gray-500 mt-1">All planned work for this project is complete. See what was finished below.</p>
+          </div>
+        )}
+
         {/* In progress */}
         {inProgress.length > 0 && (
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
@@ -183,7 +196,7 @@ export default function ClientStatusPage() {
         {/* Recently completed */}
         {recentDone.length > 0 && (
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 px-5 pt-4 pb-1">Recently Completed</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 px-5 pt-4 pb-1">{allWrappedUp ? 'Completed Work' : 'Recently Completed'}</p>
             <div className="divide-y divide-gray-50 pb-2">{recentDone.map(t => <TaskLine key={t.id} t={t} />)}</div>
           </div>
         )}
@@ -195,7 +208,7 @@ export default function ClientStatusPage() {
         )}
 
         <p className="text-center text-[11px] text-gray-400 pt-2 pb-6">
-          Live view · updates automatically as work progresses<br />
+          This page updates automatically — check back anytime<br />
           <a href="https://www.hunacreatives.com" className="hover:text-gray-600 transition-colors">Huna Creatives</a>
         </p>
       </div>
