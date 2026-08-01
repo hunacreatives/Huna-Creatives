@@ -17,7 +17,7 @@ const FEATURES = [
 
 const PLANS = [
   {
-    name: 'Starter', setup: '₱15,000', price: '₱4,999', per: '/month',
+    name: 'Starter', setup: '₱15,000', price: '₱2,500', per: '/month',
     perSeat: '+ per seat', seats: '5 seats included',
     desc: 'For small teams ready to stop running on spreadsheets.',
     features: ['Custom hub built for your workflow', 'Attendance & time tracking', 'Payroll calculation', 'Document generation', 'Client & project management', 'Onboarding & setup included', 'Email support'],
@@ -987,7 +987,7 @@ export default function ForAgenciesPage() {
         keywords: 'agency operations hub, HR software Philippines, payroll management, attendance tracking, creative agency management software, internal operations system, agency HR tool, project tracking Philippines',
         areaServed: 'Philippines',
         offers: [
-          { '@type': 'Offer', name: 'Starter', price: '4999', priceCurrency: 'PHP', description: 'For small teams ready to stop running on spreadsheets. Includes attendance, payroll, documents, and project management.' },
+          { '@type': 'Offer', name: 'Starter', price: '2500', priceCurrency: 'PHP', description: 'For small teams ready to stop running on spreadsheets. Includes attendance, payroll, documents, and project management.' },
           { '@type': 'Offer', name: 'Growth', price: '9999', priceCurrency: 'PHP', description: 'For growing agencies managing multiple departments, clients, and projects. Includes project-based payouts, overtime approvals, and audit log.' },
         ],
         provider: {
@@ -1050,7 +1050,7 @@ export default function ForAgenciesPage() {
             name: 'How much does Sentro OS cost?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'Sentro OS starts at ₱4,999/month (Starter plan, ₱15,000 one-time setup) for small teams. The Growth plan is ₱9,999/month (₱30,000 setup) for larger agencies. Enterprise pricing is available for custom builds.',
+              text: 'Sentro OS starts at ₱2,500/month (Starter plan, ₱15,000 one-time setup) for small teams. The Growth plan is ₱9,999/month (₱30,000 setup) for larger agencies. Enterprise pricing is available for custom builds.',
             },
           },
           {

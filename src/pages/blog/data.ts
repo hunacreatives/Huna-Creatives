@@ -1373,7 +1373,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Sentro OS starts at ₱4,999 per month with a one-time ₱15,000 setup fee for small teams on the Starter plan. The Growth plan — designed for larger agencies with more complex payroll and project tracking needs — runs ₱9,999 per month with a ₱30,000 setup. Enterprise pricing is available for custom builds and agencies that need white-labeled versions for their own clients. Every plan includes onboarding support — we set the system up with you, not just for you.',
+          'Sentro OS starts at ₱2,500 per month with a one-time ₱15,000 setup fee for small teams on the Starter plan. The Growth plan — designed for larger agencies with more complex payroll and project tracking needs — runs ₱9,999 per month with a ₱30,000 setup. Enterprise pricing is available for custom builds and agencies that need white-labeled versions for their own clients. Every plan includes onboarding support — we set the system up with you, not just for you.',
       },
       {
         type: 'heading',
@@ -1387,7 +1387,7 @@ export const blogArticles: BlogArticle[] = [
     ],
     cta: {
       heading: 'Stop managing your agency with spreadsheets.',
-      body: 'Sentro OS is the operations hub built for creative agencies in the Philippines. See how it works and get your team set up — starting at ₱4,999/month.',
+      body: 'Sentro OS is the operations hub built for creative agencies in the Philippines. See how it works and get your team set up — starting at ₱2,500/month.',
     },
     relatedSlugs: [
       'why-brand-identity-is-your-most-valuable-asset',
