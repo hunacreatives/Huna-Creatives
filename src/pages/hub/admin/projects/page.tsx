@@ -950,6 +950,18 @@ export default function AdminProjectsPage() {
     setUnarchiveChoice(null);
   };
 
+  const updateProjectStatus = async (project: Project, newStatus: string) => {
+    if (newStatus === project.status) return;
+    setProjects(prev => prev.map(p => p.id === project.id ? { ...p, status: newStatus } as Project : p));
+    const { error } = await supabase.from('hub_projects').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', project.id);
+    if (error) {
+      setProjects(prev => prev.map(p => p.id === project.id ? { ...p, status: project.status } : p));
+      window.alert(`Failed to update status: ${error.message}`);
+      return;
+    }
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'project', entity_id: String(project.id), description: `Changed "${project.project_name}" status to ${newStatus}` });
+  };
+
   const toggleArchiveProject = async (project: Project) => {
     if (isDemo) return;
     if (project.archived_at || project.status === 'cancelled') {
@@ -1617,7 +1629,7 @@ export default function AdminProjectsPage() {
                   <i className="ri-arrow-left-s-line text-base"></i>
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-gray-900 truncate leading-tight">{p.project_name}</p>
+                  <p className="text-sm font-medium text-gray-500 truncate leading-tight">Back to Projects</p>
                 </div>
                 <button
                   onClick={() => {
@@ -1671,9 +1683,17 @@ export default function AdminProjectsPage() {
                   {/* Left: project identity */}
                   <div className="min-w-0 lg:max-w-[280px] lg:flex-shrink-0">
                     <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[p.status] ?? statusColors.ongoing}`}>
-                        {statusLabels[p.status] ?? p.status}
-                      </span>
+                      <select
+                        value={p.status}
+                        onChange={e => void updateProjectStatus(p, e.target.value)}
+                        title="Change project status"
+                        className={`text-[10px] pl-2 pr-1.5 py-0.5 rounded-full font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-300 ${statusColors[p.status] ?? statusColors.ongoing}`}
+                      >
+                        <option value="ongoing">Active</option>
+                        <option value="paused">Paused</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Archived</option>
+                      </select>
                       {internalProject && <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Internal</span>}
                       {p.service && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getServiceCfg(p.service).badge}`}>{p.service}</span>}
                     </div>
