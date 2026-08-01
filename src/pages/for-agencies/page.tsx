@@ -17,21 +17,21 @@ const FEATURES = [
 
 const PLANS = [
   {
-    name: 'Starter', setup: '₱15,000', price: '₱2,500', per: '/month',
+    name: 'Starter', setup: '₱15,000', price: '₱2,500', originalPrice: '₱4,999', off: '50% OFF', per: '/month',
     perSeat: '+ per seat', seats: '5 seats included',
     desc: 'For small teams ready to stop running on spreadsheets.',
     features: ['Custom hub built for your workflow', 'Attendance & time tracking', 'Payroll calculation', 'Document generation', 'Client & project management', 'Onboarding & setup included', 'Email support'],
     cta: 'Book a Demo', highlight: false,
   },
   {
-    name: 'Growth', setup: '₱25,000', price: '₱5,999', per: '/month',
+    name: 'Growth', setup: '₱25,000', price: '₱5,999', originalPrice: '₱9,999', off: '40% OFF', per: '/month',
     perSeat: '+ per seat', seats: '10 seats included',
     desc: 'For growing teams managing multiple departments, clients, and projects.',
     features: ['Everything in Starter', 'Project-based payouts', 'Client questionnaires', 'Overtime & time-off approvals', 'Audit log', '2 rounds of workflow revisions', 'Priority support'],
     cta: 'Book a Demo', highlight: true,
   },
   {
-    name: 'Enterprise', setup: 'Custom', price: 'Custom', per: '',
+    name: 'Enterprise', setup: 'Custom', price: 'Custom', originalPrice: '', off: '', per: '',
     perSeat: 'Negotiated per seat', seats: 'Unlimited seats',
     desc: 'Fully custom build tailored to your organization from the ground up.',
     features: ['Everything in Growth', 'Custom integrations & modules', 'Dedicated onboarding', 'Dedicated account manager', 'SLA & priority escalation'],
@@ -1540,15 +1540,22 @@ export default function ForAgenciesPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B35] mb-3">Most Popular</span>
                   </>
                 )}
-                <h3 className="font-black text-lg mb-2 text-white">{p.name}</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-black text-lg text-white">{p.name}</h3>
+                  {p.off && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#FF6B35]/15 text-[#FF6B35]">{p.off}</span>
+                  )}
+                </div>
                 <div className="inline-flex items-center gap-1.5 text-xs font-medium mb-4 px-2.5 py-1 rounded-lg w-fit bg-white/5 text-gray-500">
                   <i className="ri-tools-line text-xs"></i>
                   {p.setup === 'Custom' ? 'Custom setup fee' : `${p.setup} one-time setup`}
                 </div>
-                <div className="flex items-end gap-1 mb-1">
+                <div className="flex items-end gap-2 mb-1">
+                  {p.originalPrice && <span className="text-lg text-gray-600 line-through mb-0.5">{p.originalPrice}</span>}
                   <span className="text-3xl font-black text-white">{p.price}</span>
                   <span className="text-sm mb-1 text-gray-400">{p.per}</span>
                 </div>
+                {p.off && <p className="text-[11px] text-[#FF6B35]/80 font-medium mb-1">Introductory pricing</p>}
                 <p className="text-xs text-gray-600 mb-1">{p.seats} · <span className="italic">{p.perSeat}</span></p>
                 <p className="text-xs mt-3 mb-5 text-gray-500">{p.desc}</p>
                 <ul className="space-y-2 mb-6 flex-1">
