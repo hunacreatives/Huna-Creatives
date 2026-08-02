@@ -16,6 +16,16 @@ const cors = {
 const fmt = (n: number) =>
   '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Stored receipt URLs are Drive "view" page links (https://drive.google.com/file/d/{id}/view),
+// not direct image URLs — convert to the thumbnail API for use in <img src>.
+// Mirrors src/pages/hub/utils/drive.ts's getDriveThumbnailUrl — keep in sync.
+function getDriveThumbnailUrl(url: string | null | undefined, size = 600) {
+  if (!url) return url ?? '';
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (!match) return url;
+  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w${size}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
@@ -128,7 +138,7 @@ Deno.serve(async (req) => {
             <td style="padding:20px 40px 0;">
               <p style="margin:0 0 10px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Proof of Receipt</p>
               <a href="${receipt_url}" target="_blank" style="display:block;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb;">
-                <img src="${receipt_url}" alt="Receipt" style="width:100%;display:block;max-height:300px;object-fit:contain;background:#f9fafb;" />
+                <img src="${getDriveThumbnailUrl(receipt_url)}" alt="Receipt" style="width:100%;display:block;max-height:300px;object-fit:contain;background:#f9fafb;" />
               </a>
               <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;text-align:center;">Click image to view full size</p>
             </td>
