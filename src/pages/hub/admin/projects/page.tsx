@@ -18,6 +18,7 @@ import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getServicePalette } from '@/pages/hub/utils/servicePalette';
 import { PRIORITY_CFG, PROJECT_STATUS_COLORS } from '@/pages/hub/utils/taskUi';
 import { getDriveThumbnailUrl } from '@/pages/hub/utils/drive';
+import { STAGES, DEFAULT_STAGE, getStageCfg } from '@/lib/projectStage';
 import { fmt, fmtRate, fmtDate } from './shared';
 import ReceiptLightbox from './ReceiptLightbox';
 import QuestionnaireAnswersModal, { type WsQuestionnaireRow } from './QuestionnaireAnswersModal';
@@ -58,7 +59,7 @@ type InvoiceSendMode = 'now' | 'schedule';
 interface Project {
   id: number; client_name: string; project_name: string; service: string | null;
   project_type: 'client' | 'internal' | 'retainer';
-  contract_price: number; monthly_rate: number | null; status: string; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
+  contract_price: number; monthly_rate: number | null; status: string; stage?: string | null; start_date: string | null; deadline: string | null; notes: string | null; contact_email: string | null;
   monthly_deliverables?: number | null;
   client_status_token?: string | null;
   archived_at?: string | null;
@@ -181,7 +182,14 @@ export default function AdminProjectsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ongoing' | 'paused' | 'completed' | 'archived'>('ongoing');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [pageView, setPageView] = useState<'projects' | 'tasks'>('projects');
+  const [pageView, setPageView] = useState<'projects' | 'tasks' | 'team'>('projects');
+  const [teamWindow, setTeamWindow] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  // Quick-add-task mini-form on a Team tab card
+  const [quickAddFor, setQuickAddFor] = useState<string | null>(null);
+  const [quickAddTitle, setQuickAddTitle] = useState('');
+  const [quickAddDueDate, setQuickAddDueDate] = useState('');
+  const [quickAddProjectId, setQuickAddProjectId] = useState<number | null>(null);
+  const [quickAddSaving, setQuickAddSaving] = useState(false);
   const [allTasks, setAllTasks] = useState<any[]>([]);
   const [allTasksLoading, setAllTasksLoading] = useState(false);
   const [taskStatusFilter, setTaskStatusFilter] = useState('active');
@@ -196,7 +204,7 @@ export default function AdminProjectsPage() {
   const [clientLinkCopied, setClientLinkCopied] = useState(false);
 
   // Project form
-  const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', monthly_rate_currency: 'PHP' as 'PHP' | 'USD', monthly_deliverables: '', status: 'ongoing', start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
+  const emptyForm = { project_type: 'client' as 'client' | 'internal' | 'retainer', client_name: '', project_name: '', service: 'Website Design', contract_price: '', monthly_rate: '', monthly_rate_currency: 'PHP' as 'PHP' | 'USD', monthly_deliverables: '', status: 'ongoing', stage: DEFAULT_STAGE as string, start_date: '', deadline: '', notes: '', contact_email: '', drive_url: '' };
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -713,7 +721,7 @@ export default function AdminProjectsPage() {
   const fetchAllTasks = async () => {
     setAllTasksLoading(true);
     const [tasksRes, projectsRes] = await Promise.all([
-      supabase.from('hub_project_tasks').select('id, project_id, title, status, priority, assigned_to, assignee_ids, due_date').is('deleted_at', null).order('due_date', { ascending: true, nullsFirst: false }),
+      supabase.from('hub_project_tasks').select('id, project_id, title, status, priority, assigned_to, assignee_ids, due_date, completed_at, archived').is('deleted_at', null).order('due_date', { ascending: true, nullsFirst: false }),
       supabase.from('hub_projects').select('id, project_name, client_name, project_type'),
     ]);
     const projectMap: Record<number, any> = Object.fromEntries((projectsRes.data ?? []).map((p: any) => [p.id, p]));
@@ -727,6 +735,37 @@ export default function AdminProjectsPage() {
       assignees: getTaskAssigneeIds(t).map((id) => userMap[id]).filter(Boolean),
     })));
     setAllTasksLoading(false);
+  };
+
+  // Quick-add a task to a contractor from a Team tab card.
+  const quickAddTask = async (contractorId: string) => {
+    if (!quickAddTitle.trim() || !quickAddProjectId || quickAddSaving) return;
+    setQuickAddSaving(true);
+    try {
+      const taskAssigneePayload = normalizeTaskAssigneePayload([contractorId]);
+      const { data, error } = await supabase.from('hub_project_tasks').insert({
+        project_id: quickAddProjectId,
+        title: quickAddTitle.trim(),
+        status: 'todo',
+        priority: 'medium',
+        ...taskAssigneePayload,
+        due_date: quickAddDueDate || null,
+      }).select('id, project_id, title, status, priority, assigned_to, assignee_ids, due_date, completed_at, archived').single();
+      if (error || !data) return;
+      const project = projects.find(p => p.id === data.project_id);
+      const assignee = contractors.find(c => c.id === contractorId) ?? null;
+      setAllTasks(prev => [...prev, {
+        ...data,
+        project: project ? { id: project.id, project_name: project.project_name, client_name: (project as any).client_name, project_type: project.project_type } : null,
+        assignee,
+        assignees: assignee ? [assignee] : [],
+      }]);
+      setQuickAddFor(null);
+      setQuickAddTitle('');
+      setQuickAddDueDate('');
+    } finally {
+      setQuickAddSaving(false);
+    }
   };
 
   const fetchAll = async () => {
@@ -812,6 +851,7 @@ export default function AdminProjectsPage() {
       return;
     }
     fetchAll();
+    fetchAllTasks();
   }, [isDemo]);
 
   const activeProject = projects.find(p => p.id === activeId) ?? null;
@@ -855,6 +895,7 @@ export default function AdminProjectsPage() {
       monthly_rate_currency: isRetainer ? (form as any).monthly_rate_currency : 'PHP',
       monthly_deliverables: isRetainer && (form as any).monthly_deliverables ? parseInt((form as any).monthly_deliverables, 10) : null,
       status: form.status,
+      stage: form.stage || DEFAULT_STAGE,
       start_date: form.start_date || null,
       deadline: isRetainer ? null : (form.deadline || null),
       notes: form.notes || null,
@@ -1361,6 +1402,63 @@ export default function AdminProjectsPage() {
     return null;
   };
 
+  // Shared project row renderer — used both by the stage-grouped list below
+  // and (identically) wherever else a project row needs to render. Pulled
+  // out of the JSX so the stage groups don't have to duplicate this markup.
+  const renderProjectRow = (p: Project) => {
+    const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
+    const dl = deadlineStatus(p.deadline, p.status);
+    const pTasks = tasks.filter(t => t.project_id === p.id && !t.deleted_at);
+    const pTasksDone = pTasks.filter(t => t.status === 'done').length;
+    const pal = getServicePalette(p.service);
+    const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
+    const isSelected = activeId === p.id;
+    const badge = dl ?? (p.status !== 'ongoing' ? cfg : null);
+    return (
+      <div key={p.id} role="button" tabIndex={0}
+        onClick={() => openProjectWorkspace(p.id)}
+        onKeyDown={e => { if (e.key === 'Enter') openProjectWorkspace(p.id); }}
+        className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/60'}`}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+          style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
+          <span className="text-[13px] font-bold text-white">{p.project_name.charAt(0).toUpperCase()}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
+          <p className="text-xs text-gray-400 truncate mt-0.5">{p.project_type === 'internal' ? 'Internal' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
+        </div>
+        <div className="hidden sm:flex -space-x-2 flex-shrink-0">
+          {team.slice(0, 4).map((u: any, i: number) => (
+            u?.avatar_url
+              ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white shadow-sm" />
+              : <div key={i} className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
+          ))}
+          {team.length === 0 && <div className="w-7 h-7 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center"><i className="ri-user-line text-[9px] text-gray-300"></i></div>}
+        </div>
+        {pTasks.length > 0 && (
+          <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+            <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((pTasksDone / pTasks.length) * 100)}%`, background: pal.from }} />
+            </div>
+            <span className="text-[11px] text-gray-400 w-8">{pTasksDone}/{pTasks.length}</span>
+          </div>
+        )}
+        {badge ? (
+          <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${badge.cls}`}>{badge.label}</span>
+        ) : (
+          <span className="text-[11px] text-gray-400 flex-shrink-0">Active</span>
+        )}
+        <button
+          onClick={e => { e.stopPropagation(); setActiveClientId(null); setActiveId(p.id); }}
+          title="Payments, payouts & contract"
+          className={`w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 cursor-pointer transition-colors ${isSelected ? 'text-[#FF6B35] bg-[#FF6B35]/10' : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'}`}>
+          <i className="ri-wallet-3-line text-base"></i>
+        </button>
+        <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
+      </div>
+    );
+  };
+
   const statusTabs = [
     { key: 'all' as const, label: 'All', icon: 'ri-apps-2-line', count: projects.filter(p => !isArchivedProject(p)).length },
     { key: 'ongoing' as const, label: 'Active', icon: 'ri-flashlight-line', count: projects.filter(p => p.status === 'ongoing' && !isArchivedProject(p)).length },
@@ -1368,6 +1466,44 @@ export default function AdminProjectsPage() {
     { key: 'completed' as const, label: 'Completed', icon: 'ri-check-double-line', count: projects.filter(p => p.status === 'completed' && !isArchivedProject(p)).length },
     { key: 'archived' as const, label: 'Archived', icon: 'ri-archive-line', count: projects.filter(isArchivedProject).length },
   ];
+
+  // ── Team tab window math (daily/weekly/monthly), shared by the Team tab
+  // card grid below. completed_at is Huna's column name for what fs-architects
+  // calls done_at.
+  const teamToday = localToday();
+  const windowDays = teamWindow === 'daily' ? 0 : teamWindow === 'weekly' ? 7 : 30;
+  const daysOut = (t: any) => t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(teamToday + 'T00:00:00').getTime()) / 86400000) : null;
+  const doneInWindow = (taskList: any[]) => taskList.filter((t: any) => {
+    if (t.status !== 'done' || !t.completed_at) return false;
+    const dd = new Date(t.completed_at);
+    const doneDateStr = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
+    if (doneDateStr > teamToday) return false;
+    const daysAgo = Math.floor((new Date(teamToday + 'T00:00:00').getTime() - new Date(doneDateStr + 'T00:00:00').getTime()) / 86400000);
+    return daysAgo <= windowDays;
+  });
+
+  // ── Team Overview hero (mirrors fs-architects' company-wide snapshot) ──
+  // Driven by the same teamWindow (Daily/Weekly/Monthly) toggle as the Team
+  // tab, so switching it updates the hero stats too.
+  const heroToday = teamToday;
+  const heroDueLabel = teamWindow === 'daily' ? 'Due today' : teamWindow === 'weekly' ? 'Due this week' : 'Due this month';
+  const heroOpenTasks = allTasks.filter((t: any) => t.status !== 'done' && !t.archived);
+  const heroDueInWindowCount = heroOpenTasks.filter((t: any) => {
+    if (!t.due_date || t.due_date < heroToday) return false;
+    const d = daysOut(t);
+    return d !== null && d <= windowDays;
+  }).length;
+  const heroOverdueCount = heroOpenTasks.filter((t: any) => t.due_date && t.due_date < heroToday).length;
+  const heroActiveProjectsCount = projects.filter(p => p.status === 'ongoing').length;
+  const heroRelevantOpen = heroOpenTasks.filter((t: any) => {
+    if (t.due_date && t.due_date < heroToday) return true;
+    if (!t.due_date) return windowDays >= 30;
+    const d = daysOut(t);
+    return d !== null && d <= windowDays;
+  });
+  const heroDoneInWindow = doneInWindow(allTasks);
+  const heroWindowTotal = heroRelevantOpen.length + heroDoneInWindow.length;
+  const heroPct = heroWindowTotal > 0 ? Math.round((heroDoneInWindow.length / heroWindowTotal) * 100) : 0;
 
   useEffect(() => {
     // Only reset if the activeId doesn't exist anywhere in projects (truly gone,
@@ -1504,6 +1640,11 @@ export default function AdminProjectsPage() {
   const wsDoneCt = wsActiveTasks.filter(t => t.status === 'done').length;
   const wsPct = wsActiveTasks.length > 0 ? Math.round((wsDoneCt / wsActiveTasks.length) * 100) : 0;
   const wsTaskTeam = activeProject ? activeProject.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean) : [];
+  // Tasks opened from the Tasks/Team tabs (rather than from within an open
+  // project workspace) have no activeProject, so wsTaskTeam would be empty —
+  // resolve the assignee list from the task's own project instead.
+  const detailProject = projects.find(p => p.id === (detailTask as any)?.project_id) ?? activeProject;
+  const detailTaskTeam = detailProject ? detailProject.hub_project_contractors.map(pc => pc.hub_users).filter(Boolean) : [];
   const getWorkspaceTaskAssignees = (task: ProjectTask) =>
     getTaskAssigneeIds(task)
       .map((assigneeId) => wsTaskTeam.find((member) => member?.id === assigneeId))
@@ -2596,55 +2737,267 @@ export default function AdminProjectsPage() {
 
         <section className="space-y-3">
 
-          {/* ── Toolbar ── */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-xl flex-shrink-0 overflow-x-auto max-w-full">
-              {statusTabs.filter(t => t.key !== 'all').map(tab => (
-                <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${statusFilter === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {tab.label}
-                </button>
-              ))}
+          {/* ── Team Overview hero ── */}
+          <div className="relative overflow-hidden rounded-[28px] p-6 sm:p-7 text-white shadow-[0_20px_50px_-20px_rgba(28,43,58,0.55)]" style={{ background: 'linear-gradient(135deg, #1c2b3a 0%, #2d4a6e 100%)' }}>
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(480px 300px at 88% -10%, rgba(255,255,255,0.16), transparent 60%)' }}></div>
+            <div className="relative flex items-center justify-between gap-6 flex-wrap">
+              <div>
+                <p className="text-xs text-white/55 font-medium mb-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                <h2 className="text-2xl font-extrabold tracking-tight leading-tight">Team Overview</h2>
+                <p className="text-sm text-white/70 mt-1">
+                  {heroActiveProjectsCount} active project{heroActiveProjectsCount !== 1 ? 's' : ''} · {heroOpenTasks.length} open task{heroOpenTasks.length !== 1 ? 's' : ''} across the team
+                </p>
+              </div>
+              {allTasks.length > 0 && (
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="relative w-[72px] h-[72px] flex-shrink-0">
+                    <svg width="72" height="72" className="-rotate-90">
+                      <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="7" />
+                      <circle cx="36" cy="36" r="30" fill="none" stroke="#fff" strokeWidth="7" strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 30} strokeDashoffset={2 * Math.PI * 30 * (1 - heroPct / 100)} style={{ transition: 'stroke-dashoffset 0.4s ease' }} />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center text-base font-bold">{heroPct}%</div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs text-white/80"><span className="w-1.5 h-1.5 rounded-full bg-amber-300 flex-shrink-0"></span>{heroDueLabel} <span className="font-bold text-white">{heroDueInWindowCount}</span></div>
+                    <div className="flex items-center gap-2 text-xs text-white/80"><span className="w-1.5 h-1.5 rounded-full bg-rose-300 flex-shrink-0"></span>Overdue <span className="font-bold text-white">{heroOverdueCount}</span></div>
+                    <div className="flex items-center gap-2 text-xs text-white/80"><span className="w-1.5 h-1.5 rounded-full bg-emerald-300 flex-shrink-0"></span>Done <span className="font-bold text-white">{heroDoneInWindow.length}</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Tab switcher ── */}
+          <div className="flex items-center gap-3">
+            <div className="relative inline-grid grid-cols-3 bg-gray-100 rounded-2xl p-1 flex-shrink-0">
+              <div className="absolute top-1 bottom-1 left-1 w-[calc(33.333%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-out"
+                style={{ transform: pageView === 'tasks' ? 'translateX(100%)' : pageView === 'team' ? 'translateX(200%)' : 'translateX(0)' }}></div>
+              <button onClick={() => setPageView('projects')}
+                className={`relative z-10 flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-bold transition-colors cursor-pointer whitespace-nowrap ${pageView === 'projects' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                <i className="ri-folder-line text-sm"></i><span className="hidden sm:inline">Projects</span>
+              </button>
+              <button onClick={() => { setPageView('tasks'); fetchAllTasks(); }}
+                className={`relative z-10 flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-bold transition-colors cursor-pointer whitespace-nowrap ${pageView === 'tasks' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                <i className="ri-task-line text-sm"></i><span className="hidden sm:inline">Tasks</span>
+              </button>
+              <button onClick={() => { setPageView('team'); fetchAllTasks(); }}
+                className={`relative z-10 flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-bold transition-colors cursor-pointer whitespace-nowrap ${pageView === 'team' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                <i className="ri-group-line text-sm"></i><span className="hidden sm:inline">Team</span>
+              </button>
             </div>
             <div className="flex-1" />
-            <button onClick={() => { setPageView(pageView === 'tasks' ? 'projects' : 'tasks'); if (pageView !== 'tasks') fetchAllTasks(); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border transition-colors cursor-pointer flex-shrink-0 ${pageView === 'tasks' ? 'bg-[#111827] text-white border-[#111827]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-              <i className="ri-task-line text-sm"></i><span className="hidden sm:inline">All Tasks</span>
-            </button>
-            <div className="relative group/more flex-shrink-0">
-              <button className="flex items-center justify-center w-8 h-8 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors cursor-pointer">
-                <i className="ri-more-line text-sm"></i>
-              </button>
-              <div className="absolute right-0 top-9 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[160px] hidden group-hover/more:block">
-                <div className="px-3 py-1.5 border-b border-gray-50">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Filter by</p>
-                </div>
-                <div className="px-3 py-2 space-y-1.5">
-                  <select value={projectTypeFilter} onChange={e => setProjectTypeFilter(e.target.value as any)}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none cursor-pointer">
-                    <option value="all">All Types</option>
-                    <option value="client">Fixed Contract</option>
-                    <option value="internal">Internal</option>
-                  </select>
-                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none cursor-pointer">
-                    <option value="all">All Services</option>
-                    {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="border-t border-gray-50 pt-1">
-                  <button onClick={() => { setEditingProject(null); setForm({ ...emptyForm, project_type: 'retainer' }); setShowForm(true); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors">
-                    <i className="ri-add-line text-sm"></i>Add Client
+            {pageView === 'projects' && (
+              <>
+                <div className="relative group/more flex-shrink-0">
+                  <button className="flex items-center justify-center w-8 h-8 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors cursor-pointer">
+                    <i className="ri-more-line text-sm"></i>
                   </button>
+                  <div className="absolute right-0 top-9 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[160px] hidden group-hover/more:block">
+                    <div className="px-3 py-1.5 border-b border-gray-50">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Filter by</p>
+                    </div>
+                    <div className="px-3 py-2 space-y-1.5">
+                      <select value={projectTypeFilter} onChange={e => setProjectTypeFilter(e.target.value as any)}
+                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none cursor-pointer">
+                        <option value="all">All Types</option>
+                        <option value="client">Fixed Contract</option>
+                        <option value="internal">Internal</option>
+                      </select>
+                      <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none cursor-pointer">
+                        <option value="all">All Services</option>
+                        {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div className="border-t border-gray-50 pt-1">
+                      <button onClick={() => { setEditingProject(null); setForm({ ...emptyForm, project_type: 'retainer' }); setShowForm(true); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors">
+                        <i className="ri-add-line text-sm"></i>Add Client
+                      </button>
+                    </div>
+                  </div>
                 </div>
+                <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-xl hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
+                  <i className="ri-add-line text-sm"></i>New Project
+                </button>
+              </>
+            )}
+            {pageView === 'team' && (
+              <div className="inline-flex items-center gap-1 bg-white/50 backdrop-blur-sm border border-white/80 rounded-xl p-1 flex-shrink-0">
+                {([['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly']] as const).map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setTeamWindow(key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${teamWindow === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Sub-filter: status ── */}
+          {pageView === 'projects' && (
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-0">
+              <div className="flex items-center gap-6 overflow-x-auto">
+                {statusTabs.filter(t => t.key !== 'all').map(tab => (
+                  <button key={tab.key} onClick={() => setStatusFilter(tab.key)}
+                    className={`relative pb-[11px] text-[13px] transition-colors cursor-pointer whitespace-nowrap ${statusFilter === tab.key ? 'text-gray-900 font-bold' : 'text-gray-400 font-semibold hover:text-gray-600'}`}>
+                    {tab.label}
+                    {statusFilter === tab.key && <span className="absolute left-0 right-0 -bottom-px h-0.5 rounded-full bg-[#1c2b3a]"></span>}
+                  </button>
+                ))}
               </div>
             </div>
-            <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(true); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-xl hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0">
-              <i className="ri-add-line text-sm"></i>New Project
-            </button>
-          </div>
+          )}
+
+          {pageView === 'team' && (() => {
+            const cards = contractors.map(c => {
+              const personTasks = allTasks.filter((t: any) => t.status !== 'done' && !t.archived && getTaskAssigneeIds(t).includes(c.id));
+              const overdue = personTasks.filter((t: any) => t.due_date && t.due_date < teamToday);
+              const inWindow = personTasks.filter((t: any) => {
+                if (!t.due_date || t.due_date < teamToday) return false;
+                const d = daysOut(t);
+                return d !== null && d <= windowDays;
+              });
+              const noDueDate = windowDays >= 30 ? personTasks.filter((t: any) => !t.due_date) : [];
+              const shown = [...overdue.slice(0, 2), ...inWindow, ...noDueDate].slice(0, 4);
+              const windowOpen = overdue.length + inWindow.length + noDueDate.length;
+              const allPersonTasks = allTasks.filter((t: any) => getTaskAssigneeIds(t).includes(c.id));
+              const doneCount = doneInWindow(allPersonTasks).length;
+              return { contractor: c, shown, overdueCount: overdue.length, totalOpen: personTasks.length, windowOpen, doneCount };
+            }).sort((a, b) => (b.overdueCount - a.overdueCount) || (b.shown.length - a.shown.length));
+
+            const bucketStats = (bucketTasks: any[]) => {
+              const openTasks = bucketTasks.filter((t: any) => t.status !== 'done' && !t.archived);
+              const overdue = openTasks.filter((t: any) => t.due_date && t.due_date < teamToday);
+              const inWindow = openTasks.filter((t: any) => {
+                if (!t.due_date || t.due_date < teamToday) return false;
+                const d = daysOut(t);
+                return d !== null && d <= windowDays;
+              });
+              const noDueDate = windowDays >= 30 ? openTasks.filter((t: any) => !t.due_date) : [];
+              return { windowOpen: overdue.length + inWindow.length + noDueDate.length, overdueCount: overdue.length, doneCount: doneInWindow(bucketTasks).length };
+            };
+
+            const unassignedTasks = allTasks.filter((t: any) => getTaskAssigneeIds(t).length === 0);
+            const unassignedStats = bucketStats(unassignedTasks);
+
+            const contractorIds = new Set(contractors.map(c => c.id));
+            const orphanedByAssignee = new Map<string, { id: string; name: string; avatar_url: string | null; tasks: any[] }>();
+            allTasks.forEach((t: any) => {
+              getTaskAssigneeIds(t).forEach((id: string) => {
+                if (contractorIds.has(id)) return;
+                const u = (t.assignees ?? []).find((a: any) => a.id === id);
+                if (!orphanedByAssignee.has(id)) {
+                  orphanedByAssignee.set(id, { id, name: u?.full_name ? `${u.full_name} (inactive)` : 'Unknown user', avatar_url: u?.avatar_url ?? null, tasks: [] });
+                }
+                orphanedByAssignee.get(id)!.tasks.push(t);
+              });
+            });
+            const orphanedEntries = [...orphanedByAssignee.values()].map(({ id, name, avatar_url, tasks }) => ({ id, name, avatar_url, ...bucketStats(tasks) }));
+
+            const workload = [
+              ...cards.map(({ contractor: c, windowOpen, overdueCount, doneCount }) => ({ id: c.id, name: c.full_name, avatar_url: c.avatar_url, totalOpen: windowOpen, overdueCount, doneCount })),
+              ...((unassignedStats.windowOpen > 0 || unassignedStats.doneCount > 0) ? [{ id: '__unassigned', name: 'Unassigned', avatar_url: null, totalOpen: unassignedStats.windowOpen, overdueCount: unassignedStats.overdueCount, doneCount: unassignedStats.doneCount }] : []),
+              ...orphanedEntries.filter(e => e.windowOpen > 0 || e.doneCount > 0).map(({ windowOpen, ...rest }) => ({ ...rest, totalOpen: windowOpen })),
+            ].sort((a, b) => (b.totalOpen - a.totalOpen) || (b.doneCount - a.doneCount));
+            const maxOpen = Math.max(1, ...workload.map(w => w.totalOpen));
+
+            const assignableProjects = projects.filter(p => p.status !== 'cancelled');
+
+            return (
+              <div className="pt-1 pb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {cards.map(({ contractor: c, shown, overdueCount }) => (
+                    <div key={c.id} className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 p-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        {c.avatar_url ? (
+                          <img src={c.avatar_url} alt={c.full_name} className="w-11 h-11 rounded-full object-cover object-top flex-shrink-0" />
+                        ) : (
+                          <div className="w-11 h-11 rounded-full bg-[#1c2b3a]/70 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{c.full_name[0]}</div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{c.full_name}</p>
+                          <p className="text-[11px] text-gray-400 truncate">{c.department || 'Team'}</p>
+                        </div>
+                        <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                          {overdueCount > 0 && (
+                            <span className="text-[10px] font-semibold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">{overdueCount} overdue</span>
+                          )}
+                          <button type="button" title={`Assign a task to ${c.full_name.split(' ')[0]}`}
+                            onClick={() => {
+                              setQuickAddFor(quickAddFor === c.id ? null : c.id);
+                              setQuickAddTitle(''); setQuickAddDueDate('');
+                              setQuickAddProjectId(assignableProjects[0]?.id ?? null);
+                            }}
+                            className={`w-6 h-6 flex items-center justify-center rounded-lg cursor-pointer transition-colors ${quickAddFor === c.id ? 'bg-[#1c2b3a] text-white' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}>
+                            <i className="ri-add-line text-sm"></i>
+                          </button>
+                        </div>
+                      </div>
+                      {quickAddFor === c.id && (
+                        <div className="flex flex-col gap-1.5 bg-gray-50/80 rounded-xl p-2.5">
+                          <input autoFocus value={quickAddTitle} onChange={e => setQuickAddTitle(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') void quickAddTask(c.id); if (e.key === 'Escape') setQuickAddFor(null); }}
+                            placeholder="Task title..."
+                            className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1c2b3a]/30 focus:border-[#1c2b3a]" />
+                          <div className="flex items-center gap-1.5">
+                            <select value={quickAddProjectId ?? ''} onChange={e => setQuickAddProjectId(Number(e.target.value))}
+                              className="flex-1 min-w-0 px-2 py-1.5 text-[11px] border border-gray-200 rounded-lg bg-white focus:outline-none cursor-pointer">
+                              {assignableProjects.map(p => <option key={p.id} value={p.id}>{p.project_name}</option>)}
+                            </select>
+                            <input type="date" value={quickAddDueDate} onChange={e => setQuickAddDueDate(e.target.value)}
+                              className="px-2 py-1.5 text-[11px] border border-gray-200 rounded-lg bg-white focus:outline-none cursor-pointer" />
+                          </div>
+                          <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                            <button type="button" onClick={() => setQuickAddFor(null)} className="px-2.5 py-1 text-[11px] text-gray-500 hover:text-gray-700 cursor-pointer">Cancel</button>
+                            <button type="button" disabled={!quickAddTitle.trim() || !quickAddProjectId || quickAddSaving} onClick={() => void quickAddTask(c.id)}
+                              className="px-3 py-1 text-[11px] font-semibold bg-[#1c2b3a] text-white rounded-lg disabled:opacity-40 cursor-pointer">
+                              {quickAddSaving ? 'Adding...' : 'Add'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {shown.length === 0 ? (
+                        <div className="flex items-center gap-2 py-2">
+                          <i className="ri-checkbox-circle-line text-emerald-400 text-base"></i>
+                          <p className="text-xs text-gray-400">All caught up</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 -mx-1">
+                          {shown.slice(0, 4).map((t: any) => {
+                            const isOverdueTask = t.due_date && t.due_date < teamToday;
+                            return (
+                              <button key={t.id} type="button" onClick={() => openTaskDetail(t)}
+                                className="w-full flex items-center gap-2 px-1 py-1.5 rounded-xl hover:bg-gray-50/80 transition-colors text-left cursor-pointer">
+                                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOverdueTask ? 'bg-rose-400' : 'bg-sky-400'}`}></span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-gray-800 truncate">{t.title}</p>
+                                  <p className="text-[10px] text-gray-400 truncate">{t.project?.project_name ?? 'Unknown'}</p>
+                                </div>
+                                {t.due_date && (
+                                  <span className={`text-[10px] font-semibold flex-shrink-0 ${isOverdueTask ? 'text-rose-500' : t.due_date === teamToday ? 'text-amber-600' : 'text-gray-400'}`}>
+                                    {t.due_date === teamToday ? 'Today' : isOverdueTask ? 'Late' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                          {shown.length > 4 && <p className="text-[10px] text-gray-400 px-1 pt-1">+{shown.length - 4} more</p>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {cards.length === 0 && (
+                    <div className="col-span-full text-center py-14">
+                      <p className="text-sm text-gray-400">No team members yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {pageView === 'tasks' && (
             <div className="space-y-4 pt-1 pb-3">
@@ -2691,10 +3044,11 @@ export default function AdminProjectsPage() {
                 const workload: Record<string, { name: string; avatar: string | null; open: number; overdue: number }> = {};
                 for (const t of allTasks) {
                   if (t.status === 'done') continue;
-                  const people = t.assignees?.length ? t.assignees : [null];
+                  const people = t.assignees ?? [];
                   for (const u of people) {
-                    const key = u?.id ?? 'unassigned';
-                    workload[key] ??= { name: u?.full_name ?? 'Unassigned', avatar: u?.avatar_url ?? null, open: 0, overdue: 0 };
+                    if (!u?.id) continue;
+                    const key = u.id;
+                    workload[key] ??= { name: u.full_name, avatar: u.avatar_url ?? null, open: 0, overdue: 0 };
                     workload[key].open++;
                     if (isOver(t)) workload[key].overdue++;
                   }
@@ -2714,7 +3068,7 @@ export default function AdminProjectsPage() {
                           <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div className={`h-full rounded-full ${w.overdue > 0 ? 'bg-rose-400' : 'bg-sky-400'}`} style={{ width: `${Math.round((w.open / maxOpen) * 100)}%` }} />
                           </div>
-                          <span className="text-[11px] text-gray-500 w-20 text-right flex-shrink-0">
+                          <span className="text-[11px] text-gray-500 w-32 text-right flex-shrink-0 whitespace-nowrap">
                             {w.open} open{w.overdue > 0 && <span className="text-rose-500 font-semibold"> · {w.overdue} late</span>}
                           </span>
                         </div>
@@ -2745,8 +3099,8 @@ export default function AdminProjectsPage() {
                           const over = isOver(t);
                           const scfg = STATUS_LABEL[t.status] ?? STATUS_LABEL.todo;
                           return (
-                            <div key={t.id} className={`flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50/60 ${over ? 'bg-rose-50/30' : ''}`}>
-                              <button onClick={async () => { const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n, completed_at: n === 'done' ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); logStatusChangeSideEffects(t, n); }} className="flex-shrink-0 cursor-pointer">
+                            <div key={t.id} onClick={() => openTaskDetail(t as unknown as ProjectTask)} className={`flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50/60 cursor-pointer ${over ? 'bg-rose-50/30' : ''}`}>
+                              <button onClick={async (e) => { e.stopPropagation(); const n = t.status === 'done' ? 'todo' : 'done'; await supabase.from('hub_project_tasks').update({ status: n, completed_at: n === 'done' ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', t.id); setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, status: n } : x)); logStatusChangeSideEffects(t, n); }} className="flex-shrink-0 cursor-pointer">
                                 <i className={`text-base ${t.status === 'done' ? 'ri-checkbox-circle-fill text-emerald-500' : 'ri-checkbox-blank-circle-line text-gray-300 hover:text-emerald-400'}`}></i>
                               </button>
                               <div className="flex-1 min-w-0">
@@ -2771,76 +3125,32 @@ export default function AdminProjectsPage() {
               })()}
             </div>
           )}
-          <div className="pb-3" style={{ display: pageView === 'tasks' ? 'none' : undefined }}>
+          <div className="pb-3" style={{ display: pageView !== 'projects' ? 'none' : undefined }}>
             {loading ? (
               <div className="flex justify-center py-16"><i className="ri-loader-4-line animate-spin text-gray-300 text-2xl"></i></div>
             ) : (
               <div className="space-y-6">
 
-                {/* ── One-time Projects ── */}
-                {filtered.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">Projects</p>
-                      <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{filtered.length}</span>
-                    </div>
-                    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
-                      {filtered.map(p => {
-                        const cfg = statusCfg[p.status] ?? statusCfg.ongoing;
-                        const dl = deadlineStatus(p.deadline, p.status);
-                        const pTasks = tasks.filter(t => t.project_id === p.id && !t.deleted_at);
-                        const pTasksDone = pTasks.filter(t => t.status === 'done').length;
-                        const pal = getServicePalette(p.service);
-                        const team = p.hub_project_contractors.map((pc: any) => pc.hub_users).filter(Boolean);
-                        const isSelected = activeId === p.id;
-                        const badge = dl ?? (p.status !== 'ongoing' ? cfg : null);
-                        return (
-                          <div key={p.id} role="button" tabIndex={0}
-                            onClick={() => openProjectWorkspace(p.id)}
-                            onKeyDown={e => { if (e.key === 'Enter') openProjectWorkspace(p.id); }}
-                            className={`w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer ${isSelected ? 'bg-[#FF6B35]/5' : 'hover:bg-gray-50/60'}`}>
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
-                              style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
-                              <span className="text-[13px] font-bold text-white">{p.project_name.charAt(0).toUpperCase()}</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
-                              <p className="text-xs text-gray-400 truncate mt-0.5">{p.project_type === 'internal' ? 'Internal' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
-                            </div>
-                            <div className="hidden sm:flex -space-x-2 flex-shrink-0">
-                              {team.slice(0, 4).map((u: any, i: number) => (
-                                u?.avatar_url
-                                  ? <img key={i} src={u.avatar_url} alt={u.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-white shadow-sm" />
-                                  : <div key={i} className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white shadow-sm flex items-center justify-center text-[9px] font-bold text-gray-500">{u?.full_name?.[0]}</div>
-                              ))}
-                              {team.length === 0 && <div className="w-7 h-7 rounded-full bg-gray-50 border-2 border-white flex items-center justify-center"><i className="ri-user-line text-[9px] text-gray-300"></i></div>}
-                            </div>
-                            {pTasks.length > 0 && (
-                              <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
-                                <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((pTasksDone / pTasks.length) * 100)}%`, background: pal.from }} />
-                                </div>
-                                <span className="text-[11px] text-gray-400 w-8">{pTasksDone}/{pTasks.length}</span>
-                              </div>
-                            )}
-                            {badge ? (
-                              <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${badge.cls}`}>{badge.label}</span>
-                            ) : (
-                              <span className="text-[11px] text-gray-400 flex-shrink-0">Active</span>
-                            )}
-                            <button
-                              onClick={e => { e.stopPropagation(); setActiveClientId(null); setActiveId(p.id); }}
-                              title="Payments, payouts & contract"
-                              className={`w-8 h-8 flex items-center justify-center rounded-lg flex-shrink-0 cursor-pointer transition-colors ${isSelected ? 'text-[#FF6B35] bg-[#FF6B35]/10' : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'}`}>
-                              <i className="ri-wallet-3-line text-base"></i>
-                            </button>
-                            <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
+                {/* ── Projects, grouped by stage ── */}
+                {filtered.length > 0 && (() => {
+                  const stageGroups = STAGES
+                    .map(stage => ({ stage, rows: filtered.filter(p => (p.stage ?? DEFAULT_STAGE) === stage) }))
+                    .filter(g => g.rows.length > 0);
+                  return (
+                    <>
+                      {stageGroups.map(({ stage, rows }) => (
+                        <div key={stage}>
+                          <div className="flex items-center gap-2 mb-3">
+                            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{stage.toUpperCase()} <span className="text-gray-300 font-normal">({rows.length})</span></p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                          <div className="rounded-3xl bg-white/70 backdrop-blur-sm border border-white/80 divide-y divide-gray-100/80 overflow-hidden">
+                            {rows.map(p => renderProjectRow(p))}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
 
                 {filtered.length === 0 && !loading && (
                   <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-14 text-center">
@@ -2887,7 +3197,12 @@ export default function AdminProjectsPage() {
                                 <span className="text-[13px] font-bold text-white">{p.project_name.charAt(0).toUpperCase()}</span>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
+                                  {p.stage && getStageCfg(p.stage) && (
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${getStageCfg(p.stage)!.cls}`}>{p.stage}</span>
+                                  )}
+                                </div>
                                 <p className="text-xs text-gray-400 truncate mt-0.5">{p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
                               </div>
                               <div className="hidden sm:flex -space-x-2 flex-shrink-0">
@@ -3058,7 +3373,7 @@ export default function AdminProjectsPage() {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>}
-                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'internal' ? '' : String(activeProject.contract_price || ''), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', monthly_rate_currency: (activeProject as any).monthly_rate_currency ?? 'PHP', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
+                    <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, project_name: activeProject.project_name, client_name: activeProject.client_name, contact_email: activeProject.contact_email ?? '', service: activeProject.service ?? '', contract_price: activeProject.project_type === 'internal' ? '' : String(activeProject.contract_price || ''), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', monthly_rate_currency: (activeProject as any).monthly_rate_currency ?? 'PHP', deadline: activeProject.deadline ?? '', start_date: activeProject.start_date ?? '', status: activeProject.status, stage: activeProject.stage ?? DEFAULT_STAGE, notes: activeProject.notes ?? '', drive_url: (activeProject as any).drive_url ?? '' } as any); setShowForm(true); }}
                       className="px-4 flex items-center gap-1.5 py-2.5 border border-gray-200 text-gray-600 text-sm rounded-xl cursor-pointer">
                       <i className="ri-edit-line"></i>
                     </button>
@@ -3119,6 +3434,9 @@ export default function AdminProjectsPage() {
                       {activeProject.service && (
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getServiceCfg(activeProject.service).badge}`}>{activeProject.service}</span>
                       )}
+                      {activeProject.stage && getStageCfg(activeProject.stage) && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStageCfg(activeProject.stage)!.cls}`}>{activeProject.stage}</span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-500 mt-0.5">{internalProject ? 'Internal Project' : activeProject.client_name}</p>
                     {(activeProject.start_date || activeProject.deadline) && (
@@ -3139,7 +3457,7 @@ export default function AdminProjectsPage() {
                 <div className="flex items-center gap-1.5 flex-wrap mt-4 pt-3 border-t border-gray-50">
                     {/* Secondary actions */}
                     <div className="flex items-center gap-0.5 bg-white/60 border border-gray-200 rounded-xl px-1 py-1">
-                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: activeProject.project_type === 'internal' ? '' : String(activeProject.contract_price || ''), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', status: activeProject.status, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
+                      <button onClick={() => { setEditingProject(activeProject); setForm({ project_type: activeProject.project_type, client_name: activeProject.client_name, project_name: activeProject.project_name, service: activeProject.service || '', contract_price: activeProject.project_type === 'internal' ? '' : String(activeProject.contract_price || ''), monthly_rate: activeProject.monthly_rate != null ? String(activeProject.monthly_rate) : '', monthly_deliverables: (activeProject as any).monthly_deliverables != null ? String((activeProject as any).monthly_deliverables) : '', status: activeProject.status, stage: activeProject.stage ?? DEFAULT_STAGE, start_date: activeProject.start_date || '', deadline: activeProject.deadline || '', notes: activeProject.notes || '', contact_email: activeProject.contact_email || '', drive_url: (activeProject as any).drive_url || '' } as any); setShowForm(true); }}
                         className="text-xs text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors">
                         <i className="ri-edit-line text-sm"></i> Edit
                       </button>
@@ -4130,6 +4448,20 @@ export default function AdminProjectsPage() {
             ? prev.map(t => t.id === saved.id ? { ...t, ...saved } : t)
             : [...prev, saved as ProjectTask]);
           setDetailTask(saved);
+          // Keep the Tasks/Team tabs (allTasks) in sync — they're a separate
+          // fetch from `tasks` and otherwise only refresh on next tab visit,
+          // so a reassignment made here would keep showing the old assignee.
+          setAllTasks(prev => prev.map(t => {
+            if (t.id !== saved.id) return t;
+            const assigneeIds = getTaskAssigneeIds(saved as any);
+            const resolve = (id: string) => contractors.find(c => c.id === id) ?? t.assignees?.find((a: any) => a?.id === id) ?? null;
+            return {
+              ...t,
+              ...saved,
+              assignee: assigneeIds[0] ? resolve(assigneeIds[0]) : null,
+              assignees: assigneeIds.map(resolve).filter(Boolean),
+            };
+          }));
           // Refresh comment count for this task
           if (saved.id) supabase.from('hub_project_task_comments').select('task_id').eq('task_id', saved.id)
             .then(({ data }) => setCommentCounts(prev => ({ ...prev, [saved.id]: data?.length ?? prev[saved.id] ?? 0 })));
@@ -4137,19 +4469,21 @@ export default function AdminProjectsPage() {
         }}
         onDeleted={(id) => {
           setTasks(prev => prev.map(t => t.id === id ? { ...t, deleted_at: new Date().toISOString() } : t));
+          setAllTasks(prev => prev.filter(t => t.id !== id));
           setDetailOpen(false);
           setDetailTask(null);
           refreshWorkspaceActivity();
         }}
         onArchived={(id) => {
           setTasks(prev => prev.map(t => t.id === id ? { ...t, archived: true, archived_at: new Date().toISOString() } : t));
+          setAllTasks(prev => prev.map(t => t.id === id ? { ...t, archived: true, archived_at: new Date().toISOString() } : t));
           setDetailOpen(false);
           setDetailTask(null);
         }}
         onActivityChange={refreshWorkspaceActivity}
-        projectId={activeId ?? 0}
-        projectName={activeProject?.project_name ?? 'General'}
-        teamMembers={wsTaskTeam.map(u => ({ id: u!.id, full_name: u!.full_name, avatar_url: u!.avatar_url }))}
+        projectId={detailProject?.id ?? activeId ?? 0}
+        projectName={detailProject?.project_name ?? 'General'}
+        teamMembers={detailTaskTeam.map(u => ({ id: u!.id, full_name: u!.full_name, avatar_url: u!.avatar_url }))}
         canEdit={true}
         currentUserId={hubUser?.id ?? ''}
         currentUserName={hubUser?.full_name ?? 'Admin'}

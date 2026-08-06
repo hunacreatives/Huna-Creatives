@@ -150,7 +150,7 @@ export default function ContractorAttendancePage() {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   if (hubUser?.payment_type === 'project_based') return (
-    <ContractorLayout title="My Attendance">
+    <ContractorLayout title="Attendance">
       <div className="max-w-xl">
         <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center">
           <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
@@ -164,7 +164,7 @@ export default function ContractorAttendancePage() {
   );
 
   return (
-    <ContractorLayout title="My Attendance">
+    <ContractorLayout title="Attendance">
       <div className="space-y-5">
 
         {/* Today header */}

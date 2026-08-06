@@ -273,7 +273,14 @@ export default function ContractorPayoutsPage() {
 
   // Button unlocks on the cutoff day itself (compare date only, not time)
   const todayPHT = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const canSubmitPeriod = selectedPeriod ? todayPHT >= selectedPeriod.end : false;
+  const [closedPeriods, setClosedPeriods] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (isDemo) return;
+    supabase.from('hub_payroll_batches').select('period_start').eq('status', 'closed')
+      .then(({ data }) => setClosedPeriods(new Set((data ?? []).map((r: any) => r.period_start))));
+  }, [isDemo]);
+  const isSelectedPeriodClosed = !!selectedPeriod && closedPeriods.has(selectedPeriod.start);
+  const canSubmitPeriod = selectedPeriod ? todayPHT >= selectedPeriod.end && !isSelectedPeriodClosed : false;
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [existingPayout, setExistingPayout] = useState<any>(null);
@@ -633,7 +640,7 @@ export default function ContractorPayoutsPage() {
   };
 
   return (
-    <ContractorLayout title="My Payouts">
+    <ContractorLayout title="Payouts">
       <div className="max-w-2xl space-y-5">
         {!activePeriod ? (
           <div className="bg-white border border-gray-100 rounded-xl p-8 text-center">
@@ -883,7 +890,9 @@ export default function ContractorPayoutsPage() {
                   {submitting ? 'Submitting...' : 'Submit for Payment'}
                 </button>
                 {!canSubmitPeriod && (
-                  <p className="text-xs text-center text-gray-400">Available on {activePeriod.end} (cutoff day)</p>
+                  <p className="text-xs text-center text-gray-400">
+                    {isSelectedPeriodClosed ? 'This payroll period has been closed.' : `Available on ${activePeriod.end} (cutoff day)`}
+                  </p>
                 )}
                 {canSubmitPeriod && (
                   <p className="text-xs text-center text-gray-400">Make sure all your hours are logged before submitting.</p>

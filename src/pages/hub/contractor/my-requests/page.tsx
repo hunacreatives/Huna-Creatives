@@ -300,7 +300,7 @@ export default function ContractorMyRequestsPage() {
   ];
 
   return (
-    <ContractorLayout title="My Requests">
+    <ContractorLayout title="Requests">
       {reqToast && (
         <div className="fixed top-5 right-5 z-[60] bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">{reqToast}</div>
       )}

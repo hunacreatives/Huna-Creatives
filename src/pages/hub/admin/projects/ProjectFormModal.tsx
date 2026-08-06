@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { STAGES } from '@/lib/projectStage';
 
 const SERVICES = ['Website Design', 'Website Maintenance', 'E-vite / Event Website', 'Branding & Identity', 'Graphic Design', 'Social Media Management', 'Content Creation', 'SEO', 'Digital Ads', 'Email Marketing', 'Marketing', 'Sentro Hub License', 'Other'];
 
@@ -13,6 +14,7 @@ export interface ProjectFormState {
   monthly_rate_currency: 'PHP' | 'USD';
   monthly_deliverables: string;
   status: string;
+  stage: string;
   start_date: string;
   deadline: string;
   notes: string;
@@ -188,6 +190,12 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
                     <option value="completed">Completed</option>
                     <option value="paused">Paused</option>
                     <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <label className="text-xs font-medium text-gray-700">Stage</label>
+                  <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
+                    {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1 min-w-0">

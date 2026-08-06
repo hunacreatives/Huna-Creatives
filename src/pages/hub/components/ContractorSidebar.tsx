@@ -7,15 +7,16 @@ import { useSidebarTip } from './SidebarTip';
 
 const baseNavItems = [
   { to: '/hub/contractor/dashboard', label: 'Dashboard', icon: 'ri-layout-grid-line' },
-  { to: '/hub/contractor/attendance', label: 'My Attendance', icon: 'ri-time-line' },
-  { to: '/hub/contractor/my-requests', label: 'My Requests', icon: 'ri-inbox-line' },
+  { to: '/hub/contractor/projects', label: 'Projects', icon: 'ri-folder-line' },
+  { to: '/hub/contractor/attendance', label: 'Attendance', icon: 'ri-time-line' },
+  { to: '/hub/contractor/my-requests', label: 'Requests', icon: 'ri-inbox-line' },
   { divider: true, label: 'Finance & Docs' },
-  { to: '/hub/contractor/payouts', label: 'My Payouts', icon: 'ri-money-dollar-circle-line' },
+  { to: '/hub/contractor/payouts', label: 'Payouts', icon: 'ri-money-dollar-circle-line' },
   { to: '/hub/contractor/documents', label: 'Documents', icon: 'ri-file-list-3-line' },
   { to: '/hub/contractor/credentials', label: 'Credentials', icon: 'ri-lock-2-line' },
   { divider: true, label: 'Resources' },
   { to: '/hub/contractor/sop', label: 'SOP Library', icon: 'ri-book-open-line' },
-  { to: '/hub/contractor/profile', label: 'My Profile', icon: 'ri-user-line' },
+  { to: '/hub/contractor/profile', label: 'Profile', icon: 'ri-user-line' },
 ];
 
 interface Props {
@@ -32,15 +33,9 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
   const { bind: tipFor, tipEl, clearTip } = useSidebarTip(collapsed);
 
   const isProjectBased = hubUser?.payment_type === 'project_based';
-  const filteredBase = isProjectBased
-    ? baseNavItems.filter(i => !['My Attendance', 'My Requests'].includes((i as any).label))
+  const navItems = isProjectBased
+    ? baseNavItems.filter(i => !['Attendance', 'Requests'].includes((i as any).label))
     : baseNavItems;
-  const dividerIdx = filteredBase.findIndex(i => (i as any).divider);
-  const navItems = [
-    ...filteredBase.slice(0, dividerIdx),
-    { to: '/hub/contractor/projects', label: 'My Work', icon: 'ri-folder-line' },
-    ...filteredBase.slice(dividerIdx),
-  ];
 
   const handleSignOut = async () => {
     if (isDemo) {
@@ -60,11 +55,11 @@ export default function ContractorSidebar({ collapsed, onToggle }: Props) {
       <div
         className="flex flex-col flex-1 min-h-0 lg:rounded-[30px] overflow-hidden"
         style={{
-          background: 'rgba(255,255,255,0.55)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          boxShadow: '0 8px 32px rgba(99,120,200,0.10), inset 0 1px 0 rgba(255,255,255,0.8)',
-          border: '1px solid rgba(255,255,255,0.75)',
+          background: 'rgba(255,255,255,0.42)',
+          backdropFilter: 'blur(36px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(36px) saturate(180%)',
+          boxShadow: '0 8px 32px rgba(99,120,200,0.14), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 0 0 1px rgba(255,255,255,0.25)',
+          border: '1px solid rgba(255,255,255,0.8)',
         }}
       >
         {/* Logo */}

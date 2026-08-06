@@ -7,8 +7,28 @@ import { getPeriods, slugify, localToday } from '@/lib/formatUtils';
 import { getSetting } from '@/lib/settings';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
-import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_ATTENDANCE } from '@/lib/demoData';
+import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_ATTENDANCE, DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS } from '@/lib/demoData';
 import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { getTaskAssigneeIds } from '@/lib/taskAssignments';
+
+interface ProjectTask {
+  id: number;
+  project_id: number;
+  title: string;
+  status: 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'done';
+  priority: 'low' | 'medium' | 'high';
+  due_date: string | null;
+  start_date: string | null;
+  assigned_to: string | null;
+  assignee_ids?: string[] | null;
+  checklist?: { id: string; text: string; done: boolean; detail?: string; assignee_id?: string | null }[] | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
+  color?: string | null;
+  meta?: Record<string, unknown> | null;
+  completed_at?: string | null;
+  deleted_at?: string | null;
+}
 
 const REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏'];
 
@@ -108,7 +128,7 @@ function AnnouncementCard({ a, currentUserId, canDelete, onDeleted }: {
       {/* Header */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-[#FF6B35]/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+          <div className="w-8 h-8 bg-[#FF6B35]/10 backdrop-blur-sm border border-white/40 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
             <i className="ri-megaphone-line text-[#FF6B35] text-sm"></i>
           </div>
           <div className="flex-1 min-w-0">
@@ -310,6 +330,11 @@ export default function ContractorDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeProjects, setActiveProjects] = useState<{ id: number; project_name: string; client_name: string; service: string | null; status: string; deadline: string | null; tasksDone: number; tasksTotal: number; project_type: string | null; slug: string | null }[]>([]);
   const [activeClients, setActiveClients] = useState<{ id: string; name: string; platform: string | null; role: string | null; status: string }[]>([]);
+  const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [projectNameMap, setProjectNameMap] = useState<Record<number, string>>({});
+  const [taskWindow, setTaskWindow] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [rightPanelTab, setRightPanelTab] = useState<'team' | 'clock'>('team');
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
 
   const today = new Date();
   const allPeriods = getPeriods();
@@ -372,6 +397,8 @@ export default function ContractorDashboard() {
           hours_today: r.hours_today,
         }))
       );
+      setTasks(DEMO_CONTRACTOR_TASKS as unknown as ProjectTask[]);
+      setProjectNameMap(Object.fromEntries(DEMO_CONTRACTOR_PROJECTS.map((r: any) => [r.hub_projects.id, r.hub_projects.project_name])));
       setLoading(false);
       return;
     }
@@ -387,17 +414,33 @@ export default function ContractorDashboard() {
         .select('hub_projects(id, project_name, client_name, service, status, deadline, project_type, slug)')
         .eq('contractor_id', user.id)
         .then(async ({ data }) => {
-          const projects = ((data ?? []) as any[])
+          const allAssignedProjects = ((data ?? []) as any[])
             .map((r: any) => Array.isArray(r.hub_projects) ? r.hub_projects[0] : r.hub_projects)
-            .filter((p: any) => p && p.status === 'ongoing');
-          if (projects.length === 0) { setActiveProjects([]); return; }
-          const projectIds = projects.map((p: any) => p.id);
-          const { data: tasks } = await supabase.from('hub_project_tasks').select('project_id, status').in('project_id', projectIds);
-          setActiveProjects(projects.map((p: any) => {
-            const pts = (tasks ?? []).filter((t: any) => t.project_id === p.id);
-            return { id: p.id, project_name: p.project_name, client_name: p.client_name, service: p.service, status: p.status, deadline: p.deadline, project_type: p.project_type ?? null, slug: p.slug ?? null, tasksDone: pts.filter((t: any) => t.status === 'done').length, tasksTotal: pts.length };
-          }));
-        }, () => setActiveProjects([]));
+            .filter((p: any) => !!p);
+          const nameMap: Record<number, string> = {};
+          for (const p of allAssignedProjects) nameMap[p.id] = p.project_name;
+          setProjectNameMap(nameMap);
+
+          const projects = allAssignedProjects.filter((p: any) => p.status === 'ongoing');
+          if (projects.length === 0) { setActiveProjects([]); } else {
+            const projectIds = projects.map((p: any) => p.id);
+            const { data: taskProgress } = await supabase.from('hub_project_tasks').select('project_id, status').in('project_id', projectIds);
+            setActiveProjects(projects.map((p: any) => {
+              const pts = (taskProgress ?? []).filter((t: any) => t.project_id === p.id);
+              return { id: p.id, project_name: p.project_name, client_name: p.client_name, service: p.service, status: p.status, deadline: p.deadline, project_type: p.project_type ?? null, slug: p.slug ?? null, tasksDone: pts.filter((t: any) => t.status === 'done').length, tasksTotal: pts.length };
+            }));
+          }
+
+          // Full task rows across ALL assigned projects (any status) — powers the To Do list
+          const allProjectIds = allAssignedProjects.map((p: any) => p.id);
+          if (allProjectIds.length === 0) { setTasks([]); return; }
+          const { data: fullTasks } = await supabase
+            .from('hub_project_tasks')
+            .select('id, project_id, title, status, priority, due_date, start_date, assigned_to, assignee_ids, checklist, color, meta, archived, archived_at, completed_at, deleted_at')
+            .in('project_id', allProjectIds)
+            .order('due_date', { ascending: true, nullsFirst: false });
+          setTasks((fullTasks as ProjectTask[]) ?? []);
+        }, () => { setActiveProjects([]); setTasks([]); });
 
       // Fetch active clients
       supabase
@@ -574,16 +617,62 @@ export default function ContractorDashboard() {
 
   const onlineCount = teamStatus.filter(t => t.status === 'on').length;
 
+  // ── To Do list (mirrors the working Tasks tab on My Work) ──
+  const todayStr = localToday();
+  const myUserId = user?.id ?? '';
+  const hasMyChecklistItem = (t: ProjectTask) => (t.checklist ?? []).some(i => i.assignee_id === myUserId && !i.done);
+  const myTasks = tasks.filter(t => !t.archived_at && !t.deleted_at && (getTaskAssigneeIds(t).includes(myUserId) || hasMyChecklistItem(t)));
+  // "Done" only counts completions from the last 30 days, same rule as My Work
+  const doneTasks = myTasks.filter(t => t.status === 'done' && (!t.completed_at || (Date.now() - new Date(t.completed_at).getTime()) / 86400000 <= 30));
+  const overdueTasks = myTasks.filter(t => t.due_date && t.due_date < todayStr && t.status !== 'done');
+  const todayDueTasks = myTasks.filter(t => t.due_date === todayStr && t.status !== 'done');
+  const daysUntil = (t: ProjectTask) => t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(todayStr + 'T00:00:00').getTime()) / 86400000) : null;
+  const thisWeekTasks = myTasks.filter(t => t.status !== 'done' && t.due_date && t.due_date > todayStr && (daysUntil(t) as number) <= 7);
+  const getProjectName = (projectId: number) => projectNameMap[projectId] ?? '';
+
+  const cycleTaskStatus = async (task: ProjectTask) => {
+    const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo', in_review: 'done', blocked: 'todo' };
+    const newStatus = next[task.status] ?? 'todo';
+    if (isDemo) { setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t)); return; }
+    const prevStatus = task.status;
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus, completed_at: newStatus === 'done' ? new Date().toISOString() : t.completed_at } : t));
+    const { error } = await supabase.from('hub_project_tasks').update({
+      status: newStatus,
+      completed_at: newStatus === 'done' ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', task.id);
+    if (error) {
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: prevStatus } : t));
+      console.error('Failed to update task status:', error);
+    }
+  };
+
+  const openTaskInMyWork = (task: ProjectTask) => {
+    navigate(`/hub/contractor/projects?workspace=${task.project_id}&task=${task.id}`);
+  };
+
   return (
     <ContractorLayout title="Dashboard">
       {loading ? (
         <div className="flex justify-center py-20"><i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i></div>
       ) : (
         <div className="space-y-4 w-full">
+            {/* Ambient background — barely-there, slow-drifting color so the
+                glass cards below have something to actually tint/blur
+                against. Deliberately near-subliminal; this is depth, not
+                decoration, so it must never compete with the hero. */}
+            <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+              <style>{`
+                @keyframes ambient-drift-1 { 0%,100% { transform: translate(0%,0%); } 50% { transform: translate(6%,10%); } }
+                @keyframes ambient-drift-2 { 0%,100% { transform: translate(0%,0%); } 50% { transform: translate(-8%,-6%); } }
+              `}</style>
+              <div className="absolute w-[32rem] h-[32rem] rounded-full opacity-[0.07]" style={{ left: '-8%', top: '-4%', background: '#94a3b8', filter: 'blur(90px)', animation: 'ambient-drift-1 40s ease-in-out infinite' }} />
+              <div className="absolute w-[36rem] h-[36rem] rounded-full opacity-[0.06]" style={{ right: '-10%', top: '30%', background: '#6366f1', filter: 'blur(100px)', animation: 'ambient-drift-2 48s ease-in-out infinite' }} />
+            </div>
 
             {/* Payslip submission reminder */}
             {showPayslipBanner && (
-              <div className="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl px-4 py-3">
+              <div className="flex items-center gap-3 bg-white/65 backdrop-blur-xl border border-white/70 rounded-2xl px-4 py-3 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)]">
                 <div className={`w-1.5 h-8 rounded-full flex-shrink-0 ${daysUntilCutoff === 0 ? 'bg-rose-400' : 'bg-amber-400'}`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-gray-700">
@@ -621,10 +710,10 @@ export default function ContractorDashboard() {
                   background: isNight
                     ? 'radial-gradient(ellipse at 78% 18%, rgba(25,35,75,0.9) 0%, transparent 65%)'
                     : isEvening
-                    ? 'radial-gradient(ellipse at 82% 28%, rgba(200,70,20,0.28) 0%, transparent 60%)'
+                    ? 'radial-gradient(ellipse at 82% 28%, rgba(200,70,20,0.14) 0%, transparent 55%)'
                     : isMorning
-                    ? 'radial-gradient(ellipse at 85% 20%, rgba(255,165,30,0.22) 0%, transparent 58%)'
-                    : 'radial-gradient(ellipse at 85% 12%, rgba(255,210,50,0.18) 0%, transparent 56%)'
+                    ? 'radial-gradient(ellipse at 85% 20%, rgba(255,165,30,0.11) 0%, transparent 52%)'
+                    : 'radial-gradient(ellipse at 85% 12%, rgba(255,210,50,0.09) 0%, transparent 50%)'
                 }} />
 
                 {isNight ? (
@@ -672,16 +761,28 @@ export default function ContractorDashboard() {
               </div>
 
               <div className="relative">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-white/50 text-xs flex items-center gap-1.5">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt={user.full_name}
+                        className="w-12 h-12 sm:w-20 sm:h-20 rounded-2xl object-cover object-top flex-shrink-0 border border-white/20" />
+                    ) : (
+                      <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-base sm:text-xl font-bold flex-shrink-0">
+                        {user?.full_name?.[0] ?? ''}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                    <p className="text-white/50 text-[11px] sm:text-xs flex items-center gap-1.5 flex-wrap">
                       {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                      <span className="text-white/30">·</span>
-                      <i className="ri-time-line text-white/40 text-xs"></i>
-                      <span className="font-mono text-white/60">{phTime}</span>
-                      <span className="text-white/30 text-[10px]">PH</span>
+                      <span className="hidden sm:inline text-white/30">·</span>
+                      <span className="hidden sm:flex items-center gap-1.5">
+                        <i className="ri-time-line text-white/40 text-xs"></i>
+                        <span className="font-mono text-white/60">{phTime}</span>
+                        <span className="text-white/30 text-[10px]">PH</span>
+                      </span>
                     </p>
-                    <h2 className="text-xl font-bold mt-0.5">{greeting}, {user?.full_name?.split(' ')[0]}.</h2>
+                    <h2 className="text-lg sm:text-xl font-bold mt-0.5">{greeting}, {user?.full_name?.split(' ')[0]}.</h2>
+                    </div>
                   </div>
                   <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium flex-shrink-0 ${
                     slackStatus === 'on' ? 'bg-emerald-500/20 text-emerald-300' :
@@ -723,10 +824,10 @@ export default function ContractorDashboard() {
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-white border border-gray-100 rounded-xl p-4">
+              <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-gray-400">Hours This Cutoff</span>
-                  <div className="w-7 h-7 bg-sky-50 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-sky-50/70 backdrop-blur-sm border border-white/40 rounded-xl flex items-center justify-center">
                     <i className="ri-time-line text-sky-600 text-sm"></i>
                   </div>
                 </div>
@@ -760,76 +861,100 @@ export default function ContractorDashboard() {
               </div>
             </div>
 
-            {/* Active Projects + My Clients */}
+            {/* To-Do List */}
+            <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
+              <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+                <h3 className="text-base font-bold text-[#111827]">To-Do List</h3>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 rounded-lg p-1">
+                    {([['daily', 'Day'], ['weekly', 'Week']] as const).map(([key, label]) => (
+                      <button key={key} type="button" onClick={() => setTaskWindow(key)}
+                        className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${taskWindow === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => navigate('/hub/contractor/projects')}
+                    className="text-xs font-semibold text-gray-400 hover:text-gray-600 cursor-pointer flex items-center gap-1 whitespace-nowrap">
+                    View all <i className="ri-arrow-right-line text-sm"></i>
+                  </button>
+                </div>
+              </div>
+
+              {(() => {
+                const isPending = (t: ProjectTask) => t.status !== 'done';
+                const windowDays = taskWindow === 'daily' ? 0 : 7;
+                const visible = myTasks
+                  .filter(t => isPending(t) && (!t.due_date || t.due_date < todayStr || (daysUntil(t) as number) <= windowDays))
+                  .sort((a, b) => (a.due_date ?? '9999-99-99').localeCompare(b.due_date ?? '9999-99-99'));
+
+                if (visible.length === 0) return (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2">
+                    <i className="ri-checkbox-circle-line text-emerald-400 text-2xl"></i>
+                    <p className="text-sm text-gray-400">Nothing due {taskWindow === 'daily' ? 'today' : 'this week'}</p>
+                  </div>
+                );
+
+                return (
+                  <div className="divide-y divide-gray-50">
+                    {visible.map(t => {
+                      const projectName = getProjectName(t.project_id);
+                      const isOverdue = t.due_date && t.due_date < todayStr;
+                      return (
+                        <button key={t.id} type="button" onClick={() => openTaskInMyWork(t)}
+                          className="w-full flex items-center gap-3 py-3 text-left cursor-pointer hover:bg-gray-50/60 -mx-1 px-1 rounded-lg transition-colors">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOverdue ? 'bg-rose-400' : 'bg-gray-300'}`}></span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{t.title}</p>
+                            <p className="text-xs text-gray-400 truncate mt-0.5">{projectName}</p>
+                          </div>
+                          {t.due_date && (
+                            <span className={`text-xs font-medium flex-shrink-0 ${isOverdue ? 'text-rose-500' : 'text-gray-400'}`}>
+                              {isOverdue ? `${Math.abs(daysUntil(t) as number)}d overdue` : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Active Projects — everything assigned to this person, one flat list */}
             {(() => {
-              const getColor = (service: string | null) => {
-                const s = (service ?? '').toLowerCase();
-                if (s.includes('website design'))      return { from: '#6366f1', to: '#8b5cf6' };
-                if (s.includes('website maintenance')) return { from: '#0ea5e9', to: '#6366f1' };
-                if (s.includes('branding'))            return { from: '#ec4899', to: '#f97316' };
-                if (s.includes('graphic'))             return { from: '#f97316', to: '#f59e0b' };
-                if (s.includes('social media'))        return { from: '#10b981', to: '#0ea5e9' };
-                if (s.includes('content'))             return { from: '#14b8a6', to: '#6366f1' };
-                if (s.includes('seo'))                 return { from: '#84cc16', to: '#10b981' };
-                if (s.includes('ads'))                 return { from: '#f59e0b', to: '#ef4444' };
-                if (s.includes('email'))               return { from: '#8b5cf6', to: '#ec4899' };
-                if (s.includes('marketing'))           return { from: '#f97316', to: '#f59e0b' };
-                return                                        { from: '#94a3b8', to: '#64748b' };
-              };
-              const projectItems = activeProjects.filter(p => p.project_type !== 'retainer');
-              const clientItems: { id: string; name: string; sub: string | null; tag: string | null; slug: string | null }[] = [
-                ...activeProjects.filter(p => p.project_type === 'retainer').map(p => ({ id: `p-${p.id}`, name: p.project_name, sub: p.client_name, tag: p.service, slug: p.slug || slugify(p.client_name) })),
-                ...activeClients.map(c => ({ id: c.id, name: c.name, sub: c.platform, tag: c.role, slug: null })),
+              const items: { id: string; name: string; sub: string | null; tag: string | null; slug: string | null; initial: string }[] = [
+                ...activeProjects.map(p => ({ id: `p-${p.id}`, name: p.project_name, sub: p.client_name, tag: p.service, slug: p.slug || slugify(p.client_name), initial: p.project_name.charAt(0).toUpperCase() })),
+                ...activeClients.map(c => ({ id: `c-${c.id}`, name: c.name, sub: c.platform, tag: c.role, slug: null, initial: c.name.charAt(0).toUpperCase() })),
               ];
+              if (items.length === 0) return null;
               return (
-                <>
-                  {projectItems.length > 0 && (
-                    <div className="space-y-2.5">
-                      <h3 className="text-sm font-semibold text-[#111827]">Active Projects</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {projectItems.map((p) => {
-                          const pal = getColor(p.service);
-                          const light = pal.from + '14';
-                          const pct = p.tasksTotal > 0 ? Math.round((p.tasksDone / p.tasksTotal) * 100) : 0;
-                          const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date().getTime()) / 86400000) : null;
-                          const isOverdue = daysLeft !== null && daysLeft < 0;
-                          const isDueSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
-                          return (
-                            <button key={p.id} onClick={() => navigate(`/hub/contractor/project/${p.slug || slugify(p.client_name)}`)}
-                              className="text-left rounded-2xl p-3.5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer space-y-1 overflow-hidden h-full flex flex-col justify-center"
-                              style={{ background: `linear-gradient(135deg, ${light} 0%, rgba(255,255,255,0.9) 100%)`, border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-                              <p className="font-semibold text-gray-900 text-sm truncate">{p.project_name}</p>
-                              <p className="text-xs text-gray-400 truncate">{p.client_name}</p>
-                              {p.service && <p className="text-[11px] font-medium truncate" style={{ color: pal.from }}>{p.service}</p>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  {clientItems.length > 0 && (
-                    <div className="space-y-2.5">
-                      <h3 className="text-sm font-semibold text-[#111827]">My Clients</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {clientItems.map((c) => (
-                          <button key={c.id} onClick={() => navigate(c.slug ? `/hub/contractor/project/${c.slug}` : '/hub/contractor/projects')}
-                            className="text-left rounded-2xl p-3.5 bg-white border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all cursor-pointer space-y-1 overflow-hidden h-full flex flex-col justify-center">
-                            <p className="font-semibold text-gray-900 text-sm truncate">{c.name}</p>
-                            {c.sub && <p className="text-xs text-gray-400 truncate">{c.sub}</p>}
-                            {c.tag && <p className="text-[11px] text-[#FF6B35] font-medium truncate">{c.tag}</p>}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
+                <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
+                  <h3 className="text-base font-bold text-[#111827] mb-1">Active Projects</h3>
+                  <div className="divide-y divide-gray-50">
+                    {items.map((it) => (
+                      <button key={it.id} onClick={() => navigate(it.slug ? `/hub/contractor/project/${it.slug}` : '/hub/contractor/projects')}
+                        className="w-full flex items-center gap-3 py-3 text-left cursor-pointer hover:bg-gray-50/60 -mx-1 px-1 rounded-lg transition-colors">
+                        <div className="w-9 h-9 rounded-xl bg-gray-100 text-gray-500 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                          {it.initial}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{it.name}</p>
+                          {it.sub && <p className="text-xs text-gray-400 truncate mt-0.5">{it.sub}</p>}
+                        </div>
+                        {it.tag && <span className="text-[11px] text-gray-400 flex-shrink-0">{it.tag}</span>}
+                        <i className="ri-arrow-right-s-line text-gray-300 flex-shrink-0"></i>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               );
             })()}
 
             {/* Announcements */}
             {announcements.length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-[#111827]">Announcements</h3>
+                <h3 className="text-base font-bold text-[#111827]">Announcements</h3>
                 {announcements.map((a) => (
                   <AnnouncementCard
                     key={a.id}
@@ -842,51 +967,6 @@ export default function ContractorDashboard() {
               </div>
             )}
 
-            {/* Requests + Time-off */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-white border border-gray-100 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-[#111827]">My Requests</h3>
-                  <button onClick={() => navigate('/hub/contractor/requests')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">View all</button>
-                </div>
-                {requests.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">No requests yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {requests.map((r) => (
-                      <div key={r.id} className="flex items-center justify-between gap-2">
-                        <p className="text-sm text-gray-700 truncate flex-1">{r.title}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium capitalize ${statusColors[r.status] || 'bg-gray-100 text-gray-600'}`}>
-                          {r.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white border border-gray-100 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-[#111827]">Time-Off</h3>
-                  <button onClick={() => navigate('/hub/contractor/timeoff')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Request</button>
-                </div>
-                {timeOffs.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">No time-off requests</p>
-                ) : (
-                  <div className="space-y-2">
-                    {timeOffs.map((t) => (
-                      <div key={t.id} className="flex items-center justify-between gap-2">
-                        <p className="text-sm text-gray-700 capitalize">{t.type} leave</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium capitalize ${statusColors[t.status] || 'bg-gray-100 text-gray-600'}`}>
-                          {t.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Quick links */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
@@ -897,79 +977,126 @@ export default function ContractorDashboard() {
                 <button
                   key={a.label}
                   onClick={() => navigate(a.path)}
-                  className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-100 hover:border-[#FF6B35]/30 hover:bg-[#FF6B35]/5 rounded-xl transition-all cursor-pointer"
+                  className="flex flex-col items-center gap-2 p-4 bg-white/65 backdrop-blur-xl border border-white/70 hover:border-[#FF6B35]/30 hover:bg-[#FF6B35]/5 rounded-3xl shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer"
                 >
-                  <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center">
+                  <div className="w-9 h-9 bg-gray-50/70 backdrop-blur-sm border border-white/40 rounded-xl flex items-center justify-center">
                     <i className={`${a.icon} text-[#FF6B35] text-base`}></i>
                   </div>
                   <span className="text-xs text-gray-600 font-medium">{a.label}</span>
                 </button>
               ))}
             </div>
+
           </div>{/* end left col */}
 
           {/* ── RIGHT COLUMN (1/3) ── */}
           <div className="space-y-4">
 
-            {/* World Clock */}
-            <div className="hidden sm:block bg-white border border-gray-100 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 bg-[#111827] rounded-md flex items-center justify-center flex-shrink-0">
-                  <i className="ri-earth-line text-white text-xs"></i>
+            {/* Team + World Clock — tabbed to cut down on right-column clutter */}
+            <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="relative inline-flex bg-gray-50/70 border border-white/60 rounded-xl p-1">
+                  <div className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-transform duration-300 ease-out"
+                    style={{ transform: rightPanelTab === 'clock' ? 'translateX(100%)' : 'translateX(0)' }}></div>
+                  <button type="button" onClick={() => setRightPanelTab('team')}
+                    className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${rightPanelTab === 'team' ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}>
+                    <i className="ri-team-line text-sm"></i>Team
+                  </button>
+                  <button type="button" onClick={() => setRightPanelTab('clock')}
+                    className={`relative z-10 hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${rightPanelTab === 'clock' ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}>
+                    <i className="ri-earth-line text-sm"></i>Clock
+                  </button>
                 </div>
-                <h3 className="text-sm font-semibold text-[#111827]">World Clock</h3>
-              </div>
-              <div>
-                {CLOCKS.map((c, i) => (
-                  <ClockFace key={c.tz} {...c} isHome={i === 0} />
-                ))}
-              </div>
-              <p className="text-xs text-gray-300 mt-3 text-center">
-                <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> Business hours (9am–6pm local)</span>
-              </p>
-            </div>
-
-            {/* Team Status */}
-            <div className="bg-white border border-gray-100 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-emerald-50 rounded-md flex items-center justify-center flex-shrink-0">
-                    <i className="ri-team-line text-emerald-600 text-xs"></i>
-                  </div>
-                  <h3 className="text-sm font-semibold text-[#111827]">Team</h3>
-                </div>
-                {onlineCount > 0 && (
+                {rightPanelTab === 'team' && onlineCount > 0 && (
                   <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
                     {onlineCount} online
                   </span>
                 )}
               </div>
-              <div className="space-y-2.5">
-                {teamStatus.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2 text-center">No team data</p>
-                ) : teamStatus.map((t) => (
-                  <div key={t.full_name} className="flex items-center gap-2.5">
-                    <div className="relative flex-shrink-0">
-                      {t.avatar_url
-                        ? <img src={t.avatar_url} alt={t.full_name} className="w-7 h-7 rounded-full object-cover object-top" />
-                        : <div className="w-7 h-7 rounded-full bg-[#FF6B35] flex items-center justify-center"><span className="text-white text-xs font-bold">{t.full_name.charAt(0)}</span></div>
-                      }
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                        t.status === 'on' ? 'bg-emerald-500' : t.status === 'off' ? 'bg-gray-400' : 'bg-amber-400'
-                      }`} />
+
+              {rightPanelTab === 'team' ? (
+                <div className="space-y-2.5">
+                  {teamStatus.length === 0 ? (
+                    <p className="text-xs text-gray-400 py-2 text-center">No team data</p>
+                  ) : teamStatus.map((t) => (
+                    <div key={t.full_name} className="flex items-center gap-2.5 -mx-1 px-1 py-1 rounded-lg transition-colors hover:bg-gray-50/60">
+                      <div className="relative flex-shrink-0">
+                        {t.avatar_url
+                          ? <img src={t.avatar_url} alt={t.full_name} className="w-7 h-7 rounded-full object-cover object-top" />
+                          : <div className="w-7 h-7 rounded-full bg-[#FF6B35] flex items-center justify-center"><span className="text-white text-xs font-bold">{t.full_name.charAt(0)}</span></div>
+                        }
+                        <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                          t.status === 'on' ? 'bg-emerald-500' : t.status === 'off' ? 'bg-gray-400' : 'bg-amber-400'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-800 truncate">{t.full_name.split(' ')[0]}</p>
+                      </div>
+                      <span className={`text-xs flex-shrink-0 ${
+                        t.status === 'on' ? 'text-emerald-600 font-medium' :
+                        t.status === 'off' ? 'text-gray-400' : 'text-amber-500'
+                      }`}>
+                        {t.status === 'on' ? `${t.hours_today > 0 ? t.hours_today.toFixed(1) + 'h' : 'Online'}` : t.status === 'off' ? 'Off' : 'Away'}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-800 truncate">{t.full_name.split(' ')[0]}</p>
-                    </div>
-                    <span className={`text-xs flex-shrink-0 ${
-                      t.status === 'on' ? 'text-emerald-600 font-medium' :
-                      t.status === 'off' ? 'text-gray-400' : 'text-amber-500'
-                    }`}>
-                      {t.status === 'on' ? `${t.hours_today > 0 ? t.hours_today.toFixed(1) + 'h' : 'Online'}` : t.status === 'off' ? 'Off' : 'Away'}
-                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="hidden sm:block">
+                  <div>
+                    {CLOCKS.map((c, i) => (
+                      <ClockFace key={c.tz} {...c} isHome={i === 0} />
+                    ))}
                   </div>
-                ))}
+                  <p className="text-xs text-gray-300 mt-3 text-center">
+                    <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> Business hours (9am–6pm local)</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Requests */}
+            <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold text-[#111827]">Requests</h3>
+                <button onClick={() => navigate('/hub/contractor/requests')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">View all</button>
               </div>
+              {requests.length === 0 ? (
+                <p className="text-xs text-gray-400 py-2">No requests yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {requests.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-2 -mx-1 px-1 py-1 rounded-lg transition-colors hover:bg-gray-50/60">
+                      <p className="text-sm text-gray-700 truncate flex-1">{r.title}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium capitalize ${statusColors[r.status] || 'bg-gray-100 text-gray-600'}`}>
+                        {r.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Time-off */}
+            <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold text-[#111827]">Time-Off</h3>
+                <button onClick={() => navigate('/hub/contractor/timeoff')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Request</button>
+              </div>
+              {timeOffs.length === 0 ? (
+                <p className="text-xs text-gray-400 py-2">No time-off requests</p>
+              ) : (
+                <div className="space-y-2">
+                  {timeOffs.map((t) => (
+                    <div key={t.id} className="flex items-center justify-between gap-2 -mx-1 px-1 py-1 rounded-lg transition-colors hover:bg-gray-50/60">
+                      <p className="text-sm text-gray-700 capitalize">{t.type} leave</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium capitalize ${statusColors[t.status] || 'bg-gray-100 text-gray-600'}`}>
+                        {t.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>

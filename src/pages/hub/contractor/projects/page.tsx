@@ -15,6 +15,7 @@ import { PRIORITY_CFG, PROJECT_STATUS_COLORS } from '@/pages/hub/utils/taskUi';
 import { localToday, slugify } from '@/lib/formatUtils';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds } from '@/lib/taskAssignments';
+import { getStageCfg } from '@/lib/projectStage';
 
 
 function normalizeTaskActivityAction(type: string) {
@@ -55,6 +56,7 @@ interface ProjectRow {
     service: string | null;
     contract_price: number;
     status: string;
+    stage?: string | null;
     start_date: string | null;
     deadline: string | null;
     notes: string | null;
@@ -91,33 +93,6 @@ interface ProjectTask {
   deleted_at?: string | null;
 }
 
-// ── SVG progress ring ──────────────────────────────────────────────────────
-function ProgressRing({ pct, size = 120 }: { pct: number; size?: number }) {
-  const r = (size / 2) - 10;
-  const circ = 2 * Math.PI * r;
-  const filled = Math.max(0, Math.min(pct, 100)) / 100 * circ;
-  return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e5e7eb" strokeWidth={size < 60 ? 7 : 9} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-          stroke="#3b82f6" strokeWidth={size < 60 ? 7 : 9}
-          strokeLinecap="round"
-          strokeDasharray={`${filled} ${circ}`}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dasharray 1s ease' }}
-        />
-      </svg>
-      {size >= 100 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-bold text-gray-900" style={{ fontSize: 22 }}>{pct}%</span>
-          <span className="text-[10px] text-gray-400 mt-0.5">complete</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 
 // ── Page ───────────────────────────────────────────────────────────────────
 export default function ContractorProjectsPage() {
@@ -145,9 +120,9 @@ export default function ContractorProjectsPage() {
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [completingTaskIds, setCompletingTaskIds] = useState<Map<number, string>>(new Map());
-  const [hiddenDoneIds, setHiddenDoneIds] = useState<Set<number>>(new Set());
-  const completingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const [dashboardTab, setDashboardTab] = useState<'tasks' | 'projects'>('tasks');
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+  const [taskWindow, setTaskWindow] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [search, setSearch] = useState('');
   const [taskSearch, setTaskSearch] = useState('');
   const [wsSearch, setWsSearch] = useState('');
@@ -228,34 +203,6 @@ export default function ContractorProjectsPage() {
     const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
     const newStatus = next[task.status];
     await updateTaskStatus(task, newStatus);
-  };
-
-  const completeDashboardTask = async (task: ProjectTask) => {
-    const next: Record<string, ProjectTask['status']> = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
-    const newStatus = next[task.status];
-    if (newStatus === 'done') {
-      const prevStatus = task.status;
-      setCompletingTaskIds(prev => { const m = new Map(prev); m.set(task.id, prevStatus); return m; });
-      await updateTaskStatus(task, newStatus);
-      const timer = setTimeout(() => {
-        setCompletingTaskIds(prev => { const m = new Map(prev); m.delete(task.id); return m; });
-        setHiddenDoneIds(prev => new Set(prev).add(task.id));
-        completingTimers.current.delete(task.id);
-      }, 5000);
-      completingTimers.current.set(task.id, timer);
-    } else {
-      setHiddenDoneIds(prev => { const s = new Set(prev); s.delete(task.id); return s; });
-      await updateTaskStatus(task, newStatus);
-    }
-  };
-
-  const undoDashboardTask = async (task: ProjectTask) => {
-    const prevStatus = completingTaskIds.get(task.id) as ProjectTask['status'] | undefined;
-    const timer = completingTimers.current.get(task.id);
-    if (timer) { clearTimeout(timer); completingTimers.current.delete(task.id); }
-    setCompletingTaskIds(prev => { const m = new Map(prev); m.delete(task.id); return m; });
-    setHiddenDoneIds(prev => { const s = new Set(prev); s.delete(task.id); return s; });
-    await updateTaskStatus(task, prevStatus ?? 'todo');
   };
 
   const openAddTask = () => {
@@ -470,7 +417,7 @@ export default function ContractorProjectsPage() {
           { data: paymentsData },
           { data: costsData },
         ] = await Promise.all([
-          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, start_date, deadline, notes, drive_url, slug, monthly_deliverables, archived_at').in('id', projectIds),
+          supabase.from('hub_projects').select('id, project_type, client_name, project_name, service, contract_price, status, stage, start_date, deadline, notes, drive_url, slug, monthly_deliverables, archived_at').in('id', projectIds),
           supabase.from('hub_project_contractor_payouts').select('id, amount, paid_at, notes, receipt_url, project_contractor_id').in('project_contractor_id', pcIds),
           supabase.from('hub_project_payments').select('amount, project_id').in('project_id', projectIds),
           supabase.from('hub_project_costs').select('amount, project_id').in('project_id', projectIds),
@@ -634,7 +581,7 @@ export default function ContractorProjectsPage() {
       setTaskSearch('');
       setWsSearch('');
       setWsSearchOpen(false);
-      setWsFocusSection('ws-tasks');
+      setWsFocusSection(taskParam ? 'ws-tasks' : null);
     }
     if (taskParam && deepLinkTaskDone.current !== paramKey) {
       const task = tasks.find(t => t.id === Number(taskParam));
@@ -660,6 +607,22 @@ export default function ContractorProjectsPage() {
     : hour < 20
     ? 'linear-gradient(135deg, #f97316 0%, #8b5cf6 100%)'   // evening — orange-violet
     : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)';  // night — indigo-violet
+  // Lava-lamp blob colors, one set per time-of-day bucket — mirrors
+  // greetingGradient's hour ranges so the drifting blobs stay tonally
+  // consistent with the base gradient instead of clashing with it.
+  const lavaBlobColors = hour < 6
+    ? ['#818cf8', '#a78bfa', '#4338ca']
+    : hour < 10
+    ? ['#fbbf24', '#fb7185', '#f59e0b']
+    : hour < 12
+    ? ['#fdba74', '#fde047', '#fb923c']
+    : hour < 15
+    ? ['#38bdf8', '#818cf8', '#0ea5e9']
+    : hour < 18
+    ? ['#34d399', '#38bdf8', '#10b981']
+    : hour < 20
+    ? ['#fb923c', '#a78bfa', '#f97316']
+    : ['#818cf8', '#a78bfa', '#4338ca'];
   const today = localToday();
   const firstName = hubUser?.full_name?.split(' ')[0] ?? '';
 
@@ -667,22 +630,18 @@ export default function ContractorProjectsPage() {
   const myUserId = hubUser?.id ?? '';
   const hasMyChecklistItem = (t: ProjectTask) => (t.checklist ?? []).some(i => i.assignee_id === myUserId && !i.done);
   const myTasks = tasks.filter(t => !t.archived_at && !t.deleted_at && (getTaskAssigneeIds(t).includes(myUserId) || hasMyChecklistItem(t)));
-  const doneTasks = myTasks.filter(t => t.status === 'done');
+  // "Done" only counts completions from the last 30 days — otherwise every
+  // task ever finished piles up in Show Completed and skews the ring/tile
+  // forever, with no way to tell what's recent.
+  const doneTasks = myTasks.filter(t => t.status === 'done' && (!t.completed_at || (Date.now() - new Date(t.completed_at).getTime()) / 86400000 <= 30));
   const inProgressTasks = myTasks.filter(t => ['in_progress', 'in_review', 'blocked'].includes(t.status));
   const todoTasks = myTasks.filter(t => t.status === 'todo');
   const overdueTasks = myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done');
   const todayDueTasks = myTasks.filter(t => t.due_date === today && t.status !== 'done');
   const pct = myTasks.length > 0 ? Math.round((doneTasks.length / myTasks.length) * 100) : 0;
 
-  const sortedMyTasks = [
-    ...myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done'),
-    ...myTasks.filter(t => t.status === 'in_progress' && !(t.due_date && t.due_date < today)),
-    ...myTasks.filter(t => t.status === 'in_review' && !(t.due_date && t.due_date < today)),
-    ...myTasks.filter(t => t.status === 'blocked' && !(t.due_date && t.due_date < today)),
-    ...myTasks.filter(t => t.status === 'todo' && !(t.due_date && t.due_date < today)),
-    ...myTasks.filter(t => t.status === 'done' && completingTaskIds.has(t.id)),
-
-  ];
+  const daysUntil = (t: ProjectTask) => t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
+  const thisWeekTasks = myTasks.filter(t => t.status !== 'done' && t.due_date && t.due_date > today && (daysUntil(t) as number) <= 7);
 
   const featuredTasks = todayDueTasks.length > 0 ? todayDueTasks
     : overdueTasks.length > 0 ? overdueTasks
@@ -701,18 +660,6 @@ export default function ContractorProjectsPage() {
 
   const getProjectName = (projectId: number) =>
     rows.find(r => r.hub_projects?.id === projectId)?.hub_projects?.project_name ?? '';
-
-  const openTaskFromDashboard = (task: ProjectTask) => {
-    const row = rows.find(r => r.hub_projects?.id === task.project_id);
-    if (!row) return;
-    setWorkspaceRow(row);
-    setTaskFilter('all');
-    setTaskSearch('');
-    setWsSearch('');
-    setWsSearchOpen(false);
-    setWsFocusSection('ws-tasks');
-    openViewTask(task);
-  };
 
   const searchLower = search.toLowerCase();
   // My Work = one-time + internal only (retainers live in My Clients)
@@ -1820,271 +1767,370 @@ export default function ContractorProjectsPage() {
         </div>
       ) : (
         /* ── Main dashboard layout ── */
-        <div className="flex items-stretch gap-5 min-h-screen">
+        <div className="space-y-5 min-h-screen">
 
-          {/* ── LEFT: projects ── */}
-          <div className="flex-1 min-w-0 space-y-4">
-
-            {/* Greeting */}
-            <div>
-              <p className="text-xs text-gray-400 mb-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-              <h2 className="text-xl font-bold tracking-tight leading-tight">
-                <span style={{ background: greetingGradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                  {greeting}, {firstName}.
-                </span>
-                {' '}<span className="not-italic" style={{ WebkitTextFillColor: 'initial' }}>{greetingEmoji}</span>
-                <br />
-                <span className="text-gray-400 font-normal text-base">
-                  {todayDueTasks.length > 0
-                    ? `You've got ${todayDueTasks.length} task${todayDueTasks.length > 1 ? 's' : ''} due today.`
-                    : overdueTasks.length > 0
-                    ? `${overdueTasks.length} task${overdueTasks.length > 1 ? 's' : ''} ${overdueTasks.length > 1 ? 'need' : 'needs'} attention.`
-                    : myTasks.length > 0
-                    ? `${myTasks.length - doneTasks.length} task${myTasks.length - doneTasks.length !== 1 ? 's' : ''} remaining.`
-                    : 'All clear — nothing pending.'}
-                </span>
-              </h2>
+          {/* Hero card */}
+          <div className="relative overflow-hidden rounded-[28px] p-6 sm:p-7 text-white shadow-[0_20px_50px_-20px_rgba(28,43,58,0.55)]" style={{ background: greetingGradient }}>
+            <style>{`
+              @keyframes lava-drift-1 { 0%,100% { transform: translate(-15%,-20%) scale(1); } 33% { transform: translate(25%,15%) scale(1.35); } 66% { transform: translate(5%,32%) scale(0.75); } }
+              @keyframes lava-drift-2 { 0%,100% { transform: translate(18%,22%) scale(1); } 40% { transform: translate(-20%,-12%) scale(1.4); } 70% { transform: translate(-8%,-30%) scale(0.8); } }
+              @keyframes lava-drift-3 { 0%,100% { transform: translate(0%,0%) scale(1); } 50% { transform: translate(-28%,18%) scale(1.3); } }
+            `}</style>
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute w-72 h-72 rounded-full opacity-25" style={{ left: '10%', top: '-10%', background: lavaBlobColors[0], filter: 'blur(60px)', animation: 'lava-drift-1 13s ease-in-out infinite' }} />
+              <div className="absolute w-80 h-80 rounded-full opacity-20" style={{ right: '5%', top: '20%', background: lavaBlobColors[1], filter: 'blur(65px)', animation: 'lava-drift-2 16s ease-in-out infinite' }} />
+              <div className="absolute w-64 h-64 rounded-full opacity-20" style={{ left: '35%', bottom: '-20%', background: lavaBlobColors[2], filter: 'blur(55px)', animation: 'lava-drift-3 19s ease-in-out infinite' }} />
             </div>
-
-            {/* No search results */}
-            {search && active.length === 0 && other.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <i className="ri-search-line text-3xl text-gray-200"></i>
-                <p className="text-sm text-gray-400">No projects match <span className="font-medium text-gray-600">"{search}"</span></p>
-                <button onClick={() => setSearch('')} className="text-xs text-indigo-500 hover:underline cursor-pointer">Clear search</button>
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(480px 300px at 88% -10%, rgba(255,255,255,0.16), transparent 60%)' }} />
+            <div className="relative flex items-start justify-between gap-6 flex-wrap">
+              <div>
+                <p className="text-xs text-white/55 font-medium mb-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                <h2 className="text-2xl font-extrabold tracking-tight leading-tight">{greeting}, {firstName}. <span className="not-italic">{greetingEmoji}</span></h2>
+                <p className="text-sm text-white/70 mt-1">{subline}</p>
+              </div>
+              {myTasks.length > 0 && (
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="relative w-[72px] h-[72px] flex-shrink-0">
+                    <svg width="72" height="72" className="-rotate-90">
+                      <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="7" />
+                      <circle cx="36" cy="36" r="30" fill="none" stroke="#fff" strokeWidth="7" strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 30} strokeDashoffset={2 * Math.PI * 30 * (1 - pct / 100)} style={{ transition: 'stroke-dashoffset 0.4s ease' }} />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center text-base font-bold">{pct}%</div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs text-white/80"><span className="w-1.5 h-1.5 rounded-full bg-amber-300 flex-shrink-0"></span>Today <span className="font-bold text-white">{todayDueTasks.length}</span></div>
+                    <div className="flex items-center gap-2 text-xs text-white/80"><span className="w-1.5 h-1.5 rounded-full bg-rose-300 flex-shrink-0"></span>Overdue <span className="font-bold text-white">{overdueTasks.length}</span></div>
+                    <div className="flex items-center gap-2 text-xs text-white/80"><span className="w-1.5 h-1.5 rounded-full bg-emerald-300 flex-shrink-0"></span>Done <span className="font-bold text-white">{doneTasks.length}</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {featuredTasks[0] && (
+              <div className="relative mt-5 flex items-center gap-3.5 bg-white/10 hover:bg-white/[0.14] border border-white/15 rounded-2xl px-4 py-3.5 transition-colors">
+                <button type="button" onClick={() => cycleTask(featuredTasks[0])}
+                  className="w-6 h-6 rounded-full border-2 border-white/45 hover:border-white flex-shrink-0 transition-colors cursor-pointer"></button>
+                <button type="button" onClick={() => openViewTask(featuredTasks[0])} className="flex-1 min-w-0 text-left cursor-pointer">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/55 mb-0.5">Next up</p>
+                  <p className="text-sm font-bold truncate">{featuredTasks[0].title}</p>
+                  <p className="text-xs text-white/65 mt-0.5 truncate">{getProjectName(featuredTasks[0].project_id)}</p>
+                </button>
+                {featuredTasks[0].due_date && (
+                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+                    featuredTasks[0].due_date < today ? 'bg-rose-400 text-white' : featuredTasks[0].due_date === today ? 'bg-amber-300 text-amber-900' : 'bg-white/15 text-white'
+                  }`}>
+                    {featuredTasks[0].due_date === today ? 'Today' : featuredTasks[0].due_date < today ? 'Late' : new Date(featuredTasks[0].due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
               </div>
             )}
+          </div>
 
-            {/* Project cards grouped by status */}
-            {(() => {
-              const active = sortedRows.filter(r => r.hub_projects?.status !== 'completed');
-              const done   = sortedRows.filter(r => r.hub_projects?.status === 'completed');
+          {/* Tab switcher + window toggle */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="relative inline-flex bg-white/60 backdrop-blur-sm border border-white/80 rounded-2xl p-1">
+              <div className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-sm transition-transform duration-300 ease-out"
+                style={{ transform: dashboardTab === 'projects' ? 'translateX(100%)' : 'translateX(0)' }}></div>
+              <button type="button" onClick={() => setDashboardTab('tasks')}
+                className={`relative z-10 flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-bold transition-colors cursor-pointer ${dashboardTab === 'tasks' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                <i className="ri-checkbox-circle-line text-[15px]"></i>Tasks
+              </button>
+              <button type="button" onClick={() => setDashboardTab('projects')}
+                className={`relative z-10 flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-bold transition-colors cursor-pointer ${dashboardTab === 'projects' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                <i className="ri-layout-grid-line text-[15px]"></i>Projects
+              </button>
+            </div>
+            {dashboardTab === 'tasks' && myTasks.length > 0 && (
+              <div className="inline-flex items-center gap-1 bg-white/50 backdrop-blur-sm border border-white/80 rounded-xl p-1">
+                {([['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly']] as const).map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setTaskWindow(key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${taskWindow === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-              const Section = ({ label, rows: sRows }: { label: string; rows: typeof sortedRows }) => sRows.length === 0 ? null : (
+          {dashboardTab === 'tasks' ? (
+            <div className="space-y-6">
+              {myTasks.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                  <div className="bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-white/80 px-2.5 py-2 sm:px-4 sm:py-4 flex items-center sm:block gap-2.5">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-[10px] bg-rose-50 text-rose-500 flex items-center justify-center text-xs sm:text-sm flex-shrink-0 sm:mb-2.5"><i className="ri-error-warning-line"></i></div>
+                    <div className="min-w-0">
+                      <p className="text-base sm:text-2xl font-extrabold tracking-tight text-[#1c2b3a] leading-none">{overdueTasks.length}</p>
+                      <p className="text-[10px] sm:text-xs font-semibold text-gray-400 mt-0.5 sm:mt-1 truncate">Overdue</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setTaskWindow('daily')}
+                    className={`text-left bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl border px-2.5 py-2 sm:px-4 sm:py-4 flex items-center sm:block gap-2.5 cursor-pointer transition-shadow hover:shadow-lg hover:-translate-y-0.5 duration-150 ${taskWindow === 'daily' ? 'border-[#1c2b3a] ring-1 ring-[#1c2b3a]' : 'border-white/80'}`}>
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-[10px] bg-amber-50 text-amber-500 flex items-center justify-center text-xs sm:text-sm flex-shrink-0 sm:mb-2.5"><i className="ri-sun-line"></i></div>
+                    <div className="min-w-0">
+                      <p className="text-base sm:text-2xl font-extrabold tracking-tight text-[#1c2b3a] leading-none">{todayDueTasks.length}</p>
+                      <p className="text-[10px] sm:text-xs font-semibold text-gray-400 mt-0.5 sm:mt-1 truncate">Due today</p>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => setTaskWindow('weekly')}
+                    className={`text-left bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl border px-2.5 py-2 sm:px-4 sm:py-4 flex items-center sm:block gap-2.5 cursor-pointer transition-shadow hover:shadow-lg hover:-translate-y-0.5 duration-150 ${taskWindow === 'weekly' ? 'border-[#1c2b3a] ring-1 ring-[#1c2b3a]' : 'border-white/80'}`}>
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-[10px] bg-sky-50 text-sky-500 flex items-center justify-center text-xs sm:text-sm flex-shrink-0 sm:mb-2.5"><i className="ri-calendar-todo-line"></i></div>
+                    <div className="min-w-0">
+                      <p className="text-base sm:text-2xl font-extrabold tracking-tight text-[#1c2b3a] leading-none">{thisWeekTasks.length}</p>
+                      <p className="text-[10px] sm:text-xs font-semibold text-gray-400 mt-0.5 sm:mt-1 truncate">This week</p>
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => setShowCompletedTasks(s => !s)}
+                    className={`text-left bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl border px-2.5 py-2 sm:px-4 sm:py-4 flex items-center sm:block gap-2.5 cursor-pointer transition-shadow hover:shadow-lg hover:-translate-y-0.5 duration-150 ${showCompletedTasks ? 'border-[#1c2b3a] ring-1 ring-[#1c2b3a]' : 'border-white/80'}`}>
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-[10px] bg-emerald-50 text-emerald-500 flex items-center justify-center text-xs sm:text-sm flex-shrink-0 sm:mb-2.5"><i className="ri-checkbox-circle-line"></i></div>
+                    <div className="min-w-0">
+                      <p className="text-base sm:text-2xl font-extrabold tracking-tight text-[#1c2b3a] leading-none">{doneTasks.length}</p>
+                      <p className="text-[10px] sm:text-xs font-semibold text-gray-400 mt-0.5 sm:mt-1 truncate">Completed</p>
+                    </div>
+                  </button>
+                </div>
+              )}
+              {myTasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 gap-3">
+                  <div className="w-14 h-14 rounded-3xl bg-emerald-50 flex items-center justify-center">
+                    <i className="ri-checkbox-circle-fill text-emerald-400 text-2xl"></i>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-500">No tasks assigned yet</p>
+                </div>
+              ) : (() => {
+                const isPending = (t: ProjectTask) => t.status !== 'done';
+                const windowDays = taskWindow === 'daily' ? 0 : taskWindow === 'weekly' ? 7 : 30;
+                const windowLabel = taskWindow === 'daily' ? 'Due Today' : taskWindow === 'weekly' ? 'Due This Week' : 'Due This Month';
+                const dueGroup = myTasks.filter(t => isPending(t) && t.due_date && t.due_date >= today && (daysUntil(t) as number) <= windowDays);
+                const laterGroup = myTasks.filter(t => isPending(t) && t.due_date && t.due_date > today && (daysUntil(t) as number) > windowDays);
+                const noDueDateGroup = myTasks.filter(t => isPending(t) && !t.due_date);
+
+                const TaskRows = ({ list }: { list: ProjectTask[] }) => (
+                  <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 divide-y divide-gray-100/80 overflow-hidden">
+                    {list.map(t => {
+                      const projectName = getProjectName(t.project_id);
+                      const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
+                      return (
+                        <div key={t.id} className={`flex items-start gap-3 px-4 py-3 transition-colors ${t.status === 'done' ? 'opacity-40' : 'hover:bg-gray-50/80'}`}>
+                          <button type="button" onClick={() => cycleTask(t)} className="mt-0.5 flex-shrink-0 cursor-pointer">
+                            <i className={`text-base ${
+                              t.status === 'done'        ? 'ri-checkbox-circle-fill text-emerald-500' :
+                              t.status === 'in_progress' ? 'ri-loader-2-line text-sky-500' :
+                              t.status === 'in_review'   ? 'ri-eye-line text-violet-400' :
+                              t.status === 'blocked'     ? 'ri-forbid-line text-rose-400' :
+                              isOverdue                  ? 'ri-error-warning-line text-rose-400' :
+                              'ri-checkbox-blank-circle-line text-gray-300 hover:text-gray-400'
+                            }`}></i>
+                          </button>
+                          <button type="button" onClick={() => openViewTask(t)} className="flex-1 min-w-0 text-left cursor-pointer">
+                            <p className={`text-sm leading-snug ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-gray-300"></span>
+                              <p className="text-[11px] text-gray-400 truncate">{projectName}</p>
+                            </div>
+                          </button>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {t.priority === 'high' && t.status !== 'done' && <span className="w-1.5 h-1.5 rounded-full bg-rose-400" title="High priority"></span>}
+                            {t.due_date && t.status !== 'done' && (
+                              <span className={`text-[10px] font-semibold ${isOverdue ? 'text-rose-500' : t.due_date === today ? 'text-amber-600' : 'text-gray-400'}`}>
+                                {t.due_date === today ? 'Today' : isOverdue ? 'Late' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+
+                const GroupHeader = ({ label, count, dot }: { label: string; count: number; dot: string }) => (
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`}></span>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{label} <span className="text-gray-300 font-normal">({count})</span></p>
+                  </div>
+                );
+
+                return (
+                  <>
+                    {overdueTasks.length > 0 && <div className="space-y-2"><GroupHeader label="Overdue" count={overdueTasks.length} dot="bg-rose-400" /><TaskRows list={overdueTasks} /></div>}
+                    {dueGroup.length > 0 && <div className="space-y-2"><GroupHeader label={windowLabel} count={dueGroup.length} dot="bg-amber-400" /><TaskRows list={dueGroup} /></div>}
+                    {laterGroup.length > 0 && <div className="space-y-2"><GroupHeader label="Later" count={laterGroup.length} dot="bg-gray-300" /><TaskRows list={laterGroup} /></div>}
+                    {noDueDateGroup.length > 0 && <div className="space-y-2"><GroupHeader label="No Due Date" count={noDueDateGroup.length} dot="bg-gray-200" /><TaskRows list={noDueDateGroup} /></div>}
+                    {doneTasks.length > 0 && (
+                      <div className="space-y-2">
+                        <button type="button" onClick={() => setShowCompletedTasks(s => !s)} className="flex items-center gap-2 cursor-pointer">
+                          <i className={`ri-arrow-${showCompletedTasks ? 'down' : 'right'}-s-line text-gray-400 text-sm`}></i>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Show Completed <span className="text-gray-300 font-normal">({doneTasks.length})</span></p>
+                        </button>
+                        {showCompletedTasks && <TaskRows list={doneTasks} />}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+              {(() => {
+                const myProjectIds = new Set(myTasks.map(t => t.project_id));
+                const myProjectRows = sortedRows.filter(r => r.hub_projects && r.hub_projects.status !== 'completed' && myProjectIds.has(r.hub_projects.id));
+                if (myProjectRows.length === 0) return null;
+                return (
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between mb-3 px-0.5">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Your Projects <span className="text-gray-300 font-normal">({myProjectRows.length})</span></p>
+                      <button type="button" onClick={() => setDashboardTab('projects')} className="text-xs font-semibold text-[#2d4a6e] hover:underline cursor-pointer flex items-center gap-1">
+                        View all <i className="ri-arrow-right-line text-sm"></i>
+                      </button>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+                      {myProjectRows.map(r => {
+                        const p = r.hub_projects;
+                        if (!p) return null;
+                        const palette = getServicePalette(p.service);
+                        const projectTasks = tasks.filter(t => t.project_id === p.id && !t.deleted_at);
+                        const tasksDone = projectTasks.filter(t => t.status === 'done').length;
+                        return (
+                          <button key={r.id}
+                            onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
+                            className="flex-shrink-0 w-56 flex items-center gap-3 bg-white border border-gray-100 rounded-2xl shadow-sm px-4 py-3.5 text-left transition-all group cursor-pointer hover:bg-gray-50/60">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                              style={{ background: `linear-gradient(135deg, ${palette.from}, ${palette.to})` }}>
+                              <span className="text-[13px] font-bold text-white">{p.project_name.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
+                              <p className="text-[11px] text-gray-400 truncate mt-0.5">{p.project_type === 'internal' ? 'Internal' : p.client_name}</p>
+                              {projectTasks.length > 0 && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((tasksDone / projectTasks.length) * 100)}%`, background: palette.from }} />
+                                  </div>
+                                  <span className="text-[10px] text-gray-400 flex-shrink-0">{tasksDone}/{projectTasks.length}</span>
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="space-y-4">
+
+              {/* No search results */}
+              {search && active.length === 0 && other.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <i className="ri-search-line text-3xl text-gray-200"></i>
+                  <p className="text-sm text-gray-400">No projects match <span className="font-medium text-gray-600">"{search}"</span></p>
+                  <button onClick={() => setSearch('')} className="text-xs text-indigo-500 hover:underline cursor-pointer">Clear search</button>
+                </div>
+              )}
+
+              {/* Project cards grouped by status */}
+              {(() => {
+                const active = sortedRows.filter(r => r.hub_projects?.status !== 'completed');
+                const done   = sortedRows.filter(r => r.hub_projects?.status === 'completed');
+
+                const Section = ({ label, rows: sRows }: { label: string; rows: typeof sortedRows }) => sRows.length === 0 ? null : (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{label}</p>
+                      <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{sRows.length}</span>
+                    </div>
+                    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
+                      {sRows.map((r) => {
+                        const p = r.hub_projects;
+                        if (!p) return null;
+                        const palette = getServicePalette(p.service);
+                        const projectTasks = tasks.filter(t => t.project_id === p.id && !t.deleted_at);
+                        const tasksDone = projectTasks.filter(t => t.status === 'done').length;
+                        const isOverdueRow = !!(p.deadline && p.deadline < today && p.status !== 'completed');
+                        const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
+                        return (
+                          <button key={r.id}
+                            onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
+                            className="w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer hover:bg-gray-50/60">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                              style={{ background: `linear-gradient(135deg, ${palette.from}, ${palette.to})` }}>
+                              <span className="text-[13px] font-bold text-white">{p.project_name.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
+                                {p.stage && getStageCfg(p.stage) && (
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${getStageCfg(p.stage)!.cls}`}>{p.stage}</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-400 truncate mt-0.5">{p.project_type === 'internal' ? 'Internal' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
+                            </div>
+                            {projectTasks.length > 0 && (
+                              <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+                                <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((tasksDone / projectTasks.length) * 100)}%`, background: palette.from }} />
+                                </div>
+                                <span className="text-[11px] text-gray-400 w-8">{tasksDone}/{projectTasks.length}</span>
+                              </div>
+                            )}
+                            {daysLeft !== null && p.status !== 'completed' ? (
+                              isOverdueRow
+                                ? <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-rose-100 text-rose-600 flex-shrink-0">{Math.abs(daysLeft)}d overdue</span>
+                                : daysLeft <= 7
+                                  ? <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 flex-shrink-0">{daysLeft}d left</span>
+                                  : <span className="text-[11px] text-gray-400 flex-shrink-0">{new Date(p.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            ) : null}
+                            <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+
+                return (
+                  <>
+                    <Section label="Projects" rows={active} />
+                    <Section label="Completed" rows={done} />
+                  </>
+                );
+              })()}
+
+              {/* ── My Clients section ── */}
+              {clientEntries.length > 0 && (
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{label}</p>
-                    <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{sRows.length}</span>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Clients</p>
+                    <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{clientEntries.length}</span>
                   </div>
                   <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
-                    {sRows.map((r) => {
-                      const p = r.hub_projects;
-                      if (!p) return null;
-                      const palette = getServicePalette(p.service);
-                      const projectTasks = tasks.filter(t => t.project_id === p.id && !t.deleted_at);
-                      const tasksDone = projectTasks.filter(t => t.status === 'done').length;
-                      const isOverdueRow = !!(p.deadline && p.deadline < today && p.status !== 'completed');
-                      const daysLeft = p.deadline ? Math.ceil((new Date(p.deadline + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
+                    {clientEntries.map(c => {
+                      const pal = getServicePalette(c.service ?? null);
                       return (
-                        <button key={r.id}
-                          onClick={() => { setWorkspaceRow(r); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }}
+                        <button key={c.id} onClick={() => {
+                          if (c.type === 'retainer' && c.rowId) {
+                            const row = rows.find(r => r.id === c.rowId);
+                            if (row) { setWorkspaceRow(row); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }
+                          } else {
+                            setClientWorkspace(c);
+                          }
+                        }}
                           className="w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer hover:bg-gray-50/60">
                           <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
-                            style={{ background: `linear-gradient(135deg, ${palette.from}, ${palette.to})` }}>
-                            <span className="text-[13px] font-bold text-white">{p.project_name.charAt(0).toUpperCase()}</span>
+                            style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
+                            <span className="text-[13px] font-bold text-white">{c.name.charAt(0).toUpperCase()}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{p.project_name}</p>
-                            <p className="text-xs text-gray-400 truncate mt-0.5">{p.project_type === 'internal' ? 'Internal' : p.client_name}{p.service ? ` · ${p.service}` : ''}</p>
+                            <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{c.name}</p>
+                            <p className="text-xs text-gray-400 truncate mt-0.5">{c.type === 'retainer' ? 'Retainer' : (c.role ?? c.platform ?? 'Client')}{c.service ? ` · ${c.service}` : ''}</p>
                           </div>
-                          {projectTasks.length > 0 && (
-                            <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
-                              <div className="w-14 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((tasksDone / projectTasks.length) * 100)}%`, background: palette.from }} />
-                              </div>
-                              <span className="text-[11px] text-gray-400 w-8">{tasksDone}/{projectTasks.length}</span>
-                            </div>
-                          )}
-                          {daysLeft !== null ? (
-                            isOverdueRow
-                              ? <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-rose-100 text-rose-600 flex-shrink-0">{Math.abs(daysLeft)}d overdue</span>
-                              : daysLeft <= 7
-                                ? <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-amber-100 text-amber-700 flex-shrink-0">{daysLeft}d left</span>
-                                : <span className="text-[11px] text-gray-400 flex-shrink-0">{new Date(p.deadline! + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                          ) : null}
                           <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
                         </button>
                       );
                     })}
                   </div>
                 </div>
-              );
-
-              return (
-                <>
-                  <Section label="Projects" rows={active} />
-                  <Section label="Completed" rows={done} />
-                </>
-              );
-            })()}
-
-            {/* ── My Clients section ── */}
-            {clientEntries.length > 0 && (
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Clients</p>
-                  <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{clientEntries.length}</span>
-                </div>
-                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
-                  {clientEntries.map(c => {
-                    const pal = getServicePalette(c.service ?? null);
-                    return (
-                      <button key={c.id} onClick={() => {
-                        if (c.type === 'retainer' && c.rowId) {
-                          const row = rows.find(r => r.id === c.rowId);
-                          if (row) { setWorkspaceRow(row); setTaskFilter('all'); setTaskSearch(''); setWsFocusSection(null); }
-                        } else {
-                          setClientWorkspace(c);
-                        }
-                      }}
-                        className="w-full flex items-center gap-4 px-5 py-3.5 text-left transition-all group cursor-pointer hover:bg-gray-50/60">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
-                          style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})` }}>
-                          <span className="text-[13px] font-bold text-white">{c.name.charAt(0).toUpperCase()}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-semibold text-[#111827] truncate leading-snug">{c.name}</p>
-                          <p className="text-xs text-gray-400 truncate mt-0.5">{c.type === 'retainer' ? 'Retainer' : (c.role ?? c.platform ?? 'Client')}{c.service ? ` · ${c.service}` : ''}</p>
-                        </div>
-                        <i className="ri-arrow-right-s-line text-gray-300 group-hover:text-gray-500 transition-colors text-lg flex-shrink-0" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── RIGHT: task panel ── */}
-          <div className="hidden lg:flex flex-col w-72 flex-shrink-0 px-3 relative overflow-hidden"
-            style={{
-              marginTop: '-1.5rem',
-              marginBottom: '-6rem',
-              marginRight: '-1.5rem',
-              paddingTop: '1.5rem',
-              paddingBottom: '6rem',
-              background: 'rgba(232,237,248,0.30)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              borderLeft: '1px solid rgba(200,210,230,0.35)',
-            }}>
-            {/* Blobs */}
-            <div className="absolute pointer-events-none inset-0 overflow-hidden">
-              <div className="absolute -top-16 -right-16 w-80 h-80 rounded-full opacity-30" style={{ background: 'radial-gradient(circle, #FF6B35 0%, transparent 65%)', filter: 'blur(40px)' }} />
-              <div className="absolute top-16 -left-16 w-72 h-72 rounded-full opacity-25" style={{ background: 'radial-gradient(circle, #f59e0b 0%, transparent 65%)', filter: 'blur(36px)' }} />
-              <div className="absolute top-1/3 right-0 w-72 h-72 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 65%)', filter: 'blur(40px)' }} />
-              <div className="absolute top-1/2 left-0 w-80 h-80 rounded-full opacity-25" style={{ background: 'radial-gradient(circle, #FF6B35 0%, transparent 65%)', filter: 'blur(44px)' }} />
-              <div className="absolute bottom-16 right-0 w-72 h-72 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #f59e0b 0%, transparent 65%)', filter: 'blur(36px)' }} />
-              <div className="absolute -bottom-16 left-8 w-80 h-80 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 65%)', filter: 'blur(44px)' }} />
-            </div>
-
-            {/* Overall progress ring */}
-            {tasks.length > 0 && (
-              <div className="bg-white/80 rounded-2xl shadow-sm border border-white/60 mb-3 relative z-10"
-                style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-                <div className="px-5 py-4">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Overall Progress</p>
-                  <div className="flex items-center gap-4">
-                    <div className="relative flex-shrink-0">
-                      <ProgressRing pct={pct} size={72} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-2xl font-bold text-[#111827] leading-none mb-0.5">{pct}%</p>
-                      <p className="text-[11px] text-gray-400 mb-2">complete</p>
-                      <div className="space-y-1">
-                        {[
-                          { label: 'Done', value: doneTasks.length, color: 'bg-emerald-400' },
-                          { label: 'Active', value: inProgressTasks.length, color: 'bg-blue-400' },
-                          { label: 'To Do', value: todoTasks.length, color: 'bg-gray-200' },
-                        ].map(s => (
-                          <div key={s.label} className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.color}`}></span>
-                            <span className="text-xs text-gray-500 flex-1">{s.label}</span>
-                            <span className="text-xs font-semibold text-gray-700">{s.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* My tasks list */}
-            <div className="bg-white/80 rounded-2xl shadow-sm border border-white/60 relative z-10"
-              style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-              <div className="px-5 pt-5 pb-4">
-                <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase mb-1">
-                  {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }).toUpperCase()}
-                </p>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xl font-bold text-[#111827]">My Tasks</p>
-                  {overdueTasks.length > 0 && (
-                    <span className="text-xs font-semibold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex-shrink-0">
-                      {overdueTasks.length} overdue
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {sortedMyTasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-3 px-5 pb-5">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                    <i className="ri-checkbox-circle-fill text-emerald-400 text-2xl"></i>
-                  </div>
-                  <p className="text-sm text-gray-400 font-medium text-center">No tasks assigned yet</p>
-                </div>
-              ) : (
-                <div className="px-3 pb-4 space-y-1">
-                  {sortedMyTasks.filter(t => !hiddenDoneIds.has(t.id)).map(t => {
-                    const projectName = getProjectName(t.project_id);
-                    const isTaskOverdue = !!(t.due_date && t.due_date < today && t.status !== 'done');
-                    const isDone = t.status === 'done';
-                    const isCompleting = completingTaskIds.has(t.id);
-                    const taskStatusIcon = (status: string) => {
-                      if (isCompleting || status === 'done') return <i className="ri-checkbox-circle-fill text-emerald-500 text-xl flex-shrink-0" />;
-                      if (status === 'in_progress') return <i className="ri-loader-4-line animate-spin text-sky-400 text-xl flex-shrink-0" />;
-                      if (status === 'blocked') return <i className="ri-close-circle-line text-rose-400 text-xl flex-shrink-0" />;
-                      if (status === 'in_review') return <i className="ri-eye-line text-violet-400 text-xl flex-shrink-0" />;
-                      return <i className="ri-circle-line text-gray-300 text-xl flex-shrink-0" />;
-                    };
-                    return (
-                      <div key={t.id} className={`flex items-start gap-3 px-2 py-2.5 rounded-xl transition-all duration-300 ${isCompleting ? 'bg-emerald-50' : isDone ? 'opacity-40' : 'hover:bg-gray-50'}`}>
-                        <button type="button" onClick={() => completeDashboardTask(t)} className="flex-shrink-0 cursor-pointer mt-0.5">
-                          {taskStatusIcon(t.status)}
-                        </button>
-                        {isCompleting ? (
-                          <>
-                            <p className="flex-1 text-[13px] font-medium text-emerald-600">Task completed</p>
-                            <button type="button" onClick={() => undoDashboardTask(t)}
-                              className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-2 py-0.5 rounded-md flex-shrink-0 cursor-pointer transition-colors">
-                              Undo
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button type="button" onClick={() => openTaskFromDashboard(t)} className="flex-1 min-w-0 text-left cursor-pointer">
-                              <p className={`text-[13px] font-medium leading-snug ${isDone ? 'line-through text-gray-400' : 'text-[#111827]'}`}>{t.title}</p>
-                              <p className="text-[11px] text-gray-400 mt-0.5 truncate">{projectName}</p>
-                              {!getTaskAssigneeIds(t).includes(myUserId) && (() => {
-                                const item = (t.checklist ?? []).find(i => i.assignee_id === myUserId && !i.done);
-                                return item ? <p className="text-[10px] text-indigo-500 mt-0.5 truncate"><i className="ri-checkbox-line mr-0.5"></i>Your item: {item.text}</p> : null;
-                              })()}
-                            </button>
-                            {t.due_date && t.status !== 'done' && (
-                              <span className={`text-[10px] font-semibold flex-shrink-0 mt-1 ${isTaskOverdue ? 'text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded' : t.due_date === today ? 'text-amber-600' : 'text-gray-400'}`}>
-                                {t.due_date === today ? 'Today' : isTaskOverdue ? 'Late' : new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
               )}
             </div>
-          </div>
+          )}
 
         </div>
       ))}

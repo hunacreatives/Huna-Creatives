@@ -119,7 +119,7 @@ export default function ContractorProfilePage() {
   const inputCls = 'w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]';
 
   return (
-    <ContractorLayout title="My Profile">
+    <ContractorLayout title="Profile">
       <div className="max-w-2xl space-y-5">
         {message && (
           <div className={`px-4 py-3 rounded-lg text-sm font-medium ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
