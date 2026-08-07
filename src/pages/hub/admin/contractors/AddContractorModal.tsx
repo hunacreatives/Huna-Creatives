@@ -16,7 +16,7 @@ function fmt12(t: string) {
 
 const emptyProfile = {
   full_name: '', email: '', role: 'contractor' as 'contractor' | 'admin',
-  department: '', start_date: new Date().toISOString().slice(0, 10),
+  department: '', job_title: '', start_date: new Date().toISOString().slice(0, 10),
   payment_type: 'fixed' as 'fixed' | 'hourly' | 'fixed_flexible' | 'project_based',
   monthly_rate: '', hourly_rate: '', project_percentage: '', currency: 'PHP',
   shift_start: '', shift_end: '', work_days: [] as string[], slack_id: '',
@@ -64,6 +64,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
         full_name: profile.full_name.trim(),
         role: profile.role,
         department: profile.department || null,
+        job_title: profile.job_title || null,
         start_date: profile.start_date || null,
         payment_type: profile.payment_type,
         hourly_rate: profile.hourly_rate ? parseFloat(profile.hourly_rate) : null,
@@ -204,17 +205,21 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                       <input type="email" value={profile.email} onChange={e => setP('email', e.target.value)} placeholder="their@email.com" className={inputCls} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><label className={labelCls}>Department / Role Title</label>
-                      <input value={profile.department} onChange={e => setP('department', e.target.value)} placeholder="e.g. Graphic Designer" className={inputCls} /></div>
-                    <div><label className={labelCls}>Start Date</label>
-                      <input type="date" value={profile.start_date} onChange={e => setP('start_date', e.target.value)} className={inputCls} /></div>
+                    <div><label className={labelCls}>Department</label>
+                      <input value={profile.department} onChange={e => setP('department', e.target.value)} placeholder="e.g. Creative" className={inputCls} /></div>
+                    <div><label className={labelCls}>Job Title</label>
+                      <input value={profile.job_title} onChange={e => setP('job_title', e.target.value)} placeholder="e.g. Senior Graphic Designer" className={inputCls} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
+                    <div><label className={labelCls}>Start Date</label>
+                      <input type="date" value={profile.start_date} onChange={e => setP('start_date', e.target.value)} className={inputCls} /></div>
                     <div><label className={labelCls}>Access Role</label>
                       <select value={profile.role} onChange={e => setP('role', e.target.value)} className={`${inputCls} bg-white`}>
                         <option value="contractor">Employee</option>
                         <option value="admin">HR / Admin</option>
                       </select></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
                     <div><label className={labelCls}>Slack ID</label>
                       <input value={profile.slack_id} onChange={e => setP('slack_id', e.target.value)} placeholder="e.g. U09NUQFTZL6" className={inputCls} /></div>
                   </div>

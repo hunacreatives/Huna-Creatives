@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     });
 
     const {
-      email, full_name, role = 'contractor', department, start_date,
+      email, full_name, role = 'contractor', department, job_title, start_date,
       payment_type, hourly_rate, monthly_rate, project_percentage, currency = 'PHP',
       shift_start, shift_end, work_days, slack_id,
       skip_invite = false,
@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
       role,
       status: skip_invite ? 'pending' : 'active',
       department: department || null,
+      job_title: job_title || null,
       start_date: start_date || null,
       payment_type: payment_type || null,
       hourly_rate: hourly_rate ? parseFloat(hourly_rate) : null,

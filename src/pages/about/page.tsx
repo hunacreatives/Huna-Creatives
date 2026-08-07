@@ -1,82 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
 import { useSEO } from '../../hooks/useSEO';
+import { supabase } from '@/lib/supabase';
 
-const teamMembers = [
-  {
-    name: 'Francis Fiel Roble',
-    role: 'Founder/Creative Director',
-    bio: 'The visionary behind Huna. Francis leads with bold ideas and a deep belief that design should always serve a purpose.',
-    image: '/images/team-francis-fiel-roble.webp',
-    hasPhoto: true,
-  },
-  {
-    name: 'Thamara Ong',
-    role: 'Partner & Senior Brand Strategist',
-    bio: 'Thamara is the strategic force behind every brand story. She turns insights into direction and ideas into impact.',
-    image: '/images/team-thamara-ong.webp',
-    hasPhoto: true,
-  },
-  {
-    name: 'Ma. Reeva Jumawan',
-    role: 'Partner & Senior Visual Director',
-    bio: 'Reeva brings visual worlds to life. Her eye for detail and aesthetic direction keeps every project looking sharp and intentional.',
-    image: '/images/team-reeva-jumawan.webp',
-    hasPhoto: true,
-  },
-  {
-    name: 'Katleen Nellas',
-    role: 'Senior Graphic Designer',
-    bio: 'Katleen crafts visuals that speak before words do. She blends creativity with precision to deliver designs that truly stand out.',
-    image: '/images/team-katleen-nellas.webp',
-    hasPhoto: true,
-  },
-  {
-    name: 'Abigail Duterte',
-    role: 'HR Specialist/Admin',
-    bio: 'Abigail is the backbone of the team. She keeps everything running smoothly so the creatives can focus on what they do best.',
-    image: '/images/team-abigail-duterte.webp',
-    hasPhoto: true,
-  },
-  {
-    name: 'Angela Louise Ando',
-    role: 'Admin/Account Specialist',
-    bio: 'Angela is the bridge between partners and the team. She ensures every project runs on time and every brand feels heard.',
-    image: '/images/team-angela-ando.webp',
-    hasPhoto: true,
-  },
-  {
-    name: 'Claudette Tahil',
-    role: 'Admin/Account Specialist',
-    bio: 'Claudette keeps brand relationships strong and operations seamless, ensuring every account is handled with care and precision.',
-    image: '/images/6785570f89c09728ca73acf4660742b6.png',
-    hasPhoto: true,
-    objectPosition: 'center 15%',
-  },
-  {
-    name: 'Reese Jumawan',
-    role: 'Junior Graphic Designer',
-    bio: 'Reese is a passionate creative who thrives on turning concepts into compelling visuals that resonate with audiences.',
-    image: '/images/team-reese-jumawan.webp',
-    hasPhoto: true,
-  },
-  {
-    name: 'Jesse Keane Catedral',
-    role: 'Junior Graphic Designer',
-    bio: 'Jesse is a passionate graphic designer who moves between ideas and mediums with clarity and intention. He builds digital products, shapes brand identities, and designs experiences that draw people in.',
-    image: '/images/team-jesse-catedral.png',
-    hasPhoto: true,
-  },
-  {
-    name: 'Dan',
-    role: 'Web Designer',
-    bio: 'Dan brings digital experiences to life through thoughtful web design that balances aesthetics with functionality.',
-    image: '',
-    hasPhoto: false,
-  },
-];
+interface TeamMember {
+  name: string;
+  role: string;
+  bio: string;
+  image: string;
+  hasPhoto: boolean;
+}
 
 const values = [
   {
@@ -140,6 +75,22 @@ export default function AboutPage() {
   const storyRef = useScrollReveal();
   const valuesRef = useScrollReveal();
   const teamRef = useScrollReveal();
+
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.functions.invoke('public-team');
+      const mapped: TeamMember[] = (data?.team ?? []).map((m: any) => ({
+        name: m.full_name,
+        role: m.job_title || m.department || '',
+        bio: m.about_bio || '',
+        image: m.avatar_url || '',
+        hasPhoto: !!m.avatar_url,
+      }));
+      setTeamMembers(mapped);
+    })();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-body">

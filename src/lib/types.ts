@@ -14,6 +14,10 @@ export interface HubUser {
   emergency_contact_phone?: string;
   slack_username?: string;
   department?: string;
+  job_title?: string;
+  about_bio?: string;
+  show_on_about?: boolean;
+  about_sort_order?: number;
   start_date?: string;
   status: 'active' | 'inactive' | 'pending';
   payment_type?: 'hourly' | 'fixed' | 'fixed_flexible' | 'project_based';

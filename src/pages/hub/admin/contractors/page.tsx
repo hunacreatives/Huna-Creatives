@@ -312,6 +312,9 @@ export default function ContractorsPage() {
                       )}
                     </div>
                     <p className="text-xs text-gray-400 truncate">{c.email}</p>
+                    {c.job_title && (
+                      <p className="text-xs text-gray-500 truncate">{c.job_title}</p>
+                    )}
                     {c.department && (
                       <span className={`sm:hidden inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${departmentColors[c.department] || 'bg-gray-100 text-gray-600'}`}>
                         {c.department}

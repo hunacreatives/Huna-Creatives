@@ -19,6 +19,7 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
     emergency_contact_phone: (contractor as any).emergency_contact_phone || '',
     slack_username: contractor.slack_username || '',
     department: contractor.department || '',
+    job_title: contractor.job_title || '',
     role: contractor.role || 'contractor',
     start_date: contractor.start_date || '',
     birthday: (contractor as any).birthday || '',
@@ -36,6 +37,9 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
     notes: contractor.notes || '',
     annual_pto_days: contractor.annual_pto_days?.toString() || '',
     annual_sick_days: contractor.annual_sick_days?.toString() || '',
+    show_on_about: contractor.show_on_about || false,
+    about_bio: contractor.about_bio || '',
+    about_sort_order: contractor.about_sort_order?.toString() || '100',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,6 +58,7 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
       project_percentage: form.project_percentage ? parseFloat(form.project_percentage) : null,
       annual_pto_days: form.annual_pto_days ? parseInt(form.annual_pto_days) : null,
       annual_sick_days: form.annual_sick_days ? parseInt(form.annual_sick_days) : null,
+      about_sort_order: form.about_sort_order ? parseInt(form.about_sort_order) : 100,
       updated_at: new Date().toISOString(),
     }).eq('id', contractor.id);
     setLoading(false);
@@ -169,6 +174,13 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
             </div>
 
             <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700">Job Title</label>
+              <input value={form.job_title} onChange={(e) => set('job_title', e.target.value)}
+                placeholder="e.g. Senior Graphic Designer"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+            </div>
+
+            <div className="space-y-1">
               <label className="text-xs font-medium text-gray-700">Role</label>
               <select value={form.role} onChange={(e) => set('role', e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
@@ -250,6 +262,32 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
                     placeholder="e.g. 4"
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                   <p className="text-[11px] text-gray-400">Leave blank to use system default (4d)</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Public About Page */}
+            <div className="col-span-2 pt-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Public About Page</p>
+              <p className="text-[11px] text-gray-400 mb-3">Controls whether this person shows up on hunacreatives.com/about. Uses the Job Title above; add a bio and ordering below.</p>
+              <label className="flex items-center gap-2 cursor-pointer mb-3">
+                <input type="checkbox" checked={form.show_on_about}
+                  onChange={(e) => setForm((p) => ({ ...p, show_on_about: e.target.checked }))}
+                  className="rounded" />
+                <span className="text-sm text-gray-600">Show on the public About page</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Display Order</label>
+                  <input type="number" value={form.about_sort_order} onChange={(e) => set('about_sort_order', e.target.value)}
+                    placeholder="Lower shows first"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                </div>
+                <div className="col-span-2 space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Public Bio</label>
+                  <textarea value={form.about_bio} onChange={(e) => set('about_bio', e.target.value)} rows={3}
+                    placeholder="Short bio shown on the About page..."
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] resize-none" />
                 </div>
               </div>
             </div>
