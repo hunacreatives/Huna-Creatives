@@ -131,6 +131,8 @@ export default function AdminDashboardPage() {
   const [totalNetProfit, setTotalNetProfit] = useState(_cache?.totalNetProfit ?? 0);
   const [totalContractValue, setTotalContractValue] = useState(_cache?.totalContractValue ?? 0);
   const [totalCollected, setTotalCollected] = useState(_cache?.totalCollected ?? 0);
+  const [outstandingByProject, setOutstandingByProject] = useState<{ id: number; project_name: string; client_name: string; contract_price: number; collected: number; outstanding: number }[]>(_cache?.outstandingByProject ?? []);
+  const [showOutstandingModal, setShowOutstandingModal] = useState(false);
   const [activeProjectCount, setActiveProjectCount] = useState(_cache?.activeProjectCount ?? 0);
   const [onTrackCount, setOnTrackCount] = useState(_cache?.onTrackCount ?? 0);
   const [atRiskCount, setAtRiskCount] = useState(_cache?.atRiskCount ?? 0);
@@ -213,7 +215,7 @@ export default function AdminDashboardPage() {
         supabase.from('hub_time_off').select('*, hub_users(full_name, avatar_url)').eq('status', 'pending').order('created_at', { ascending: false }),
         supabase.from('hub_users').select('id, full_name, avatar_url, payment_type, hourly_rate, monthly_rate, currency, birthday, start_date, work_days').eq('status', 'active').in('role', ['contractor', 'admin']),
         supabase.from('hub_daily_hours').select('user_id, hours_capped, hours_raw, overtime_hours, date, is_manual').gte('date', cutoffStart).lte('date', cutoffEnd),
-        supabase.from('hub_projects').select('contract_price, status, deadline, project_type, monthly_rate, monthly_rate_currency, hub_project_costs(amount), hub_project_payments(amount)'),
+        supabase.from('hub_projects').select('id, project_name, client_name, contract_price, status, deadline, project_type, monthly_rate, monthly_rate_currency, hub_project_costs(amount), hub_project_payments(amount)'),
         supabase.from('hub_clients').select('contract_value, contract_currency, status'),
         getSetting('usd_rate', '56'),
         supabase.from('hub_invoice_log').select('id, invoice_number, client_name, project_name, project_id, balance, settled, sent_at').order('id', { ascending: false }),
@@ -254,6 +256,7 @@ export default function AdminDashboardPage() {
       let atRisk = 0;
       let internalCount = 0;
       const todayStr = today.toISOString().slice(0, 10);
+      const projectOutstanding: { id: number; project_name: string; client_name: string; contract_price: number; collected: number; outstanding: number }[] = [];
       for (const p of (projectsResult.data as any[]) || []) {
         const costs = ((p.hub_project_costs as any[]) || []).reduce((s: number, c: any) => s + c.amount, 0);
         const collected = ((p.hub_project_payments as any[]) || []).reduce((s: number, x: any) => s + x.amount, 0);
@@ -261,6 +264,10 @@ export default function AdminDashboardPage() {
         if (p.project_type === 'client') {
           contractValueTotal += p.contract_price ?? 0;
           collectedTotal += collected;
+          const gap = (p.contract_price ?? 0) - collected;
+          if (gap > 0 && p.status !== 'cancelled') {
+            projectOutstanding.push({ id: p.id, project_name: p.project_name, client_name: p.client_name, contract_price: p.contract_price ?? 0, collected, outstanding: gap });
+          }
         }
         if (p.status === 'ongoing') {
           activeCount++;
@@ -279,6 +286,7 @@ export default function AdminDashboardPage() {
       setOnTrackCount(onTrack);
       setAtRiskCount(atRisk);
       setInternalProjectCount(internalCount);
+      setOutstandingByProject(projectOutstanding.sort((a, b) => b.outstanding - a.outstanding));
 
       // Monthly retainer total — hub_projects retainers only (authoritative source)
       // USD rates are converted to PHP; PHP rates are added as-is
@@ -336,6 +344,7 @@ export default function AdminDashboardPage() {
           totalNetProfit: netProfitTotal,
           totalContractValue: contractValueTotal,
           totalCollected: collectedTotal,
+          outstandingByProject: projectOutstanding,
           activeProjectCount: activeCount,
           onTrackCount: onTrack,
           atRiskCount: atRisk,
@@ -398,6 +407,19 @@ export default function AdminDashboardPage() {
       <DemoTour />
       <div className="space-y-4">
 
+        {/* Ambient background — barely-there, slow-drifting color so the
+            glass cards below have something to actually tint/blur
+            against. Deliberately near-subliminal; this is depth, not
+            decoration, so it must never compete with the hero. */}
+        <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+          <style>{`
+            @keyframes ambient-drift-1 { 0%,100% { transform: translate(0%,0%); } 50% { transform: translate(6%,10%); } }
+            @keyframes ambient-drift-2 { 0%,100% { transform: translate(0%,0%); } 50% { transform: translate(-8%,-6%); } }
+          `}</style>
+          <div className="absolute w-[32rem] h-[32rem] rounded-full opacity-[0.07]" style={{ left: '-8%', top: '-4%', background: '#94a3b8', filter: 'blur(90px)', animation: 'ambient-drift-1 40s ease-in-out infinite' }} />
+          <div className="absolute w-[36rem] h-[36rem] rounded-full opacity-[0.06]" style={{ right: '-10%', top: '30%', background: '#6366f1', filter: 'blur(100px)', animation: 'ambient-drift-2 48s ease-in-out infinite' }} />
+        </div>
+
         {/* Customize drawer */}
         {showCustomize && (
           <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setShowCustomize(false)}>
@@ -442,6 +464,45 @@ export default function AdminDashboardPage() {
                 >
                   Reset to defaults
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Outstanding balances by project */}
+        {showOutstandingModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowOutstandingModal(false)}>
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#111827]">Outstanding Balances</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Contract value not yet collected, by project</p>
+                </div>
+                <button onClick={() => setShowOutstandingModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <i className="ri-close-line text-lg"></i>
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1 divide-y divide-gray-50">
+                {outstandingByProject.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setShowOutstandingModal(false); navigate(`/hub/admin/projects?w=${p.id}&ws=1`); }}
+                    className="w-full flex items-center justify-between gap-3 px-5 py-3 text-left hover:bg-gray-50/60 transition-colors cursor-pointer"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[#111827] truncate">{p.project_name}</p>
+                      <p className="text-xs text-gray-400 truncate">{p.client_name} · ₱{p.collected.toLocaleString('en-PH', { minimumFractionDigits: 0 })} of ₱{p.contract_price.toLocaleString('en-PH', { minimumFractionDigits: 0 })} collected</p>
+                    </div>
+                    <span className="text-sm font-semibold text-rose-500 flex-shrink-0">₱{p.outstanding.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0 flex items-center justify-between">
+                <span className="text-xs text-gray-400">{outstandingByProject.length} project{outstandingByProject.length !== 1 ? 's' : ''}</span>
+                <span className="text-sm font-semibold text-[#111827]">
+                  ₱{outstandingByProject.reduce((s, p) => s + p.outstanding, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
               </div>
             </div>
           </div>
@@ -614,13 +675,13 @@ export default function AdminDashboardPage() {
         {show('kpi') && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'Online Now', value: counts.on, icon: 'ri-user-follow-line', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-              { label: 'Logged Off', value: counts.off, icon: 'ri-user-unfollow-line', color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-100' },
-              { label: 'Not In Yet', value: counts.absent, icon: 'ri-time-line', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
-              { label: 'Cutoff Hours', value: `${totalHours}h`, icon: 'ri-bar-chart-2-line', color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-100' },
+              { label: 'Online Now', value: counts.on, icon: 'ri-user-follow-line', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { label: 'Logged Off', value: counts.off, icon: 'ri-user-unfollow-line', color: 'text-gray-500', bg: 'bg-gray-50' },
+              { label: 'Not In Yet', value: counts.absent, icon: 'ri-time-line', color: 'text-amber-600', bg: 'bg-amber-50' },
+              { label: 'Cutoff Hours', value: `${totalHours}h`, icon: 'ri-bar-chart-2-line', color: 'text-sky-600', bg: 'bg-sky-50' },
             ].map((k) => (
-              <div key={k.label} className={`bg-white rounded-xl border ${k.border} p-4`}>
-                <div className={`w-8 h-8 ${k.bg} rounded-lg flex items-center justify-center mb-3`}>
+              <div key={k.label} className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-4">
+                <div className={`w-8 h-8 ${k.bg}/70 backdrop-blur-sm border border-white/40 rounded-xl flex items-center justify-center mb-3`}>
                   <i className={`${k.icon} ${k.color} text-sm`}></i>
                 </div>
                 <p className="text-2xl font-bold text-[#111827]">{k.value}</p>
@@ -634,9 +695,9 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* Team status — 3 cols */}
             {show('teamStatus') && (
-              <div className="md:col-span-3 bg-white border border-gray-100 rounded-xl p-5">
+              <div className="md:col-span-3 bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-[#111827] text-sm">Team Status</h3>
+                  <h3 className="text-base font-bold text-[#111827]">Team Status</h3>
                   <button onClick={() => navigate('/hub/admin/attendance')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Full view</button>
                 </div>
 
@@ -672,7 +733,7 @@ export default function AdminDashboardPage() {
                     </p>
                     <div className="space-y-2">
                       {offList.map(r => (
-                        <div key={r.hub_user_id || r.full_name} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50">
+                        <div key={r.hub_user_id || r.full_name} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50/60 transition-colors">
                           <Avatar name={r.full_name} url={r.avatar_url} size={8} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-gray-700 truncate">{r.full_name}</p>
@@ -715,27 +776,25 @@ export default function AdminDashboardPage() {
               <div className={`${show('teamStatus') ? 'md:col-span-2' : 'md:col-span-5'} space-y-4`}>
                 {show('payroll') && (
                   <div
-                    className="rounded-2xl p-4"
+                    className="relative overflow-hidden rounded-3xl p-4 shadow-[0_8px_32px_-8px_rgba(255,107,53,0.35)]"
                     style={{
-                      background: 'rgba(254,215,196,0.95)',
-                      backdropFilter: 'blur(16px)',
-                      WebkitBackdropFilter: 'blur(16px)',
-                      border: '1px solid rgba(255,107,53,0.35)',
-                      boxShadow: '0 4px 24px rgba(255,107,53,0.15)',
+                      background: 'linear-gradient(135deg, rgba(255,107,53,0.85), rgba(229,90,39,0.9))',
+                      backdropFilter: 'blur(24px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                      border: '1px solid rgba(255,255,255,0.25)',
                     }}
                   >
                     <div className="flex items-center gap-2 mb-3">
-                      <i className="ri-money-dollar-circle-line text-[#FF6B35]/60 text-sm"></i>
-                      <p className="text-[#c4522a] text-xs font-medium tracking-wide uppercase">Estimated Payroll</p>
+                      <i className="ri-money-dollar-circle-line text-white/70 text-sm"></i>
+                      <p className="text-white/70 text-xs font-medium tracking-wide uppercase">Estimated Payroll</p>
                     </div>
-                    <p className="text-2xl font-bold text-[#7a2e10]">₱{totalPayroll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-[#c4522a]/70 text-xs mt-1">
+                    <p className="text-2xl font-bold text-white tracking-wider">₱{totalPayroll.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-white/60 text-xs mt-1">
                       {currentPeriod.label} cutoff
                     </p>
                     <button
                       onClick={() => navigate('/hub/admin/payroll')}
-                      className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-[#c4522a] hover:bg-[#FF6B35]/10"
-                      style={{ background: 'rgba(255,107,53,0.10)' }}
+                      className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-white"
                     >
                       View Payroll
                     </button>
@@ -746,34 +805,40 @@ export default function AdminDashboardPage() {
                   const collectionPct = totalContractValue > 0 ? Math.min((totalCollected / totalContractValue) * 100, 100) : 0;
                   return (
                     <div
-                      className="rounded-2xl p-4"
+                      className="relative overflow-hidden rounded-3xl p-4 shadow-[0_8px_32px_-8px_rgba(20,184,166,0.35)]"
                       style={{
-                        background: 'rgba(179,240,228,0.95)',
-                        backdropFilter: 'blur(16px)',
-                        WebkitBackdropFilter: 'blur(16px)',
-                        border: '1px solid rgba(20,184,166,0.35)',
-                        boxShadow: '0 4px 24px rgba(20,184,166,0.15)',
+                        background: 'linear-gradient(135deg, rgba(20,184,166,0.85), rgba(13,148,136,0.9))',
+                        backdropFilter: 'blur(24px) saturate(180%)',
+                        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                        border: '1px solid rgba(255,255,255,0.25)',
                       }}
                     >
                       <div className="flex items-center gap-2 mb-3">
-                        <i className="ri-folder-chart-line text-teal-500/60 text-sm"></i>
-                        <p className="text-teal-700 text-xs font-medium tracking-wide uppercase">Projects Net Profit</p>
+                        <i className="ri-folder-chart-line text-white/70 text-sm"></i>
+                        <p className="text-white/70 text-xs font-medium tracking-wide uppercase">Projects Net Profit</p>
                       </div>
-                      <p className="text-2xl font-bold text-teal-900">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                      <p className="text-teal-600/70 text-xs mt-0.5">after costs · {activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
-                      <div className="mt-3">
-                        <div className="flex justify-between text-[10px] text-teal-600/50 mb-1">
-                          <span>Collected · {collectionPct.toFixed(0)}% of contract</span>
+                      <p className="text-2xl font-bold text-white tracking-wider">₱{totalNetProfit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                      <p className="text-white/60 text-xs mt-0.5">After costs · {activeProjectCount} active project{activeProjectCount !== 1 ? 's' : ''}</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowOutstandingModal(true)}
+                        disabled={outstandingByProject.length === 0}
+                        className="mt-3 w-full text-left cursor-pointer disabled:cursor-default"
+                      >
+                        <div className="flex justify-between text-[10px] text-white/50 mb-1">
+                          <span className="flex items-center gap-1">
+                            Collected · {collectionPct.toFixed(0)}% of contract
+                            {outstandingByProject.length > 0 && <i className="ri-information-line"></i>}
+                          </span>
                           <span>₱{totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 0 })} / ₱{totalContractValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
                         </div>
-                        <div className="h-1.5 bg-teal-500/15 rounded-full overflow-hidden">
-                          <div className="h-full bg-teal-500/50 rounded-full transition-all" style={{ width: `${collectionPct}%` }} />
+                        <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
+                          <div className="h-full bg-white/50 rounded-full transition-all" style={{ width: `${collectionPct}%` }} />
                         </div>
-                      </div>
+                      </button>
                       <button
                         onClick={() => navigate('/hub/admin/projects')}
-                        className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-teal-700 hover:bg-teal-500/10"
-                        style={{ background: 'rgba(20,184,166,0.08)' }}
+                        className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-white"
                       >
                         View Projects
                       </button>
@@ -783,25 +848,23 @@ export default function AdminDashboardPage() {
 
                 {show('retainer') && isOwner && (
                   <div
-                    className="rounded-2xl p-4"
+                    className="relative overflow-hidden rounded-3xl p-4 shadow-[0_8px_32px_-8px_rgba(139,92,246,0.35)]"
                     style={{
-                      background: 'rgba(216,207,254,0.95)',
-                      backdropFilter: 'blur(16px)',
-                      WebkitBackdropFilter: 'blur(16px)',
-                      border: '1px solid rgba(139,92,246,0.35)',
-                      boxShadow: '0 4px 24px rgba(139,92,246,0.15)',
+                      background: 'linear-gradient(135deg, rgba(139,92,246,0.85), rgba(124,58,237,0.9))',
+                      backdropFilter: 'blur(24px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                      border: '1px solid rgba(255,255,255,0.25)',
                     }}
                   >
                     <div className="flex items-center gap-2 mb-3">
-                      <i className="ri-calendar-check-line text-violet-400/70 text-sm"></i>
-                      <p className="text-violet-700 text-xs font-medium tracking-wide uppercase">Monthly Retainers</p>
+                      <i className="ri-calendar-check-line text-white/70 text-sm"></i>
+                      <p className="text-white/70 text-xs font-medium tracking-wide uppercase">Monthly Retainers</p>
                     </div>
-                    <p className="text-2xl font-bold text-violet-900">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-violet-500/70 text-xs mt-1">active client contracts · converted to PHP</p>
+                    <p className="text-2xl font-bold text-white tracking-wider">₱{monthlyRetainerTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-white/60 text-xs mt-1">Active client contracts · converted to PHP</p>
                     <button
                       onClick={() => navigate('/hub/admin/projects')}
-                      className="mt-3 w-full rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-violet-700 hover:bg-violet-500/10"
-                      style={{ background: 'rgba(139,92,246,0.08)' }}
+                      className="mt-3 w-full bg-white/20 hover:bg-white/30 rounded-lg py-1.5 text-xs font-medium transition-colors cursor-pointer text-white"
                     >
                       View Clients
                     </button>
@@ -809,9 +872,9 @@ export default function AdminDashboardPage() {
                 )}
 
                 {show('requests') && (
-                  <div className="bg-white border border-gray-100 rounded-xl p-4">
+                  <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-[#111827] text-sm">
+                      <h3 className="text-base font-bold text-[#111827]">
                         Requests
                         {pendingRequests.length > 0 && (
                           <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{pendingRequests.length}</span>
@@ -825,9 +888,9 @@ export default function AdminDashboardPage() {
                         <p className="text-sm text-gray-400">All clear</p>
                       </div>
                     ) : (
-                      <div className="space-y-2.5">
+                      <div className="space-y-1">
                         {pendingRequests.slice(0, 3).map((req) => (
-                          <div key={req.id} className="flex items-center gap-2">
+                          <div key={req.id} className="flex items-center gap-2 -mx-1 px-1 py-1.5 rounded-lg transition-colors hover:bg-gray-50/60">
                             <Avatar name={(req.hub_users as HubUser)?.full_name || '?'} url={(req.hub_users as HubUser)?.avatar_url || null} size={7} />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-gray-800 truncate">{req.title}</p>
@@ -844,9 +907,9 @@ export default function AdminDashboardPage() {
                 )}
 
                 {show('timeOff') && (
-                  <div className="bg-white border border-gray-100 rounded-xl p-4">
+                  <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-[#111827] text-sm">
+                      <h3 className="text-base font-bold text-[#111827]">
                         Time-Off
                         {pendingTimeOff.length > 0 && (
                           <span className="ml-2 text-xs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full">{pendingTimeOff.length}</span>
@@ -860,9 +923,9 @@ export default function AdminDashboardPage() {
                         <p className="text-sm text-gray-400">No pending</p>
                       </div>
                     ) : (
-                      <div className="space-y-2.5">
+                      <div className="space-y-1">
                         {pendingTimeOff.slice(0, 3).map((to) => (
-                          <div key={to.id} className="flex items-center gap-2">
+                          <div key={to.id} className="flex items-center gap-2 -mx-1 px-1 py-1.5 rounded-lg transition-colors hover:bg-gray-50/60">
                             <Avatar name={(to.hub_users as HubUser)?.full_name || '?'} url={(to.hub_users as HubUser)?.avatar_url || null} size={7} />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-gray-800 truncate">{(to.hub_users as HubUser)?.full_name}</p>
@@ -917,9 +980,9 @@ export default function AdminDashboardPage() {
         {(show('announcements') || show('quickActions')) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {show('announcements') && (
-              <div className="bg-white border border-gray-100 rounded-xl p-5">
+              <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-[#111827] text-sm">Announcements</h3>
+                  <h3 className="text-base font-bold text-[#111827]">Announcements</h3>
                   <button onClick={() => navigate('/hub/admin/announcements')} className="text-xs text-[#FF6B35] hover:underline cursor-pointer">Manage</button>
                 </div>
                 {announcements.length === 0 ? (
@@ -944,21 +1007,21 @@ export default function AdminDashboardPage() {
             )}
 
             {show('quickActions') && (
-              <div className="bg-white border border-gray-100 rounded-xl p-5">
-                <h3 className="font-semibold text-[#111827] text-sm mb-3">Quick Actions</h3>
+              <div className="bg-white/50 backdrop-blur-2xl backdrop-saturate-150 border border-white/80 rounded-3xl shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] ring-1 ring-white/40 ring-inset p-5">
+                <h3 className="text-base font-bold text-[#111827] mb-3">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: 'Add Employee', icon: 'ri-user-add-line', path: '/hub/admin/contractors', color: 'text-[#FF6B35]', bg: 'bg-[#FF6B35]/5 hover:bg-[#FF6B35]/10' },
-                    { label: 'View Attendance', icon: 'ri-time-line', path: '/hub/admin/attendance', color: 'text-sky-600', bg: 'bg-sky-50 hover:bg-sky-100' },
-                    { label: 'Post Announcement', icon: 'ri-megaphone-line', path: '/hub/admin/announcements', color: 'text-violet-600', bg: 'bg-violet-50 hover:bg-violet-100' },
-                    { label: 'Run Payroll', icon: 'ri-money-dollar-circle-line', path: '/hub/admin/payroll', color: 'text-emerald-600', bg: 'bg-emerald-50 hover:bg-emerald-100' },
+                    { label: 'Add Employee', icon: 'ri-user-add-line', path: '/hub/admin/contractors', color: 'text-[#FF6B35]', bg: 'bg-[#FF6B35]/5 hover:bg-[#FF6B35]/10', chip: 'bg-[#FF6B35]/10' },
+                    { label: 'View Attendance', icon: 'ri-time-line', path: '/hub/admin/attendance', color: 'text-sky-600', bg: 'bg-sky-50/70 hover:bg-sky-50', chip: 'bg-sky-50' },
+                    { label: 'Post Announcement', icon: 'ri-megaphone-line', path: '/hub/admin/announcements', color: 'text-violet-600', bg: 'bg-violet-50/70 hover:bg-violet-50', chip: 'bg-violet-50' },
+                    { label: 'Run Payroll', icon: 'ri-money-dollar-circle-line', path: '/hub/admin/payroll', color: 'text-emerald-600', bg: 'bg-emerald-50/70 hover:bg-emerald-50', chip: 'bg-emerald-50' },
                   ].map((a) => (
                     <button
                       key={a.label}
                       onClick={() => navigate(a.path)}
-                      className={`flex items-center gap-3 p-3 ${a.bg} rounded-xl transition-colors cursor-pointer text-left`}
+                      className={`flex items-center gap-3 p-3 ${a.bg} backdrop-blur-sm border border-white/40 rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg cursor-pointer text-left`}
                     >
-                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-100 flex-shrink-0">
+                      <div className={`w-8 h-8 ${a.chip}/70 backdrop-blur-sm border border-white/40 rounded-xl flex items-center justify-center flex-shrink-0`}>
                         <i className={`${a.icon} ${a.color} text-sm`}></i>
                       </div>
                       <span className="text-sm text-gray-700 font-medium leading-tight">{a.label}</span>

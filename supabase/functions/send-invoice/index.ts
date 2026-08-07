@@ -97,6 +97,7 @@ Deno.serve(async (req) => {
     const paymentsDeducted = Math.abs(lineItemsTotal - totalPaid - amountDue) < 0.005;
     const isPaid = amountDue <= 0;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
+    const logoUrlDark = 'https://www.hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png';
     const fmtDate = (d: string | null | undefined) => d
       ? new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
       : '—';
@@ -166,6 +167,14 @@ Deno.serve(async (req) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <style>
+    .logo-dark { display: none; }
+    @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
+    [data-ogsc] .logo-light { display: none !important; }
+    [data-ogsc] .logo-dark { display: block !important; }
+  </style>
 </head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
@@ -179,7 +188,8 @@ Deno.serve(async (req) => {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td valign="middle">
-                    <img src="${logoUrl}" alt="Huna Creatives" height="34" style="display:block;" />
+                    <img src="${logoUrl}" alt="Huna Creatives" height="34" class="logo-light" style="display:block;" />
+                    <img src="${logoUrlDark}" alt="Huna Creatives" height="34" class="logo-dark" style="display:none;" />
                   </td>
                   <td align="right" valign="middle" style="text-align:right;">
                     <p style="margin:0;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">Invoice</p>

@@ -1318,14 +1318,14 @@ export default function AdminPayrollPage() {
                 <select
                   value={selectedYear}
                   onChange={e => handleYearChange(e.target.value)}
-                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
+                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-2 sm:py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
                 >
                   {years.map(y => <option key={y} value={y} className="text-gray-900 bg-white">{y}</option>)}
                 </select>
                 <select
                   value={selectedMonth}
                   onChange={e => handleMonthChange(e.target.value)}
-                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
+                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-2 sm:py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
                 >
                   {monthsInYear.map(m => (
                     <option key={m} value={m} className="text-gray-900 bg-white">{FULL_MONTHS[parseInt(m.slice(5, 7)) - 1]}</option>
@@ -1337,7 +1337,7 @@ export default function AdminPayrollPage() {
                     const picked = periodsInMonth.find(p => p.start === e.target.value);
                     if (picked) setSelectedPeriod(picked);
                   }}
-                  className="flex-shrink-0 min-w-[180px] sm:min-w-[220px] bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
+                  className="flex-1 sm:flex-none min-w-[140px] sm:min-w-[220px] bg-white/10 border border-white/10 text-white text-xs rounded-lg px-3 py-2 sm:py-1.5 focus:outline-none focus:ring-1 focus:ring-white/30 cursor-pointer appearance-none"
                 >
                   {openPeriodsInMonth.map((p) => (
                     <option key={p.start} value={p.start} className="text-gray-900 bg-white">
@@ -1357,7 +1357,7 @@ export default function AdminPayrollPage() {
                   onClick={refreshPayrollPage}
                   disabled={refreshing || loading || workflowLoading}
                   title="Refresh payroll data and submission statuses"
-                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white/60 hover:text-white hover:bg-white/20 text-xs rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-shrink-0 bg-white/10 border border-white/10 text-white/60 hover:text-white hover:bg-white/20 text-xs rounded-lg px-2.5 py-2 sm:py-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <i className={`${refreshing ? 'ri-loader-4-line animate-spin' : 'ri-refresh-line'}`}></i>
                 </button>
@@ -1386,7 +1386,7 @@ export default function AdminPayrollPage() {
               </div>
 
               {/* KPIs inline */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2.5 sm:gap-4">
                 {[
                   { label: 'Total Payroll', value: fmt(displayTotalPay, 'PHP'), accent: true },
                   { label: 'Total Hours', value: `${totalHours.toFixed(1)}h` },
@@ -1394,8 +1394,8 @@ export default function AdminPayrollPage() {
                   { label: 'Fixed Rate', value: `${fixedCount} employee${fixedCount !== 1 ? 's' : ''}` },
                 ].map((k) => (
                   <div key={k.label}>
-                    <p className="text-white/40 text-[11px] uppercase tracking-wide mb-1">{k.label}</p>
-                    <p className={`text-lg font-bold tabular-nums leading-tight ${k.accent ? 'text-[#FF6B35]' : 'text-white'}`}>{k.value}</p>
+                    <p className="text-white/40 text-[10px] sm:text-[11px] uppercase tracking-wide mb-0.5 sm:mb-1">{k.label}</p>
+                    <p className={`text-base sm:text-lg font-bold tabular-nums leading-tight ${k.accent ? 'text-[#FF6B35]' : 'text-white'}`}>{k.value}</p>
                   </div>
                 ))}
               </div>
@@ -1403,7 +1403,7 @@ export default function AdminPayrollPage() {
 
             {/* Right: export + USD rate */}
             <div className="flex flex-col gap-3 sm:items-end flex-shrink-0">
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => {
                     const headers = ['Employee', 'Department', 'Type', 'Rate', 'Days', 'Raw Hours', 'Billed Hours', 'Overtime Hours', 'Overtime Pay (PHP)', 'Pay (PHP)'];
@@ -1429,7 +1429,7 @@ export default function AdminPayrollPage() {
                     URL.revokeObjectURL(url);
                   }}
                   disabled={loading || rows.length === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded-lg text-xs font-medium bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <i className="ri-file-excel-line text-sm"></i>
                   CSV
@@ -1437,7 +1437,7 @@ export default function AdminPayrollPage() {
                 <button
                   onClick={downloadPDF}
                   disabled={loading || rows.length === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#FF6B35] text-white hover:bg-[#e55a27] transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded-lg text-xs font-medium bg-[#FF6B35] text-white hover:bg-[#e55a27] transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <i className="ri-file-pdf-line text-sm"></i>
                   PDF
@@ -1446,7 +1446,7 @@ export default function AdminPayrollPage() {
                   <button
                     onClick={savePayrollToDrive}
                     disabled={loading || rows.length === 0 || savingToDrive}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 sm:py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                       isPdfSavedToDrive
                         ? 'bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/20 hover:text-white'
                         : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'
@@ -1553,14 +1553,20 @@ export default function AdminPayrollPage() {
                     </button>
                   </div>
 
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="bg-gray-50 rounded-lg px-3 py-2">
+                  {/* Stats row — tap anywhere to see the daily breakdown */}
+                  <button
+                    type="button"
+                    onClick={() => toggleRowExpanded(c.id)}
+                    title="Show daily hours"
+                    className={`relative w-full text-left cursor-pointer group grid grid-cols-3 gap-2 ${expandedRows.has(c.id) ? '' : 'mb-3'}`}
+                  >
+                    <i className={`ri-arrow-down-s-line absolute -top-1 right-0.5 text-sm text-gray-300 group-hover:text-gray-400 transition-transform ${expandedRows.has(c.id) ? 'rotate-180' : ''}`}></i>
+                    <div className="bg-gray-50 group-hover:bg-gray-100 group-active:bg-gray-100 rounded-lg px-3 py-2 transition-colors">
                       <p className="text-[10px] text-gray-400 mb-0.5">Billed</p>
                       <p className="text-sm font-semibold text-gray-900">{displayHours.toFixed(1)}h</p>
                       <p className="text-[10px] text-gray-400">{r.days}d{hoursExceeded ? <span className="text-amber-500 ml-0.5">⚠</span> : ''}</p>
                     </div>
-                    <div className="bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="bg-gray-50 group-hover:bg-gray-100 group-active:bg-gray-100 rounded-lg px-3 py-2 transition-colors">
                       <p className="text-[10px] text-gray-400 mb-0.5">Overtime</p>
                       {displayOTHours > 0 ? (
                         <>
@@ -1571,14 +1577,20 @@ export default function AdminPayrollPage() {
                         <p className="text-sm text-gray-300">—</p>
                       )}
                     </div>
-                    <div className="bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="bg-gray-50 group-hover:bg-gray-100 group-active:bg-gray-100 rounded-lg px-3 py-2 transition-colors">
                       <p className="text-[10px] text-gray-400 mb-0.5">Pay</p>
                       <p className="text-sm font-bold text-gray-900 tabular-nums">{fmt(total, 'PHP')}</p>
                       {(r.prorated || r.accruing) && (
                         <p className="text-[10px] text-sky-500">{r.accruing ? 'accruing' : 'prorated'}</p>
                       )}
                     </div>
-                  </div>
+                  </button>
+
+                  {expandedRows.has(c.id) && (
+                    <div className="mb-3 -mt-1">
+                      <DailyBreakdownPanel days={r.dailyBreakdown} />
+                    </div>
+                  )}
 
                   {/* Action row */}
                   <div className="flex items-center justify-between pt-3 border-t border-gray-50">

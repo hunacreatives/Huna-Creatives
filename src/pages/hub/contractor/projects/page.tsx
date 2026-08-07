@@ -110,6 +110,15 @@ export default function ContractorProjectsPage() {
   const [teamMap, setTeamMap] = useState<Record<number, TeamMember[]>>({});
   const [loading, setLoading] = useState(true);
   const [workspaceRow, setWorkspaceRow] = useState<ProjectRow | null>(null);
+  // Opening a project on mobile otherwise keeps whatever scroll position the
+  // project list was at, landing mid-page instead of at the workspace top.
+  useEffect(() => {
+    if (workspaceRow) {
+      document.getElementById('ws-scroll')?.scrollTo({ top: 0 });
+      document.querySelector('main')?.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
+    }
+  }, [workspaceRow?.id]);
   const [clientWorkspace, setClientWorkspace] = useState<typeof clientEntries[0] | null>(null);
   const [wsQuestionnaires, setWsQuestionnaires] = useState<{ id: number; service_type: string; submitted_at: string | null; questions: { id: string; label: string; type: string; required?: boolean }[]; answers: Record<string, string | string[]> }[]>([]);
   const [wsQModal, setWsQModal] = useState<typeof wsQuestionnaires[0] | null>(null);
@@ -118,6 +127,7 @@ export default function ContractorProjectsPage() {
   const [taskView, setTaskView] = useState<'list' | 'board'>('list');
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
+  const [newTaskDefaultDueDate, setNewTaskDefaultDueDate] = useState<string | undefined>(undefined);
   const [deletingTaskId, setDeletingTaskId] = useState<number | null>(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<'tasks' | 'projects'>('tasks');
@@ -207,6 +217,13 @@ export default function ContractorProjectsPage() {
 
   const openAddTask = () => {
     setEditingTask(null);
+    setNewTaskDefaultDueDate(undefined);
+    setDetailPanelOpen(true);
+  };
+
+  const openAddTaskForDate = (date: string) => {
+    setEditingTask(null);
+    setNewTaskDefaultDueDate(date);
     setDetailPanelOpen(true);
   };
 
@@ -1011,7 +1028,7 @@ export default function ContractorProjectsPage() {
 
             <button onClick={e => { e.stopPropagation(); if (window.confirm('Delete?')) deleteTask(task.id); }}
               disabled={deletingTaskId === task.id}
-              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
+              className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-gray-300 hover:text-rose-500 cursor-pointer transition-all disabled:opacity-40">
               <i className="ri-delete-bin-line text-sm"></i>
             </button>
           </div>
@@ -1211,7 +1228,7 @@ export default function ContractorProjectsPage() {
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-5">
                     <div className="min-w-0 lg:max-w-[280px] lg:flex-shrink-0">
                       <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusColors[wsProject.status] ?? statusColors.ongoing}`}>
                           {statusLabels[wsProject.status] ?? wsProject.status}
                         </span>
                         {wsIsInternal && <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Internal</span>}
@@ -1357,13 +1374,14 @@ export default function ContractorProjectsPage() {
               ))}
             </div>
 
-            <div id="ws-timeline" className={wsFocusSection && wsFocusSection !== 'ws-timeline' ? 'hidden' : ''}>
+            <div id="ws-timeline" className={`hidden sm:block ${wsFocusSection && wsFocusSection !== 'ws-timeline' ? '!hidden' : ''}`}>
               <GanttTimeline
                 tasks={wsTasks}
                 projectStart={wsProject.start_date}
                 projectEnd={wsProject.deadline}
                 today={wsToday}
                 colorMap={taskColorMap}
+                onAddTaskForDate={openAddTaskForDate}
               />
             </div>
 
@@ -1383,7 +1401,7 @@ export default function ContractorProjectsPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
                       <div className="flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
                         <button
                           type="button"
@@ -1401,8 +1419,8 @@ export default function ContractorProjectsPage() {
                         </button>
                       </div>
                       <button onClick={openAddTask}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
-                        <i className="ri-add-line"></i> <span className="hidden sm:inline">Add Task</span><span className="sm:hidden">Add</span>
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#FF6B35] text-white text-xs font-semibold rounded-lg hover:bg-[#e55a27] shadow-sm transition-colors cursor-pointer whitespace-nowrap">
+                        <i className="ri-add-line text-sm"></i> <span className="hidden sm:inline">Add Task</span><span className="sm:hidden">Add</span>
                       </button>
                     </div>
                   </div>
@@ -1566,6 +1584,7 @@ export default function ContractorProjectsPage() {
               {/* Right: project info */}
                 <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'flex'} flex-col gap-4 w-full lg:w-64 flex-shrink-0 ${wsFocusSection && wsFocusSection !== 'ws-sidebar' ? 'hidden' : ''}`}>
                 {/* Dates + notes card */}
+                {(wsProject.start_date || wsProject.deadline || wsProject.notes) && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                   {(wsProject.start_date || wsProject.deadline) && (
                     <div className="space-y-2.5">
@@ -1592,6 +1611,7 @@ export default function ContractorProjectsPage() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Activity feed */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -1639,8 +1659,14 @@ export default function ContractorProjectsPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs text-gray-600 leading-snug">
-                                <span className="font-semibold text-gray-800">{u?.full_name?.split(' ')[0] ?? 'Someone'}</span>
-                                {' '}{labels[a.action]?.(a) ?? a.action}
+                                {a.action === 'custom' && (a.meta as any)?.message ? (
+                                  String((a.meta as any).message)
+                                ) : (
+                                  <>
+                                    <span className="font-semibold text-gray-800">{u?.full_name?.split(' ')[0] ?? 'Someone'}</span>
+                                    {' '}{labels[a.action]?.(a) ?? (a.action === 'custom' ? 'made an update' : a.action)}
+                                  </>
+                                )}
                               </p>
                               <p className="text-[10px] text-gray-400 mt-0.5">{time}</p>
                             </div>
@@ -2029,7 +2055,6 @@ export default function ContractorProjectsPage() {
               {/* Project cards grouped by status */}
               {(() => {
                 const active = sortedRows.filter(r => r.hub_projects?.status !== 'completed');
-                const done   = sortedRows.filter(r => r.hub_projects?.status === 'completed');
 
                 const Section = ({ label, rows: sRows }: { label: string; rows: typeof sortedRows }) => sRows.length === 0 ? null : (
                   <div className="space-y-2.5">
@@ -2086,19 +2111,20 @@ export default function ContractorProjectsPage() {
                   </div>
                 );
 
+                // Completed projects are hidden from employees — only admins
+                // need the historical/closed view.
                 return (
                   <>
-                    <Section label="Projects" rows={active} />
-                    <Section label="Completed" rows={done} />
+                    <Section label="Active" rows={active} />
                   </>
                 );
               })()}
 
-              {/* ── My Clients section ── */}
+              {/* ── Clients section ── */}
               {clientEntries.length > 0 && (
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">My Clients</p>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Clients</p>
                     <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">{clientEntries.length}</span>
                   </div>
                   <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-50">
@@ -2192,8 +2218,14 @@ export default function ContractorProjectsPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-gray-700 leading-snug">
-                              <span className="font-semibold text-gray-900">{u?.full_name?.split(' ')[0] ?? 'Someone'}</span>
-                              {' '}{labels[a.action]?.(a) ?? a.action}
+                              {a.action === 'custom' && (a.meta as any)?.message ? (
+                                String((a.meta as any).message)
+                              ) : (
+                                <>
+                                  <span className="font-semibold text-gray-900">{u?.full_name?.split(' ')[0] ?? 'Someone'}</span>
+                                  {' '}{labels[a.action]?.(a) ?? (a.action === 'custom' ? 'made an update' : a.action)}
+                                </>
+                              )}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">{time}</p>
                           </div>
@@ -2228,7 +2260,8 @@ export default function ContractorProjectsPage() {
             : null,
         } : null}
         open={detailPanelOpen}
-        onClose={() => { setDetailPanelOpen(false); setEditingTask(null); }}
+        defaultDueDate={newTaskDefaultDueDate}
+        onClose={() => { setDetailPanelOpen(false); setEditingTask(null); setNewTaskDefaultDueDate(undefined); }}
         onSaved={(saved) => {
           const mapped: ProjectTask = {
             ...saved,

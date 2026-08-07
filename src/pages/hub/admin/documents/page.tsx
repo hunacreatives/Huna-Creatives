@@ -367,13 +367,13 @@ export default function AdminDocumentsPage() {
 
       <div className="space-y-6">
         {/* Tab switcher */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-fit">
           {([
             { key: 'contracts', label: 'Contracts', icon: 'ri-pen-nib-line' },
             { key: 'docrequests', label: 'Doc Requests', icon: 'ri-file-list-3-line', badge: docRequests.filter(r => r.status === 'pending').length },
           ] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${activeTab === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${activeTab === tab.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               <i className={`${tab.icon} text-sm`}></i>
               {tab.label}
               {'badge' in tab && tab.badge > 0 && (
@@ -384,19 +384,19 @@ export default function AdminDocumentsPage() {
         </div>
 
         {activeTab === 'contracts' && <>
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-sm text-gray-500">Send contracts and documents to employees for signature.</p>
           <div className="flex gap-2">
             <button
               onClick={() => setShowUpload(true)}
-              className="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
             >
               <i className="ri-upload-2-line"></i>
               Upload PDF
             </button>
             <button
               onClick={() => setShowGenerator(true)}
-              className="flex items-center gap-2 bg-[#FF6B35] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#e55a24] transition-colors cursor-pointer"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-[#FF6B35] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#e55a24] transition-colors cursor-pointer"
             >
               <i className="ri-file-text-line"></i>
               Generate Contract

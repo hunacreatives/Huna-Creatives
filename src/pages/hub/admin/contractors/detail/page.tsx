@@ -418,7 +418,7 @@ export default function ContractorDetailPage() {
           </div>
         )}
         {/* Profile header */}
-        <div className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col sm:flex-row gap-5 items-start">
+        <div className="bg-white border border-gray-100 rounded-xl p-5 flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left gap-5">
           <div className="relative flex-shrink-0">
             {contractor.avatar_url ? (
               <img src={contractor.avatar_url} alt={contractor.full_name} className="w-20 h-20 rounded-xl object-cover object-top" />
@@ -441,19 +441,19 @@ export default function ContractorDetailPage() {
                 e.target.value = '';
               }} />
           </div>
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex flex-wrap items-start gap-2">
+          <div className="flex-1 min-w-0 w-full space-y-2 flex flex-col items-center sm:items-start">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
               <h2 className="text-lg font-bold text-[#111827]">{contractor.full_name}</h2>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${
                 contractor.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
               }`}>{contractor.status === 'active' ? 'Active' : 'Inactive'}</span>
             </div>
-            <div className="flex flex-wrap gap-3 text-sm text-gray-500">
+            <div className="flex flex-wrap justify-center sm:justify-start gap-3 text-sm text-gray-500">
               <span className="flex items-center gap-1"><i className="ri-mail-line text-xs"></i>{contractor.email}</span>
               {contractor.phone && <span className="flex items-center gap-1"><i className="ri-phone-line text-xs"></i>{contractor.phone}</span>}
               {contractor.slack_username && <span className="flex items-center gap-1"><i className="ri-slack-line text-xs"></i>{contractor.slack_username}</span>}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap justify-center sm:justify-start gap-2">
               {contractor.department && (
                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{contractor.department}</span>
               )}
@@ -470,12 +470,12 @@ export default function ContractorDetailPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-full sm:w-fit overflow-x-auto scrollbar-hide">
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key as typeof activeTab)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                 activeTab === t.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -1181,8 +1181,8 @@ export default function ContractorDetailPage() {
                         {i < contracts.length - 1 && <div className="w-px flex-1 bg-gray-100 mt-2 min-h-[16px]"></div>}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 flex-wrap">
-                          <div>
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+                          <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${type.color}`}>{type.label}</span>
                               {doc?.rate_snapshot && (
@@ -1194,12 +1194,12 @@ export default function ContractorDetailPage() {
                             <p className="text-sm font-medium text-gray-800 mt-1">{doc?.title}</p>
                             {doc?.description && <p className="text-xs text-gray-400 mt-0.5">{doc.description}</p>}
                           </div>
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${isSigned ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 self-start ${isSigned ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                             {isSigned ? <><i className="ri-checkbox-circle-line mr-1"></i>Signed</> : <><i className="ri-time-line mr-1"></i>Pending</>}
                           </span>
                         </div>
-                        <div className="flex items-center gap-4 mt-2">
-                          <span className="text-xs text-gray-400">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-3">
+                          <span className="text-xs text-gray-400 whitespace-nowrap">
                             Sent {new Date(doc?.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                           {isSigned && a.signed_at && (
@@ -1207,7 +1207,7 @@ export default function ContractorDetailPage() {
                               Signed {new Date(a.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} as "{a.signed_name}"
                             </span>
                           )}
-                          <button onClick={openDoc} className="text-xs text-[#FF6B35] hover:underline cursor-pointer ml-auto">
+                          <button onClick={openDoc} className="text-xs text-[#FF6B35] hover:underline cursor-pointer self-start sm:self-auto sm:ml-auto whitespace-nowrap">
                             View <i className="ri-external-link-line"></i>
                           </button>
                         </div>

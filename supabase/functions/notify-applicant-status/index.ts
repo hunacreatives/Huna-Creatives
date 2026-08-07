@@ -46,7 +46,7 @@ function contentFor(
         `Hi ${firstName},`,
         `Great news — you've been shortlisted for the ${role} position at Huna Creatives! We'd like to schedule an interview with you.`,
         `<strong>${whenLabel}</strong>`,
-        ...(interview.link ? [`Details: ${interview.link}`] : []),
+        ...(interview.link ? [`Join via Google Meet: <a href="${interview.link}" style="color:#FF6B35">${interview.link}</a>`] : []),
         `If this time doesn't work for you, just reply to this email and we'll find another slot.`,
         `Looking forward to speaking with you!`,
         `— Huna Creatives`,
@@ -99,6 +99,8 @@ Deno.serve(async (req) => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>${subject}</title>
   <style>
     @media only screen and (max-width:600px){
@@ -108,6 +110,10 @@ Deno.serve(async (req) => {
       .email-footer{padding:20px!important}
       .logo-img{height:28px!important}
     }
+    .logo-dark { display: none; }
+    @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
+    [data-ogsc] .logo-light { display: none !important; }
+    [data-ogsc] .logo-dark { display: block !important; }
   </style>
 </head>
 <body style="margin:0;padding:0;background:#f2f2f0;-webkit-text-size-adjust:100%;mso-line-height-rule:exactly">
@@ -121,10 +127,16 @@ Deno.serve(async (req) => {
             <td class="email-header" style="background:#111111;padding:28px 40px;border-bottom:3px solid #FF6B35">
               <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
                    alt="Huna Creatives"
-                   class="logo-img"
+                   class="logo-img logo-light"
                    width="auto"
                    height="32"
                    style="display:block;height:32px;width:auto;border:0;outline:0;text-decoration:none">
+              <img src="https://hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png"
+                   alt="Huna Creatives"
+                   class="logo-img logo-dark"
+                   width="auto"
+                   height="32"
+                   style="display:none;height:32px;width:auto;border:0;outline:0;text-decoration:none">
             </td>
           </tr>
 

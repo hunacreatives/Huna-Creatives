@@ -522,31 +522,29 @@ export default function InvoiceLogPage() {
     <AdminLayout title="Invoice Log">
       <div className="space-y-4">
         <div className="space-y-3">
-          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-            <div className="flex bg-gray-100 rounded-lg p-1 gap-1 w-max sm:w-auto">
-              <button
-                onClick={() => setTab('invoices')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'invoices' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Invoices
-                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{invoices.length}</span>
-              </button>
+          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+            <button
+              onClick={() => setTab('invoices')}
+              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'invoices' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Invoices
+              <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{invoices.length}</span>
+            </button>
 
-              <button
-                onClick={() => setTab('receipts')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'receipts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Receipts
-                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{receipts.length}</span>
-              </button>
-              <button
-                onClick={() => setTab('proofs')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'proofs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Proofs
-                <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{proofs.length}</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setTab('receipts')}
+              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'receipts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Receipts
+              <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{receipts.length}</span>
+            </button>
+            <button
+              onClick={() => setTab('proofs')}
+              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${tab === 'proofs' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Proofs
+              <span className="ml-1.5 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{proofs.length}</span>
+            </button>
           </div>
           {isDemo && (
             <button
@@ -577,65 +575,69 @@ export default function InvoiceLogPage() {
               )}
               {activeInvoices.map(inv => (
                 <div key={inv.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <div className="px-4 py-4 flex items-center gap-3 hover:bg-gray-50 transition-colors">
+                  <div className="px-4 py-4 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-gray-50 transition-colors">
                     <button
-                      className="flex-1 min-w-0 flex items-center gap-3 text-left cursor-pointer"
+                      className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-3 text-left cursor-pointer"
                       onClick={() => setExpanded(expanded === inv.id ? null : inv.id)}
                     >
-                      <span className={`text-xs font-mono font-bold px-2 py-1 rounded flex-shrink-0 ${inv.source === 'payment_reminder' ? 'text-violet-600 bg-violet-50' : 'text-[#FF6B35] bg-orange-50'}`}>
-                        {inv.source === 'payment_reminder' ? 'REMIND' : `#${inv.invoice_number.padStart(4, '0')}`}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{inv.project_name}</p>
-                        <p className="text-xs text-gray-500 truncate">{inv.client_name}</p>
-                        <p className="text-xs text-gray-400 hidden sm:block">{inv.sent_to}</p>
+                      <div className="flex items-start sm:items-center gap-3 min-w-0">
+                        <span className={`text-xs font-mono font-bold px-2 py-1 rounded flex-shrink-0 ${inv.source === 'payment_reminder' ? 'text-violet-600 bg-violet-50' : 'text-[#FF6B35] bg-orange-50'}`}>
+                          {inv.source === 'payment_reminder' ? 'REMIND' : `#${inv.invoice_number.padStart(4, '0')}`}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 sm:truncate">{inv.project_name}</p>
+                          <p className="text-xs text-gray-500 truncate">{inv.client_name}</p>
+                          <p className="text-xs text-gray-400 hidden sm:block">{inv.sent_to}</p>
+                        </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        {inv.source === 'payment_reminder' && inv.balance != null ? (
-                          <p className="text-sm font-bold text-violet-700">{fmt(inv.balance)}</p>
+                      <div className="flex items-center justify-between sm:justify-end gap-3 sm:flex-shrink-0 sm:ml-auto">
+                        <div className="text-left sm:text-right flex-shrink-0">
+                          {inv.source === 'payment_reminder' && inv.balance != null ? (
+                            <p className="text-sm font-bold text-violet-700">{fmt(inv.balance)}</p>
+                          ) : (
+                            <p className="text-sm font-bold text-gray-900">{fmt(inv.contract_price)}</p>
+                          )}
+                          {inv.balance != null && (
+                            <p className={`text-xs font-medium ${inv.balance <= 0 ? 'text-emerald-600' : 'text-orange-500'}`}>
+                              {inv.balance <= 0 ? 'Paid' : `${fmt(inv.balance)} due`}
+                            </p>
+                          )}
+                        </div>
+                        {inv.settled ? (
+                          <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-shrink-0">
+                            <i className="ri-check-double-line"></i> <span className="hidden sm:inline">Settled</span>
+                          </span>
+                        ) : inv.source === 'payment_reminder' ? (
+                          <span className="flex items-center gap-1 text-xs font-medium text-violet-600 bg-violet-50 border border-violet-200 px-2 py-1 rounded-full flex-shrink-0">
+                            <i className="ri-alarm-line"></i> <span className="hidden sm:inline">Reminder</span>
+                          </span>
                         ) : (
-                          <p className="text-sm font-bold text-gray-900">{fmt(inv.contract_price)}</p>
+                          <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full flex-shrink-0">
+                            <span className="hidden sm:inline">Outstanding</span><span className="sm:hidden">Due</span>
+                          </span>
                         )}
-                        {inv.balance != null && (
-                          <p className={`text-xs font-medium ${inv.balance <= 0 ? 'text-emerald-600' : 'text-orange-500'}`}>
-                            {inv.balance <= 0 ? 'Paid' : `${fmt(inv.balance)} due`}
-                          </p>
-                        )}
+                        <div className="text-xs text-gray-400 flex-shrink-0 text-right hidden md:block">{fmtDateTime(inv.sent_at)}</div>
+                        <i className={`ri-arrow-${expanded === inv.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
                       </div>
-                      {inv.settled ? (
-                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full flex-shrink-0">
-                          <i className="ri-check-double-line"></i> <span className="hidden sm:inline">Settled</span>
-                        </span>
-                      ) : inv.source === 'payment_reminder' ? (
-                        <span className="flex items-center gap-1 text-xs font-medium text-violet-600 bg-violet-50 border border-violet-200 px-2 py-1 rounded-full flex-shrink-0">
-                          <i className="ri-alarm-line"></i> <span className="hidden sm:inline">Reminder</span>
-                        </span>
-                      ) : (
-                        <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full flex-shrink-0">
-                          <span className="hidden sm:inline">Outstanding</span><span className="sm:hidden">Due</span>
-                        </span>
-                      )}
-                      <div className="text-xs text-gray-400 flex-shrink-0 text-right hidden md:block">{fmtDateTime(inv.sent_at)}</div>
-                      <i className={`ri-arrow-${expanded === inv.id ? 'up' : 'down'}-s-line text-gray-400 flex-shrink-0`}></i>
                     </button>
                     {!inv.settled && (
-                      <div className="flex items-center gap-1.5 ml-1">
+                      <div className="flex items-center gap-1.5 sm:ml-1">
                         <button
                           type="button"
                           onClick={() => void settleInvoice(inv)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors cursor-pointer flex-shrink-0"
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 text-xs text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors cursor-pointer"
                         >
                           <i className="ri-check-double-line"></i>
-                          <span className="hidden sm:inline">Settle</span>
+                          <span>Settle</span>
                         </button>
                         {inv.source !== 'payment_reminder' && (
                           <button
                             type="button"
                             onClick={() => void openEditInvoice(inv)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-xs text-sky-600 border border-sky-200 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer flex-shrink-0"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 text-xs text-sky-600 border border-sky-200 rounded-lg hover:bg-sky-50 transition-colors cursor-pointer"
                           >
                             <i className="ri-edit-line"></i>
-                            <span className="hidden sm:inline">Re-edit</span>
+                            <span>Re-edit</span>
                           </button>
                         )}
                       </div>

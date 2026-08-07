@@ -205,9 +205,20 @@ async function run(slug: string) {
   const pdfBytes = await generatePdf(buildContractHtml(contract), `${safeTitle} - Signed`);
 
   // ── Notify admin ──
-  const adminHtml = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0ede8;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
+  const adminHtml = `<!DOCTYPE html><html><head>
+<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
+<style>
+  .logo-dark { display: none; }
+  @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
+  [data-ogsc] .logo-light { display: none !important; }
+  [data-ogsc] .logo-dark { display: block !important; }
+</style>
+</head><body style="margin:0;padding:0;background:#f0ede8;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
 <div style="max-width:520px;margin:40px auto;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-  <div style="background:#111111;padding:24px 36px"><img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna" height="24" style="display:block;border:0"></div>
+  <div style="background:#111111;padding:24px 36px">
+    <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna" height="24" class="logo-light" style="display:block;border:0">
+    <img src="https://hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png" alt="Huna" height="24" class="logo-dark" style="display:none;border:0">
+  </div>
   <div style="height:3px;background:linear-gradient(90deg,#16a34a,#4ade80)"></div>
   <div style="padding:32px 36px">
     <p style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#16a34a;margin:0 0 8px">Contract Signed</p>
@@ -234,11 +245,22 @@ async function run(slug: string) {
   if (!clientEmail) { console.log('No client email — skipping client notification'); return; }
 
   // ── Send signed copy to client ──
-  const clientHtml = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0ede8;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
+  const clientHtml = `<!DOCTYPE html><html><head>
+<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
+<style>
+  .logo-dark { display: none; }
+  @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
+  [data-ogsc] .logo-light { display: none !important; }
+  [data-ogsc] .logo-dark { display: block !important; }
+</style>
+</head><body style="margin:0;padding:0;background:#f0ede8;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
 <div style="max-width:560px;margin:40px auto;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
   <div style="background:#111111;padding:28px 40px">
     <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td><img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" height="28" style="display:block;border:0"></td>
+      <td>
+        <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" height="28" class="logo-light" style="display:block;border:0">
+        <img src="https://hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png" alt="Huna Creatives" height="28" class="logo-dark" style="display:none;border:0">
+      </td>
       <td align="right"><span style="font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#FF6B35;border:1px solid rgba(255,107,53,0.35);padding:5px 10px">SIGNED</span></td>
     </tr></table>
   </div>

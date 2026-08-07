@@ -25,12 +25,13 @@ const dateStr = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(
 const addDays = (s: string, n: number) => { const d = new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return dateStr(d); };
 const diffDays = (a: string, b: string) => Math.round((new Date(b+'T00:00:00').getTime() - new Date(a+'T00:00:00').getTime()) / 86400000);
 
-export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUpdate, colorMap: externalColorMap }: {
+export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUpdate, onAddTaskForDate, colorMap: externalColorMap }: {
   tasks: ProjectTask[];
   projectStart: string | null;
   projectEnd: string | null;
   today: string;
   onTaskUpdate?: (taskId: number, updates: { due_date?: string | null; start_date?: string | null }) => void;
+  onAddTaskForDate?: (date: string) => void;
   colorMap?: Record<number, { bar: string; barText?: string }>;
 }) {
   void projectStart; void projectEnd;
@@ -228,16 +229,16 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <i className="ri-calendar-line text-indigo-400 text-base"></i>
-          <h3 className="font-semibold text-gray-800 text-sm">{monthLabel}</h3>
+      <div className="px-3 sm:px-5 py-3 sm:py-3.5 border-b border-gray-100 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <i className="ri-calendar-line text-indigo-400 text-sm sm:text-base flex-shrink-0"></i>
+          <h3 className="font-semibold text-gray-800 text-xs sm:text-sm truncate">{monthLabel}</h3>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           <button onClick={prevMonth} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer">
             <i className="ri-arrow-left-s-line text-base"></i>
           </button>
-          <button onClick={goToday} className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer">
+          <button onClick={goToday} className="px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer">
             Today
           </button>
           <button onClick={nextMonth} className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer">
@@ -246,17 +247,22 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
         </div>
       </div>
 
-      {/* Day-of-week headers */}
-      <div className="grid grid-cols-7 border-b border-gray-100">
+      {/* Day-of-week headers + grid share one horizontal scroll container so
+          columns stay aligned on narrow screens instead of drifting apart. */}
+      <div className="overflow-x-auto">
+      <div className="grid grid-cols-7 border-b border-gray-100 min-w-[420px]">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-          <div key={d} className={`py-2 text-center text-[10px] font-semibold uppercase tracking-wide ${d === 'Sat' || d === 'Sun' ? 'text-gray-300' : 'text-gray-400'}`}>{d}</div>
+          <div key={d} className={`py-1.5 sm:py-2 text-center text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide ${d === 'Sat' || d === 'Sun' ? 'text-gray-300' : 'text-gray-400'}`}>
+            <span className="sm:hidden">{d.slice(0, 1)}</span>
+            <span className="hidden sm:inline">{d}</span>
+          </div>
         ))}
       </div>
 
       {/* Calendar grid — rendered week by week so bars span across day cells */}
       <div>
         {weekRows.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7">
+          <div key={wi} className="grid grid-cols-7 min-w-[420px]">
             {week.dates.map((cellDate, di) => {
               const inMonth = cellDate !== null;
               const dayNum = cellDate ? parseInt(cellDate.split('-')[2]) : 0;
@@ -285,7 +291,7 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                   onDrop={e => handleDrop(e, cellDate)}
                   onDragLeave={() => setDragOver(null)}
                   className={[
-                    'min-h-[96px] border-b border-r border-gray-50 flex flex-col',
+                    'group relative min-h-[96px] border-b border-r border-gray-50 flex flex-col',
                     !inMonth ? 'bg-gray-50/30' : '',
                     isWeekend && inMonth ? 'bg-gray-50/50' : '',
                     isSelected && !isDragging ? 'ring-2 ring-inset ring-orange-300' : '',
@@ -294,10 +300,20 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
                     inMonth && isDragging ? 'cursor-copy' : '',
                   ].filter(Boolean).join(' ')}
                 >
-                  {/* Date number */}
-                  <div className="flex justify-end p-1.5 pb-1">
+                  {/* Date number + quick-add */}
+                  <div className="flex items-center justify-between p-1.5 pb-1">
+                    {inMonth && onAddTaskForDate && cellDate ? (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onAddTaskForDate(cellDate); }}
+                        title="Add a task on this date"
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 bg-gray-100 hover:text-white hover:bg-orange-500 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all cursor-pointer flex-shrink-0"
+                      >
+                        <i className="ri-add-line text-sm"></i>
+                      </button>
+                    ) : <span />}
                     <span className={[
-                      'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
+                      'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0',
                       isToday ? 'bg-orange-500 text-white font-bold' : '',
                       !inMonth ? 'text-gray-300' : isToday ? '' : 'text-gray-600',
                     ].filter(Boolean).join(' ')}>
@@ -365,13 +381,22 @@ export function GanttTimeline({ tasks, projectStart, projectEnd, today, onTaskUp
           </div>
         ))}
       </div>
+      </div>
 
       {/* Selected day task list */}
       {selectedDate && !isDragging && (
         <div className="border-t border-gray-100 px-5 py-4">
-          <p className="text-xs font-semibold text-gray-500 mb-2">
-            {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-gray-500">
+              {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+            {onAddTaskForDate && (
+              <button type="button" onClick={() => onAddTaskForDate(selectedDate)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 border border-gray-200 hover:border-orange-300 hover:text-orange-600 px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
+                <i className="ri-add-line text-sm"></i>Add task
+              </button>
+            )}
+          </div>
           {selectedTasks.length === 0 ? (
             <p className="text-xs text-gray-300">No tasks on this day</p>
           ) : (

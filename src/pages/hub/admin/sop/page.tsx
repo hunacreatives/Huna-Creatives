@@ -91,23 +91,25 @@ export default function SopPage() {
   return (
     <AdminLayout title="SOP Library">
       <div className="space-y-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-48">
+        <div className="space-y-3">
+          <div className="relative">
             <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search SOPs..."
               className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
           </div>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-            {categories.slice(0, 5).map((c) => (
-              <button key={c} onClick={() => setCategoryFilter(c)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${categoryFilter === c ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                {c === 'all' ? 'All' : c.replace('_', ' ')}
-              </button>
-            ))}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto scrollbar-hide w-full sm:w-auto">
+              {categories.slice(0, 5).map((c) => (
+                <button key={c} onClick={() => setCategoryFilter(c)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${categoryFilter === c ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                  {c === 'all' ? 'All' : c.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            <button onClick={openNew} className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap w-full sm:w-auto sm:ml-auto">
+              <i className="ri-add-line"></i> Add SOP
+            </button>
           </div>
-          <button onClick={openNew} className="flex items-center gap-1.5 px-4 py-2 bg-[#111827] text-white text-sm rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap">
-            <i className="ri-add-line"></i> Add SOP
-          </button>
         </div>
 
         {loading ? (

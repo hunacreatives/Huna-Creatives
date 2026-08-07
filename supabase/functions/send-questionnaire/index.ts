@@ -20,17 +20,27 @@ Deno.serve(async (req) => {
 
     const formUrl = `${BASE_URL}/q/${token}`;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
+    const logoUrlDark = 'https://www.hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png';
 
     const html = `<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
+<style>
+  .logo-dark { display: none; }
+  @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
+  [data-ogsc] .logo-light { display: none !important; }
+  [data-ogsc] .logo-dark { display: block !important; }
+</style>
+</head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
     <tr><td align="center">
       <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
 
         <tr><td style="background:#111827;padding:24px 36px;">
-          <img src="${logoUrl}" alt="Huna Creatives" height="24" style="display:block;" />
+          <img src="${logoUrl}" alt="Huna Creatives" height="24" class="logo-light" style="display:block;" />
+          <img src="${logoUrlDark}" alt="Huna Creatives" height="24" class="logo-dark" style="display:none;" />
         </td></tr>
 
         <tr><td style="padding:32px 36px 24px;">

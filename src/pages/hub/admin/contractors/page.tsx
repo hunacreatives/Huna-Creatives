@@ -140,18 +140,18 @@ export default function ContractorsPage() {
     <AdminLayout
       title="Employees"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={handleSyncSlackIds}
             disabled={syncing}
-            className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50"
           >
             <i className={`ri-slack-line text-sm ${syncing ? 'animate-spin' : ''}`}></i>
             {syncing ? 'Syncing…' : 'Sync Slack IDs'}
           </button>
           <button
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 bg-[#FF6B35] text-white text-sm px-3 py-2 rounded-lg hover:bg-[#e55a27] transition-colors cursor-pointer whitespace-nowrap"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-[#FF6B35] text-white text-sm px-3 py-2 rounded-lg hover:bg-[#e55a27] transition-colors cursor-pointer whitespace-nowrap"
           >
             <i className="ri-user-add-line text-sm"></i>
             Add Employee
@@ -174,28 +174,28 @@ export default function ContractorsPage() {
                 </div>
                 <p className="text-white/50 text-xs">{contractors.filter(c => c.status === 'active').length} active</p>
               </div>
-              <div className="flex items-center gap-4 flex-wrap mt-2">
+              <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-x-4 flex-wrap mt-2">
                 {Object.entries(
                   contractors.filter(c => c.status === 'active').reduce((acc: Record<string, number>, c) => {
                     if (c.department) acc[c.department] = (acc[c.department] || 0) + 1;
                     return acc;
                   }, {})
                 ).slice(0, 4).map(([dept, count]) => (
-                  <div key={dept} className="flex items-center gap-1.5">
+                  <div key={dept} className="flex items-center gap-1.5 min-w-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B35] flex-shrink-0"></span>
-                    <span className="text-white/50 text-xs">{dept}</span>
-                    <span className="text-white/30 text-xs">{count}</span>
+                    <span className="text-white/50 text-xs truncate">{dept}</span>
+                    <span className="text-white/30 text-xs flex-shrink-0">{count}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex gap-4 sm:gap-6">
+            <div className="flex w-full sm:w-auto justify-between sm:justify-end gap-4 sm:gap-6">
               {[
                 { label: 'Total', value: contractors.length },
                 { label: 'Active', value: contractors.filter(c => c.status === 'active').length },
                 { label: 'Inactive', value: contractors.filter(c => c.status === 'inactive').length },
               ].map(s => (
-                <div key={s.label} className="text-center sm:text-right">
+                <div key={s.label} className="flex-1 sm:flex-none text-center sm:text-right">
                   <p className="text-xl font-bold text-white">{s.value}</p>
                   <p className="text-white/40 text-[11px] uppercase tracking-wide">{s.label}</p>
                 </div>
@@ -216,10 +216,10 @@ export default function ContractorsPage() {
               className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white"
             />
           </div>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-auto">
             {(['all', 'active', 'inactive'] as const).map((s) => (
               <button key={s} onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
+                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${
                   statusFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}>
                 {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -230,10 +230,10 @@ export default function ContractorsPage() {
 
         {/* Department filter */}
         {departments.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap">
             <button
               onClick={() => setDeptFilter('all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${deptFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${deptFilter === 'all' ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
             >
               All Departments
             </button>
@@ -241,10 +241,8 @@ export default function ContractorsPage() {
               <button
                 key={dept}
                 onClick={() => setDeptFilter(deptFilter === dept ? 'all' : dept)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                  deptFilter === dept
-                    ? `${departmentColors[dept] || 'bg-gray-200 text-gray-700'} ring-2 ring-offset-1 ring-current`
-                    : `${departmentColors[dept] || 'bg-gray-100 text-gray-600'} opacity-60 hover:opacity-100`
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                  deptFilter === dept ? 'bg-[#111827] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 }`}
               >
                 {dept}
@@ -314,6 +312,11 @@ export default function ContractorsPage() {
                       )}
                     </div>
                     <p className="text-xs text-gray-400 truncate">{c.email}</p>
+                    {c.department && (
+                      <span className={`sm:hidden inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${departmentColors[c.department] || 'bg-gray-100 text-gray-600'}`}>
+                        {c.department}
+                      </span>
+                    )}
                   </div>
 
                   {/* Dept + rate */}

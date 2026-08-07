@@ -120,6 +120,8 @@ Deno.serve(async (req) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
 </head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
@@ -130,7 +132,11 @@ Deno.serve(async (req) => {
           <!-- Header -->
           <tr>
             <td style="background:#111827;padding:32px 40px;text-align:center;">
-              <img src="https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
+              <!-- Header background is always dark navy regardless of the recipient's
+                   email client theme, so always use the light-on-dark logo variant here
+                   rather than toggling by prefers-color-scheme (which made the dark
+                   logo invisible against this dark header in light-mode clients). -->
+              <img src="https://www.hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png"
                    alt="Huna Creatives" height="32" style="display:block;margin:0 auto 16px;" />
               <p style="margin:0;color:#9ca3af;font-size:13px;letter-spacing:0.05em;text-transform:uppercase;">Welcome to the Team</p>
             </td>
@@ -142,12 +148,12 @@ Deno.serve(async (req) => {
               <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;">Hey ${firstName}! 👋</h1>
               <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">
                 We're excited to have you on board at <strong style="color:#111827;">Huna Creatives</strong>.
-                Your profile has been set up — you just need to create your password to access the team hub.
+                Your profile has been set up — you just need to create your password to access Sentro.
               </p>
 
               <!-- What's inside box -->
-              <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px 24px;margin-bottom:28px;">
-                <p style="margin:0 0 12px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">What's inside Huna Hub</p>
+              <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px 24px;margin-bottom:20px;">
+                <p style="margin:0 0 12px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">What's inside Sentro</p>
                 <table cellpadding="0" cellspacing="0" width="100%">
                   ${[
                     ['🕐', 'Attendance tracking via Slack'],
@@ -161,6 +167,9 @@ Deno.serve(async (req) => {
                   </tr>`).join('')}
                 </table>
               </div>
+              <p style="margin:0 0 28px;font-size:13px;color:#6b7280;line-height:1.6;">
+                You'll also need to review and sign your contract once you're in — you'll find it under <strong style="color:#111827;">Contracts</strong> in Sentro.
+              </p>
 
               <!-- CTA -->
               <table cellpadding="0" cellspacing="0" width="100%">
@@ -202,7 +211,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: `Huna Creatives Onboarding <${FROM_EMAIL}>`,
         to: [email.toLowerCase()],
-        subject: `Welcome to Huna Hub, ${firstName}! Set your password to get started`,
+        subject: `Welcome to Sentro, ${firstName}! Set your password to get started`,
         html,
       }),
     });

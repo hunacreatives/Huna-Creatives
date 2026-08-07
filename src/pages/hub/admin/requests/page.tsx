@@ -143,17 +143,17 @@ export default function AdminRequestsPage() {
   return (
     <AdminLayout title="Request Center">
       {/* Tab bar */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-5">
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-fit mb-5">
         <button onClick={() => switchTab('requests')}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'requests' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'requests' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           <i className="ri-inbox-line text-[13px]"></i>General Requests
         </button>
         <button onClick={() => switchTab('overtime')}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'overtime' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'overtime' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           <i className="ri-timer-flash-line text-[13px]"></i>Overtime
         </button>
         <button onClick={() => switchTab('timeoff')}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'timeoff' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${tab === 'timeoff' ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
           <i className="ri-calendar-event-line text-[13px]"></i>Time-Off
         </button>
       </div>
@@ -161,11 +161,11 @@ export default function AdminRequestsPage() {
       {/* ── General Requests ─────────────────────────────────────────────────── */}
       {tab === 'requests' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-fit">
               {['all', 'open', 'in_review', 'resolved', 'closed'].map(s => (
                 <button key={s} onClick={() => setReqFilter(s)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${reqFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                  className={`flex-1 sm:flex-none flex items-center justify-center px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${reqFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                   {s === 'all' ? 'All' : s.replace('_', ' ')}
                 </button>
               ))}
@@ -201,11 +201,11 @@ export default function AdminRequestsPage() {
       {/* ── Overtime ─────────────────────────────────────────────────────────── */}
       {tab === 'overtime' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-fit">
               {['pending', 'approved', 'rejected', 'all'].map(s => (
                 <button key={s} onClick={() => setOtFilter(s)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${otFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                  className={`flex-1 sm:flex-none flex items-center justify-center px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap capitalize ${otFilter === s ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                   {s === 'all' ? 'All' : otStatusLabels[s] || s}
                 </button>
               ))}

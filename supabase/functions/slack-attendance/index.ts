@@ -121,12 +121,14 @@ Deno.serve(async (req) => {
     // Get all active contractors
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, department, email, status, slack_username, payment_type, shift_start')
+      .select('id, full_name, avatar_url, department, email, status, slack_id, slack_username, payment_type, shift_start')
       .eq('status', 'active');
 
+    const slackIdMap: Record<string, any> = {};
     const emailMap: Record<string, any> = {};
     const slackUsernameMap: Record<string, any> = {};
     for (const c of contractors || []) {
+      if (c.slack_id) slackIdMap[c.slack_id] = c;
       emailMap[c.email?.toLowerCase()] = c;
       if (c.slack_username) slackUsernameMap[c.slack_username.toLowerCase().replace(/^@/, '')] = c;
     }
@@ -135,8 +137,15 @@ Deno.serve(async (req) => {
     const slackEmailMap: Record<string, string> = {};
     const slackDisplayNameMap: Record<string, string> = {};
 
+    // Only need the Slack profile lookup as a fallback for users not already
+    // matched directly by slack_id — slack_id is the reliable key since it
+    // doesn't depend on Slack's users:read.email scope or email matching
+    // hub_users.email exactly (email/display-name matching has silently
+    // dropped punches before — see Angela slack_username fix).
+    const unmatchedSlackIds = slackIds.filter((slackId) => !slackIdMap[slackId]);
+
     await Promise.all(
-      slackIds.map(async (slackId) => {
+      unmatchedSlackIds.map(async (slackId) => {
         const info = await slackGet(`users.info?user=${slackId}`);
         if (info.ok) {
           const email = info.user?.profile?.email;
@@ -156,28 +165,41 @@ Deno.serve(async (req) => {
       const punches = userPunches[slackId] || [];
       const email = slackEmailMap[slackId];
       const displayName = slackDisplayNameMap[slackId];
-      const hubUser = (email ? emailMap[email] : null) ?? (displayName ? slackUsernameMap[displayName] : null);
+      const hubUser = slackIdMap[slackId] ?? (email ? emailMap[email] : null) ?? (displayName ? slackUsernameMap[displayName] : null);
       if (hubUser?.email) punchedEmails.add(hubUser.email);
       else if (email) punchedEmails.add(email);
 
       const latestPunch = punches[punches.length - 1];
-      const status = latestPunch?.status ?? 'absent';
 
       const punchList = punches.map((p) => ({
         status: p.status,
         time: new Date(p.ts * 1000).toISOString(),
       }));
 
-      const firstOn = punches.find(p => p.status === 'on');
-      // last OFF after the first ON (punches are chronological) — span = first_on → last_off
-      const lastOff = firstOn
-        ? [...punches].reverse().find(p => p.status === 'off' && p.ts > firstOn.ts)
-        : undefined;
+      // Pair punches into discrete on/off shifts. A query window can contain
+      // more than one shift for the same person (split shifts, or an early
+      // stray punch) — treating the whole window as a single first-on→last-off
+      // span silently merges separate shifts and misattributes hours to the
+      // wrong calendar date (e.g. an 8am-off gets bridged all the way to an
+      // 11pm-on the same day, then the combined span gets stamped onto
+      // whichever day the *first* on-punch happened to fall on).
+      const shifts: { on: { status: 'on'; ts: number }; off?: { status: 'off'; ts: number } }[] = [];
+      let openOn: { status: 'on'; ts: number } | null = null;
+      for (const p of punches) {
+        if (p.status === 'on') {
+          if (openOn) shifts.push({ on: openOn });
+          openOn = p;
+        } else if (p.status === 'off' && openOn) {
+          shifts.push({ on: openOn, off: p });
+          openOn = null;
+        }
+      }
+      if (openOn) shifts.push({ on: openOn });
 
-      // Record hours under the date the shift STARTED (on punch)
-      const shiftDate = (() => {
-        if (!firstOn) return todayDate;
-        const punchMs = firstOn.ts * 1000;
+      const isHourly = hubUser?.payment_type === 'hourly';
+
+      const shiftDateFor = (onTs: number) => {
+        const punchMs = onTs * 1000;
         const punchDate = new Date(punchMs).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
         const punchHour = parseInt(new Date(punchMs).toLocaleString('en-US', { timeZone: 'Asia/Manila', hour: '2-digit', hour12: false }));
         const shiftStartHour = hubUser?.shift_start ? parseInt(hubUser.shift_start.split(':')[0]) : null;
@@ -187,46 +209,73 @@ Deno.serve(async (req) => {
           return prev.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
         }
         return punchDate;
-      })();
+      };
 
-      const isHourly = hubUser?.payment_type === 'hourly';
-      const threadHours = firstOn ? hourlyHoursByTs[firstOn.ts] : undefined;
+      // Aggregate each shift's hours under its own date, in case two shifts
+      // in the window land on different calendar days.
+      const dateAgg: Record<string, { hoursRaw: number; hoursCapped: number; firstOn: number; lastOff: number | null }> = {};
 
-      let hoursRaw = 0;
-      let hoursCapped = 0;
-      let effectiveStatus = status;
+      for (const shift of shifts) {
+        const date = shiftDateFor(shift.on.ts);
+        const threadHours = hourlyHoursByTs[shift.on.ts];
 
-      if (isHourly && threadHours != null) {
-        hoursRaw = threadHours;
-        hoursCapped = threadHours;
-        effectiveStatus = 'off';
-      } else if (firstOn && lastOff && lastOff.ts > firstOn.ts) {
-        hoursRaw = (lastOff.ts - firstOn.ts) / 3600;
-        hoursCapped = Math.min(hoursRaw, MAX_HOURS_FIXED);
-      } else if (!isHourly && threadHours != null && firstOn) {
-        hoursRaw = threadHours;
-        hoursCapped = Math.min(threadHours, MAX_HOURS_FIXED);
-        effectiveStatus = 'off';
+        let hoursRaw = 0;
+        let hoursCapped = 0;
+
+        if (isHourly && threadHours != null) {
+          hoursRaw = threadHours;
+          hoursCapped = threadHours;
+        } else if (shift.off && shift.off.ts > shift.on.ts) {
+          hoursRaw = (shift.off.ts - shift.on.ts) / 3600;
+          hoursCapped = Math.min(hoursRaw, MAX_HOURS_FIXED);
+        } else if (!isHourly && threadHours != null) {
+          hoursRaw = threadHours;
+          hoursCapped = Math.min(threadHours, MAX_HOURS_FIXED);
+        }
+
+        if (!dateAgg[date]) {
+          dateAgg[date] = { hoursRaw: 0, hoursCapped: 0, firstOn: shift.on.ts, lastOff: shift.off?.ts ?? null };
+        }
+        const agg = dateAgg[date];
+        agg.hoursRaw += hoursRaw;
+        agg.hoursCapped += hoursCapped;
+        agg.firstOn = Math.min(agg.firstOn, shift.on.ts);
+        if (shift.off) agg.lastOff = agg.lastOff !== null ? Math.max(agg.lastOff, shift.off.ts) : shift.off.ts;
+      }
+
+      // Fixed-rate billable cap applies per day, not per shift.
+      if (!isHourly) {
+        for (const agg of Object.values(dateAgg)) {
+          agg.hoursCapped = Math.min(agg.hoursCapped, MAX_HOURS_FIXED);
+        }
       }
 
       // overtime_hours is NOT set here — it is written when admin approves hub_overtime_requests
-      if (hubUser && firstOn) {
-        const validLastOff = (lastOff && lastOff.ts > firstOn.ts) ? new Date(lastOff.ts * 1000).toISOString() : null;
-        const row = {
-          user_id: hubUser.id,
-          date: shiftDate,
-          hours_raw: parseFloat(hoursRaw.toFixed(2)),
-          hours_capped: parseFloat(hoursCapped.toFixed(2)),
-          first_on: new Date(firstOn.ts * 1000).toISOString(),
-          last_off: validLastOff,
-          updated_at: new Date().toISOString(),
-        };
-        if (hoursRaw > 0) {
-          hoursUpserts.push(row);
-        } else {
-          hoursInProgress.push(row);
+      if (hubUser) {
+        for (const [date, agg] of Object.entries(dateAgg)) {
+          const row = {
+            user_id: hubUser.id,
+            date,
+            hours_raw: parseFloat(agg.hoursRaw.toFixed(2)),
+            hours_capped: parseFloat(agg.hoursCapped.toFixed(2)),
+            first_on: new Date(agg.firstOn * 1000).toISOString(),
+            last_off: agg.lastOff !== null ? new Date(agg.lastOff * 1000).toISOString() : null,
+            updated_at: new Date().toISOString(),
+          };
+          if (agg.hoursRaw > 0) {
+            hoursUpserts.push(row);
+          } else {
+            hoursInProgress.push(row);
+          }
         }
       }
+
+      // Live summary row reflects the most recent shift for this user
+      const lastShift = shifts[shifts.length - 1];
+      const lastShiftDate = lastShift ? shiftDateFor(lastShift.on.ts) : todayDate;
+      const lastShiftAgg = dateAgg[lastShiftDate];
+      let effectiveStatus = latestPunch?.status ?? 'absent';
+      if (lastShift && !lastShift.off && hourlyHoursByTs[lastShift.on.ts] != null) effectiveStatus = 'off';
 
       if (latestPunch) {
         attendance.push({
@@ -235,11 +284,11 @@ Deno.serve(async (req) => {
           full_name: hubUser?.full_name || `Slack user (${slackId})`,
           avatar_url: hubUser?.avatar_url || null,
           department: hubUser?.department || null,
-          shift_date: shiftDate,
+          shift_date: lastShiftDate,
           status: effectiveStatus,
           last_punch: new Date(latestPunch.ts * 1000).toISOString(),
           punches: punchList,
-          hours_today: parseFloat(hoursCapped.toFixed(2)),
+          hours_today: parseFloat((lastShiftAgg?.hoursCapped ?? 0).toFixed(2)),
           overtime_today: 0,
         });
       }

@@ -298,8 +298,8 @@ export default function AdminLayout({ children, title, actions }: Props) {
           style={{ background: 'rgba(255,255,255,0.60)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.75)' }}
         >
         {/* Top bar */}
-        <header className="border-b border-white/60 px-4 md:px-6 h-[78px] flex items-center gap-4 flex-shrink-0 bg-transparent">
-          <div className="flex-1 min-w-0">
+        <header className="border-b border-white/60 px-4 md:px-6 py-3 sm:py-0 sm:h-[78px] flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 sm:gap-4 flex-shrink-0 bg-transparent">
+          <div className="flex-1 min-w-0 sm:order-1">
             {title && (
               <h1 className="text-gray-900 font-semibold text-lg sm:text-[28px] leading-tight truncate flex items-center gap-2">
                 <span className="truncate">{title}</span>
@@ -307,11 +307,15 @@ export default function AdminLayout({ children, title, actions }: Props) {
               </h1>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 overflow-visible">
-            {actions}
+          <div className="flex items-center gap-2 flex-shrink-0 overflow-visible sm:order-3">
             <GlobalSearch />
             <NotificationBell />
           </div>
+          {actions && (
+            <div className="w-full sm:w-auto sm:order-2 flex items-center gap-2 overflow-x-auto">
+              {actions}
+            </div>
+          )}
         </header>
 
 

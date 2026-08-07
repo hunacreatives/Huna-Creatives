@@ -170,7 +170,7 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 {[
                   { label: 'Platform', value: 'Sentro OS' },
-                  { label: 'Version', value: '1.0.0' },
+                  { label: 'Version', value: '2.0.0' },
                   { label: 'Agency', value: 'Huna Creatives' },
                   { label: 'Timezone', value: 'Asia/Manila (PHT)' },
                   { label: 'Cutoff Period', value: '1st–15th / 16th–EOM' },

@@ -28,6 +28,8 @@ Deno.serve(async (req) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>${subject}</title>
   <style>
     @media only screen and (max-width:600px){
@@ -35,6 +37,10 @@ Deno.serve(async (req) => {
       .body-cell{padding:32px 20px!important}
       .header-cell{padding:24px 20px!important}
     }
+    .logo-dark { display: none; }
+    @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
+    [data-ogsc] .logo-light { display: none !important; }
+    [data-ogsc] .logo-dark { display: block !important; }
   </style>
 </head>
 <body style="margin:0;padding:0;background:#f0ede8">
@@ -51,8 +57,11 @@ Deno.serve(async (req) => {
                 <tr>
                   <td>
                     <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
-                         alt="Huna Creatives" height="28"
+                         alt="Huna Creatives" height="28" class="logo-light"
                          style="display:block;height:28px;width:auto;border:0">
+                    <img src="https://hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png"
+                         alt="Huna Creatives" height="28" class="logo-dark"
+                         style="display:none;height:28px;width:auto;border:0">
                   </td>
                   <td align="right">
                     <span style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#FF6B35;border:1px solid rgba(255,107,53,0.35);padding:5px 10px">

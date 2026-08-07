@@ -842,7 +842,7 @@ export default function ContractorDashboard() {
                 )}
               </div>
 
-              <div className="bg-[#FF6B35] rounded-xl p-4">
+              <div className="relative overflow-hidden rounded-3xl p-4 shadow-[0_8px_32px_-8px_rgba(255,107,53,0.35)]" style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.85), rgba(229,90,39,0.9))', backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)', border: '1px solid rgba(255,255,255,0.25)' }}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-white/70">Est. Payout</span>
                   <button

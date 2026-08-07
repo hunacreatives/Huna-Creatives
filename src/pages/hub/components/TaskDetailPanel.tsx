@@ -177,6 +177,8 @@ interface Props {
   onDeleted: (taskId: number) => void;
   onArchived?: (taskId: number) => void;
   onActivityChange?: () => void;
+  onOpenWorkspace?: () => void;
+  defaultDueDate?: string;
   projectId: number;
   projectName?: string;
   teamMembers: TeamMember[];
@@ -333,6 +335,8 @@ export default function TaskDetailPanel({
   onDeleted,
   onArchived,
   onActivityChange,
+  onOpenWorkspace,
+  defaultDueDate,
   projectId,
   projectName = 'General',
   teamMembers,
@@ -473,7 +477,7 @@ export default function TaskDetailPanel({
       baselineDraftRef.current = null;
       lastFetchedTaskRef.current = null;
       setTitle(''); setDesc(''); setStatus('todo'); setPriority('medium');
-      setAssigneeIds([]); setDueDate(''); setStartDate(''); setChecklist([]);
+      setAssigneeIds([]); setDueDate(defaultDueDate ?? ''); setStartDate(''); setChecklist([]);
       setComments([]); setAttachments([]); setActivity([]);
       // Clear the contenteditable DOM too — taskDraft() reads from it, so a
       // stale innerHTML would copy the previous task's description into the new one.
@@ -1163,6 +1167,14 @@ export default function TaskDetailPanel({
                     </div>
                   )}
                 </div>
+              )}
+              {onOpenWorkspace && !isNew && (
+                <button
+                  onClick={onOpenWorkspace}
+                  title="Open project workspace"
+                  className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
+                  <i className="ri-external-link-line text-base"></i>
+                </button>
               )}
               {canEdit && !isNew && (
                 <button

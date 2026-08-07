@@ -52,12 +52,21 @@ Deno.serve(async (req) => {
     const balance = contract_price - total_paid;
     const isPaid = balance <= 0;
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
+    const logoUrlDark = 'https://www.hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png';
     const dateStr = new Date(paid_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const invNum = String(invoice_number ?? '').padStart(4, '0');
 
     const html = `<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
+<style>
+  .logo-dark { display: none; }
+  @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
+  [data-ogsc] .logo-light { display: none !important; }
+  [data-ogsc] .logo-dark { display: block !important; }
+</style>
+</head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
     <tr>
@@ -69,7 +78,10 @@ Deno.serve(async (req) => {
             <td style="background:#111827;padding:28px 40px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td><img src="${logoUrl}" alt="Huna Creatives" height="26" style="display:block;" /></td>
+                  <td>
+                    <img src="${logoUrl}" alt="Huna Creatives" height="26" class="logo-light" style="display:block;" />
+                    <img src="${logoUrlDark}" alt="Huna Creatives" height="26" class="logo-dark" style="display:none;" />
+                  </td>
                   <td style="text-align:right;">
                     <p style="margin:0;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">Payment Received</p>
                     ${invNum ? `<p style="margin:4px 0 0;color:#6b7280;font-size:12px;">Ref #${invNum}</p>` : ''}

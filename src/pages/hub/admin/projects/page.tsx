@@ -140,6 +140,16 @@ function getProjectActivityActorName(activity: ProjectActivity) {
 function getProjectActivityDescription(activity: ProjectActivity) {
   if (activity.description) return activity.description;
   const actor = getProjectActivityActorName(activity);
+  // 'custom' rows (from logActivity) store the full, already-complete message
+  // (actor name included by the caller) in meta.message — the switch below
+  // never had a case for it, so it fell through to the generic default and
+  // fabricated "<actor> custom this item" instead of showing what was
+  // actually logged. 'custom' is an internal sentinel value and must never
+  // reach the screen literally, even if meta.message is somehow missing.
+  if (activity.action === 'custom') {
+    if (activity.meta?.message) return String(activity.meta.message);
+    return `${actor} made an update`;
+  }
   const title = activity.entity_title ? `"${activity.entity_title}"` : 'this item';
   switch (activity.action) {
     case 'task_created':
@@ -283,8 +293,10 @@ export default function AdminProjectsPage() {
   // Task detail panel
   const [detailTask, setDetailTask] = useState<TaskDetailTask | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [newTaskDefaultDueDate, setNewTaskDefaultDueDate] = useState<string | undefined>(undefined);
   const openTaskDetail = (task: ProjectTask) => { setDetailTask(task as TaskDetailTask); setDetailOpen(true); };
-  const openNewTask = () => { setDetailTask(null); setDetailOpen(true); };
+  const openNewTask = () => { setDetailTask(null); setNewTaskDefaultDueDate(undefined); setDetailOpen(true); };
+  const openNewTaskForDate = (date: string) => { setDetailTask(null); setNewTaskDefaultDueDate(date); setDetailOpen(true); };
 
   // Activity
   const [activity, setActivity] = useState<ProjectActivity[]>([]);
@@ -298,6 +310,15 @@ export default function AdminProjectsPage() {
   // below runs on mount and rewrites the query string, which would strip it
   // before projects load (breaking notification deep links).
   const [workspaceOpen, setWorkspaceOpen] = useState(() => !!activeId && searchParams.get('ws') === '1');
+  // Opening a project on mobile otherwise keeps whatever scroll position the
+  // project list was at, landing mid-page instead of at the workspace top.
+  useEffect(() => {
+    if (workspaceOpen) {
+      document.getElementById('ws-scroll')?.scrollTo({ top: 0 });
+      document.querySelector('main')?.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
+    }
+  }, [workspaceOpen, activeId]);
   const openWorkspaceOnLoad = useRef(false);
   const detailPanelRef = useRef<HTMLDivElement>(null);
   // Collapsible detail sections (all closed by default)
@@ -1940,7 +1961,7 @@ export default function AdminProjectsPage() {
               </div>
             </div>
 
-            <div className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
+            <div id="ws-scroll" className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
               {/* ── Stats row ── */}
               <div id="ws-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
@@ -1963,13 +1984,14 @@ export default function AdminProjectsPage() {
 
 
               {/* ── Calendar / Timeline ── */}
-              <div id="ws-timeline">
+              <div id="ws-timeline" className="hidden sm:block">
                 <GanttTimeline
                   tasks={ganttTasks as any}
                   projectStart={p.start_date}
                   projectEnd={p.deadline}
                   today={wsToday}
                   colorMap={taskColorMap}
+                  onAddTaskForDate={openNewTaskForDate}
                   onTaskUpdate={async (taskId, updates) => {
                     await supabase.from('hub_project_tasks').update({
                       ...(updates.due_date !== undefined && { due_date: updates.due_date }),
@@ -2002,7 +2024,7 @@ export default function AdminProjectsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
                         <div className="flex items-center rounded-xl border border-gray-200 bg-white p-0.5">
                           <button
                             type="button"
@@ -2028,9 +2050,9 @@ export default function AdminProjectsPage() {
                         </div>
                         <button
                           onClick={openNewTask}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#111827] text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer whitespace-nowrap"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#FF6B35] text-white text-xs font-semibold rounded-lg hover:bg-[#e55a27] shadow-sm transition-colors cursor-pointer whitespace-nowrap"
                         >
-                          <i className="ri-add-line"></i>
+                          <i className="ri-add-line text-sm"></i>
                           <span className="hidden sm:inline">Add Task</span><span className="sm:hidden">Add</span>
                         </button>
                       </div>
@@ -2138,9 +2160,9 @@ export default function AdminProjectsPage() {
                             </button>
                           ))}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                         <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)}
-                          className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none" />
+                          className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none min-w-0 flex-1 sm:flex-none" />
                         <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value as 'low' | 'medium' | 'high')}
                           className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none">
                           <option value="low">Low</option>
@@ -2572,6 +2594,7 @@ export default function AdminProjectsPage() {
                 {/* Right sidebar */}
                 <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'flex'} flex-col gap-4 w-full lg:w-64 flex-shrink-0`}>
                   {/* Dates & Notes card */}
+                  {(p.start_date || p.deadline || p.notes) && (
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
                     {(p.start_date || p.deadline) && (
                       <div className="space-y-2.5">
@@ -2598,6 +2621,7 @@ export default function AdminProjectsPage() {
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Team card */}
                   {wsTeam.length > 0 && (
@@ -4306,21 +4330,10 @@ export default function AdminProjectsPage() {
                 marginBottom: '-6rem',
                 marginRight: '-1.5rem',
                 paddingBottom: '6rem',
-                background: 'rgba(232,237,248,0.30)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
+                background: '#f9fafb',
                 borderLeft: '1px solid rgba(200,210,230,0.35)',
               }}>
-              {/* ambient color blobs */}
-              <div className="absolute pointer-events-none inset-0 overflow-hidden">
-                <div className="absolute -top-16 -right-16 w-80 h-80 rounded-full opacity-30" style={{ background: 'radial-gradient(circle, #FF6B35 0%, transparent 65%)', filter: 'blur(40px)' }} />
-                <div className="absolute top-16 -left-16 w-72 h-72 rounded-full opacity-25" style={{ background: 'radial-gradient(circle, #f59e0b 0%, transparent 65%)', filter: 'blur(36px)' }} />
-                <div className="absolute top-1/3 right-0 w-72 h-72 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 65%)', filter: 'blur(40px)' }} />
-                <div className="absolute top-1/2 left-0 w-80 h-80 rounded-full opacity-25" style={{ background: 'radial-gradient(circle, #FF6B35 0%, transparent 65%)', filter: 'blur(44px)' }} />
-                <div className="absolute bottom-16 right-0 w-72 h-72 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #f59e0b 0%, transparent 65%)', filter: 'blur(36px)' }} />
-                <div className="absolute -bottom-16 left-8 w-80 h-80 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 65%)', filter: 'blur(44px)' }} />
-              </div>
-              <div className="bg-white/80 rounded-2xl shadow-sm border border-white/60 sticky top-0 mt-4 md:mt-6"
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 sticky top-0 mt-4 md:mt-6"
                 style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
                 {/* Header */}
                 <div className="px-5 pt-5 pb-4">
@@ -4442,7 +4455,7 @@ export default function AdminProjectsPage() {
       <TaskDetailPanel
         task={detailTask}
         open={detailOpen}
-        onClose={() => { setDetailOpen(false); setDetailTask(null); }}
+        onClose={() => { setDetailOpen(false); setDetailTask(null); setNewTaskDefaultDueDate(undefined); }}
         onSaved={(saved) => {
           setTasks(prev => prev.some(t => t.id === saved.id)
             ? prev.map(t => t.id === saved.id ? { ...t, ...saved } : t)
@@ -4481,6 +4494,13 @@ export default function AdminProjectsPage() {
           setDetailTask(null);
         }}
         onActivityChange={refreshWorkspaceActivity}
+        onOpenWorkspace={detailProject ? () => {
+          const id = detailProject.id;
+          setDetailOpen(false);
+          setDetailTask(null);
+          openProjectWorkspace(id);
+        } : undefined}
+        defaultDueDate={newTaskDefaultDueDate}
         projectId={detailProject?.id ?? activeId ?? 0}
         projectName={detailProject?.project_name ?? 'General'}
         teamMembers={detailTaskTeam.map(u => ({ id: u!.id, full_name: u!.full_name, avatar_url: u!.avatar_url }))}

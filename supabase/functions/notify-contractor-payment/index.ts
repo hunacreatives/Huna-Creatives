@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
     }
 
     const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
+    const logoUrlDark = 'https://www.hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png';
     const dateStr = new Date(paid_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const paidPct = total_cut > 0 ? Math.min(Math.round((total_paid / total_cut) * 100), 100) : 0;
     const remaining = Math.max(total_cut - total_paid, 0);
@@ -66,6 +67,14 @@ Deno.serve(async (req) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <style>
+    .logo-dark { display: none; }
+    @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
+    [data-ogsc] .logo-light { display: none !important; }
+    [data-ogsc] .logo-dark { display: block !important; }
+  </style>
 </head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
@@ -76,7 +85,8 @@ Deno.serve(async (req) => {
           <!-- Header -->
           <tr>
             <td style="background:#111827;padding:24px 36px;">
-              <img src="${logoUrl}" alt="Huna Creatives" height="24" style="display:block;" />
+              <img src="${logoUrl}" alt="Huna Creatives" height="24" class="logo-light" style="display:block;" />
+              <img src="${logoUrlDark}" alt="Huna Creatives" height="24" class="logo-dark" style="display:none;" />
             </td>
           </tr>
 

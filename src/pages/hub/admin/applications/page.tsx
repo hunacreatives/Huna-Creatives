@@ -59,7 +59,8 @@ export default function ApplicationsPage() {
   const [showInterviewForm, setShowInterviewForm] = useState(false);
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewTime, setInterviewTime] = useState('');
-  const [interviewLink, setInterviewLink] = useState('');
+  const [interviewDuration, setInterviewDuration] = useState(30);
+  const [interviewError, setInterviewError] = useState('');
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -88,10 +89,71 @@ export default function ApplicationsPage() {
 
   const updateApplication = async (
     status: ApplicationStatus,
-    interview?: { date: string; time: string; link: string }
+    interview?: { date: string; time: string; duration: number }
   ) => {
     if (!selected) return;
     const prevStatus = selected.status;
+
+    if (status === 'shortlisted' && status !== prevStatus && interview) {
+      setUpdating(true);
+      setInterviewError('');
+      const { data, error } = await supabase.functions.invoke('create-interview-event', {
+        body: {
+          applicant_email: selected.email,
+          applicant_name: selected.name,
+          role: selected.role,
+          date: interview.date,
+          time: interview.time,
+          duration_minutes: interview.duration,
+        },
+      });
+
+      if (error || !data?.meet_link) {
+        setInterviewError('Could not create the Google Calendar event / Meet link. Nothing was sent yet — please try again.');
+        setUpdating(false);
+        return;
+      }
+
+      await supabase
+        .from('hub_job_applications')
+        .update({
+          status,
+          admin_notes: adminNotes.trim() || null,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: hubUser?.id ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selected.id);
+
+      const { error: notifyError } = await supabase.functions.invoke('notify-applicant-status', {
+        body: {
+          to_email: selected.email,
+          to_name: selected.name,
+          role: selected.role,
+          status,
+          interview_date: interview.date,
+          interview_time: interview.time,
+          interview_link: data.meet_link,
+        },
+      });
+
+      if (notifyError) {
+        setInterviewError('Calendar event was created, but the candidate email failed to send. Please notify them manually.');
+        setUpdating(false);
+        return;
+      }
+
+      setUpdating(false);
+      setSelected(null);
+      setShowInterviewForm(false);
+      setInterviewDate('');
+      setInterviewTime('');
+      setInterviewDuration(30);
+      setInterviewError('');
+      fetchApplications();
+      return;
+    }
+
     setUpdating(true);
     await supabase
       .from('hub_job_applications')
@@ -110,26 +172,13 @@ export default function ApplicationsPage() {
       }).catch(console.error);
     }
 
-    if (status === 'shortlisted' && status !== prevStatus && interview) {
-      supabase.functions.invoke('notify-applicant-status', {
-        body: {
-          to_email: selected.email,
-          to_name: selected.name,
-          role: selected.role,
-          status,
-          interview_date: interview.date,
-          interview_time: interview.time,
-          interview_link: interview.link.trim() || undefined,
-        },
-      }).catch(console.error);
-    }
-
     setUpdating(false);
     setSelected(null);
     setShowInterviewForm(false);
     setInterviewDate('');
     setInterviewTime('');
-    setInterviewLink('');
+    setInterviewDuration(30);
+    setInterviewError('');
     fetchApplications();
   };
 
@@ -472,24 +521,35 @@ export default function ApplicationsPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] text-gray-500">Call link or location (optional)</label>
-                    <input
-                      type="text"
-                      value={interviewLink}
-                      onChange={(e) => setInterviewLink(e.target.value)}
-                      placeholder="Google Meet link, address, etc."
+                    <label className="text-[11px] text-gray-500">Duration</label>
+                    <select
+                      value={interviewDuration}
+                      onChange={(e) => setInterviewDuration(Number(e.target.value))}
                       className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400"
-                    />
+                    >
+                      <option value={15}>15 minutes</option>
+                      <option value={30}>30 minutes</option>
+                      <option value={45}>45 minutes</option>
+                      <option value={60}>60 minutes</option>
+                    </select>
                   </div>
+                  <p className="text-[11px] text-gray-500">
+                    A Google Meet link will be created automatically and emailed to the candidate. contact@hunacreatives.com will be added to the calendar invite.
+                  </p>
+                  {interviewError && (
+                    <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                      {interviewError}
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setShowInterviewForm(false)}
+                      onClick={() => { setShowInterviewForm(false); setInterviewError(''); }}
                       className="flex-1 py-2 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-100 cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
-                      onClick={() => updateApplication('shortlisted', { date: interviewDate, time: interviewTime, link: interviewLink })}
+                      onClick={() => updateApplication('shortlisted', { date: interviewDate, time: interviewTime, duration: interviewDuration })}
                       disabled={updating || !interviewDate || !interviewTime}
                       className="flex-1 py-2 text-xs bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-40 cursor-pointer"
                     >
