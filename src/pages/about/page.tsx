@@ -31,7 +31,11 @@ const values = [
   },
 ];
 
-function useScrollReveal() {
+// `deps` lets callers re-run observation when content renders asynchronously
+// after mount (e.g. the team section, which populates from a fetch) — the
+// observer otherwise only ever sees whatever `.reveal-item` elements exist
+// at the initial mount and silently never reveals anything added later.
+function useScrollReveal(deps: unknown[] = []) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -49,7 +53,8 @@ function useScrollReveal() {
     const children = el.querySelectorAll('.reveal-item');
     children.forEach((child) => observer.observe(child));
     return () => observer.disconnect();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
   return ref;
 }
 
@@ -74,9 +79,11 @@ export default function AboutPage() {
   const heroRef = useScrollReveal();
   const storyRef = useScrollReveal();
   const valuesRef = useScrollReveal();
-  const teamRef = useScrollReveal();
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  // Re-observe once the team list actually has cards in it — see the
+  // comment on useScrollReveal for why this can't just be [].
+  const teamRef = useScrollReveal([teamMembers.length]);
 
   useEffect(() => {
     (async () => {
