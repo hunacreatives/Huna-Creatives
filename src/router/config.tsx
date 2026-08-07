@@ -51,6 +51,7 @@ const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page')
 const HubAdminInvoiceLog = lazy(() => import('../pages/hub/admin/invoice-log/page'));
 const HubAdminQuestionnaires = lazy(() => import('../pages/hub/admin/questionnaires/page'));
 const HubAdminApplications = lazy(() => import('../pages/hub/admin/applications/page'));
+const HubAdminJobPostings = lazy(() => import('../pages/hub/admin/job-postings/page'));
 const HubAdminContact = lazy(() => import('../pages/hub/admin/contact/page'));
 const HubAdminClaudyRsvps = lazy(() => import('../pages/hub/admin/claudy-rsvps/page'));
 const HubAdminCarloTrixiaRsvps = lazy(() => import('../pages/hub/admin/carlo-trixia-rsvps/page'));
@@ -175,6 +176,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/invoice-log', element: withAdminGate(<HubAdminInvoiceLog />) },
   { path: '/hub/admin/questionnaires', element: withAdminGate(<HubAdminQuestionnaires />) },
   { path: '/hub/admin/applications', element: withAdminGate(<HubAdminApplications />) },
+  { path: '/hub/admin/job-postings', element: withAdminGate(<HubAdminJobPostings />) },
   { path: '/hub/admin/contact', element: withAdminGate(<HubAdminContact />) },
   { path: '/hub/admin/rsvps', element: withAdminGate(<HubAdminRsvpsIndex />) },
   { path: '/hub/admin/claudy-rsvps', element: withAdminGate(<HubAdminClaudyRsvps />) },

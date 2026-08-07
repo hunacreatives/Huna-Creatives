@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Footer from '../home/components/Footer';
 import Navigation from '../../components/feature/Navigation';
 import { useSEO } from '../../hooks/useSEO';
@@ -15,43 +15,9 @@ interface JobListing {
   whatYoullDo: string[];
   whatYouBring: string[];
   whyJoinUs: string[];
+  portfolioRequired: boolean;
 }
 
-const JOB_LISTINGS: JobListing[] = [
-  {
-    id: 'graphic-designer',
-    title: 'Graphic Designer',
-    type: 'Full-Time',
-    shift: '11:00 PM - 7:00 AM (PH Time)',
-    startDate: 'ASAP',
-    location: 'Remote',
-    summary:
-      'We are looking for a full-time Graphic Designer with a minimalist, clean design approach and strong experience creating visuals for the food industry, including menus, flyers, and marketing materials.',
-    whatYoullDo: [
-      'Design graphics for menus, flyers, promotions, and digital content',
-      'Create clean, modern visuals aligned with brand guidelines',
-      'Support ongoing marketing and design needs',
-      'Collaborate with the team to produce high-quality ad creatives',
-      'Work full-time from 11:00 PM - 7:00 AM (PH Time)',
-    ],
-    whatYouBring: [
-      'Proven experience in the food industry (menus, flyers, etc.)',
-      'Strong eye for minimalist, clean, and modern design',
-      'Non-negotiable: Proficiency in Adobe Photoshop',
-      'Bonus: Experience with Adobe Illustrator',
-      'Ability to follow direction and work efficiently',
-      'Strong portfolio showcasing relevant design work',
-    ],
-    whyJoinUs: [
-      'Full-time position',
-      'Competitive salary based on experience',
-      'Opportunity to work with a growing creative team',
-      'Must be available to start ASAP',
-    ],
-  },
-];
-
-const HAS_OPENINGS = JOB_LISTINGS.length > 0;
 const MAX_RESUME_SIZE_BYTES = 10 * 1024 * 1024;
 
 export default function CareersPage() {
@@ -62,9 +28,11 @@ export default function CareersPage() {
     canonical: '/careers',
   });
 
-  const [selectedJob, setSelectedJob] = useState<JobListing | null>(
-    HAS_OPENINGS ? JOB_LISTINGS[0] : null
-  );
+  const [jobListings, setJobListings] = useState<JobListing[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const hasOpenings = jobListings.length > 0;
+
+  const [selectedJob, setSelectedJob] = useState<JobListing | null>(null);
   const [applyingJobId, setApplyingJobId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', role: '', rate: '', message: '' });
 
@@ -75,8 +43,36 @@ export default function CareersPage() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const activeJob = HAS_OPENINGS ? JOB_LISTINGS.find((job) => job.id === applyingJobId) ?? null : null;
-  const portfolioRequired = activeJob?.id === 'graphic-designer';
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('hub_job_postings')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order')
+        .order('created_at');
+
+      const mapped: JobListing[] = (data ?? []).map((j: any) => ({
+        id: j.id,
+        title: j.title,
+        type: j.type,
+        shift: j.shift,
+        startDate: j.start_date,
+        location: j.location,
+        summary: j.summary,
+        whatYoullDo: j.what_youll_do ?? [],
+        whatYouBring: j.what_you_bring ?? [],
+        whyJoinUs: j.why_join_us ?? [],
+        portfolioRequired: j.portfolio_required,
+      }));
+      setJobListings(mapped);
+      setSelectedJob(mapped[0] ?? null);
+      setJobsLoading(false);
+    })();
+  }, []);
+
+  const activeJob = hasOpenings ? jobListings.find((job) => job.id === applyingJobId) ?? null : null;
+  const portfolioRequired = activeJob?.portfolioRequired ?? false;
   const portfolioProvided = portfolioLink.trim().length > 0;
   const resumeProvided = resumeMode === 'upload' ? !!resumeFile : resumeLink.trim().length > 0;
   const canSubmit = resumeProvided && (portfolioProvided || !portfolioRequired) && formData.rate.trim().length > 0;
@@ -97,12 +93,12 @@ export default function CareersPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if ((HAS_OPENINGS && !activeJob) || formData.message.length > 500 || !canSubmit) return;
+    if ((hasOpenings && !activeJob) || formData.message.length > 500 || !canSubmit) return;
     setStatus('sending');
     setErrorMsg('');
 
     try {
-      const roleValue = HAS_OPENINGS && activeJob ? activeJob.title : formData.role;
+      const roleValue = hasOpenings && activeJob ? activeJob.title : formData.role;
 
       // Read resume file as base64 if uploaded
       let resume_base64: string | undefined;
@@ -262,8 +258,8 @@ export default function CareersPage() {
           Submit Your {job.title} Application
         </h2>
         <p className="text-white/40 text-xs md:text-sm leading-relaxed">
-          {job.id === 'graphic-designer'
-            ? 'This application is specifically for the Graphic Designer role. Share your portfolio and resume so we can review your fit clearly.'
+          {job.portfolioRequired
+            ? `This application is specifically for the ${job.title} role. Share your portfolio and resume so we can review your fit clearly.`
             : `This application is specifically for the ${job.title} role. Share your resume and tell us about your experience.`}
         </p>
       </div>
@@ -338,7 +334,7 @@ export default function CareersPage() {
         </div>
       </section>
 
-      {HAS_OPENINGS ? (
+      {jobsLoading ? null : hasOpenings ? (
         <section className="relative py-16 sm:py-20 md:py-24 px-4 md:px-6 bg-[#0a0a0a]">
           <div className="max-w-5xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
@@ -353,13 +349,13 @@ export default function CareersPage() {
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-green-400 text-xs font-semibold tracking-widest uppercase">
-                  {JOB_LISTINGS.length} Open Position{JOB_LISTINGS.length > 1 ? 's' : ''}
+                  {jobListings.length} Open Position{jobListings.length > 1 ? 's' : ''}
                 </span>
               </div>
             </div>
 
             <div className="space-y-3 mb-10">
-              {JOB_LISTINGS.map((job) => (
+              {jobListings.map((job) => (
                 <div key={job.id}>
                   <div className={`rounded-2xl p-5 md:p-6 border transition-all ${selectedJob?.id === job.id ? 'border-orange-500/40 bg-[#1a1208]' : 'border-white/8 bg-[#141414] hover:border-white/15'}`}>
                     <button
@@ -376,7 +372,7 @@ export default function CareersPage() {
                     >
                       <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
                         <div className="w-12 h-12 flex items-center justify-center rounded-xl shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
-                          <i className={`text-xl text-orange-400 ${job.id === 'graphic-designer' ? 'ri-palette-line' : 'ri-megaphone-line'}`} />
+                          <i className={`text-xl text-orange-400 ${job.portfolioRequired ? 'ri-palette-line' : 'ri-megaphone-line'}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1.5">

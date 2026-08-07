@@ -22,6 +22,7 @@ const navItems = [
   { to: '/hub/admin/requests', label: 'Request Center', icon: 'ri-inbox-line' },
   { to: '/hub/admin/docrequests', label: 'Doc Requests', icon: 'ri-file-list-3-line' },
   { divider: true, label: 'Inbound' },
+  { to: '/hub/admin/job-postings', label: 'Job Postings', icon: 'ri-briefcase-4-line', demoHidden: true },
   { to: '/hub/admin/applications', label: 'Applications', icon: 'ri-user-search-line' },
   { to: '/hub/admin/contact', label: 'Contact Inbox', icon: 'ri-mail-line' },
   { to: '/hub/admin/rsvps', label: 'Event RSVPs', icon: 'ri-coupon-line', demoHidden: true },

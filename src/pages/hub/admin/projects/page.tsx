@@ -4378,7 +4378,16 @@ export default function AdminProjectsPage() {
                           <p className="flex-1 text-sm font-medium text-emerald-600 line-through pt-0.5">Task completed</p>
                         ) : (
                           <button
-                            onClick={() => { const p = projects.find(p => p.id === t.project_id); if (p) { setActiveId(p.id); setWorkspaceOpen(true); setTimeout(() => openTaskDetail({ ...t, description: null, assigned_to: null, assignee_ids: null, sort_order: 0, color: null, start_date: null, archived: false, archived_at: null, attachments: null, project_id: t.project_id } as any), 400); } }}
+                            onClick={() => {
+                              // Open the task directly on top of the Projects page — don't switch
+                              // into the project's workspace behind it. TaskDetailPanel resolves
+                              // its own project (for the "Open Workspace" button etc.) from
+                              // task.project_id via `detailProject`, so activeId/workspaceOpen
+                              // don't need to be touched. Closing the panel now just lands back
+                              // on the Projects page instead of a workspace with Financials/Team/
+                              // Contracts sections in whatever state they were last left in.
+                              openTaskDetail({ ...t, description: null, assigned_to: null, assignee_ids: null, sort_order: 0, color: null, start_date: null, archived: false, archived_at: null, attachments: null, project_id: t.project_id } as any);
+                            }}
                             className="flex-1 min-w-0 text-left cursor-pointer"
                           >
                             <div className="flex items-start gap-2 flex-wrap">
