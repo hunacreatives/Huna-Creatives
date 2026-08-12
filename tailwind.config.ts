@@ -12,6 +12,7 @@ export default {
           'brand-red': '#ef4444',
           'brand-orange': '#f97316',
           'brand-coral': '#fb7185',
+          'brand-blue': '#3b82f6',
         },
         backgroundImage: {
           'gradient-brand': 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)',

@@ -400,7 +400,7 @@ export default function AdminDocRequestsPage() {
   const inProgressCount = requests.filter(r => r.status === 'in_progress').length;
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Document Requests">
       {toast && (
         <div className="fixed top-5 right-5 z-50 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">
           {toast}
@@ -409,10 +409,7 @@ export default function AdminDocRequestsPage() {
 
       <div className="space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Document Requests</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Review and fulfil employee document requests</p>
-          </div>
+          <p className="text-sm text-gray-500">Review and fulfil employee document requests</p>
           <div className="flex items-center gap-2">
             {pendingCount > 0 && (
               <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full">

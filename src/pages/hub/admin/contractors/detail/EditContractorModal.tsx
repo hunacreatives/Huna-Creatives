@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { HubUser } from '@/lib/types';
 
@@ -9,6 +9,14 @@ interface Props {
 }
 
 export default function EditContractorModal({ contractor, onClose, onSuccess }: Props) {
+  const [managers, setManagers] = useState<{ id: string; full_name: string; job_title?: string }[]>([]);
+
+  useEffect(() => {
+    supabase.from('hub_users').select('id, full_name, job_title')
+      .eq('status', 'active').neq('id', contractor.id).order('full_name')
+      .then(({ data }) => setManagers(data ?? []));
+  }, [contractor.id]);
+
   const [form, setForm] = useState({
     full_name: contractor.full_name,
     email: contractor.email,
@@ -37,6 +45,9 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
     notes: contractor.notes || '',
     annual_pto_days: contractor.annual_pto_days?.toString() || '',
     annual_sick_days: contractor.annual_sick_days?.toString() || '',
+    manager_id: contractor.manager_id || '',
+    secondary_manager_id: contractor.secondary_manager_id || '',
+    org_sort_order: contractor.org_sort_order?.toString() || '100',
     show_on_about: contractor.show_on_about || false,
     about_bio: contractor.about_bio || '',
     about_sort_order: contractor.about_sort_order?.toString() || '100',
@@ -58,6 +69,9 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
       project_percentage: form.project_percentage ? parseFloat(form.project_percentage) : null,
       annual_pto_days: form.annual_pto_days ? parseInt(form.annual_pto_days) : null,
       annual_sick_days: form.annual_sick_days ? parseInt(form.annual_sick_days) : null,
+      manager_id: form.manager_id || null,
+      secondary_manager_id: form.secondary_manager_id || null,
+      org_sort_order: form.org_sort_order ? parseInt(form.org_sort_order) : 100,
       about_sort_order: form.about_sort_order ? parseInt(form.about_sort_order) : 100,
       updated_at: new Date().toISOString(),
     }).eq('id', contractor.id);
@@ -177,6 +191,34 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
               <label className="text-xs font-medium text-gray-700">Job Title</label>
               <input value={form.job_title} onChange={(e) => set('job_title', e.target.value)}
                 placeholder="e.g. Senior Graphic Designer"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700">Reports To</label>
+              <select value={form.manager_id} onChange={(e) => set('manager_id', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
+                <option value="">No manager (top-level)</option>
+                {managers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name}{m.job_title ? ` — ${m.job_title}` : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700">Also Reports To <span className="text-gray-400 font-normal">(dotted-line, optional)</span></label>
+              <select value={form.secondary_manager_id} onChange={(e) => set('secondary_manager_id', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white">
+                <option value="">None</option>
+                {managers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.full_name}{m.job_title ? ` — ${m.job_title}` : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700">Org Chart Order <span className="text-gray-400 font-normal">(lower shows first among peers)</span></label>
+              <input type="number" value={form.org_sort_order} onChange={(e) => set('org_sort_order', e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
             </div>
 

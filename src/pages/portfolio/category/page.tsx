@@ -16,9 +16,9 @@ const socialClients = [
     number: '1',
     name: 'Equestrian International',
     logo: '/images/portfolio-eq-logo.webp',
-    logoBg: '#1a1a1a',
-    dark: true,
-    sectionBg: '#111111',
+    logoBg: '#243037',
+    dark: false,
+    sectionBg: 'transparent',
     description:
       'In the competitive world of sport horses, presentation is everything. For Equestrian International, we designed content that speaks directly to serious buyers and breeders—spotlighting world-class horses, showcasing seller credibility, and creating a premium feed aesthetic that reflects the prestige of the industry. Every post is tailored to attract the right audience and inspire meaningful inquiries.',
     images: [
@@ -34,8 +34,8 @@ const socialClients = [
     name: 'Everyone by One',
     logo: '/images/portfolio-ebo-logo.webp',
     logoBg: '#f7f5f2',
-    dark: true,
-    sectionBg: '#1a1a1a',
+    dark: false,
+    sectionBg: 'transparent',
     description:
       "Parents want reassurance when it comes to their children's dental health. For Everyone By One, we create educational, parent‑friendly content that answers real‑life questions—from pacifier habits to first dental visits—while building a warm, trustworthy online presence that feels like a friendly guide, not a sales pitch.",
     images: [
@@ -50,9 +50,9 @@ const socialClients = [
     number: '3',
     name: 'The Cowart Team Mortgage',
     logo: '/images/portfolio-tct-logo.webp',
-    logoBg: '#1a1a1a',
-    dark: true,
-    sectionBg: '#111111',
+    logoBg: '#243037',
+    dark: false,
+    sectionBg: 'transparent',
     description:
       "Mortgages don't have to feel intimidating. With The Cowart Team, our goal was to turn complex financial concepts into approachable, trust‑building content. We create a balance of educational posts, client success stories, and timely market insights—making their feed both a resource hub and a brand people trust with their biggest financial decision.",
     images: [
@@ -68,8 +68,8 @@ const socialClients = [
     name: 'Blue Collar Nutrition',
     logo: '/images/portfolio-bcn-logo.webp',
     logoBg: '#f7f5f2',
-    dark: true,
-    sectionBg: '#141414',
+    dark: false,
+    sectionBg: 'transparent',
     description:
       "For Blue Collar Nutrition, our focus is on creating bold, high‑impact content that matches the brand's energy and grit. We develop a mix of product‑centered promotions, seasonal campaigns, and lifestyle‑driven content designed to connect with their community of athletes and everyday grinders. From supplement spotlights to campaign launches, every piece of content reinforces their identity as a trusted, no‑nonsense brand built on performance, consistency, and strength.",
     images: [
@@ -86,10 +86,11 @@ const GraphicDesignLayout = ({ category }) => {
   const sections = [
     {
       id: 'mockups',
-      number: '01',
+      number: '1',
+      label: 'Mockups',
       title: 'Mockups That Make It Real.',
-      dark: true,
-      bg: '#111111',
+      dark: false,
+      bg: 'transparent',
       description: 'Transform your designs into realistic, polished visuals that feel tangible and ready for the world.',
       subtext: 'From pitch decks to social showcases, we make your brand look professional and unforgettable at every stage.',
       image: '/images/portfolio-bcn-bottles.webp',
@@ -97,10 +98,11 @@ const GraphicDesignLayout = ({ category }) => {
     },
     {
       id: 'menus',
-      number: '02',
+      number: '2',
+      label: 'Menus',
       title: 'Menus With Meaning.',
-      dark: true,
-      bg: '#0d0d0d',
+      dark: false,
+      bg: 'transparent',
       description: 'Menus are an extension of your brand. Every choice of font, color, and layout sets the stage for what your guests are about to enjoy.',
       subtext: 'We design menus that grab attention, spark curiosity, and leave a lasting impression.',
       image: '/images/drive-fv-menu.png',
@@ -108,10 +110,11 @@ const GraphicDesignLayout = ({ category }) => {
     },
     {
       id: 'flyers',
-      number: '03',
+      number: '3',
+      label: 'Flyers',
       title: 'Flyers That Fly Further.',
-      dark: true,
-      bg: '#111111',
+      dark: false,
+      bg: 'transparent',
       description: 'Compact, eye-catching, and built to travel far. Flyers carry your message directly into people\'s hands.',
       subtext: 'Every flyer is crafted to grab attention, spark curiosity, and leave a clear memory of your brand.',
       image: '/images/drive-vox-chifa-bowl.png',
@@ -124,40 +127,34 @@ const GraphicDesignLayout = ({ category }) => {
       {sections.map((sec) => (
         <section
           key={sec.id}
-          className="relative py-16 md:py-20 px-4 md:px-6"
+          className="relative py-16 sm:py-20 px-4 sm:px-6"
           style={{ background: sec.bg }}
         >
-          <div
-            className="absolute top-0 left-0 right-0 h-px"
-            style={{
-              background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.2), transparent)',
-            }}
-          />
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className={`flex flex-col ${sec.imageLeft ? 'lg:flex-row-reverse' : 'lg:flex-row'} gap-8 md:gap-12 lg:gap-20 items-center`}>
               {/* Text */}
               <div className="flex-1 max-w-xl">
                 <span
                   className="text-[11px] font-semibold tracking-widest uppercase mb-3 block"
-                  style={{ color: 'rgba(249,115,22,0.85)' }}
+                  style={{ color: '#FF5B05' }}
                 >
-                  {sec.number} Graphic Design
+                  {sec.number} {sec.label}
                 </span>
                 <h2
                   className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-5 leading-tight"
-                  style={{ color: '#ffffff' }}
+                  style={{ color: '#243037' }}
                 >
                   {sec.title}
                 </h2>
                 <p
                   className="text-sm leading-relaxed mb-3 md:mb-4"
-                  style={{ color: 'rgba(255,255,255,0.5)' }}
+                  style={{ color: 'rgba(36,48,55,0.65)' }}
                 >
                   {sec.description}
                 </p>
                 <p
                   className="text-sm leading-relaxed"
-                  style={{ color: 'rgba(255,255,255,0.3)' }}
+                  style={{ color: 'rgba(36,48,55,0.45)' }}
                 >
                   {sec.subtext}
                 </p>
@@ -177,18 +174,14 @@ const GraphicDesignLayout = ({ category }) => {
       ))}
 
       {/* Menus Gallery */}
-      <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#111111' }}>
-        <div
-          className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.2), transparent)' }}
-        />
-        <div className="max-w-7xl mx-auto">
+      <section className="relative py-16 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-12">
-            <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: 'rgba(249,115,22,0.85)' }}>
-              04 Menus
+            <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: '#FF5B05' }}>
+              4 More Menus
             </span>
-            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white mb-3 md:mb-4">More Menu Designs</h2>
-            <p className="text-white/35 text-sm max-w-lg mx-auto">From ramen shops to cocktail bars — menus designed to sell the experience.</p>
+            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#243037] mb-3 md:mb-4">More Menu Designs</h2>
+            <p className="text-[#243037]/55 text-sm max-w-lg mx-auto">From ramen shops to cocktail bars — menus designed to sell the experience.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
             {[
@@ -196,7 +189,11 @@ const GraphicDesignLayout = ({ category }) => {
               '/images/drive-kin-special-menu.png',
               '/images/drive-kin-menu-flyer.png',
             ].map((img, i) => (
-              <div key={i} className="group relative overflow-hidden rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div
+                key={i}
+                className="group relative overflow-hidden rounded-xl transition-all duration-300 hover:-translate-y-1.5"
+                style={{ border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 10px 28px rgba(36,48,55,0.18)' }}
+              >
                 <img src={img} alt={`Menu design ${i + 1}`} className="w-full h-auto object-cover object-top transition-transform duration-500 group-hover:scale-105" />
               </div>
             ))}
@@ -205,18 +202,14 @@ const GraphicDesignLayout = ({ category }) => {
       </section>
 
       {/* Flyers Gallery */}
-      <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#0d0d0d' }}>
-        <div
-          className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.2), transparent)' }}
-        />
-        <div className="max-w-7xl mx-auto">
+      <section className="relative py-16 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-12 lg:mb-16">
-            <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: 'rgba(249,115,22,0.85)' }}>
-              05 Our Work
+            <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: '#FF5B05' }}>
+              5 More Flyers
             </span>
-            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white mb-3 md:mb-4">Past Flyers &amp; Designs</h2>
-            <p className="text-white/35 text-sm max-w-lg mx-auto">Bold, intentional designs built to make an impression.</p>
+            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#243037] mb-3 md:mb-4">Past Flyers &amp; Designs</h2>
+            <p className="text-[#243037]/55 text-sm max-w-lg mx-auto">Bold, intentional designs built to make an impression.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {[
@@ -239,8 +232,8 @@ const GraphicDesignLayout = ({ category }) => {
             ].map((img, i) => (
               <div
                 key={i}
-                className="group relative overflow-hidden rounded-lg md:rounded-xl aspect-[4/5]"
-                style={{ border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+                className="group relative overflow-hidden rounded-lg md:rounded-xl aspect-[4/5] transition-all duration-300 hover:-translate-y-1.5"
+                style={{ border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 10px 28px rgba(36,48,55,0.18)' }}
               >
                 <img
                   src={img}
@@ -248,7 +241,7 @@ const GraphicDesignLayout = ({ category }) => {
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(249,115,22,0.08) 50%, transparent 100%)' }}
+                  style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(255,91,5,0.10) 50%, transparent 100%)' }}
                 />
               </div>
             ))}
@@ -299,31 +292,27 @@ const EmailMarketingLayout = ({ category }) => {
   return (
     <>
       {/* Intro + Showcase */}
-      <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#dad9d9' }}>
-        <div
-          className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.08), transparent)' }}
-        />
-        <div className="max-w-7xl mx-auto">
+      <section className="relative py-16 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-8 md:gap-12 lg:gap-16 items-start">
 
             {/* Left: Text */}
             <div className="flex-shrink-0 w-full lg:w-80 xl:w-[420px]">
-              <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#1a1a1a] mb-4 md:mb-6 leading-tight">
+              <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#243037] mb-4 md:mb-6 leading-tight">
                 Email Marketing That Works Smarter for Your Brand
               </h2>
-              <p className="text-sm leading-relaxed mb-4 md:mb-5 text-[#1a1a1a]/60">
+              <p className="text-sm leading-relaxed mb-4 md:mb-5 text-[#243037]/60">
                 At Huna Creatives, we believe email isn't just a channel — it's one of the most powerful tools for building genuine connections with your audience. Our email marketing solutions are designed to do more than just land in inboxes. We create campaigns that tell your story, showcase your brand, and inspire action.
               </p>
-              <p className="text-sm leading-relaxed mb-4 md:mb-5 text-[#1a1a1a]/60">
+              <p className="text-sm leading-relaxed mb-4 md:mb-5 text-[#243037]/60">
                 From nurturing leads to turning one-time buyers into loyal customers, we focus on strategy, design, and performance. Each email is crafted to look beautiful, read effortlessly, and drive measurable results. Whether it's promoting seasonal offers, sharing updates, or building long-term brand trust, our approach ensures that every send moves you closer to your goals.
               </p>
-              <p className="text-sm font-semibold text-[#1a1a1a]/80 mb-6 md:mb-8">
+              <p className="text-sm font-semibold text-[#243037]/80 mb-6 md:mb-8">
                 Think of us as your partner in turning clicks into customers — and emails into lasting relationships.
               </p>
               <a
                 href="/contact"
-                className="inline-flex items-center justify-center gap-2 px-6 md:px-7 py-2 md:py-2.5 font-semibold rounded-full border-2 text-[#1a1a1a] text-sm whitespace-nowrap cursor-pointer hover:bg-[#1a1a1a] hover:text-white transition-all duration-300 w-full md:w-auto justify-center"
+                className="inline-flex items-center justify-center gap-2 px-6 md:px-7 py-2 md:py-2.5 font-semibold rounded-full border-2 border-[#243037]/20 text-[#243037] text-sm whitespace-nowrap cursor-pointer hover:bg-[#243037] hover:text-white transition-all duration-300 w-full md:w-auto justify-center"
                 style={{ borderColor: 'rgba(0,0,0,0.4)' }}
               >
                 Get a Quote
@@ -345,13 +334,9 @@ const EmailMarketingLayout = ({ category }) => {
       </section>
 
       {/* Not seeing ROI section */}
-      <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#f0ece8' }}>
-        <div
-          className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.06), transparent)' }}
-        />
+      <section className="relative py-16 sm:py-20 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-6 leading-tight" style={{ color: '#c4572a' }}>
+          <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-6 leading-tight" style={{ color: '#FF5B05' }}>
             Not seeing the ROI you deserve from email marketing?
           </h2>
           <p className="text-sm leading-relaxed text-[#3a3330]/65">
@@ -361,12 +346,8 @@ const EmailMarketingLayout = ({ category }) => {
       </section>
 
       {/* Advantages section */}
-      <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#2a2220' }}>
-        <div
-          className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(196,135,80,0.3), transparent)' }}
-        />
-        <div className="max-w-7xl mx-auto">
+      <section className="relative py-16 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
           {/* Background image banner */}
           <div className="relative rounded-2xl md:rounded-3xl overflow-hidden mb-12 md:mb-16">
             <div className="w-full h-[240px] md:h-[320px] lg:h-[420px]">
@@ -379,8 +360,8 @@ const EmailMarketingLayout = ({ category }) => {
             </div>
             <div className="absolute inset-0 flex items-center px-6 md:px-10 lg:px-16">
               <div className="max-w-lg">
-                <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: 'rgba(210,150,90,0.9)' }}>
-                  02 Why Email
+                <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: '#FF5B05' }}>
+                  2 Why Email
                 </span>
                 <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-white leading-tight">
                   The Distinct Advantages of Email Marketing Services
@@ -396,26 +377,29 @@ const EmailMarketingLayout = ({ category }) => {
                 key={i}
                 className="rounded-xl md:rounded-2xl p-5 md:p-7 transition-all duration-300 hover:-translate-y-1 group"
                 style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
-                  border: '1px solid rgba(255,255,255,0.07)',
+                  background: 'rgba(255,255,255,0.65)',
+                  backdropFilter: 'blur(20px) saturate(160%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                  border: '1px solid rgba(255,255,255,0.6)',
+                  boxShadow: '0 8px 32px rgba(36,48,55,0.08)',
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.border = '1px solid rgba(210,150,90,0.3)';
-                  e.currentTarget.style.boxShadow = '0 10px 40px rgba(210,150,90,0.08)';
+                  e.currentTarget.style.border = '1px solid rgba(255,91,5,0.35)';
+                  e.currentTarget.style.boxShadow = '0 10px 32px rgba(255,91,5,0.12)';
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.border = '1px solid rgba(255,255,255,0.07)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.border = '1px solid rgba(36,48,55,0.08)';
+                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(36,48,55,0.05)';
                 }}
               >
                 <div
                   className="w-9 md:w-10 h-9 md:h-10 flex items-center justify-center rounded-lg md:rounded-xl mb-4 md:mb-5"
-                  style={{ background: 'linear-gradient(135deg, rgba(210,150,90,0.25), rgba(196,87,42,0.15))' }}
+                  style={{ background: 'linear-gradient(135deg, rgba(255,91,5,0.16), rgba(255,138,71,0.1))' }}
                 >
-                  <i className={`${adv.icon} text-[#d2965a] text-sm md:text-base`} />
+                  <i className={`${adv.icon} text-[#FF5B05] text-sm md:text-base`} />
                 </div>
-                <h3 className="font-display text-sm font-bold text-white mb-2 md:mb-3">{adv.title}</h3>
-                <p className="text-xs leading-relaxed text-white/40">{adv.body}</p>
+                <h3 className="font-display text-sm font-bold text-[#243037] mb-2 md:mb-3">{adv.title}</h3>
+                <p className="text-xs leading-relaxed text-[#243037]/55">{adv.body}</p>
               </div>
             ))}
           </div>
@@ -423,17 +407,13 @@ const EmailMarketingLayout = ({ category }) => {
       </section>
 
       {/* Newsletter Samples */}
-      <section className="relative py-16 md:py-20 px-4 md:px-6" style={{ background: '#f0ece8' }}>
-        <div
-          className="absolute top-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.06), transparent)' }}
-        />
-        <div className="max-w-7xl mx-auto">
+      <section className="relative py-16 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-12">
-            <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: '#c4572a' }}>
-              03 Newsletter Samples
+            <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block" style={{ color: '#FF5B05' }}>
+              3 Newsletter Samples
             </span>
-            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-3 md:mb-4 leading-tight" style={{ color: '#1a1a1a' }}>
+            <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-3 md:mb-4 leading-tight" style={{ color: '#243037' }}>
               Campaigns That Convert
             </h2>
             <p className="text-sm max-w-lg mx-auto" style={{ color: 'rgba(26,26,26,0.5)' }}>
@@ -455,7 +435,7 @@ const EmailMarketingLayout = ({ category }) => {
                   alt={item.label}
                   className="w-full h-auto object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
                 />
-                <div className="px-4 py-3" style={{ background: '#ffffff' }}>
+                <div className="px-4 py-3" style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
                   <span className="text-xs font-semibold" style={{ color: '#3a3330' }}>{item.label}</span>
                 </div>
               </div>
@@ -547,12 +527,8 @@ const webDesignSites = [
 ];
 
 const WebDesignLayout = () => (
-  <section className="relative py-12 md:py-16 px-4 md:px-6" style={{ background: '#0d0d0d' }}>
-    <div
-      className="absolute top-0 left-0 right-0 h-px"
-      style={{ background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.2), transparent)' }}
-    />
-    <div className="max-w-7xl mx-auto space-y-5 md:space-y-6">
+  <section className="relative py-16 sm:py-20 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto space-y-5 md:space-y-6">
       {webDesignSites.map((site) => {
         const cardInner = (
           <>
@@ -560,7 +536,7 @@ const WebDesignLayout = () => (
             <div className="relative w-full lg:w-[58%] flex-shrink-0 overflow-hidden">
               <div
                 className="flex items-center gap-2 px-4 py-2.5 border-b"
-                style={{ background: '#1a1a1a', borderColor: 'rgba(255,255,255,0.07)' }}
+                style={{ background: 'rgba(255,255,255,0.5)', borderColor: 'rgba(36,48,55,0.08)' }}
               >
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
@@ -569,16 +545,16 @@ const WebDesignLayout = () => (
                 </div>
                 <div
                   className="flex-1 mx-3 px-3 py-1 rounded-md flex items-center gap-2"
-                  style={{ background: 'rgba(255,255,255,0.05)' }}
+                  style={{ background: 'rgba(36,48,55,0.06)' }}
                 >
-                  <i className="ri-lock-line text-[9px] text-white/25" />
-                  <span className="text-[10px] text-white/30 tracking-wide truncate">{site.displayUrl}</span>
+                  <i className="ri-lock-line text-[9px] text-[#243037]/40" />
+                  <span className="text-[10px] text-[#243037]/50 tracking-wide truncate">{site.displayUrl}</span>
                 </div>
                 {!site.comingSoon && (
-                  <i className="ri-external-link-line text-[11px] text-white/20 group-hover:text-white/50 transition-colors duration-300" />
+                  <i className="ri-external-link-line text-[11px] text-[#243037]/35 group-hover:text-[#243037]/70 transition-colors duration-300" />
                 )}
               </div>
-              <div className="relative overflow-hidden" style={{ height: '240px', background: '#1a1a1a' }}>
+              <div className="relative overflow-hidden" style={{ height: '240px', background: 'rgba(36,48,55,0.05)' }}>
                 <img
                   src={site.image}
                   alt={site.name}
@@ -588,11 +564,11 @@ const WebDesignLayout = () => (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <div
                       className="w-10 h-10 flex items-center justify-center rounded-full"
-                      style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      style={{ background: 'rgba(36,48,55,0.08)', border: '1px solid rgba(36,48,55,0.12)' }}
                     >
-                      <i className="ri-time-line text-white/50 text-base" />
+                      <i className="ri-time-line text-[#243037]/50 text-base" />
                     </div>
-                    <span className="text-[11px] font-semibold tracking-widest uppercase text-white/40">
+                    <span className="text-[11px] font-semibold tracking-widest uppercase text-[#243037]/45">
                       Coming Soon
                     </span>
                   </div>
@@ -636,9 +612,9 @@ const WebDesignLayout = () => (
                         <span
                           className="inline-block text-[9px] font-semibold tracking-[0.15em] uppercase px-2.5 py-1 rounded-full"
                           style={{
-                            background: 'rgba(255,255,255,0.04)',
-                            color: 'rgba(255,255,255,0.3)',
-                            border: '1px solid rgba(255,255,255,0.1)',
+                            background: 'rgba(36,48,55,0.05)',
+                            color: 'rgba(36,48,55,0.45)',
+                            border: '1px solid rgba(36,48,55,0.1)',
                           }}
                         >
                           Coming Soon
@@ -646,7 +622,7 @@ const WebDesignLayout = () => (
                       )}
                     </div>
                     <h3
-                      className={`font-display text-base md:text-lg lg:text-xl font-bold leading-tight transition-colors duration-300 ${site.comingSoon ? 'text-white/40' : 'text-white group-hover:text-orange-50'}`}
+                      className={`font-display text-base md:text-lg lg:text-xl font-bold leading-tight transition-colors duration-300 ${site.comingSoon ? 'text-[#243037]/45' : 'text-[#243037] group-hover:text-[#FF5B05]'}`}
                     >
                       {site.name}
                     </h3>
@@ -661,7 +637,7 @@ const WebDesignLayout = () => (
                   )}
                 </div>
                 <p
-                  className={`text-xs leading-relaxed mb-5 transition-colors duration-300 ${site.comingSoon ? 'text-white/20' : 'text-white/35 group-hover:text-white/50'}`}
+                  className={`text-xs leading-relaxed mb-5 transition-colors duration-300 ${site.comingSoon ? 'text-[#243037]/35' : 'text-[#243037]/55 group-hover:text-[#243037]/70'}`}
                 >
                   {site.description}
                 </p>
@@ -672,15 +648,15 @@ const WebDesignLayout = () => (
                     key={tag}
                     className="text-[10px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap"
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      color: site.comingSoon ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.4)',
-                      border: '1px solid rgba(255,255,255,0.06)',
+                      background: 'rgba(36,48,55,0.05)',
+                      color: site.comingSoon ? 'rgba(36,48,55,0.35)' : 'rgba(36,48,55,0.55)',
+                      border: '1px solid rgba(36,48,55,0.08)',
                     }}
                   >
                     {tag}
                   </span>
                 ))}
-                <span className="ml-auto text-[10px] text-white/20 font-medium">{site.year}</span>
+                <span className="ml-auto text-[10px] text-[#243037]/40 font-medium">{site.year}</span>
               </div>
             </div>
           </>
@@ -691,9 +667,12 @@ const WebDesignLayout = () => (
             key={site.id}
             className="relative flex flex-col lg:flex-row overflow-hidden rounded-2xl"
             style={{
-              background: '#111111',
-              border: '1px solid rgba(255,255,255,0.05)',
-              opacity: 0.6,
+              background: 'rgba(255,255,255,0.5)',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              boxShadow: '0 8px 32px rgba(36,48,55,0.06)',
+              opacity: 0.75,
             }}
           >
             {cardInner}
@@ -706,15 +685,18 @@ const WebDesignLayout = () => (
             rel="nofollow noreferrer"
             className="group relative flex flex-col lg:flex-row overflow-hidden rounded-2xl cursor-pointer block"
             style={{
-              background: '#111111',
-              border: '1px solid rgba(255,255,255,0.07)',
+              background: 'rgba(255,255,255,0.65)',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+              border: '1px solid rgba(255,255,255,0.6)',
+              boxShadow: '0 8px 32px rgba(36,48,55,0.08)',
               transition: 'border-color 400ms ease',
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.borderColor = `${site.accentColor}50`;
+              (e.currentTarget as HTMLAnchorElement).style.borderColor = `${site.accentColor}60`;
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.07)';
+              (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.6)';
             }}
           >
             {cardInner}
@@ -813,37 +795,30 @@ const SocialMediaLayout = ({ category }) => {
 
   return (
     <>
-      {/* Intro text */}
-      <section className="py-12 md:py-16 px-4 md:px-6 relative">
-        <div className="max-w-3xl mx-auto text-center">
-          <p className="text-white/50 text-sm leading-relaxed">{category.description}</p>
-        </div>
-      </section>
-
-      {/* Client sections */}
+      {/* Client sections — the intro paragraph now lives in the page hero */}
       {clients.map((client, idx) => (
         <section
           key={client.id}
-          className="relative py-16 md:py-20 px-4 md:px-6 border-t border-white/5"
-          style={{ background: client.sectionBg ?? '#0e1420' }}
+          className="relative py-16 sm:py-20 px-4 sm:px-6 border-t border-[#243037]/8"
+          style={{ background: client.sectionBg ?? '#F5F5F5' }}
         >
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 md:gap-8 mb-10 md:mb-12">
               <div className="flex-1 max-w-xl">
                 <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block text-[#FF6B35]">
-                  {idx + 1 < 10 ? `0${idx + 1}` : idx + 1} Brand
+                  {idx + 1} Brand
                 </span>
-                <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-5 leading-tight text-white">
+                <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-4 md:mb-5 leading-tight text-[#243037]">
                   {client.name}
                 </h2>
-                <p className="text-sm leading-relaxed text-gray-400">
+                <p className="text-sm leading-relaxed text-[#243037]/60">
                   {client.description}
                 </p>
               </div>
 
               <div
                 className="flex-shrink-0 flex items-center justify-center rounded-xl md:rounded-2xl p-5 md:p-6 w-40 h-24 md:w-48 md:h-28 lg:w-56 lg:h-32"
-                style={{ background: client.logoBg, border: '1px solid rgba(255,255,255,0.08)' }}
+                style={{ background: client.logoBg, border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 8px 32px rgba(36,48,55,0.08)' }}
               >
                 <img src={client.logo} alt={`${client.name} logo`} className="max-w-full max-h-full object-contain" />
               </div>
@@ -854,7 +829,7 @@ const SocialMediaLayout = ({ category }) => {
                 <div
                   key={i}
                   className="group relative overflow-hidden rounded-lg md:rounded-xl aspect-square"
-                  style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+                  style={{ border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 10px 28px rgba(36,48,55,0.18)' }}
                 >
                   <img src={img} alt={`${client.name} post ${i + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)' }} />
@@ -943,12 +918,12 @@ const PortfolioCategoryPage = () => {
 
   if (!category) {
     return (
-      <div className="min-h-screen bg-[#080808]">
-        <Navigation />
+      <div className="min-h-screen bg-[#F5F5F5]">
+        <Navigation invertOnScroll barTheme="light" />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">Category not found</h2>
-            <Link to="/portfolio" className="text-orange-400 hover:text-orange-300 font-medium">
+            <h2 className="font-display text-2xl font-bold text-[#243037] mb-4">Category not found</h2>
+            <Link to="/portfolio" className="text-[#FF5B05] hover:text-[#FF8A47] font-medium">
               ← Back to Portfolio
             </Link>
           </div>
@@ -962,145 +937,120 @@ const PortfolioCategoryPage = () => {
   const isGraphicDesign = category.id === 'graphic-design';
   const isEmailMarketing = category.id === 'email-marketing';
   const isWebDesign = category.id === 'web-design';
-  // Dark theme for branding, graphic design, social media, web design
-  const isDarkTheme = !isEmailMarketing;
+  // All category pages render light, matching the rest of the site.
+  const isDarkTheme = false;
 
   return (
     <div
       className="min-h-screen font-body"
-      style={{ background: isDarkTheme ? '#0a0a0a' : '#fafafa' }}
+      style={{ background: '#F5F5F5' }}
     >
-      <Navigation />
+      <Navigation invertOnScroll barTheme="light" />
 
-      {/* Ambient background blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      {/* Same continuous orb field as Home / About / Services — a normal
+          (not `fixed`) wrapper that grows with the full page content, with
+          every section nested inside it and left transparent, so the color
+          shows through the glass cards instead of being covered by them. */}
+      <div className="relative overflow-hidden">
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[700px] rounded-full opacity-20"
-          style={{ background: isEmailMarketing ? 'radial-gradient(circle, rgba(196,135,80,0.3) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(239,68,68,0.4) 0%, transparent 70%)' }}
+          className="pointer-events-none absolute top-[-15%] -left-[15%] w-[900px] h-[900px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,91,5,0.16), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-a 22s ease-in-out infinite' }}
         />
         <div
-          className="absolute bottom-1/3 right-0 w-[500px] h-[500px] rounded-full opacity-15"
-          style={{ background: isEmailMarketing ? 'radial-gradient(circle, rgba(210,150,90,0.25) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(249,115,22,0.35) 0%, transparent 70%)' }}
+          className="pointer-events-none absolute top-[6%] -right-[15%] w-[820px] h-[820px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.4), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-b 26s ease-in-out infinite' }}
         />
         <div
-          className="absolute top-2/3 left-0 w-[400px] h-[400px] rounded-full opacity-10"
-          style={{ background: isEmailMarketing ? 'radial-gradient(circle, rgba(180,120,70,0.25) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(251,113,133,0.3) 0%, transparent 70%)' }}
+          className="pointer-events-none absolute top-[28%] left-[38%] w-[620px] h-[620px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(211,221,222,0.5), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-c 20s ease-in-out infinite' }}
         />
-      </div>
-
-      {/* Floating Bubbles */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="bubble w-20 h-20 animate-bubble-float" style={{ top: '12%', left: '4%', animationDelay: '0s' }} />
-        <div className="bubble w-12 h-12 animate-bubble-float-slow" style={{ top: '35%', right: '6%', animationDelay: '2s' }} />
-        <div className="bubble w-8 h-8 animate-bubble-float-fast" style={{ top: '65%', left: '10%', animationDelay: '1s' }} />
-        <div className="bubble w-16 h-16 animate-bubble-float" style={{ top: '20%', right: '18%', animationDelay: '3s' }} />
-        <div className="bubble w-6 h-6 animate-bubble-float-fast" style={{ top: '55%', right: '30%', animationDelay: '0.5s' }} />
-        <div className="bubble w-10 h-10 animate-bubble-float-slow" style={{ top: '80%', left: '45%', animationDelay: '4s' }} />
-      </div>
+        <div
+          className="pointer-events-none absolute top-[48%] -left-[10%] w-[760px] h-[760px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.4), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-c 24s ease-in-out infinite' }}
+        />
+        <div
+          className="pointer-events-none absolute top-[68%] right-[5%] w-[900px] h-[900px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,138,71,0.18), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-d 28s ease-in-out infinite' }}
+        />
+        <div
+          className="pointer-events-none absolute top-[80%] left-[8%] w-[560px] h-[560px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.32), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-b 23s ease-in-out infinite' }}
+        />
+        <div
+          className="pointer-events-none absolute top-[92%] left-1/3 w-[850px] h-[850px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.34), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-a 25s ease-in-out infinite' }}
+        />
 
       <main className="relative z-10">
         {/* ── HERO ── */}
-        <section className="relative pt-20 md:pt-32 pb-8 md:pb-16 lg:pb-24 px-4 md:px-6 overflow-hidden">
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px]"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.5), transparent)' }}
-          />
-
-          <div className="max-w-7xl mx-auto">
-            <Link
-              to="/portfolio"
-              className="inline-flex items-center gap-2 text-orange-500 hover:text-orange-400 transition-colors mb-8 md:mb-10 group"
+        {/* Header lives in its own blue frosted panel — the same glass recipe as
+            the Services "what we do" blob — so it reads as a distinct masthead
+            with real separation from the work below it. */}
+        <section className="relative pt-24 sm:pt-28 pb-10 sm:pb-14 px-4 sm:px-6">
+          <div className="max-w-6xl mx-auto">
+            <div
+              className="relative rounded-3xl p-8 sm:p-10 lg:p-14 overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, rgba(160,180,205,0.55), rgba(205,215,225,0.3))',
+                backdropFilter: 'blur(30px) saturate(160%)',
+                WebkitBackdropFilter: 'blur(30px) saturate(160%)',
+                border: '1px solid rgba(255,255,255,0.5)',
+                boxShadow: '0 20px 60px rgba(36,48,55,0.12), inset 0 1px 0 rgba(255,255,255,0.5)',
+              }}
             >
-              <i className="ri-arrow-left-line text-lg group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium whitespace-nowrap text-sm tracking-wide">Back to Portfolio</span>
-            </Link>
+              {/* warm bloom in the corner so the panel picks up the brand orange */}
+              <div
+                className="pointer-events-none absolute -top-24 -right-20 w-[420px] h-[420px] rounded-full"
+                style={{ background: 'radial-gradient(circle, rgba(255,91,5,0.22), transparent 70%)', filter: 'blur(60px)' }}
+              />
 
-            <div className="grid lg:grid-cols-2 gap-8 md:gap-10 lg:gap-16 items-center">
-              <div className="animate-fade-in-up opacity-0-init">
-                <div
-                  className="w-11 h-11 md:w-12 md:h-12 lg:w-14 lg:h-14 flex items-center justify-center rounded-lg md:rounded-xl mb-5 md:mb-6"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(249,115,22,0.1))',
-                    border: '1px solid rgba(249,115,22,0.25)',
-                  }}
+              <div className="relative z-10">
+                <Link
+                  to="/portfolio"
+                  className="inline-flex items-center gap-2 text-[10px] font-semibold tracking-[0.25em] uppercase text-[#075056] hover:text-[#FF5B05] transition-colors mb-6 group"
                 >
-                  <i className={`${category.iconClass} text-base md:text-lg lg:text-xl text-orange-500`} />
-                </div>
+                  <i className="ri-arrow-left-line text-xs group-hover:-translate-x-1 transition-transform" />
+                  <span>Back to Portfolio</span>
+                </Link>
 
-                <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest text-orange-500 uppercase mb-3 md:mb-4">
-                  Portfolio
-                </span>
-
-                <h1 className="font-display text-2xl md:text-3xl lg:text-4xl xl:text-[2.75rem] font-bold leading-tight mb-4 md:mb-6">
-                  {isDarkTheme ? (
-                    <span className="text-white">{category.name}</span>
-                  ) : (
-                    <span className="gradient-text-animated">{category.name}</span>
-                  )}
-                </h1>
-
-                {!isSocialMedia && (
-                  <p
-                    className="text-sm leading-relaxed max-w-lg"
-                    style={{ color: isDarkTheme ? 'rgba(255,255,255,0.45)' : 'rgba(26,26,26,0.5)' }}
-                  >
-                    {category.description}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 animate-fade-in-up opacity-0-init delay-300">
-                {[
-                  { label: 'Projects', value: category.stats.projects, icon: 'ri-stack-line' },
-                  { label: 'Satisfaction', value: category.stats.satisfaction, icon: 'ri-heart-line' },
-                  { label: 'Rating', value: category.stats.rating, icon: 'ri-star-line' },
-                ].map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="rounded-lg md:rounded-xl lg:rounded-2xl p-3 sm:p-4 md:p-5 text-center transition-all duration-300 hover:-translate-y-1"
-                    style={isDarkTheme ? {
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
-                    } : {
-                      background: '#ffffff',
-                      border: '1px solid rgba(0,0,0,0.08)',
-                      boxShadow: '0 2px 16px rgba(0,0,0,0.05)',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.border = '1px solid rgba(249,115,22,0.3)';
-                      e.currentTarget.style.boxShadow = '0 10px 40px rgba(249,115,22,0.1)';
-                    }}
-                    onMouseLeave={e => {
-                      if (isDarkTheme) {
-                        e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)';
-                        e.currentTarget.style.boxShadow = '0 2px 16px rgba(0,0,0,0.3)';
-                      } else {
-                        e.currentTarget.style.border = '1px solid rgba(0,0,0,0.08)';
-                        e.currentTarget.style.boxShadow = '0 2px 16px rgba(0,0,0,0.05)';
-                      }
-                    }}
-                  >
-                    <div
-                      className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-9 lg:h-9 flex items-center justify-center rounded-md md:rounded-lg mx-auto mb-1.5 sm:mb-2 md:mb-3"
-                      style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(249,115,22,0.1))' }}
-                    >
-                      <i className={`${stat.icon} text-orange-500 text-[10px] sm:text-xs md:text-sm`} />
-                    </div>
-                    <div
-                      className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold font-display mb-0.5 sm:mb-1"
-                      style={{ color: isDarkTheme ? '#ffffff' : '#1a1a1a' }}
-                    >
-                      {stat.value}
-                    </div>
-                    <div
-                      className="text-[9px] sm:text-[10px] md:text-[11px] whitespace-nowrap"
-                      style={{ color: isDarkTheme ? 'rgba(255,255,255,0.35)' : 'rgba(26,26,26,0.4)' }}
-                    >
-                      {stat.label}
-                    </div>
+                <div className="grid lg:grid-cols-[1.2fr_1fr] gap-8 lg:gap-14 items-end">
+                  <div className="animate-fade-in-up opacity-0-init">
+                    <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-[#243037] mb-4">
+                      {category.name}
+                    </h1>
+                    <p className="text-sm leading-relaxed text-[#243037]/65">
+                      {category.description}
+                    </p>
                   </div>
-                ))}
+
+                  <div className="grid grid-cols-3 gap-3 animate-fade-in-up opacity-0-init delay-300">
+                    {[
+                      { label: 'Projects', value: category.stats.projects, icon: 'ri-stack-line' },
+                      { label: 'Satisfaction', value: category.stats.satisfaction, icon: 'ri-heart-line' },
+                      { label: 'Rating', value: category.stats.rating, icon: 'ri-star-line' },
+                    ].map((stat) => (
+                      <div
+                        key={stat.label}
+                        className="rounded-2xl px-2 py-4 text-center transition-transform duration-300 hover:-translate-y-1"
+                        style={{
+                          background: 'rgba(255,255,255,0.5)',
+                          backdropFilter: 'blur(20px) saturate(160%)',
+                          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                          border: '1px solid rgba(255,255,255,0.6)',
+                          boxShadow: '0 8px 32px rgba(36,48,55,0.08), inset 0 1px 0 rgba(255,255,255,0.5)',
+                        }}
+                      >
+                        <i className={`${stat.icon} text-[#FF5B05] text-sm mb-2 block`} />
+                        <div className="text-lg md:text-xl font-bold font-display mb-0.5 text-[#243037]">
+                          {stat.value}
+                        </div>
+                        <div className="text-[9px] tracking-wide uppercase whitespace-nowrap text-[#243037]/45">
+                          {stat.label}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1116,23 +1066,18 @@ const PortfolioCategoryPage = () => {
         ) : isWebDesign ? (
           <WebDesignLayout />
         ) : (
-          /* ── GENERIC PROJECTS GALLERY (Branding — dark) ── */
-          <section className="py-12 md:py-16 lg:py-24 px-4 md:px-6 relative">
-            <div className="absolute inset-0 bg-[#0d0d0d]" />
-            <div
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px]"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)' }}
-            />
+          /* ── GENERIC PROJECTS GALLERY (Branding) ── */
+          <section className="py-16 sm:py-20 px-4 sm:px-6 relative">
 
-            <div className="max-w-7xl mx-auto relative z-10">
+            <div className="max-w-6xl mx-auto relative z-10">
               <div className="text-center mb-12 md:mb-16 animate-fade-in-up opacity-0-init">
-                <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest text-orange-400 uppercase mb-4">
+                <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest uppercase mb-4" style={{ color: '#FF5B05' }}>
                   Featured Work
                 </span>
-                <h2 className="font-display text-xl md:text-2xl font-bold text-white mb-4">
-                  Featured <span className="gradient-text-animated">Projects</span>
+                <h2 className="font-display text-xl md:text-2xl font-bold text-[#243037] mb-4">
+                  Featured Projects
                 </h2>
-                <p className="text-white/35 text-sm max-w-xl mx-auto">
+                <p className="text-[#243037]/55 text-sm max-w-xl mx-auto">
                   Explore our portfolio of work that showcases creativity, strategy, and real results.
                 </p>
               </div>
@@ -1143,8 +1088,8 @@ const PortfolioCategoryPage = () => {
                     const cardContent = (
                       <>
                         <div
-                          className="relative overflow-hidden rounded-xl sm:rounded-2xl mb-2 sm:mb-4 aspect-[3/4] border border-white/8"
-                          style={{ background: 'rgba(255,255,255,0.03)' }}
+                          className="relative overflow-hidden rounded-xl sm:rounded-2xl mb-2 sm:mb-4 aspect-[3/4]"
+                          style={{ background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 10px 28px rgba(36,48,55,0.18)' }}
                         >
                           <img
                             src={project.image}
@@ -1154,12 +1099,12 @@ const PortfolioCategoryPage = () => {
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                           <div
                             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(249,115,22,0.15) 50%, transparent 100%)' }}
+                            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(255,91,5,0.18) 50%, transparent 100%)' }}
                           />
                           <div className="absolute bottom-0 left-0 right-0 p-5 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-400">
                             <span
                               className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full text-white"
-                              style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.8), rgba(249,115,22,0.8))' }}
+                              style={{ background: 'linear-gradient(135deg, #FF5B05, #FF8A47)' }}
                             >
                               <i className="ri-eye-line" />
                               View Project
@@ -1168,12 +1113,12 @@ const PortfolioCategoryPage = () => {
                         </div>
 
                         <h3
-                          className="text-xs sm:text-sm font-semibold text-white mb-1 sm:mb-1.5 leading-snug transition-all duration-300"
+                          className="text-xs sm:text-sm font-semibold text-[#243037] mb-1 sm:mb-1.5 leading-snug transition-all duration-300"
                           style={{ fontFamily: 'Montserrat, sans-serif' }}
                         >
                           {project.title}
                         </h3>
-                        <p className="text-white/35 text-[11px] sm:text-xs leading-relaxed hidden sm:block">{project.description}</p>
+                        <p className="text-[#243037]/55 text-[11px] sm:text-xs leading-relaxed hidden sm:block">{project.description}</p>
                       </>
                     );
 
@@ -1205,36 +1150,38 @@ const PortfolioCategoryPage = () => {
                     <div
                       className="relative overflow-hidden rounded-xl sm:rounded-2xl mb-2 sm:mb-4 aspect-[3/4] flex flex-col items-center justify-center text-center p-4 sm:p-8"
                       style={{
-                        background: 'linear-gradient(145deg, rgba(239,68,68,0.06), rgba(249,115,22,0.03))',
-                        border: '1px dashed rgba(249,115,22,0.25)',
+                        background: 'rgba(255,255,255,0.4)',
+                        backdropFilter: 'blur(20px) saturate(160%)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                        border: '1px dashed rgba(255,91,5,0.3)',
                       }}
                     >
                       <div
                         className="w-14 h-14 flex items-center justify-center rounded-2xl mb-5"
                         style={{
-                          background: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(249,115,22,0.1))',
-                          border: '1px solid rgba(249,115,22,0.2)',
+                          background: 'linear-gradient(135deg, rgba(255,91,5,0.16), rgba(255,138,71,0.1))',
+                          border: '1px solid rgba(255,91,5,0.25)',
                         }}
                       >
-                        <i className="ri-time-line text-2xl text-orange-400" />
+                        <i className="ri-time-line text-2xl text-[#FF5B05]" />
                       </div>
-                      <h3 className="font-display text-sm font-bold text-white mb-3">
+                      <h3 className="font-display text-sm font-bold text-[#243037] mb-3">
                         More Coming Soon
                       </h3>
-                      <p className="text-white/35 text-xs leading-relaxed max-w-[180px]">
+                      <p className="text-[#243037]/55 text-xs leading-relaxed max-w-[180px]">
                         We&apos;re adding more projects to our portfolio. Check back soon!
                       </p>
                       <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-1.5">
                         {[0, 1, 2].map((i) => (
                           <span
                             key={i}
-                            className="w-1.5 h-1.5 rounded-full bg-orange-500/40"
+                            className="w-1.5 h-1.5 rounded-full bg-[#FF5B05]/40"
                             style={{ animationDelay: `${i * 0.3}s`, animation: 'pulse 1.5s ease-in-out infinite' }}
                           />
                         ))}
                       </div>
                     </div>
-                    <p className="text-white/20 text-xs">In progress</p>
+                    <p className="text-[#243037]/40 text-xs">In progress</p>
                   </div>
                 </div>
               ) : (
@@ -1242,16 +1189,16 @@ const PortfolioCategoryPage = () => {
                   <div
                     className="w-16 h-16 flex items-center justify-center rounded-2xl mx-auto mb-6"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(249,115,22,0.1))',
-                      border: '1px solid rgba(249,115,22,0.25)',
+                      background: 'linear-gradient(135deg, rgba(255,91,5,0.16), rgba(255,138,71,0.1))',
+                      border: '1px solid rgba(255,91,5,0.25)',
                     }}
                   >
-                    <i className="ri-tools-line text-2xl text-orange-400" />
+                    <i className="ri-tools-line text-2xl text-[#FF5B05]" />
                   </div>
-                  <h3 className="font-display text-xl font-bold text-white mb-3">
+                  <h3 className="font-display text-xl font-bold text-[#243037] mb-3">
                     More Projects Coming Soon
                   </h3>
-                  <p className="text-white/40 text-sm max-w-md mx-auto leading-relaxed">
+                  <p className="text-[#243037]/55 text-sm max-w-md mx-auto leading-relaxed">
                     We&apos;re currently working on adding more of our projects to showcase. Check back soon to see more of our work!
                   </p>
                 </div>
@@ -1262,8 +1209,7 @@ const PortfolioCategoryPage = () => {
 
         {/* ── CTA ── */}
         <section
-          className="py-12 md:py-16 lg:py-24 px-4 md:px-6 relative"
-          style={{ background: isDarkTheme ? '#0a0a0a' : (isEmailMarketing ? '#dad9d9' : '#f0efed') }}
+          className="py-16 sm:py-20 px-4 sm:px-6 relative"
         >
           {isDarkTheme ? (
             <div
@@ -1282,7 +1228,7 @@ const PortfolioCategoryPage = () => {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-16">
                 <div>
                   <div className="flex items-center gap-3 mb-4">
-                    <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-orange-400/80">Let&apos;s Create</span>
+                    <span className="text-[10px] font-medium tracking-[0.3em] uppercase text-[#FF5B05]/80">Let&apos;s Create</span>
                   </div>
                   <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 leading-tight">
                     Ready to bring your<br />
@@ -1305,7 +1251,7 @@ const PortfolioCategoryPage = () => {
                     href="https://calendly.com/hunacreatives/30min"
                     target="_blank"
                     rel="nofollow noreferrer"
-                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full text-sm font-semibold border border-orange-400/50 text-orange-400 hover:bg-orange-500/10 transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer"
+                    className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full text-sm font-semibold border border-orange-400/50 text-[#FF5B05] hover:bg-orange-500/10 transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer"
                   >
                     <i className="ri-calendar-line text-base" />
                     Book a Free Call
@@ -1313,45 +1259,40 @@ const PortfolioCategoryPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="max-w-4xl mx-auto">
-                <div
-                  className="relative rounded-2xl md:rounded-3xl p-6 md:p-8 lg:p-16 text-center overflow-hidden"
-                  style={{
-                    background: isEmailMarketing ? '#f0ece8' : '#ffffff',
-                    border: '1px solid rgba(0,0,0,0.07)',
-                    boxShadow: isEmailMarketing ? '0 8px 24px rgba(210,87,42,0.3)' : '0 4px 40px rgba(0,0,0,0.06)',
-                  }}
-                >
-                  <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(196,87,42,0.5) 0%, transparent 70%)' }} />
-                  <div className="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-10 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(196,87,42,0.4) 0%, transparent 70%)' }} />
-                  <div className="relative z-10">
-                    <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest uppercase mb-4 md:mb-5" style={{ color: '#c4572a' }}>
-                      <span className="w-5 h-px inline-block" style={{ background: '#c4572a' }} />
-                      Let&apos;s Work Together
-                      <span className="w-5 h-px inline-block" style={{ background: '#c4572a' }} />
-                    </span>
-                    <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold mb-3 md:mb-4 leading-tight" style={{ color: '#1a1a1a' }}>
-                      Ready to start your<br />
-                      <span style={{ color: '#c4572a' }}>next project?</span>
-                    </h2>
-                    <p className="text-xs md:text-sm mb-6 md:mb-8 lg:mb-10 max-w-md mx-auto" style={{ color: 'rgba(26,26,26,0.45)' }}>
-                      Let&apos;s create something amazing together. Get in touch to discuss your vision and bring it to life.
-                    </p>
-                    <Link
-                      to="/contact"
-                      className="inline-flex items-center justify-center gap-2 px-6 md:px-8 lg:px-10 py-2.5 md:py-3 lg:py-3.5 font-semibold rounded-full shadow-lg hover:scale-105 transition-all duration-300 whitespace-nowrap text-white text-xs md:text-sm"
-                      style={{ background: 'linear-gradient(135deg, #c4572a, #d2965a)', boxShadow: '0 8px 24px rgba(210,87,42,0.3)' }}
-                    >
-                      <span>Get Started</span>
-                      <i className="ri-arrow-right-line text-lg" />
-                    </Link>
-                  </div>
+              /* Same frosted "Gradient Cloud" CTA panel used on the Services page */
+              <div
+                className="max-w-4xl mx-auto rounded-3xl p-10 sm:p-14 text-center relative overflow-hidden"
+                style={{
+                  background: [
+                    'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 40%)',
+                    'linear-gradient(120deg, rgba(255,217,138,0.7), rgba(255,138,71,0.7), rgba(255,91,5,0.7), rgba(255,198,112,0.7))',
+                  ].join(', '),
+                  backgroundSize: '100% 100%, 300% 300%',
+                  animation: 'gradient-shift 8s ease infinite',
+                  backdropFilter: 'blur(24px) saturate(160%)',
+                  WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+                  border: '1px solid rgba(255,255,255,0.5)',
+                  boxShadow: '0 20px 60px rgba(255,91,5,0.25), inset 0 1px 0 rgba(255,255,255,0.4)',
+                }}
+              >
+                <h2 className="font-display text-2xl sm:text-3xl font-bold text-white mb-6 leading-tight">
+                  Ready when you are.
+                </h2>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <Link
+                    to="/contact"
+                    className="px-8 py-3.5 rounded-full text-xs font-semibold tracking-widest uppercase text-[#243037] bg-white whitespace-nowrap cursor-pointer transition-transform duration-300 hover:scale-105"
+                  >
+                    Start a Project
+                  </Link>
+                  <span className="text-white/60 text-xs">Free consultation · No commitment</span>
                 </div>
               </div>
             )}
           </div>
         </section>
       </main>
+      </div>
 
       <Footer isDark={isDarkTheme} />
 

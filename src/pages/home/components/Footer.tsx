@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface FooterProps {
   isDark?: boolean;
@@ -46,12 +47,12 @@ export default function Footer({ isDark = false, forceLight = false, compact = f
     return (
       <footer className="relative px-6 py-3 border-t flex-shrink-0" style={{ background: bg, borderColor }}>
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-8 gap-y-2">
-          <a href="/"><img src={logoSrc} alt="Huna Creatives" className="h-6 w-auto" /></a>
+          <Link to="/"><img src={logoSrc} alt="Huna Creatives" className="h-6 w-auto" /></Link>
           <div className="hidden md:flex items-center gap-5">
             {navLinks.slice(1).map((link) => (
-              <a key={link.href} href={link.href}
+              <Link key={link.href} to={link.href}
                 className="text-[10px] transition-colors cursor-pointer hover:text-orange-500 whitespace-nowrap"
-                style={{ color: mutedColor }}>{link.label}</a>
+                style={{ color: mutedColor }}>{link.label}</Link>
             ))}
           </div>
           <div className="flex items-center gap-3">
@@ -74,14 +75,17 @@ export default function Footer({ isDark = false, forceLight = false, compact = f
   }
 
   return (
-    <footer className="relative border-t" style={{ background: bg, borderColor }}>
+    <footer
+      className="relative border-t overflow-hidden rounded-t-[2rem] sm:rounded-t-[4.5rem]"
+      style={{ background: bg, borderColor }}
+    >
 
       {/* ─── MOBILE layout (hidden on lg+) ─── */}
       <div className="lg:hidden px-6 pt-8 pb-5">
         {/* Logo */}
-        <a href="/" className="inline-block mb-5">
+        <Link to="/" className="inline-block mb-5">
           <img src={logoSrc} alt="Huna Creatives" className="h-7 w-auto" />
-        </a>
+        </Link>
 
 
         {/* Divider */}
@@ -131,10 +135,15 @@ export default function Footer({ isDark = false, forceLight = false, compact = f
         </div>
 
         {/* Copyright */}
-        <div className="mt-5 pt-4 border-t" style={{ borderColor }}>
+        <div className="mt-5 pt-4 border-t flex flex-col gap-2" style={{ borderColor }}>
           <p className="text-[10px]" style={{ color: dimColor }}>
             &copy; {new Date().getFullYear()} Huna Creatives. All rights reserved.
           </p>
+          <div className="flex items-center gap-3">
+            <Link to="/privacy" className="text-[10px] hover:text-orange-500 transition-colors" style={{ color: dimColor }}>Privacy Policy</Link>
+            <span className="w-0.5 h-0.5 rounded-full" style={{ background: dimColor }} />
+            <Link to="/terms" className="text-[10px] hover:text-orange-500 transition-colors" style={{ color: dimColor }}>Terms of Service</Link>
+          </div>
         </div>
       </div>
 
@@ -144,7 +153,7 @@ export default function Footer({ isDark = false, forceLight = false, compact = f
         <div className="max-w-7xl mx-auto py-5 flex items-center justify-between gap-6">
           {/* Logo + tagline */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            <a href="/"><img src={logoSrc} alt="Huna Creatives" className="h-7 w-auto" /></a>
+            <Link to="/"><img src={logoSrc} alt="Huna Creatives" className="h-7 w-auto" /></Link>
             <span className="hidden xl:block text-[11px] leading-snug" style={{ color: dimColor }}>
               Let&apos;s bring your{' '}
               <em className="not-italic font-semibold" style={{
@@ -198,14 +207,15 @@ export default function Footer({ isDark = false, forceLight = false, compact = f
             &copy; {new Date().getFullYear()} Huna Creatives. All rights reserved.
           </p>
           <div className="flex items-center gap-3">
-            {services.map((s, i) => (
+            {services.map((s) => (
               <span key={s} className="flex items-center gap-3">
                 <span className="text-[10px]" style={{ color: dimColor }}>{s}</span>
-                {i < services.length - 1 && (
-                  <span className="w-0.5 h-0.5 rounded-full" style={{ background: dimColor }} />
-                )}
+                <span className="w-0.5 h-0.5 rounded-full" style={{ background: dimColor }} />
               </span>
             ))}
+            <Link to="/privacy" className="text-[10px] hover:text-orange-500 transition-colors" style={{ color: dimColor }}>Privacy Policy</Link>
+            <span className="w-0.5 h-0.5 rounded-full" style={{ background: dimColor }} />
+            <Link to="/terms" className="text-[10px] hover:text-orange-500 transition-colors" style={{ color: dimColor }}>Terms of Service</Link>
           </div>
         </div>
       </div>

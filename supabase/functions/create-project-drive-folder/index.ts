@@ -40,17 +40,18 @@ async function createOrGetFolder(name: string, parentId: string, token: string):
   const created = await create.json();
   if (!created.id) throw new Error(`Folder create failed: ${JSON.stringify(created)}`);
 
-  // Share new folder as "Anyone with the link can view" so the in-hub
-  // embeddedfolderview iframe renders without a Google sign-in prompt.
+  // Share new folder as "Anyone with the link can edit" so clients/team can
+  // upload and edit files directly, and so the in-hub embeddedfolderview
+  // iframe renders without a Google sign-in prompt.
   const perm = await fetch(
     `https://www.googleapis.com/drive/v3/files/${created.id}/permissions`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+      body: JSON.stringify({ role: 'writer', type: 'anyone' }),
     },
   );
-  if (!perm.ok) console.error('Set anyone-reader permission failed:', await perm.text());
+  if (!perm.ok) console.error('Set anyone-writer permission failed:', await perm.text());
 
   return created.id;
 }

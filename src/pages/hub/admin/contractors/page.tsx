@@ -12,12 +12,137 @@ type ConfirmAction = { type: 'deactivate' | 'delete' | 'resend-invite' | 'reset-
 type Toast = { id: number; message: string; type: 'success' | 'error' };
 type SyncResult = { updated: string[]; notFound: string[]; unchanged: number; errors: string[] };
 
+function OrgChartCard({ person, onSelect, byId }: { person: HubUser; onSelect: (id: string) => void; byId: Record<string, HubUser> }) {
+  const inactive = person.status !== 'active';
+  const secondaryManager = person.secondary_manager_id ? byId[person.secondary_manager_id] : null;
+  return (
+    <button onClick={() => onSelect(person.id)}
+      className={`relative flex flex-col items-center gap-1.5 bg-white border rounded-xl px-4 py-3 hover:shadow-md transition-all cursor-pointer text-center w-36 flex-shrink-0 ${
+        inactive ? 'border-gray-100 opacity-60' : 'border-gray-100 hover:border-[#FF6B35]/40'
+      }`}>
+      {inactive && (
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
+          Inactive
+        </span>
+      )}
+      {person.avatar_url ? (
+        <img src={person.avatar_url} alt={person.full_name} className={`w-11 h-11 rounded-full object-cover object-top flex-shrink-0 ${inactive ? 'grayscale' : ''}`} />
+      ) : (
+        <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${inactive ? 'bg-gray-300' : 'bg-[#FF6B35]'}`}>
+          <span className="text-white text-sm font-bold">{person.full_name.charAt(0).toUpperCase()}</span>
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-[#111827] leading-tight">{person.full_name}</p>
+        <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{person.job_title || person.department || '—'}</p>
+      </div>
+      {secondaryManager && (
+        <p className="text-[9px] text-gray-400 leading-tight border-t border-dashed border-gray-200 pt-1 mt-0.5 w-full truncate" title={`Dotted-line report to ${secondaryManager.full_name}`}>
+          <i className="ri-git-branch-line"></i> also → {secondaryManager.full_name.split(' ')[0]}
+        </p>
+      )}
+    </button>
+  );
+}
+
+// Classic pyramid/org-chart connector layout: a stem drops from the parent
+// to a horizontal bar spanning its children, then a stem rises from that bar
+// into each child. The horizontal bar is only drawn for the portion between
+// the first and last child (via left/right insets keyed off position), so a
+// row of 3+ never floats a stray line out past the outermost cards.
+function OrgChartNode({ person, childrenByManager, onSelect, ancestors, byId }: {
+  person: HubUser;
+  childrenByManager: Record<string, HubUser[]>;
+  onSelect: (id: string) => void;
+  ancestors: Set<string>;
+  byId: Record<string, HubUser>;
+}) {
+  // A "reports to" cycle (A -> B -> A, set by mistake) would otherwise recurse
+  // forever — stop descending once we've already rendered this id above us.
+  if (ancestors.has(person.id)) return null;
+  const kids = (childrenByManager[person.id] || []).filter((k) => !ancestors.has(k.id));
+  const nextAncestors = new Set(ancestors).add(person.id);
+
+  return (
+    <div className="flex flex-col items-center">
+      <OrgChartCard person={person} onSelect={onSelect} byId={byId} />
+      {kids.length > 0 && (
+        <>
+          <div className="w-px h-5 bg-gray-300" />
+          <div className="flex items-start">
+            {kids.map((kid, i) => (
+              <div key={kid.id} className="relative flex flex-col items-center px-4">
+                {kids.length > 1 && (
+                  <div
+                    className="absolute top-0 h-px bg-gray-300"
+                    style={{
+                      left: i === 0 ? '50%' : 0,
+                      right: i === kids.length - 1 ? '50%' : 0,
+                    }}
+                  />
+                )}
+                <div className="w-px h-5 bg-gray-300" />
+                <OrgChartNode person={kid} childrenByManager={childrenByManager} onSelect={onSelect} ancestors={nextAncestors} byId={byId} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function OrgChartView({ contractors, onSelect }: { contractors: HubUser[]; onSelect: (id: string) => void }) {
+  // Shows everyone regardless of status — inactive people are still part of
+  // the org's shape and are visually flagged (see OrgChartCard) rather than
+  // hidden. That's a deliberate difference from the public About page, which
+  // auto-hides on deactivation for safety.
+  const allIds = new Set(contractors.map((c) => c.id));
+  const byId: Record<string, HubUser> = {};
+  for (const c of contractors) byId[c.id] = c;
+
+  const bySortOrder = (a: HubUser, b: HubUser) => (a.org_sort_order ?? 100) - (b.org_sort_order ?? 100) || a.full_name.localeCompare(b.full_name);
+
+  const childrenByManager: Record<string, HubUser[]> = {};
+  for (const c of contractors) {
+    if (c.manager_id && allIds.has(c.manager_id)) {
+      (childrenByManager[c.manager_id] ||= []).push(c);
+    }
+  }
+  for (const kids of Object.values(childrenByManager)) kids.sort(bySortOrder);
+
+  // Top-level: no manager, or manager isn't in the current employee set
+  // (avoids orphaning someone under a removed manager).
+  const roots = contractors.filter((c) => !c.manager_id || !allIds.has(c.manager_id)).sort(bySortOrder);
+
+  if (contractors.length === 0) {
+    return (
+      <div className="bg-white border border-gray-100 rounded-xl p-10 text-center">
+        <i className="ri-node-tree text-3xl text-gray-200 block mb-2"></i>
+        <p className="text-sm text-gray-400">No employees found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl p-8 overflow-x-auto">
+      <p className="text-xs text-gray-400 mb-6 text-center">Set who each person reports to from their Edit Employee form.</p>
+      <div className="flex items-start justify-center gap-10 w-max mx-auto">
+        {roots.map((person) => (
+          <OrgChartNode key={person.id} person={person} childrenByManager={childrenByManager} onSelect={onSelect} ancestors={new Set()} byId={byId} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ContractorsPage() {
   const navigate = useNavigate();
   const { isDemo } = useDemo();
   const [contractors, setContractors] = useState<HubUser[]>([]);
   const [filtered, setFiltered] = useState<HubUser[]>([]);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'list' | 'org'>('list');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -42,7 +167,7 @@ export default function ContractorsPage() {
     const { data } = await supabase
       .from('hub_users')
       .select('*')
-      .in('role', ['contractor', 'admin'])
+      .in('role', ['contractor', 'admin', 'owner'])
       .order('full_name');
     setContractors((data as HubUser[]) ?? []);
     setLoading(false);
@@ -171,6 +296,11 @@ export default function ContractorsPage() {
                   {contractors.filter(c => c.status === 'active' && c.avatar_url).slice(0, 4).map(c => (
                     <img key={c.id} src={c.avatar_url!} alt={c.full_name} className="w-7 h-7 rounded-full object-cover object-top border-2 border-[#111827] flex-shrink-0" />
                   ))}
+                  {contractors.filter(c => c.status === 'active').length > 4 && (
+                    <div className="w-7 h-7 rounded-full bg-white/10 border-2 border-[#111827] flex-shrink-0 flex items-center justify-center">
+                      <span className="text-white/60 text-[9px] font-semibold">+{contractors.filter(c => c.status === 'active').length - 4}</span>
+                    </div>
+                  )}
                 </div>
                 <p className="text-white/50 text-xs">{contractors.filter(c => c.status === 'active').length} active</p>
               </div>
@@ -204,6 +334,24 @@ export default function ContractorsPage() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full sm:w-auto sm:inline-flex">
+          {([
+            { key: 'list', label: 'Employees', icon: 'ri-list-check' },
+            { key: 'org', label: 'Org Chart', icon: 'ri-node-tree' },
+          ] as const).map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
+                tab === t.key ? 'bg-white text-[#111827] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}>
+              <i className={t.icon}></i> {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'org' && <OrgChartView contractors={contractors} onSelect={(id) => navigate(`/hub/admin/contractors/${id}`)} />}
+
+        {tab === 'list' && <>
         {/* Search + filter */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
@@ -426,6 +574,7 @@ export default function ContractorsPage() {
         )}
 
         <p className="text-xs text-gray-400 pb-1">{filtered.length} employee{filtered.length !== 1 ? 's' : ''} shown</p>
+        </>}
       </div>
 
       {showAdd && (

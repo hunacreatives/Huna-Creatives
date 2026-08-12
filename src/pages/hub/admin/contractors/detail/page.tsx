@@ -493,7 +493,7 @@ export default function ContractorDetailPage() {
               {[
                 { label: 'Phone', value: contractor.phone, icon: 'ri-phone-line' },
                 { label: 'Birthday', value: contractor.birthday, icon: 'ri-cake-line' },
-                { label: 'Start Date', value: contractor.start_date ? new Date(contractor.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : undefined, icon: 'ri-calendar-line' },
+                { label: 'Start Date', value: contractor.start_date, icon: 'ri-calendar-line' },
                 { label: 'Address', value: contractor.address, icon: 'ri-map-pin-line' },
               ].map((f) => f.value ? (
                 <div key={f.label} className="flex items-start gap-2.5">

@@ -2,13 +2,14 @@ import { BrowserRouter, useLocation } from "react-router-dom";
 import { AppRoutes } from "./router";
 import { I18nextProvider } from "react-i18next";
 import i18n from "./i18n";
-import { useEffect, useRef, Suspense } from "react";
+import { useEffect, useLayoutEffect, useRef, Suspense } from "react";
 import ScrollToTop from "./components/feature/ScrollToTop";
+import CookieConsent from "./components/feature/CookieConsent";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DemoProvider } from "./contexts/DemoContext";
 
 // Pages that use a light/white background
-const LIGHT_BG_ROUTES = ['/about', '/hub'];
+const LIGHT_BG_ROUTES = ['/about', '/hub', '/privacy', '/terms'];
 const DARK_HUB_ROUTES = ['/hub/login'];
 // Routes where navigation should feel instant (no fade animation)
 const NO_TRANSITION_ROUTES = ['/hub'];
@@ -17,13 +18,25 @@ function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // useLayoutEffect, not useEffect — this must land before the browser
+  // paints the new route. useEffect fires after paint, so for a frame or two
+  // the new page would render on top of the previous route's leftover
+  // html/body background color, flashing through any rounded/transparent
+  // corners (e.g. dark Home bg showing at About's top edges) until it caught
+  // up.
+  useLayoutEffect(() => {
     // Sync html + body background with the page so overscroll never flickers
     const isDarkHubRoute = DARK_HUB_ROUTES.some((r) => location.pathname.startsWith(r));
     const isLight = LIGHT_BG_ROUTES.some((r) => location.pathname.startsWith(r));
     const bg = isDarkHubRoute ? '#0a0608' : isLight ? '#ffffff' : '#0a0a0a';
     document.documentElement.style.background = bg;
     document.body.style.background = bg;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const isHub = NO_TRANSITION_ROUTES.some((r) => location.pathname.startsWith(r));
+    if (isHub) return; // hub manages its own internal scroll, not window scroll
+    window.scrollTo(0, 0);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -60,6 +73,7 @@ function App() {
               </Suspense>
             </PageTransitionWrapper>
             <ScrollToTop />
+            <CookieConsent />
           </AuthProvider>
         </DemoProvider>
       </BrowserRouter>

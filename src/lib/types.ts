@@ -15,6 +15,9 @@ export interface HubUser {
   slack_username?: string;
   department?: string;
   job_title?: string;
+  manager_id?: string;
+  secondary_manager_id?: string;
+  org_sort_order?: number;
   about_bio?: string;
   show_on_about?: boolean;
   about_sort_order?: number;

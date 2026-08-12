@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
@@ -530,10 +531,15 @@ export default function TimeOffPanel() {
         )}
       </div>
 
-      {/* Review modal */}
-      {selected && (
+      {/* Review modal — portaled to document.body so it isn't trapped inside
+          AdminLayout's backdrop-filter containing block, which otherwise caps
+          its effective stacking order below the fixed bottom nav on mobile. */}
+      {selected && createPortal(
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <div
+            className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-semibold text-[#111827]">{(selected.hub_users as HubUser)?.full_name}</h2>
@@ -614,7 +620,8 @@ export default function TimeOffPanel() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

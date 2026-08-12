@@ -16,18 +16,18 @@ interface TeamMember {
 const values = [
   {
     icon: 'ri-lightbulb-flash-line',
-    title: 'Strategy First',
-    desc: 'Every creative decision is rooted in strategy. We dig deep into your brand, audience, and goals before a single pixel is placed.',
+    title: 'Huna, Not Templates',
+    desc: '"Huna" is Bisaya for to think, to imagine, to create — which is why every project starts from scratch, not a template library.',
   },
   {
-    icon: 'ri-team-line',
-    title: 'Collaborative Spirit',
-    desc: 'We work alongside you — not in a silo. Your insights shape the direction, and our expertise brings it to life.',
+    icon: 'ri-map-pin-line',
+    title: 'Built in Cebu',
+    desc: "We're a Cebuano creative firm working with brands globally, bringing a distinct Filipino creative perspective to every project.",
   },
   {
     icon: 'ri-rocket-2-line',
-    title: 'Purposeful Design',
-    desc: 'Beautiful design that does nothing is just decoration. We create visuals that communicate, convert, and connect.',
+    title: 'Design That Works',
+    desc: "A logo that looks great and doesn't survive being embroidered on a cap has failed. We design for where the work actually has to live.",
   },
 ];
 
@@ -57,6 +57,17 @@ function useScrollReveal(deps: unknown[] = []) {
   }, deps);
   return ref;
 }
+
+// Same frosted-glass recipe as the homepage's HighlightTiles "light" tiles —
+// translucent white + backdrop blur/saturate so the orb field behind it
+// reads through, not an opaque card.
+const glassCardStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.45)',
+  backdropFilter: 'blur(20px) saturate(160%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+  border: '1px solid rgba(255,255,255,0.6)',
+  boxShadow: '0 8px 32px rgba(48,50,54,0.08), inset 0 1px 0 rgba(255,255,255,0.5)',
+};
 
 export default function AboutPage() {
   useSEO({
@@ -88,57 +99,98 @@ export default function AboutPage() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.functions.invoke('public-team');
-      const mapped: TeamMember[] = (data?.team ?? []).map((m: any) => ({
-        name: m.full_name,
-        role: m.job_title || m.department || '',
-        bio: m.about_bio || '',
-        image: m.avatar_url || '',
-        hasPhoto: !!m.avatar_url,
-      }));
+      const mapped: TeamMember[] = (data?.team ?? [])
+        .filter((m: any) => !String(m.full_name || '').toLowerCase().includes('reeva'))
+        .filter((m: any) => !String(m.full_name || '').toLowerCase().includes('thamara'))
+        .map((m: any) => ({
+          name: m.full_name,
+          role: m.job_title || m.department || '',
+          bio: m.about_bio || '',
+          image: m.avatar_url || '',
+          hasPhoto: !!m.avatar_url,
+        }));
       setTeamMembers(mapped);
     })();
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-body">
-      <Navigation />
+    <div className="min-h-screen bg-[#F5F5F5] text-[#303236] font-body">
+      <Navigation invertOnScroll barTheme="light" />
 
-      {/* Subtle ambient blobs — absolute, not fixed, so GPU doesn't composite on every scroll frame */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-100/50 rounded-full blur-[80px]" />
-        <div className="absolute top-1/3 right-0 w-80 h-80 bg-orange-100/50 rounded-full blur-[60px]" />
-        <div className="absolute bottom-1/4 left-0 w-72 h-72 bg-rose-100/40 rounded-full blur-[60px]" />
-        <div className="absolute bottom-0 right-1/3 w-64 h-64 bg-orange-50/50 rounded-full blur-[50px]" />
-      </div>
+      {/* Same continuous orb field as the homepage's white zone, copied 1:1 —
+          a normal (not `absolute inset-0`) wrapper that grows with the full
+          page content, not just the first viewport, with every section
+          nested inside it so the color shows through the glass cards. */}
+      <div className="relative overflow-hidden">
+        <div
+          className="pointer-events-none absolute top-[-15%] -left-[15%] w-[900px] h-[900px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(230,84,22,0.16), transparent 72%)',
+            filter: 'blur(70px)',
+            animation: 'orb-float-a 22s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="pointer-events-none absolute top-[6%] -right-[15%] w-[820px] h-[820px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(160,201,203,0.4), transparent 72%)',
+            filter: 'blur(70px)',
+            animation: 'orb-float-b 26s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="pointer-events-none absolute top-[28%] left-[38%] w-[620px] h-[620px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(216,214,201,0.5), transparent 72%)',
+            filter: 'blur(70px)',
+            animation: 'orb-float-c 20s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="pointer-events-none absolute top-[48%] -left-[10%] w-[760px] h-[760px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(45,90,93,0.4), transparent 72%)',
+            filter: 'blur(70px)',
+            animation: 'orb-float-c 24s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="pointer-events-none absolute top-[68%] right-[5%] w-[900px] h-[900px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(240,107,51,0.18), transparent 72%)',
+            filter: 'blur(70px)',
+            animation: 'orb-float-d 28s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="pointer-events-none absolute top-[80%] left-[8%] w-[560px] h-[560px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(45,90,93,0.32), transparent 72%)',
+            filter: 'blur(70px)',
+            animation: 'orb-float-b 23s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="pointer-events-none absolute top-[92%] left-1/3 w-[850px] h-[850px] rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(160,201,203,0.34), transparent 72%)',
+            filter: 'blur(70px)',
+            animation: 'orb-float-a 25s ease-in-out infinite',
+          }}
+        />
 
       {/* ── HERO ── */}
       <section ref={heroRef} className="relative pt-24 sm:pt-28 pb-0 overflow-hidden z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="reveal-item scroll-reveal flex items-center gap-3 mb-5">
-            <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">About Us</span>
+            <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">About Us</span>
           </div>
 
-          <div className="reveal-item scroll-reveal mb-7 max-w-4xl">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-[1.08] tracking-tight text-gray-900">
-              We design with{' '}
-              <span className="gradient-text-animated">purpose</span>
-              <br />and move brands{' '}
-              <span className="gradient-text-animated">to action.</span>
+          <div className="reveal-item scroll-reveal mb-8 sm:mb-10 max-w-4xl">
+            <h1 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-[#303236]">
+              We design with purpose<span className="hidden sm:inline"><br /></span>{' '}
+              and move brands <span className="text-[#E65416]">to action.</span>
             </h1>
-          </div>
-
-          <div className="reveal-item scroll-reveal flex flex-wrap gap-8 sm:gap-12 mb-10">
-            {[
-              { value: '100+', label: 'Projects Delivered' },
-              { value: '5.0★', label: 'Partner Rating' },
-              { value: '100%', label: 'Satisfaction Rate' },
-              { value: '3+', label: 'Years of Excellence' },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className="text-lg sm:text-xl md:text-2xl font-bold font-display gradient-text">{stat.value}</p>
-                <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5">{stat.label}</p>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -157,28 +209,23 @@ export default function AboutPage() {
               />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent" />
-            <div className="absolute inset-0 rounded-2xl md:rounded-3xl ring-1 ring-gray-200" />
+            <div className="absolute inset-0 rounded-2xl md:rounded-3xl ring-1 ring-[#303236]/10" />
           </div>
         </div>
       </section>
 
-      {/* ── separator ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-16 sm:mt-20">
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-      </div>
-
       {/* ── STORY ── */}
       <section ref={storyRef} className="py-16 sm:py-20 md:py-24 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="grid lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-20 items-start">
+          <div className="grid lg:grid-cols-12 gap-8 sm:gap-10 lg:gap-20 items-start">
             {/* Left heading */}
-            <div className="lg:col-span-4 lg:sticky lg:top-32">
+            <div className="lg:col-span-4">
               <div className="reveal-item scroll-reveal">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">Our Story</span>
+                  <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">Our Story</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-gray-900">
-                  Who We <span className="gradient-text">Are</span>
+                <h2 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-[#303236]">
+                  Who We <span className="text-[#E65416]">Are</span>
                 </h2>
               </div>
             </div>
@@ -186,23 +233,32 @@ export default function AboutPage() {
             {/* Right body text */}
             <div className="lg:col-span-7 lg:col-start-6">
               <div className="reveal-item scroll-reveal space-y-4 sm:space-y-5">
-                <p className="text-sm sm:text-[15px] text-gray-600 leading-relaxed">
-                  We are a Cebuano creative firm that believes thoughtful design leads to meaningful impact. At Huna Creatives, we combine strategy, storytelling, and visuals to help brands stand out with clarity and purpose.
+                <p className="text-[15px] sm:text-base text-[#303236]/85 leading-relaxed text-justify hyphens-auto">
+                  Huna Creatives is a small studio in Cebu — ten designers, writers, and strategists. In three years we&apos;ve made work for 38 brands: a sport-horse dealership, a pediatric dental practice, a mortgage team, a supplement line, an architecture firm.
                 </p>
-                <p className="text-sm sm:text-[15px] text-gray-600 leading-relaxed">
-                  Our approach is collaborative and intentional — no templates, no cookie-cutter campaigns. Every project we take on is crafted to reflect your brand&apos;s unique voice and connect with the audience that matters.
+                <p className="text-sm sm:text-[15px] text-[#303236]/70 leading-relaxed text-justify hyphens-auto">
+                  That spread is deliberate. A dental practice and a supplement brand need close to opposite things, so each project starts with learning the business rather than reaching for a layout that worked last time. It&apos;s slower at the front end. It&apos;s also the reason the work fits.
                 </p>
-                <p className="text-sm sm:text-[15px] text-gray-700 leading-relaxed">
-                  At Huna, it&apos;s not just about looking good.{' '}
-                  <strong className="gradient-text font-semibold">
-                    It&apos;s about designing with purpose, thinking forward, and moving brands to action.
-                  </strong>
+                <p className="text-sm sm:text-[15px] text-[#303236]/70 leading-relaxed text-justify hyphens-auto">
+                  We keep only a few projects running at once — enough room to think properly about each one, and to still be reachable after it ships.
                 </p>
-                <div className="bg-gray-50 border border-gray-100 border-l-4 border-l-orange-400 rounded-xl p-5 sm:p-6 mt-2">
-                  <p className="text-gray-500 italic text-xs sm:text-sm leading-relaxed">
-                    &ldquo;Design is not just what it looks like and feels like. Design is how it works — and how it moves people.&rdquo;
-                  </p>
-                  <p className="text-brand-orange text-xs font-semibold mt-2 sm:mt-3">— Huna Creatives</p>
+
+                {/* Concrete proof, in place of the pull-quote that used to sit here */}
+                <div className="grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-x-10 sm:gap-y-4 pt-4">
+                  {[
+                    { value: '38', label: 'Brands built' },
+                    { value: '100+', label: 'Projects delivered' },
+                    { value: '4.8★', label: 'Average client rating' },
+                  ].map((stat) => (
+                    <div key={stat.label}>
+                      <div className="font-display text-xl sm:text-2xl font-bold text-[#E65416] leading-none">
+                        {stat.value}
+                      </div>
+                      <div className="text-[10px] tracking-wide uppercase text-[#303236]/45 mt-1.5">
+                        {stat.label}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -210,21 +266,16 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── separator ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-      </div>
-
       {/* ── VALUES ── */}
-      <section ref={valuesRef} className="py-16 sm:py-20 md:py-24 relative z-10 bg-gray-50/60">
+      <section ref={valuesRef} className="py-16 sm:py-20 md:py-24 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-12">
+          <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-3 mb-8 sm:mb-12">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">Our Approach</span>
+                <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">Our Approach</span>
               </div>
-              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-gray-900">
-                What <span className="gradient-text-animated">Drives Us</span>
+              <h2 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-[#303236]">
+                What <span className="text-[#E65416]">Drives Us</span>
               </h2>
             </div>
           </div>
@@ -232,13 +283,18 @@ export default function AboutPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {values.map((item, i) => (
               <div key={item.title} className="reveal-item scroll-reveal group" style={{ transitionDelay: `${i * 120}ms` }}>
-                <div className="h-full bg-white rounded-2xl p-6 sm:p-7 md:p-8 hover:-translate-y-1 transition-all duration-500 border border-gray-100 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-50/0 to-orange-50/0 group-hover:from-red-50 group-hover:to-orange-50/60 transition-all duration-500 rounded-2xl" />
-                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-brand mb-5 group-hover:scale-110 transition-transform duration-300 relative z-10">
+                <div
+                  className="h-full rounded-2xl p-6 sm:p-7 md:p-8 hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
+                  style={glassCardStyle}
+                >
+                  <div
+                    className="w-10 h-10 flex items-center justify-center rounded-xl mb-5 group-hover:scale-110 transition-transform duration-300 relative z-10"
+                    style={{ background: 'linear-gradient(135deg, #E65416, #F06B33)' }}
+                  >
                     <i className={`${item.icon} text-lg text-white`} />
                   </div>
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-2 font-display relative z-10">{item.title}</h3>
-                  <p className="text-gray-500 leading-relaxed text-xs sm:text-[13px] relative z-10">{item.desc}</p>
+                  <h3 className="text-sm sm:text-base font-semibold text-[#303236] mb-2 font-display relative z-10">{item.title}</h3>
+                  <p className="text-[#303236]/60 leading-relaxed text-[13px] sm:text-[13px] relative z-10 text-justify hyphens-auto">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -246,24 +302,19 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── separator ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-      </div>
-
       {/* ── TEAM ── */}
-      <section ref={teamRef} id="team" className="py-16 sm:py-20 md:py-24 relative z-10 bg-white">
+      <section ref={teamRef} id="team" className="py-16 sm:py-20 md:py-24 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-12">
+          <div className="reveal-item scroll-reveal flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-3 mb-8 sm:mb-12">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">The People</span>
+                <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">The People</span>
               </div>
-              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-gray-900">
-                Meet The <span className="gradient-text-animated">Team</span>
+              <h2 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-[#303236]">
+                Meet The <span className="text-[#E65416]">Team</span>
               </h2>
             </div>
-            <p className="text-xs sm:text-sm text-gray-400 max-w-[200px] leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#303236]/45 sm:max-w-[200px] leading-relaxed">
               The creative minds behind every Huna project.
             </p>
           </div>
@@ -271,8 +322,11 @@ export default function AboutPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
             {teamMembers.map((member, i) => (
               <div key={member.name} className="reveal-item scroll-reveal group cursor-pointer" style={{ transitionDelay: `${i * 80}ms` }}>
-                <div className="relative overflow-hidden rounded-xl md:rounded-2xl mb-2 sm:mb-3 border border-gray-100 group-hover:border-brand-orange/40 group-hover:shadow-lg transition-all duration-500">
-                  <div className="w-full h-40 sm:h-48 md:h-64 lg:h-72 xl:h-80 bg-gray-100 flex items-center justify-center">
+                <div
+                  className="relative overflow-hidden rounded-xl md:rounded-2xl mb-2 sm:mb-3 transition-all duration-500"
+                  style={glassCardStyle}
+                >
+                  <div className="w-full h-40 sm:h-48 md:h-64 lg:h-72 xl:h-80 bg-[#D8D6C9]/40 flex items-center justify-center">
                     {member.hasPhoto ? (
                       <img
                         src={member.image}
@@ -282,23 +336,23 @@ export default function AboutPage() {
                         style={{ objectPosition: (member as any).objectPosition || 'top center' }}
                       />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/70 border-2 border-dashed border-gray-300 flex items-center justify-center mb-3">
-                          <i className="ri-user-line text-2xl sm:text-3xl text-gray-400" />
+                      <div className="w-full h-full flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/70 border-2 border-dashed border-[#303236]/20 flex items-center justify-center mb-3">
+                          <i className="ri-user-line text-2xl sm:text-3xl text-[#303236]/30" />
                         </div>
-                        <p className="text-[10px] sm:text-xs text-gray-400 font-medium tracking-wide">Photo coming soon</p>
+                        <p className="text-[10px] sm:text-xs text-[#303236]/40 font-medium tracking-wide">Photo coming soon</p>
                       </div>
                     )}
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-3 sm:p-4">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/10 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-500 hidden sm:flex items-end p-3 sm:p-4">
                     <div className="translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                       <p className="text-white/90 text-[9px] sm:text-[11px] leading-relaxed">{member.bio}</p>
                     </div>
                   </div>
                 </div>
                 <div className="px-1">
-                  <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-900 leading-snug font-display">{member.name}</h3>
-                  <p className="gradient-text text-[9px] sm:text-[11px] md:text-xs font-medium mt-0.5">{member.role}</p>
+                  <h3 className="text-xs sm:text-xs md:text-sm font-semibold text-[#303236] leading-snug font-display">{member.name}</h3>
+                  <p className="text-[#303236]/50 text-[10px] sm:text-[11px] md:text-xs font-medium mt-0.5">{member.role}</p>
                 </div>
               </div>
             ))}
@@ -306,31 +360,29 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── separator ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-      </div>
-
       {/* ── CAREERS TEASER ── */}
-      <section className="py-16 sm:py-20 md:py-24 relative z-10 bg-white">
+      <section className="py-16 sm:py-20 md:py-24 relative z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 md:gap-16">
+          <div
+            className="rounded-3xl p-6 sm:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6 md:gap-16 text-center md:text-left"
+            style={glassCardStyle}
+          >
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-[10px] font-medium tracking-[0.3em] uppercase gradient-text">We&apos;re Growing</span>
+              <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
+                <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">We&apos;re Growing</span>
               </div>
-              <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 leading-tight">
-                Want to join the{' '}
-                <span className="gradient-text-animated">Huna team?</span>
+              <h2 className="font-display text-2xl sm:text-2xl md:text-3xl font-bold text-[#303236] mb-3 leading-tight">
+                Want to join the <span className="text-[#E65416]">Huna team?</span>
               </h2>
-              <p className="text-gray-500 text-xs sm:text-sm leading-relaxed max-w-md">
+              <p className="text-[#303236]/60 text-[13px] sm:text-sm leading-relaxed max-w-md mx-auto md:mx-0 text-justify md:text-left hyphens-auto">
                 Huna is built by passionate creatives who love what they do. If that sounds like you, we&apos;d love to have you — drop your details and be part of something worth building.
               </p>
             </div>
-            <div className="shrink-0">
+            <div className="shrink-0 w-full md:w-auto">
               <a
                 href="/careers"
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-brand text-white font-semibold rounded-full text-sm transition-all duration-300 hover:shadow-lg hover:shadow-orange-400/30 hover:scale-105 whitespace-nowrap cursor-pointer font-display"
+                className="inline-flex items-center justify-center gap-2 w-full md:w-auto px-8 py-3.5 text-white font-semibold rounded-full text-sm transition-all duration-300 hover:scale-105 whitespace-nowrap cursor-pointer font-display"
+                style={{ background: 'linear-gradient(135deg, #E65416, #F06B33)', boxShadow: '0 6px 30px rgba(230,84,22,0.35)' }}
               >
                 Join Our Talent Pool
                 <i className="ri-arrow-right-line text-sm" />
@@ -339,6 +391,7 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
+      </div>
 
       <Footer isDark={false} />
 

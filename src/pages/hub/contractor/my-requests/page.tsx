@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -575,10 +576,16 @@ export default function ContractorMyRequestsPage() {
         </div>
       )}
 
-      {/* Request Leave modal */}
-      {showLeaveModal && (
+      {/* Request Leave modal — portaled to document.body so it isn't trapped
+          inside ContractorLayout's backdrop-filter containing block, which
+          otherwise caps its effective stacking order below the fixed bottom
+          nav on mobile. */}
+      {showLeaveModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <div
+            className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-[#111827]">Request Leave</h2>
               <button onClick={() => setShowLeaveModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>
@@ -689,7 +696,8 @@ export default function ContractorMyRequestsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Request Overtime modal */}

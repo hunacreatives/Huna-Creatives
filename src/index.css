@@ -11,7 +11,11 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    /* Deliberately not scroll-behavior: smooth globally — combined with
+       overscroll-behavior-y: none below, a user scrolling mid-animation
+       (e.g. right after clicking an anchor link) can get their input
+       fought/dropped on some browsers, making the page feel stuck. Anchor
+       links that want a smooth jump do it explicitly via JS instead. */
     background-color: #0a0a0a;
   }
 
@@ -20,6 +24,19 @@
     overflow-x: hidden;
     background-color: #0a0a0a;
     overscroll-behavior-y: none;
+  }
+
+  /* iOS Safari zooms the whole viewport in on focus of any input/select/
+     textarea rendered under 16px. Several forms across the site set 12–14px
+     via Tailwind classes (text-xs/text-sm), which reads fine but triggers
+     that zoom the instant someone taps a field on a phone. Enforcing 16px
+     site-wide below the sm breakpoint fixes it everywhere in one place
+     rather than hunting down every form's font-size class; desktop sizing
+     (set per-component) is untouched since this only applies under 640px. */
+  @media (max-width: 639px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 }
 
@@ -50,10 +67,41 @@
   50% { background-position: 100% 50%; }
 }
 
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes marquee {
   0% { transform: translateX(0); }
-  100% { transform: translateX(-33.333%); }
+  100% { transform: translateX(-50%); }
 }
+
+@keyframes marquee-vertical {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+@keyframes orb-float-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 80px) scale(1.08); }
+}
+
+@keyframes orb-float-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-70px, 60px) scale(0.94); }
+}
+
+@keyframes orb-float-c {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(50px, -70px) scale(1.06); }
+}
+
+@keyframes orb-float-d {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-60px, -50px) scale(0.95); }
+}
+
 
 /* Collapsed-sidebar hover label (macOS Dock style) — pops out beside the icon */
 @keyframes sidebar-tip-in {
@@ -74,6 +122,15 @@
   25% { transform: translateY(-20px) translateX(10px); }
   50% { transform: translateY(-10px) translateX(-10px); }
   75% { transform: translateY(-30px) translateX(5px); }
+}
+
+/* Gentler vertical bob with a slight rotation wobble — used for scattered
+   collage photos/icons so not everything floats along the same diagonal
+   path as bubble-float. The base rotation is set inline per element (each
+   keeps its own tilt) and this only adds the bob on top of it. */
+@keyframes float-gentle {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -12px; }
 }
 
 @keyframes page-enter {

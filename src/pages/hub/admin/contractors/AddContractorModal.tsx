@@ -15,7 +15,7 @@ function fmt12(t: string) {
 }
 
 const emptyProfile = {
-  full_name: '', email: '', role: 'contractor' as 'contractor' | 'admin',
+  full_name: '', email: '', role: 'contractor' as 'contractor' | 'admin' | 'owner',
   department: '', job_title: '', start_date: new Date().toISOString().slice(0, 10),
   payment_type: 'fixed' as 'fixed' | 'hourly' | 'fixed_flexible' | 'project_based',
   monthly_rate: '', hourly_rate: '', project_percentage: '', currency: 'PHP',
@@ -217,6 +217,7 @@ export default function AddContractorModal({ onClose, onSuccess }: Props) {
                       <select value={profile.role} onChange={e => setP('role', e.target.value)} className={`${inputCls} bg-white`}>
                         <option value="contractor">Employee</option>
                         <option value="admin">HR / Admin</option>
+                        <option value="owner">Owner</option>
                       </select></div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">

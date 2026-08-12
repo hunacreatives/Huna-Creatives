@@ -40,49 +40,46 @@ export default function BlogPage() {
     activeCategory === 'All' || featured.category === activeCategory;
 
   return (
-    <div className="min-h-screen" style={{ background: '#0a0a0a' }}>
-      <Navigation />
+    <div className="min-h-screen font-body" style={{ background: '#F5F5F5' }}>
+      <Navigation invertOnScroll barTheme="light" />
+
+      {/* Same continuous orb field as the rest of the site */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div
+          className="absolute top-[-15%] -left-[15%] w-[900px] h-[900px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,91,5,0.16), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-a 22s ease-in-out infinite' }}
+        />
+        <div
+          className="absolute top-[6%] -right-[15%] w-[820px] h-[820px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.4), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-b 26s ease-in-out infinite' }}
+        />
+        <div
+          className="absolute top-[55%] left-[30%] w-[620px] h-[620px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(211,221,222,0.5), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-c 20s ease-in-out infinite' }}
+        />
+        <div
+          className="absolute top-[75%] -left-[10%] w-[760px] h-[760px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.32), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-c 24s ease-in-out infinite' }}
+        />
+      </div>
 
       {/* Page Header */}
-      <section className="pt-36 pb-16 px-6 text-center relative overflow-hidden">
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(234,88,12,0.12) 0%, transparent 70%)',
-          }}
-        />
-        <div className="relative z-10 max-w-3xl mx-auto">
-          <div
-            className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full"
-            style={{ background: 'rgba(234,88,12,0.1)', border: '1px solid rgba(234,88,12,0.3)' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-            <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-orange-300">
-              Insights & Ideas
-            </span>
-          </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight mb-4 font-display">
-            The Huna{' '}
-            <span
-              style={{
-                background: 'linear-gradient(135deg, #ef4444, #f97316, #fb7185)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              Journal
-            </span>
+      <section className="relative z-10 pt-24 sm:pt-28 pb-12 px-4 sm:px-6 text-center">
+        <div className="max-w-3xl mx-auto">
+          <span className="inline-block text-[10px] font-semibold tracking-[0.25em] uppercase text-[#075056] mb-4">
+            Insights &amp; Ideas
+          </span>
+          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-[#243037] mb-4">
+            The Huna <span className="text-[#FF5B05]">Journal</span>
           </h1>
-          <p className="text-sm text-white/50 leading-relaxed max-w-xl mx-auto font-body">
+          <p className="text-sm text-[#243037]/55 leading-relaxed max-w-xl mx-auto font-body">
             Strategy, design, and brand-building insights from the Huna Creatives team — written to help you grow a brand that actually means something.
           </p>
         </div>
       </section>
 
       {/* Category Filter */}
-      <section className="px-6 pb-10">
+      <section className="relative z-10 px-4 sm:px-6 pb-10">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-wrap items-center gap-2 justify-center">
             {CATEGORIES.map((cat) => (
@@ -93,14 +90,16 @@ export default function BlogPage() {
                 style={
                   activeCategory === cat
                     ? {
-                        background: 'linear-gradient(135deg, #ef4444, #f97316)',
+                        background: 'linear-gradient(135deg, #FF5B05, #FF8A47)',
                         color: '#fff',
-                        boxShadow: '0 4px 16px rgba(234,88,12,0.35)',
+                        boxShadow: '0 8px 24px rgba(255,91,5,0.3)',
                       }
                     : {
-                        background: 'rgba(255,255,255,0.05)',
-                        color: 'rgba(255,255,255,0.5)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(255,255,255,0.6)',
+                        backdropFilter: 'blur(20px) saturate(160%)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                        color: 'rgba(36,48,55,0.6)',
+                        border: '1px solid rgba(255,255,255,0.6)',
                       }
                 }
               >
@@ -113,7 +112,7 @@ export default function BlogPage() {
 
       {/* Featured Article */}
       {featuredVisible && (
-        <section className="px-6 pb-12">
+        <section className="relative z-10 px-4 sm:px-6 pb-12">
           <div className="max-w-6xl mx-auto">
             <button
               onClick={() => navigate(`/blog/${featured.slug}`)}
@@ -121,7 +120,7 @@ export default function BlogPage() {
             >
               <div
                 className="relative rounded-2xl overflow-hidden transition-all duration-500 group-hover:scale-[1.01]"
-                style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                style={{ border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 10px 28px rgba(36,48,55,0.18)' }}
               >
                 {/* Hero Image */}
                 <div className="relative w-full h-64 md:h-80 lg:h-96 overflow-hidden">
@@ -130,11 +129,11 @@ export default function BlogPage() {
                     alt={featured.title}
                     className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.4) 50%, transparent 100%)' }} />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(36,48,55,0.92) 0%, rgba(36,48,55,0.45) 55%, transparent 100%)' }} />
                   {/* Featured Badge */}
                   <div
                     className="absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-semibold tracking-widest uppercase text-white"
-                    style={{ background: 'linear-gradient(135deg, #ef4444, #f97316)' }}
+                    style={{ background: 'linear-gradient(135deg, #FF5B05, #FF8A47)' }}
                   >
                     Featured
                   </div>
@@ -145,24 +144,24 @@ export default function BlogPage() {
                   <div className="flex items-center gap-3 mb-3">
                     <span
                       className="text-[10px] font-semibold tracking-widest uppercase px-2.5 py-1 rounded-full"
-                      style={{ background: 'rgba(234,88,12,0.2)', color: '#f97316', border: '1px solid rgba(234,88,12,0.3)' }}
+                      style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.35)' }}
                     >
                       {featured.category}
                     </span>
                     <span className="text-[11px] text-white/35">{featured.date}</span>
                     <span className="text-[11px] text-white/35">{featured.readTime}</span>
                   </div>
-                  <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-white leading-tight mb-2 font-display group-hover:text-orange-300 transition-colors duration-300">
+                  <h2 className="text-xl md:text-2xl lg:text-3xl font-black text-white leading-tight mb-2 font-display group-hover:text-[#FF8A47] transition-colors duration-300">
                     {featured.title}
                   </h2>
                   <p className="text-sm text-white/50 leading-relaxed max-w-2xl font-body line-clamp-2">
                     {featured.excerpt}
                   </p>
                   <div className="flex items-center gap-2 mt-4">
-                    <span className="text-xs font-semibold text-orange-400 group-hover:text-orange-300 transition-colors">
+                    <span className="text-xs font-semibold text-[#FF8A47] group-hover:text-white transition-colors">
                       Read Article
                     </span>
-                    <i className="ri-arrow-right-line text-orange-400 text-sm transition-transform duration-300 group-hover:translate-x-1" />
+                    <i className="ri-arrow-right-line text-[#FF8A47] text-sm transition-transform duration-300 group-hover:translate-x-1" />
                   </div>
                 </div>
               </div>
@@ -172,11 +171,11 @@ export default function BlogPage() {
       )}
 
       {/* Article Grid */}
-      <section className="px-6 pb-20">
+      <section className="relative z-10 px-4 sm:px-6 pb-20">
         <div className="max-w-6xl mx-auto">
           {filtered.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-white/30 text-sm">No articles in this category yet.</p>
+              <p className="text-[#243037]/45 text-sm">No articles in this category yet.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -186,16 +185,19 @@ export default function BlogPage() {
                   onClick={() => navigate(`/blog/${article.slug}`)}
                   className="group cursor-pointer text-left flex flex-col rounded-2xl overflow-hidden transition-all duration-400 hover:scale-[1.02] hover:-translate-y-1"
                   style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.07)',
+                    background: 'rgba(255,255,255,0.65)',
+                    backdropFilter: 'blur(20px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+                    border: '1px solid rgba(255,255,255,0.7)',
+                    boxShadow: '0 10px 28px rgba(36,48,55,0.12)',
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(234,88,12,0.3)';
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 16px 40px rgba(0,0,0,0.4)';
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,91,5,0.35)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 18px 40px rgba(36,48,55,0.18)';
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.07)';
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.7)';
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 10px 28px rgba(36,48,55,0.12)';
                   }}
                 >
                   {/* Image */}
@@ -205,7 +207,7 @@ export default function BlogPage() {
                       alt={article.title}
                       className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.6) 0%, transparent 60%)' }} />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(36,48,55,0.35) 0%, transparent 60%)' }} />
                   </div>
 
                   {/* Body */}
@@ -213,25 +215,25 @@ export default function BlogPage() {
                     <div className="flex items-center gap-2 mb-3">
                       <span
                         className="text-[9px] font-semibold tracking-widest uppercase px-2 py-0.5 rounded-full"
-                        style={{ background: 'rgba(234,88,12,0.15)', color: '#f97316', border: '1px solid rgba(234,88,12,0.25)' }}
+                        style={{ background: 'rgba(255,91,5,0.12)', color: '#FF5B05', border: '1px solid rgba(255,91,5,0.25)' }}
                       >
                         {article.category}
                       </span>
-                      <span className="text-[10px] text-white/30">{article.readTime}</span>
+                      <span className="text-[10px] text-[#243037]/45">{article.readTime}</span>
                     </div>
 
-                    <h3 className="text-sm font-bold text-white leading-snug mb-2 font-display group-hover:text-orange-300 transition-colors duration-300 line-clamp-2">
+                    <h3 className="text-sm font-bold text-[#243037] leading-snug mb-2 font-display group-hover:text-[#FF5B05] transition-colors duration-300 line-clamp-2">
                       {article.title}
                     </h3>
-                    <p className="text-xs text-white/40 leading-relaxed font-body line-clamp-3 flex-1">
+                    <p className="text-xs text-[#243037]/55 leading-relaxed font-body line-clamp-3 flex-1">
                       {article.excerpt}
                     </p>
 
-                    <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span className="text-[10px] text-white/30">{article.date}</span>
+                    <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '1px solid rgba(36,48,55,0.08)' }}>
+                      <span className="text-[10px] text-[#243037]/45">{article.date}</span>
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-semibold text-orange-400">Read</span>
-                        <i className="ri-arrow-right-line text-orange-400 text-xs transition-transform duration-300 group-hover:translate-x-0.5" />
+                        <span className="text-[10px] font-semibold text-[#FF5B05]">Read</span>
+                        <i className="ri-arrow-right-line text-[#FF5B05] text-xs transition-transform duration-300 group-hover:translate-x-0.5" />
                       </div>
                     </div>
                   </div>
@@ -242,7 +244,7 @@ export default function BlogPage() {
         </div>
       </section>
 
-      <Footer isDark />
+      <Footer />
     </div>
   );
 }

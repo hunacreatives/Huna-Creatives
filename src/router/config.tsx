@@ -9,6 +9,8 @@ const ContactPage = lazy(() => import('../pages/contact/page'));
 const BlogPage = lazy(() => import('../pages/blog/page'));
 const ArticlePage = lazy(() => import('../pages/blog/article/page'));
 const CareersPage = lazy(() => import('../pages/careers/page'));
+const PrivacyPolicyPage = lazy(() => import('../pages/legal/privacy/page'));
+const TermsOfServicePage = lazy(() => import('../pages/legal/terms/page'));
 const PortfolioPage = lazy(() => import('../pages/portfolio/page'));
 const PortfolioCategoryPage = lazy(() => import('../pages/portfolio/category/page'));
 const ProjectPage = lazy(() => import('../pages/portfolio/project/page'));
@@ -129,6 +131,14 @@ const routes: RouteObject[] = [
   {
     path: '/careers',
     element: <CareersPage />,
+  },
+  {
+    path: '/privacy',
+    element: <PrivacyPolicyPage />,
+  },
+  {
+    path: '/terms',
+    element: <TermsOfServicePage />,
   },
   { path: '/hub/login', element: <HubLoginPage /> },
   { path: '/hub/signup', element: <HubSignupPage /> },

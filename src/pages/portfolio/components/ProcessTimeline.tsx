@@ -81,7 +81,7 @@ function StepNode({ step, index }: { step: typeof steps[0]; index: number }) {
           <h3 className="font-display text-lg font-bold mb-2 leading-tight" style={{ color: step.accent }}>
             {step.title}
           </h3>
-          <p className="text-white/40 text-xs leading-relaxed mb-3">{step.desc}</p>
+          <p className="text-[#243037]/60 text-xs leading-relaxed mb-3">{step.desc}</p>
           <div className="flex flex-wrap gap-1.5">
             {step.details.map((detail) => (
               <span
@@ -191,7 +191,7 @@ function StepContent({ step, align }: { step: typeof steps[0]; align: 'left' | '
       </h3>
 
       {/* Description */}
-      <p className="text-white/40 text-sm leading-relaxed mb-5">{step.desc}</p>
+      <p className="text-[#243037]/60 text-sm leading-relaxed mb-5">{step.desc}</p>
 
       {/* Detail tags */}
       <div className={`flex flex-wrap gap-2 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
@@ -231,7 +231,7 @@ export default function ProcessTimeline() {
   });
 
   return (
-    <section ref={sectionRef} className="relative py-28 md:py-36 px-6 bg-[#0a0a0a] overflow-hidden">
+    <section ref={sectionRef} className="relative py-28 md:py-36 px-6 overflow-hidden">
       {/* Ambient background glow */}
       <div
         className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
@@ -253,7 +253,7 @@ export default function ProcessTimeline() {
           <span className="flex items-center justify-center gap-3 text-[10px] font-semibold tracking-[0.3em] uppercase text-orange-500 mb-4 font-display">
             Our Process
           </span>
-          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
+          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-[#243037] leading-tight mb-4">
             From idea to{' '}
             <span
               style={{
@@ -266,7 +266,7 @@ export default function ProcessTimeline() {
               impact.
             </span>
           </h2>
-          <p className="text-white/30 text-sm max-w-lg mx-auto leading-relaxed">
+          <p className="text-[#243037]/50 text-sm max-w-lg mx-auto leading-relaxed">
             Every great brand follows a journey. Here&apos;s how we guide yours — step by step, with intention and craft.
           </p>
         </motion.div>
@@ -275,7 +275,7 @@ export default function ProcessTimeline() {
         <div className="relative">
           {/* Static background line — desktop only */}
           <div
-            className="hidden md:block absolute left-1/2 -translate-x-1/2 top-0 w-px bg-white/[0.06]"
+            className="hidden md:block absolute left-1/2 -translate-x-1/2 top-0 w-px bg-[#243037]/[0.08]"
             style={{ bottom: '-96px' }}
           />
 
@@ -312,7 +312,7 @@ export default function ProcessTimeline() {
           </div>
 
           {/* Mobile: vertical connector line */}
-          <div className="md:hidden absolute left-[19px] top-0 bottom-0 w-px bg-white/[0.06]" />
+          <div className="md:hidden absolute left-[19px] top-0 bottom-0 w-px bg-[#243037]/[0.08]" />
 
           {/* Steps */}
           <div className="relative z-10 flex flex-col gap-0 md:gap-4">
@@ -378,9 +378,9 @@ export default function ProcessTimeline() {
           />
 
           <div
-            className="relative rounded-3xl overflow-hidden px-8 md:px-16 py-14 md:py-20 text-center transition-all duration-300"
+            className="relative rounded-3xl overflow-hidden px-6 md:px-12 py-10 md:py-14 text-center transition-all duration-300"
             style={{
-              background: 'linear-gradient(135deg, #141414 0%, #0f0f0f 100%)',
+              background: 'rgba(255,255,255,0.65)',
               border: `1px solid rgba(249,115,22,${0.15 + finaleGlow * 0.55})`,
               boxShadow: `0 0 ${60 + finaleGlow * 80}px rgba(249,115,22,${0.06 + finaleGlow * 0.18}), inset 0 1px 0 rgba(255,255,255,0.04)`,
             }}
@@ -406,7 +406,7 @@ export default function ProcessTimeline() {
                 The Result
               </span>
 
-              <h3 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
+              <h3 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-[#243037] leading-tight mb-4">
                 Your brand,{' '}
                 <span
                   style={{
@@ -420,52 +420,11 @@ export default function ProcessTimeline() {
                 </span>
               </h3>
 
-              <p className="text-white/30 text-sm max-w-xl mx-auto leading-relaxed mb-14">
+              <p className="text-[#243037]/50 text-sm max-w-xl mx-auto leading-relaxed mb-14">
                 When the process ends, the impact begins. Every brand we build is designed to outlast trends,
                 outperform expectations, and leave a mark that lasts.
               </p>
             </motion.div>
-
-            {/* Stats row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-14">
-              {[
-                { value: '33+', label: 'Brands Built', icon: 'ri-building-line' },
-                { value: '100+', label: 'Projects Delivered', icon: 'ri-checkbox-circle-line' },
-                { value: '5.0★', label: 'Average Rating', icon: 'ri-star-line' },
-                { value: '3×', label: 'Avg. Engagement Lift', icon: 'ri-line-chart-line' },
-              ].map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: 0.3 + i * 0.1 }}
-                  className="flex flex-col items-center gap-2"
-                >
-                  <div
-                    className="w-10 h-10 flex items-center justify-center rounded-full mb-1"
-                    style={{
-                      background: 'rgba(249,115,22,0.08)',
-                      border: '1px solid rgba(249,115,22,0.2)',
-                    }}
-                  >
-                    <i className={`${stat.icon} text-orange-400 text-base`} />
-                  </div>
-                  <div
-                    className="font-display text-2xl md:text-3xl font-bold"
-                    style={{
-                      background: 'linear-gradient(135deg, #ffffff, #f97316)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                    }}
-                  >
-                    {stat.value}
-                  </div>
-                  <div className="text-[10px] text-white/25 tracking-widest uppercase font-display">{stat.label}</div>
-                </motion.div>
-              ))}
-            </div>
 
             <div
               className="w-full h-px mb-10"
@@ -479,9 +438,9 @@ export default function ProcessTimeline() {
               transition={{ duration: 0.8, delay: 0.5 }}
               className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3"
             >
-              <span className="text-[9px] tracking-[0.3em] uppercase text-white/15 font-display mr-2">Worked with</span>
+              <span className="text-[9px] tracking-[0.3em] uppercase text-[#243037]/60 font-display mr-2">Worked with</span>
               {['Equestrian International', 'The Second Haus', 'Blue Collar Nutrition', 'Everyone by One', 'The Cowart Team', 'Vox Kitchen'].map((name) => (
-                <span key={name} className="text-[11px] font-semibold text-white/20 font-display tracking-wide whitespace-nowrap">
+                <span key={name} className="text-[11px] font-semibold text-[#243037]/45 font-display tracking-wide whitespace-nowrap">
                   {name}
                 </span>
               ))}
