@@ -32,10 +32,15 @@ export default function Navigation({ theme, alwaysSolid, invertOnScroll, barThem
   const navigate = useNavigate();
   const location = useLocation();
 
+  // For the dark bar variant, opening the mobile menu forces the nav
+  // background dark too (see `solid` below) — text color has to flip with it
+  // or you get dark text on a now-dark bar until the page happens to be
+  // scrolled. The light bar variant doesn't have this problem: its "solid"
+  // background is still light, so dark text stays legible regardless.
   const isLightPage = invertOnScroll
     ? barTheme === 'light'
       ? true
-      : !scrolled
+      : !(scrolled || mobileOpen)
     : theme
     ? theme === 'light'
     : LIGHT_BG_PAGES.includes(location.pathname);
