@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { FRANCIS_SIG } from '../_shared/francisSig.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -84,7 +85,7 @@ async function generatePdf(htmlContent: string, filename: string): Promise<Uint8
 function buildContractHtml(contract: any): string {
   const signedAt = contract.signed_at ? fmtDate(contract.signed_at) : '';
   const createdAt = contract.created_at ? fmtDate(contract.created_at) : '';
-  const HUNA_LOGO = 'https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
+  const HUNA_LOGO = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
 
   // Table-based layout — Google Docs ignores flex/grid so we use <table> for two-column rows
   return `<!DOCTYPE html>
@@ -144,7 +145,11 @@ function buildContractHtml(contract: any): string {
       <td width="48%" valign="top" style="padding-right:16pt;">
         <p style="font-size:10pt;font-weight:700;margin:0 0 2pt;"><strong>HUNA CREATIVES</strong></p>
         <p style="font-size:9pt;color:#6b7280;margin:0 0 16pt;">Service Provider</p>
-        <img src="https://hunacreatives.com/images/francis-signature.png" height="48" alt="Francis Signature" style="display:block;border:0;margin-bottom:4pt;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="height:52px;">
+          <tr><td height="52" valign="bottom" style="height:52px;padding:0 0 4pt;">
+            <img src="${FRANCIS_SIG}" alt="Francis Fiel Roble signature" style="height:52px;width:auto;max-width:220px;display:block;border:0;">
+          </td></tr>
+        </table>
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr><td height="1" bgcolor="#111111" style="font-size:0;line-height:0;">&nbsp;</td></tr>
         </table>
@@ -154,7 +159,9 @@ function buildContractHtml(contract: any): string {
       <td width="48%" valign="top">
         <p style="font-size:10pt;font-weight:700;margin:0 0 2pt;"><strong>CLIENT</strong></p>
         <p style="font-size:9pt;color:#6b7280;margin:0 0 16pt;">Authorized Representative</p>
-        <p style="font-size:22pt;font-family:Georgia,serif;font-style:italic;color:#1f2937;margin:0 0 4pt;line-height:1.2;">${contract.signer_name ?? ''}</p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="height:52px;">
+          <tr><td height="52" valign="bottom" style="height:52px;padding:0 0 4pt;font-size:19pt;font-family:'Segoe Script','Bradley Hand','Brush Script MT','Snell Roundhand','Apple Chancery',cursive;color:#1f2937;line-height:1.1;white-space:nowrap;">${contract.signer_name ?? ''}</td></tr>
+        </table>
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr><td height="1" bgcolor="#111111" style="font-size:0;line-height:0;">&nbsp;</td></tr>
         </table>
