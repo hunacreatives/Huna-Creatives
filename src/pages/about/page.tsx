@@ -189,7 +189,7 @@ export default function AboutPage() {
           <div className="reveal-item scroll-reveal mb-8 sm:mb-10 max-w-4xl">
             <h1 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-[#303236]">
               We design with purpose<span className="hidden sm:inline"><br /></span>{' '}
-              and move brands <span className="text-[#E65416]">to action.</span>
+              and move brands to action.
             </h1>
           </div>
         </div>
@@ -225,7 +225,7 @@ export default function AboutPage() {
                   <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">Our Story</span>
                 </div>
                 <h2 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-[#303236]">
-                  Who We <span className="text-[#E65416]">Are</span>
+                  Who We Are
                 </h2>
               </div>
             </div>
@@ -275,7 +275,7 @@ export default function AboutPage() {
                 <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">Our Approach</span>
               </div>
               <h2 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-[#303236]">
-                What <span className="text-[#E65416]">Drives Us</span>
+                What Drives Us
               </h2>
             </div>
           </div>
@@ -311,7 +311,7 @@ export default function AboutPage() {
                 <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">The People</span>
               </div>
               <h2 className="text-2xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display text-[#303236]">
-                Meet The <span className="text-[#E65416]">Team</span>
+                Meet The Team
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-[#303236]/45 sm:max-w-[200px] leading-relaxed">
@@ -372,7 +372,7 @@ export default function AboutPage() {
                 <span className="text-[11px] font-medium tracking-[0.3em] uppercase text-[#2D5A5D]">We&apos;re Growing</span>
               </div>
               <h2 className="font-display text-2xl sm:text-2xl md:text-3xl font-bold text-[#303236] mb-3 leading-tight">
-                Want to join the <span className="text-[#E65416]">Huna team?</span>
+                Want to join the Huna team?
               </h2>
               <p className="text-[#303236]/60 text-[13px] sm:text-sm leading-relaxed max-w-md mx-auto md:mx-0 text-justify md:text-left hyphens-auto">
                 Huna is built by passionate creatives who love what they do. If that sounds like you, we&apos;d love to have you — drop your details and be part of something worth building.
