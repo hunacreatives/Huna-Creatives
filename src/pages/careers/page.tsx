@@ -33,7 +33,6 @@ const teamPhotos = [
   { src: 'team-reese-jumawan.webp', alt: 'Reese', rotate: -7, y: 4 },
   { src: 'team-thamara-ong.webp', alt: 'Thamara', rotate: 4, y: -2 },
   { src: 'team-claudy-tahil.png', alt: 'Claudy', rotate: -5, y: 3 },
-  { src: 'team-cristopher-gorecho.jpg', alt: 'Cristopher', rotate: 6, y: -4 },
 ];
 
 export default function CareersPage() {
@@ -365,24 +364,24 @@ export default function CareersPage() {
         {/* Mobile — a real grid, not the scrapbook. The old markup laid all 10
             photos out with `flex-wrap`, which wraps wherever the row happens
             to run out of width rather than at a fixed count — so on a phone
-            it broke unpredictably (e.g. 4-then-1), leaving Jesse and
-            Cristopher stranded alone on their own row. A grid guarantees an
-            even 5-column layout regardless of viewport width. No rotation,
+            it broke unpredictably (e.g. 4-then-1), leaving the last one or two
+            stranded alone on their own row. A fixed per-row width guarantees an
+            even layout regardless of viewport width. No rotation,
             overlap, or floating decoration here — those are sm+ only anyway
             (see the quote bubbles/stickers below), so mobile was already
             meant to be the plain version; the photos just hadn't caught up. */}
         <div className="sm:hidden mt-10 px-4">
-          {/* flex-wrap + justify-center rather than a plain grid — 10 photos
-              at 4-per-row leaves a trailing row of 2, and a grid would leave
-              those 2 stuck on the left. Flex-wrap centers an incomplete last
-              row instead. */}
+          {/* 9 photos at 3-per-row divides evenly into 3 full rows. Kept as
+              flex-wrap + justify-center rather than a plain grid so that if
+              the roster count changes again, an incomplete last row centers
+              itself instead of sitting stuck on the left. */}
           <div className="flex flex-wrap justify-center gap-1.5">
             {teamPhotos.map((p) => (
               <img
                 key={p.src}
                 src={`/images/${p.src}`}
                 alt={`${p.alt}, Huna Creatives team`}
-                className="w-[calc(25%-0.28125rem)] aspect-[3/4] object-cover object-top rounded-lg shadow-sm"
+                className="w-[calc(33.333%-0.25rem)] aspect-[3/4] object-cover object-top rounded-lg shadow-sm"
               />
             ))}
           </div>
@@ -409,7 +408,7 @@ export default function CareersPage() {
             ))}
           </div>
           <div className="flex flex-wrap justify-center space-x-1 mt-3">
-            {teamPhotos.slice(5, 10).map((p) => (
+            {teamPhotos.slice(5).map((p) => (
               <img
                 key={p.src}
                 src={`/images/${p.src}`}

@@ -717,6 +717,14 @@ const categoryDataMap = {
     stats: { projects: '25+', satisfaction: '100%', rating: '5.0★' },
     projects: [
       {
+        id: 'b5',
+        title: 'Cooperative Plumbing & Drain',
+        description:
+          'Brand strategy and identity for the first employee-owned plumbing and drain company in its market — monogram, logo suite, color system, typography, and a full written brand platform.',
+        image: '/images/coop-app-polo-front.webp',
+        slug: 'cooperative-plumbing-drain',
+      },
+      {
         id: 'b2',
         title: 'Peak Coffee Roasters',
         description:
@@ -1071,14 +1079,13 @@ const PortfolioCategoryPage = () => {
 
             <div className="max-w-6xl mx-auto relative z-10">
               <div className="text-center mb-12 md:mb-16 animate-fade-in-up opacity-0-init">
-                <span className="inline-flex items-center gap-2 text-[11px] font-medium tracking-widest uppercase mb-4" style={{ color: '#FF5B05' }}>
-                  Featured Work
-                </span>
                 <h2 className="font-display text-xl md:text-2xl font-bold text-[#243037] mb-4">
                   Featured Projects
                 </h2>
                 <p className="text-[#243037]/55 text-sm max-w-xl mx-auto">
-                  Explore our portfolio of work that showcases creativity, strategy, and real results.
+                  Complete identity systems — logo suites, color and type systems,
+                  brand guidelines, and the strategy underneath them. Each project
+                  below is a brand built from the ground up.
                 </p>
               </div>
 
