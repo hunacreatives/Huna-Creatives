@@ -1,3 +1,5 @@
+import { requireAdmin, authErrorResponse, adminClient } from '../_shared/requireCaller.ts';
+
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -37,6 +39,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
+    // Calls the Anthropic API on our key. Ungated, this let anyone holding
+    // the public anon key spend our credits without limit.
+    await requireAdmin(req, adminClient());
+
     const { file_base64, mime_type, file_name } = await req.json();
 
     let content: unknown[];
@@ -81,6 +87,8 @@ Deno.serve(async (req) => {
     const extracted = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] ?? text);
     return new Response(JSON.stringify(extracted), { headers: cors });
   } catch (err) {
+    const authRes = authErrorResponse(err, cors);
+    if (authRes) return authRes;
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });
   }
 });
