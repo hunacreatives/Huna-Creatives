@@ -76,3 +76,36 @@ export function adminClient(): SupabaseClient {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 }
+
+/** Constant-time-ish compare so a wrong secret can't be probed byte by byte. */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
+ * Caller must present the service-role key as its bearer token.
+ *
+ * For scheduled jobs: the pg_cron migrations call these via net.http_post with
+ * the service-role key from Vault, so there is no user JWT to check. The anon
+ * key passes verify_jwt but is NOT the service-role key, which is the whole
+ * distinction being enforced here.
+ */
+export function requireServiceRole(req: Request): void {
+  const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  const expected = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (!jwt || !expected || !safeEqual(jwt, expected)) {
+    throw new AuthError(401, 'Not authenticated');
+  }
+}
+
+/** Accepts either an admin user OR the service role. For jobs run both ways. */
+export async function requireAdminOrService(req: Request, admin: SupabaseClient): Promise<void> {
+  try {
+    requireServiceRole(req);
+    return;
+  } catch { /* fall through to the user check */ }
+  await requireAdmin(req, admin);
+}

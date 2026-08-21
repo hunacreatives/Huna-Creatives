@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAdminOrService, adminClient, authErrorResponse } from '../_shared/requireCaller.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -137,6 +138,11 @@ function buildReportHtml(opts: {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+
+  // Run both by an admin from the payroll page and by the pg_net close trigger,
+  // so either credential is accepted.
+  try { await requireAdminOrService(req, adminClient()); }
+  catch (e) { const r = authErrorResponse(e, cors); if (r) return r; throw e; }
 
   try {
     const { period_start, period_end, period_label } = await req.json();

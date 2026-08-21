@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireServiceRole, authErrorResponse } from '../_shared/requireCaller.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -37,6 +38,11 @@ async function postToSlack(channel: string, title: string, body: string, priorit
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+
+  // Scheduled job: pg_cron calls this with the service-role key from Vault.
+  // The public anon key passes verify_jwt but is not the service-role key.
+  try { requireServiceRole(req); }
+  catch (e) { const r = authErrorResponse(e, cors); if (r) return r; throw e; }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
