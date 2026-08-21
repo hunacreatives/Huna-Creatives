@@ -11,7 +11,6 @@ interface Proposal {
   id: number;
   slug: string;
   client_name: string;
-  to_email: string;
   project_title: string | null;
   tagline: string | null;
   accent_color: string;
@@ -34,7 +33,10 @@ export default function ProposalPage() {
     (async () => {
       const { data, error } = await supabase
         .from('hub_proposals')
-        .select('*')
+        // Explicit column list, not '*': anon has to_email and submission_id
+        // revoked, and a column-level REVOKE makes select('*') fail outright
+        // rather than quietly omitting the column.
+        .select('id, slug, client_name, project_title, tagline, accent_color, sections, status, sent_at, created_at')
         .eq('slug', slug)
         .in('status', ['published', 'sent'])
         .single();

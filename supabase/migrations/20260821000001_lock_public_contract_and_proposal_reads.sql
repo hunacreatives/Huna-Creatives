@@ -1,26 +1,27 @@
 -- Security fix — 2026-08-21
 -- Closes two anon-readable leaks found by live probing with the public anon key.
--- Safe to paste into the Supabase Dashboard SQL editor.
+--
+-- ORDER MATTERS. Part A is safe to run any time. Part B must run only AFTER
+-- the matching frontend change is deployed -- see the note above it.
 
 -- =====================================================================
--- 1. hub_client_contracts — stop exposing SIGNED contracts to the public
+-- PART A — hub_client_contracts: stop exposing SIGNED contracts publicly
 --
 -- The original policy was:
 --     using (status in ('sent', 'signed'))
 -- RLS filters per row and cannot see the caller's `slug` filter, so
--- "readable by slug" and "readable in bulk" are the same thing. Including
--- 'signed' therefore published every completed contract permanently:
--- an anon caller could pull all 6 rows with full `body` text and
--- `total_value` (up to 2,500,000) using only the key from the JS bundle.
+-- "readable by slug" and "readable in bulk" are the same permission.
+-- Including 'signed' therefore published every completed contract
+-- permanently: an anon caller could pull all 6 rows with full `body` text
+-- and `total_value` (up to 2,500,000) using only the key in the JS bundle.
 --
 -- Narrowing to 'sent' means a contract is public only while it is actually
--- awaiting signature. The signing flow is unaffected: the existing
--- "public_sign" policy already gates on status = 'sent' and flips the row
--- to 'signed', which now also removes it from public view.
+-- awaiting signature. Signing is unaffected -- the existing "public_sign"
+-- policy already gates on status = 'sent' and flips the row to 'signed',
+-- which now also removes it from public view.
 --
--- TRADE-OFF: after signing, /c/<slug> will 404 for the client. They keep
--- the countersigned copy via the send-signed-contract email. If you want
--- the link to stay live, do the edge-function fix in step 3 instead.
+-- TRADE-OFF: after signing, /c/<slug> returns not-found for the client.
+-- They keep the countersigned copy from the send-signed-contract email.
 -- =====================================================================
 drop policy if exists "public_read_sent" on hub_client_contracts;
 
@@ -29,19 +30,32 @@ create policy "public_read_sent" on hub_client_contracts
   using (status = 'sent');
 
 -- =====================================================================
--- 2. hub_proposals — stop leaking the client's email address
+-- PART B — hub_proposals: stop leaking the client's email address
 --
--- "Published proposals are publicly readable" USING (status IN
--- ('published','sent')) is intentional — proposals are shared by link.
--- But select * also hands out `to_email` (client PII) and the internal
--- `submission_id`. The public proposal page renders neither, so revoking
--- the columns costs nothing and keeps the page working.
+-- Proposals are meant to be shared by link, so the row policy stays. The
+-- problem is only that select * hands out `to_email` (client PII) and the
+-- internal `submission_id`.
+--
+-- !! DO NOT RUN THIS UNTIL src/pages/p/page.tsx is deployed. !!
+-- A column-level REVOKE makes select('*') fail outright with "permission
+-- denied for column" rather than quietly omitting the column, so running
+-- this against the old frontend breaks every public proposal link. The
+-- deployed page must already request an explicit column list.
 -- =====================================================================
-revoke select (to_email, submission_id) on hub_proposals from anon;
+-- NOTE: `revoke select (col) ... from anon` alone is a NO-OP here -- anon
+-- holds a table-wide SELECT grant, which keeps satisfying the privilege
+-- check, and the revoke succeeds without changing anything. The table-level
+-- grant has to go first, then the safe columns are granted back explicitly.
+revoke select on hub_proposals from anon;
+
+grant select (
+  id, slug, client_name, project_title, tagline,
+  accent_color, sections, status, sent_at, created_at, updated_at
+) on hub_proposals to anon;
 
 -- =====================================================================
--- 3. VERIFY (run after, expect zero rows leaked)
+-- VERIFY — run these after, from the anon key (not the SQL editor, which
+-- is privileged and will still see everything):
+--   hub_client_contracts -> expect 0 rows
+--   hub_proposals        -> expect 1 row, with no to_email column
 -- =====================================================================
--- select count(*) from hub_client_contracts where status = 'signed';
---   ^ as admin this returns 6; the anon key should now return 0 rows
---     from: select * from hub_client_contracts;
