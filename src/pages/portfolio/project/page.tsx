@@ -169,6 +169,24 @@ const ProjectPage = () => {
                 <span key={i} className="text-xs text-[#1a1a1a]/35 font-medium">{logo.label}</span>
               ))}
             </div>
+            {project.boards && (
+              <div className="space-y-3 md:space-y-5 mt-8 md:mt-12">
+                {project.boards.map((board, i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl md:rounded-2xl overflow-hidden bg-white"
+                    style={{ border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+                  >
+                    <div className={`${board.bg ?? 'bg-white'} ${board.padded ? 'p-4 md:p-8' : ''}`}>
+                      <img src={board.image} alt={board.label} className="w-full h-auto object-contain" />
+                    </div>
+                    <div className="p-3 md:p-4" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                      <span className="text-xs font-medium text-[#1a1a1a]/55">{board.label}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

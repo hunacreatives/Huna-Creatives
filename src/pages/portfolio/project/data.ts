@@ -14,6 +14,8 @@ export interface ProjectData {
   challenge: { heading: string; body: string };
   approach: { heading: string; body: string };
   logos: { image: string; label: string; bg: string; noInvert?: boolean; invert?: boolean }[];
+  /** Optional full-width reference boards shown beneath the logo grid (concept rationale, colorway sheets). */
+  boards?: { image: string; label: string; bg?: string; padded?: boolean }[];
   typography: {
     description: string;
     fonts: { role: string; family: string; weights: string; sample: string }[];
@@ -574,6 +576,19 @@ export const projectDataMap: Record<string, ProjectData> = {
         label: 'Monogram',
         bg: 'bg-[#e8ecf3]',
         noInvert: true,
+      },
+    ],
+    boards: [
+      {
+        image: '/images/coop-concept.webp',
+        label: 'Logo Concept & Rationale',
+        bg: 'bg-white',
+        padded: true,
+      },
+      {
+        image: '/images/coop-lockups.webp',
+        label: 'Lockup Colorways',
+        bg: 'bg-white',
       },
     ],
     typography: {
