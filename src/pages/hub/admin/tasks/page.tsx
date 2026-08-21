@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import Avatar from '@/pages/hub/components/Avatar';
 import { supabase } from '@/lib/supabase';
-import { localToday } from '@/lib/formatUtils';
+import { localToday, isTaskOverdue } from '@/lib/formatUtils';
 
 interface Task {
   id: number;
@@ -54,7 +54,7 @@ export default function AdminTasksPage() {
     })();
   }, []);
 
-  const isOverdue = (t: Task) => t.due_date && t.due_date < today && t.status !== 'done';
+  const isOverdue = (t: Task) => isTaskOverdue(t, today);
 
   const filtered = useMemo(() => {
     return tasks.filter(t => {

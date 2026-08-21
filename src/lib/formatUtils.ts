@@ -19,6 +19,20 @@ export function localToday(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/**
+ * A task counts as overdue only if it's past due AND still actionable.
+ * 'done' is finished; 'blocked' is waiting on something outside the
+ * assignee's control, so flagging it "Late" blames them for a dependency
+ * they can't clear. Both are excluded.
+ */
+export function isTaskOverdue(
+  task: { due_date?: string | null; status?: string | null },
+  today: string,
+): boolean {
+  return !!task.due_date && task.due_date < today
+    && task.status !== 'done' && task.status !== 'blocked';
+}
+
 function toDateStr(date: Date) {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
-import { getPeriods, slugify, localToday } from '@/lib/formatUtils';
+import { getPeriods, slugify, localToday, isTaskOverdue } from '@/lib/formatUtils';
 import { getSetting } from '@/lib/settings';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
@@ -624,7 +624,7 @@ export default function ContractorDashboard() {
   const myTasks = tasks.filter(t => !t.archived_at && !t.deleted_at && (getTaskAssigneeIds(t).includes(myUserId) || hasMyChecklistItem(t)));
   // "Done" only counts completions from the last 30 days, same rule as My Work
   const doneTasks = myTasks.filter(t => t.status === 'done' && (!t.completed_at || (Date.now() - new Date(t.completed_at).getTime()) / 86400000 <= 30));
-  const overdueTasks = myTasks.filter(t => t.due_date && t.due_date < todayStr && t.status !== 'done');
+  const overdueTasks = myTasks.filter(t => isTaskOverdue(t, todayStr));
   const todayDueTasks = myTasks.filter(t => t.due_date === todayStr && t.status !== 'done');
   const daysUntil = (t: ProjectTask) => t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(todayStr + 'T00:00:00').getTime()) / 86400000) : null;
   const thisWeekTasks = myTasks.filter(t => t.status !== 'done' && t.due_date && t.due_date > todayStr && (daysUntil(t) as number) <= 7);
@@ -899,7 +899,7 @@ export default function ContractorDashboard() {
                   <div className="divide-y divide-gray-50">
                     {visible.map(t => {
                       const projectName = getProjectName(t.project_id);
-                      const isOverdue = t.due_date && t.due_date < todayStr;
+                      const isOverdue = isTaskOverdue(t, todayStr);
                       return (
                         <button key={t.id} type="button" onClick={() => openTaskInMyWork(t)}
                           className="w-full flex items-center gap-3 py-3 text-left cursor-pointer hover:bg-gray-50/60 -mx-1 px-1 rounded-lg transition-colors">

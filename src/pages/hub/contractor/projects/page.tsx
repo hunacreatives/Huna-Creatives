@@ -12,7 +12,7 @@ import { GanttTimeline } from '@/pages/hub/components/GanttTimeline';
 import { getServicePalette } from '@/pages/hub/utils/servicePalette';
 import { fmt } from '@/pages/hub/utils/format';
 import { PRIORITY_CFG, PROJECT_STATUS_COLORS } from '@/pages/hub/utils/taskUi';
-import { localToday, slugify } from '@/lib/formatUtils';
+import { localToday, slugify, isTaskOverdue } from '@/lib/formatUtils';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
 import { getPrimaryTaskAssigneeId, getTaskAssigneeIds } from '@/lib/taskAssignments';
 import { getStageCfg } from '@/lib/projectStage';
@@ -653,7 +653,7 @@ export default function ContractorProjectsPage() {
   const doneTasks = myTasks.filter(t => t.status === 'done' && (!t.completed_at || (Date.now() - new Date(t.completed_at).getTime()) / 86400000 <= 30));
   const inProgressTasks = myTasks.filter(t => ['in_progress', 'in_review', 'blocked'].includes(t.status));
   const todoTasks = myTasks.filter(t => t.status === 'todo');
-  const overdueTasks = myTasks.filter(t => t.due_date && t.due_date < today && t.status !== 'done');
+  const overdueTasks = myTasks.filter(t => isTaskOverdue(t, today));
   const todayDueTasks = myTasks.filter(t => t.due_date === today && t.status !== 'done');
   const pct = myTasks.length > 0 ? Math.round((doneTasks.length / myTasks.length) * 100) : 0;
 
@@ -718,7 +718,7 @@ export default function ContractorProjectsPage() {
   const wsTasks = wsAllTasks.filter(t => !t.archived);
   const wsArchivedTasks = wsAllTasks.filter(t => !!t.archived);
   const wsToday = localToday();
-  const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
+  const wsIsOverdue = (t: ProjectTask) => isTaskOverdue(t, wsToday);
   // wsTeam must be declared before wsFiltered — wsFiltered references wsTeam
   const [wsTeamDirect, setWsTeamDirect] = useState<TeamMember[]>([]);
   useEffect(() => {
@@ -1934,7 +1934,7 @@ export default function ContractorProjectsPage() {
                   <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-white/80 divide-y divide-gray-100/80 overflow-hidden">
                     {list.map(t => {
                       const projectName = getProjectName(t.project_id);
-                      const isOverdue = t.due_date && t.due_date < today && t.status !== 'done';
+                      const isOverdue = isTaskOverdue(t, today);
                       return (
                         <div key={t.id} className={`flex items-start gap-3 px-4 py-3 transition-colors ${t.status === 'done' ? 'opacity-40' : 'hover:bg-gray-50/80'}`}>
                           <button type="button" onClick={() => cycleTask(t)} className="mt-0.5 flex-shrink-0 cursor-pointer">

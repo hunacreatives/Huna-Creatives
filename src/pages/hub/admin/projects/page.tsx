@@ -9,7 +9,7 @@ import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { logAudit } from '@/lib/audit';
 import { getSetting } from '@/lib/settings';
-import { localToday, slugify } from '@/lib/formatUtils';
+import { localToday, slugify, isTaskOverdue } from '@/lib/formatUtils';
 import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/TaskDetailPanel';
 import { uploadFileToDrive } from '@/lib/driveUpload';
@@ -1648,7 +1648,7 @@ export default function AdminProjectsPage() {
   }, [pendingTask, tasks, workspaceOpen, activeId]);
 
   const wsToday = localToday();
-  const wsIsOverdue = (t: ProjectTask) => t.due_date && t.due_date < wsToday && t.status !== 'done';
+  const wsIsOverdue = (t: ProjectTask) => isTaskOverdue(t, wsToday);
   const wsArchivedTasks = tasks.filter(t => !!t.archived && !t.deleted_at);
   const wsTrashedTasks = tasks.filter(t => !!t.deleted_at);
   const wsFilteredTasks = tasks.filter(t => !t.archived && !t.deleted_at).filter(t => {
@@ -2878,30 +2878,37 @@ export default function AdminProjectsPage() {
           {pageView === 'team' && (() => {
             const cards = contractors.map(c => {
               const personTasks = allTasks.filter((t: any) => t.status !== 'done' && !t.archived && getTaskAssigneeIds(t).includes(c.id));
-              const overdue = personTasks.filter((t: any) => t.due_date && t.due_date < teamToday);
+              // pastDue drives list membership so a blocked past-due task still
+              // shows up; overdueCount drives the red badge and excludes blocked.
+              const pastDue = personTasks.filter((t: any) => t.due_date && t.due_date < teamToday);
+              const overdueCount = pastDue.filter((t: any) => isTaskOverdue(t, teamToday)).length;
               const inWindow = personTasks.filter((t: any) => {
                 if (!t.due_date || t.due_date < teamToday) return false;
                 const d = daysOut(t);
                 return d !== null && d <= windowDays;
               });
               const noDueDate = windowDays >= 30 ? personTasks.filter((t: any) => !t.due_date) : [];
-              const shown = [...overdue.slice(0, 2), ...inWindow, ...noDueDate].slice(0, 4);
-              const windowOpen = overdue.length + inWindow.length + noDueDate.length;
+              const shown = [...pastDue.slice(0, 2), ...inWindow, ...noDueDate].slice(0, 4);
+              const windowOpen = pastDue.length + inWindow.length + noDueDate.length;
               const allPersonTasks = allTasks.filter((t: any) => getTaskAssigneeIds(t).includes(c.id));
               const doneCount = doneInWindow(allPersonTasks).length;
-              return { contractor: c, shown, overdueCount: overdue.length, totalOpen: personTasks.length, windowOpen, doneCount };
+              return { contractor: c, shown, overdueCount, totalOpen: personTasks.length, windowOpen, doneCount };
             }).sort((a, b) => (b.overdueCount - a.overdueCount) || (b.shown.length - a.shown.length));
 
             const bucketStats = (bucketTasks: any[]) => {
               const openTasks = bucketTasks.filter((t: any) => t.status !== 'done' && !t.archived);
-              const overdue = openTasks.filter((t: any) => t.due_date && t.due_date < teamToday);
+              const pastDue = openTasks.filter((t: any) => t.due_date && t.due_date < teamToday);
               const inWindow = openTasks.filter((t: any) => {
                 if (!t.due_date || t.due_date < teamToday) return false;
                 const d = daysOut(t);
                 return d !== null && d <= windowDays;
               });
               const noDueDate = windowDays >= 30 ? openTasks.filter((t: any) => !t.due_date) : [];
-              return { windowOpen: overdue.length + inWindow.length + noDueDate.length, overdueCount: overdue.length, doneCount: doneInWindow(bucketTasks).length };
+              return {
+                windowOpen: pastDue.length + inWindow.length + noDueDate.length,
+                overdueCount: pastDue.filter((t: any) => isTaskOverdue(t, teamToday)).length,
+                doneCount: doneInWindow(bucketTasks).length,
+              };
             };
 
             const unassignedTasks = allTasks.filter((t: any) => getTaskAssigneeIds(t).length === 0);
@@ -2991,7 +2998,7 @@ export default function AdminProjectsPage() {
                       ) : (
                         <div className="space-y-1 -mx-1">
                           {shown.slice(0, 4).map((t: any) => {
-                            const isOverdueTask = t.due_date && t.due_date < teamToday;
+                            const isOverdueTask = isTaskOverdue(t, teamToday);
                             return (
                               <button key={t.id} type="button" onClick={() => openTaskDetail(t)}
                                 className="w-full flex items-center gap-2 px-1 py-1.5 rounded-xl hover:bg-gray-50/80 transition-colors text-left cursor-pointer">
@@ -4282,7 +4289,7 @@ export default function AdminProjectsPage() {
         {/* ── Right: My Tasks panel ── */}
         {myTasks.length > 0 && (() => {
           const today = localToday();
-          const overdueCount = myTasks.filter(t => t.due_date && t.due_date < today).length;
+          const overdueCount = myTasks.filter(t => isTaskOverdue(t, today)).length;
           const dateLabel = new Date(today + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' }).toUpperCase();
           const STATUS_OPTIONS = [
             { value: 'todo',        label: 'To Do',       dot: 'bg-gray-300' },
@@ -4351,7 +4358,7 @@ export default function AdminProjectsPage() {
                 {/* Task list */}
                 <div className="px-3 pb-4 space-y-1">
                   {myTasks.map(t => {
-                    const isOverdue = t.due_date && t.due_date < today;
+                    const isOverdue = isTaskOverdue(t, today);
                     const daysLeft = t.due_date ? Math.ceil((new Date(t.due_date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
                     const completing = myTaskCompleting === t.id;
                     const isDone = t.status === 'done';
