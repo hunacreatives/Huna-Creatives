@@ -86,19 +86,36 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Caller must present the service-role key as its bearer token.
+ * Caller must be the service role.
  *
- * For scheduled jobs: the pg_cron migrations call these via net.http_post with
- * the service-role key from Vault, so there is no user JWT to check. The anon
- * key passes verify_jwt but is NOT the service-role key, which is the whole
- * distinction being enforced here.
+ * Two accepted proofs, in order:
+ *  1. The bearer token equals SUPABASE_SERVICE_ROLE_KEY exactly.
+ *  2. The bearer token is a JWT whose `role` claim is "service_role".
+ *
+ * (2) matters for resilience: pg_cron sends the key stored in Vault, which is
+ * not guaranteed to be byte-identical to this function's env var (rotation, a
+ * legacy key). Relying on (1) alone would silently reject the scheduler and
+ * invoices would just quietly stop going out.
+ *
+ * Reading the claim without re-verifying the signature is safe HERE because
+ * Supabase's platform verify_jwt gate has already rejected any token whose
+ * signature doesn't check out -- confirmed live: no token and a garbage token
+ * both return 401 before the function runs. The gate proves authenticity; it
+ * just can't distinguish anon from service_role, which is what this adds.
  */
 export function requireServiceRole(req: Request): void {
   const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!jwt) throw new AuthError(401, 'Not authenticated');
+
   const expected = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  if (!jwt || !expected || !safeEqual(jwt, expected)) {
-    throw new AuthError(401, 'Not authenticated');
-  }
+  if (expected && safeEqual(jwt, expected)) return;
+
+  try {
+    const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (payload?.role === 'service_role') return;
+  } catch { /* malformed token falls through to the throw */ }
+
+  throw new AuthError(401, 'Not authenticated');
 }
 
 /** Accepts either an admin user OR the service role. For jobs run both ways. */
