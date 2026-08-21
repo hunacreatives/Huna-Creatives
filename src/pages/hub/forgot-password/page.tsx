@@ -13,9 +13,12 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const redirectTo = window.location.hostname === 'localhost'
-      ? `${window.location.origin}/hub/reset-password`
-      : 'https://www.hunacreatives.com/hub/reset-password';
+    // Use the origin the user is actually on. Hardcoding the www host meant
+    // the link died whenever that exact URL wasn't in Supabase's redirect
+    // allow-list: a rejected redirect_to isn't an error, it silently falls
+    // back to the project's Site URL, dropping the /hub/reset-password path
+    // and landing everyone on the marketing homepage.
+    const redirectTo = `${window.location.origin}/hub/reset-password`;
     const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     setLoading(false);
     if (err) {
