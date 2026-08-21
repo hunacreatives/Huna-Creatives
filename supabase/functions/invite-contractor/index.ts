@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAdmin, authErrorResponse } from '../_shared/requireCaller.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -38,6 +39,11 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Verify the caller BEFORE touching anything. Without this, `role` below is
+    // attacker-controlled and this function mints owner accounts for anyone
+    // holding the public anon key.
+    const caller = await requireAdmin(req, supabase);
+
     const {
       email, full_name, role = 'contractor', department, job_title, start_date,
       payment_type, hourly_rate, monthly_rate, project_percentage, currency = 'PHP',
@@ -60,10 +66,28 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'A contractor with this email already exists.' }), { status: 200, headers: cors });
     }
 
+    // `role` arrives from the request body, so it has to be constrained to a
+    // known set -- and only an owner may mint another owner/admin.
+    const ALLOWED_ROLES = ['contractor', 'employee', 'hr', 'admin', 'owner'];
+    if (!ALLOWED_ROLES.includes(role)) {
+      return new Response(JSON.stringify({ error: `Invalid role: ${role}` }), { status: 400, headers: cors });
+    }
+    if (['owner', 'admin'].includes(role) && caller.role !== 'owner') {
+      return new Response(JSON.stringify({ error: 'Only an owner can invite an owner or admin.' }), { status: 403, headers: cors });
+    }
+
     // If a stale auth user exists (e.g. previously deleted from hub_users), remove it first
     const { data: { users: existingAuthUsers } } = await supabase.auth.admin.listUsers();
     const staleAuthUser = existingAuthUsers?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
     if (staleAuthUser) {
+      // Only delete if genuinely orphaned. The hub_users lookup above keys off
+      // email; a row whose email was since changed would still own this auth
+      // user, and deleting it would destroy a live account.
+      const { data: ownedRow } = await supabase
+        .from('hub_users').select('id').eq('id', staleAuthUser.id).maybeSingle();
+      if (ownedRow) {
+        return new Response(JSON.stringify({ error: 'That email belongs to an existing account.' }), { status: 409, headers: cors });
+      }
       await supabase.auth.admin.deleteUser(staleAuthUser.id);
     }
 
@@ -242,6 +266,10 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true, user_id: linkData.user.id }), { headers: cors });
   } catch (err) {
+    // Auth rejections must surface as 401/403 -- the generic handler below
+    // returns 200, which would let a caller mistake a refusal for a soft error.
+    const authRes = authErrorResponse(err, cors);
+    if (authRes) return authRes;
     return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });
   }
 });

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAdmin, authErrorResponse } from '../_shared/requireCaller.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -119,6 +120,10 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Generates a working login link for an arbitrary account, so the caller
+    // must be verified before any of it runs.
+    await requireAdmin(req, supabase);
+
     const { contractor_id } = await req.json();
     if (!contractor_id) {
       return new Response(JSON.stringify({ error: 'contractor_id required' }), { status: 400, headers: cors });
@@ -191,6 +196,8 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true }), { headers: cors });
   } catch (err) {
+    const authRes = authErrorResponse(err, cors);
+    if (authRes) return authRes;
     return new Response(JSON.stringify({ error: String(err) }), { status: 200, headers: cors });
   }
 });
