@@ -103,9 +103,27 @@ const GraphicDesignLayout = ({ category }) => {
       title: 'Menus With Meaning.',
       dark: false,
       bg: 'transparent',
-      description: 'Menus are an extension of your brand. Every choice of font, color, and layout sets the stage for what your guests are about to enjoy.',
-      subtext: 'We design menus that grab attention, spark curiosity, and leave a lasting impression.',
-      image: '/images/drive-fv-menu.png',
+      // The original export from the old site: both sheets fanned, angled and
+      // shadowed in the artwork itself, on a transparent background -- so it
+      // sits on the section without needing a matching backing plate.
+      image: '/images/menus-vox-flyers.png',
+      wideImage: true,
+      // Segmented rather than a single string so the emphasis can be marked up
+      // without dangerouslySetInnerHTML.
+      richBody: [
+        [
+          { t: 'Menus aren\u2019t just lists of dishes \u2014 they\u2019re an ' },
+          { t: 'extension of your brand experience', b: true },
+          { t: '. Every choice of font, color, and layout sets the stage for what your guests are about to enjoy. A well-designed menu can guide the eye, highlight your specialties, and create anticipation before the first bite ever arrives at the table.' },
+        ],
+        [
+          { t: 'At Huna Creatives, we design menus that ' },
+          { t: 'go beyond function', b: true },
+          { t: '. Whether it\u2019s the elegance of fine dining, the warmth of a cozy caf\u00e9, or the vibrant energy of a casual spot, we craft layouts that reflect your brand\u2019s personality and make every dish feel irresistible. Our goal is to design menus that ' },
+          { t: 'delight, connect, and tell your story', b: true },
+          { t: ', so your guests don\u2019t just read the options \u2014 they feel the experience you\u2019ve built.' },
+        ],
+      ],
       imageLeft: true,
     },
     {
@@ -146,26 +164,45 @@ const GraphicDesignLayout = ({ category }) => {
                 >
                   {sec.title}
                 </h2>
-                <p
-                  className="text-sm leading-relaxed mb-3 md:mb-4"
-                  style={{ color: 'rgba(36,48,55,0.65)' }}
-                >
-                  {sec.description}
-                </p>
-                <p
-                  className="text-sm leading-relaxed"
-                  style={{ color: 'rgba(36,48,55,0.45)' }}
-                >
-                  {sec.subtext}
-                </p>
+                {sec.richBody ? (
+                  sec.richBody.map((para, pi) => (
+                    <p
+                      key={pi}
+                      className="text-sm leading-relaxed mb-4 md:mb-5 last:mb-0"
+                      style={{ color: 'rgba(36,48,55,0.65)' }}
+                    >
+                      {para.map((seg, si) =>
+                        seg.b
+                          ? <strong key={si} className="font-semibold text-[#243037]">{seg.t}</strong>
+                          : <span key={si}>{seg.t}</span>,
+                      )}
+                    </p>
+                  ))
+                ) : (
+                  <>
+                    <p
+                      className="text-sm leading-relaxed mb-3 md:mb-4"
+                      style={{ color: 'rgba(36,48,55,0.65)' }}
+                    >
+                      {sec.description}
+                    </p>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: 'rgba(36,48,55,0.45)' }}
+                    >
+                      {sec.subtext}
+                    </p>
+                  </>
+                )}
               </div>
-              {/* Image */}
+              {/* Image — a single flat asset; the old site's menu artwork has
+                  the fan, angle and shadow baked into the export itself. */}
               <div className="flex-1 w-full flex items-center justify-center">
                 <img
                   src={sec.image}
                   alt={sec.title}
-                  className={`w-full object-contain ${sec.id === 'menus' ? 'max-w-lg' : 'max-w-2xl'}`}
-                  style={{ maxHeight: sec.id === 'menus' ? '520px' : '680px' }}
+                  className="w-full object-contain max-w-2xl"
+                  style={{ maxHeight: sec.wideImage ? '540px' : '680px' }}
                 />
               </div>
             </div>
