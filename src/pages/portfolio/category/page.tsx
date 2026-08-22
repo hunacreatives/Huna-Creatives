@@ -512,6 +512,36 @@ const webDesignSites = [
     comingSoon: false,
   },
   {
+    id: 'fs-architects',
+    name: 'FS Architects',
+    url: 'https://fsarchitects.ph',
+    displayUrl: 'fsarchitects.ph',
+    category: 'Web Design & Branding',
+    description:
+      'An architecture and interior design practice with a portfolio that had to carry weight — trilingual navigation, project case studies from BYD Butuan to private residences, and a quiet, gallery-like presentation that keeps the buildings the loudest thing on the page.',
+    tags: ['Web Design', 'Architecture', 'Branding', 'Multilingual'],
+    year: '2025',
+    accentColor: '#7a8fa0',
+    accentBg: 'rgba(122,143,160,0.1)',
+    image: '/images/fsarchitects-home.png',
+    comingSoon: false,
+  },
+  {
+    id: 'smartgrid-western',
+    name: 'SmartGrid Western',
+    url: 'https://smartgridwestern.com',
+    displayUrl: 'smartgridwestern.com',
+    category: 'Web Design & Development',
+    description:
+      'A turnkey battery energy storage company selling a genuinely complex proposition to commercial property owners. The site had to make "no capital outlay" credible fast — a clear economics story, industry-specific proof, and an assessment request flow that qualifies leads before the first call.',
+    tags: ['Web Design', 'Clean Energy', 'Lead Generation', 'B2B'],
+    year: '2026',
+    accentColor: '#18b46c',
+    accentBg: 'rgba(24,180,108,0.1)',
+    image: '/images/smartgrid-western-home.png',
+    comingSoon: false,
+  },
+  {
     id: 'palm-barge',
     name: 'Palm Island Barge Co.',
     url: 'https://palmbarge.com.au',
@@ -542,21 +572,6 @@ const webDesignSites = [
     comingSoon: false,
   },
   {
-    id: 'fs-architects',
-    name: 'FS Architects',
-    url: 'https://bzmywq.readdy.co',
-    displayUrl: 'fsarchitects.com',
-    category: 'Web Design & Branding',
-    description:
-      'A new project currently in progress. Full case study and live preview dropping soon.',
-    tags: ['Web Design', 'Architecture', 'Branding'],
-    year: '2025',
-    accentColor: '#7a8fa0',
-    accentBg: 'rgba(122,143,160,0.1)',
-    image: '/images/99c59eb0-4815-4d7a-866a-f56d3e927d63_FS-Homepage.png',
-    comingSoon: true,
-  },
-  {
     id: 'obra-majoralia',
     name: 'Obra Majoralia',
     url: '#',
@@ -572,6 +587,110 @@ const webDesignSites = [
     comingSoon: true,
   },
 ];
+
+/* ── Digital invitations ──────────────────────────────────────────────────
+   Separate from the client-site list: these are single-purpose event sites
+   (RSVP, details, gallery) rather than business websites, so they read better
+   as a compact grid than as full case-study rows. */
+const eviteSites = [
+  {
+    id: 'carlo-trixia',
+    name: 'Carlo & Trixia',
+    occasion: 'Wedding',
+    url: 'https://carloandtrixia.com',
+    displayUrl: 'carloandtrixia.com',
+    description:
+      'A wax-sealed envelope that opens into the full invitation — story, entourage, dress code, and RSVP in one quiet, unhurried flow.',
+    image: '/images/evite-carlo-trixia.png',
+  },
+  {
+    id: 'claudy-30',
+    name: "Claudy's 30th",
+    occasion: 'Birthday',
+    url: 'https://claudyat30.com',
+    displayUrl: 'claudyat30.com',
+    description:
+      'A pickleball-themed birthday invite built around one clear call to action, with RSVP tracking behind it.',
+    image: '/images/evite-claudy.png',
+  },
+  {
+    id: 'gel-30',
+    name: 'Gel Turns Thirty',
+    occasion: 'Birthday',
+    url: 'https://gelat30.com',
+    displayUrl: 'gelat30.com',
+    description:
+      'Hand-lettered type over pressed-flower watercolour — a softer, more personal take on the milestone birthday invite.',
+    image: '/images/evite-gel.png',
+  },
+  {
+    id: 'tercel-41',
+    name: "Tercel's 41st",
+    occasion: 'Birthday',
+    url: 'https://tercelat41.com',
+    displayUrl: 'tercelat41.com',
+    description:
+      'Glitter-cut numerals and a portrait pairing, styled like a printed keepsake but delivered as a link.',
+    image: '/images/evite-tercel.png',
+  },
+];
+
+const EviteLayout = () => (
+  <section className="relative py-16 sm:py-20 px-4 sm:px-6 border-t border-[#243037]/8">
+    <div className="max-w-6xl mx-auto">
+      <div className="text-center mb-10 md:mb-12">
+        <span className="text-[11px] font-semibold tracking-widest uppercase mb-3 block text-[#FF5B05]">
+          Digital Invitations
+        </span>
+        <h2 className="font-display text-xl md:text-2xl lg:text-3xl font-bold text-[#243037] mb-3 md:mb-4">
+          Evites &amp; Event Sites
+        </h2>
+        <p className="text-[#243037]/55 text-sm max-w-xl mx-auto">
+          Weddings and milestone birthdays, given their own domain instead of a
+          group chat image — details, directions and RSVP that stay live right
+          up to the day.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {eviteSites.map((site) => (
+          <a
+            key={site.id}
+            href={site.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block rounded-xl md:rounded-2xl overflow-hidden bg-white transition-all duration-300 hover:-translate-y-1"
+            style={{ border: '1px solid rgba(36,48,55,0.08)', boxShadow: '0 10px 30px rgba(36,48,55,0.08)' }}
+          >
+            <div className="relative w-full aspect-[16/10] overflow-hidden">
+              <img
+                src={site.image}
+                alt={`${site.name} digital invitation`}
+                loading="lazy"
+                className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+              />
+            </div>
+            <div className="p-3 md:p-4" style={{ borderTop: '1px solid rgba(36,48,55,0.06)' }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] font-semibold tracking-widest uppercase text-[#FF5B05]">
+                  {site.occasion}
+                </span>
+                <span className="text-[10px] text-[#243037]/30">·</span>
+                <span className="text-[10px] text-[#243037]/40 truncate">{site.displayUrl}</span>
+              </div>
+              <h3 className="font-display text-sm md:text-base font-bold text-[#243037] mb-1.5">
+                {site.name}
+              </h3>
+              <p className="text-[11px] md:text-xs leading-relaxed text-[#243037]/55">
+                {site.description}
+              </p>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+);
 
 const WebDesignLayout = () => (
   <section className="relative py-16 sm:py-20 px-4 sm:px-6">
@@ -1119,7 +1238,10 @@ const PortfolioCategoryPage = () => {
         ) : isEmailMarketing ? (
           <EmailMarketingLayout category={category} />
         ) : isWebDesign ? (
-          <WebDesignLayout />
+          <>
+            <WebDesignLayout />
+            <EviteLayout />
+          </>
         ) : (
           /* ── GENERIC PROJECTS GALLERY (Branding) ── */
           <section className="py-16 sm:py-20 px-4 sm:px-6 relative">
