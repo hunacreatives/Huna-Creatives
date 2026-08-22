@@ -23,16 +23,19 @@ const MAX_RESUME_SIZE_BYTES = 10 * 1024 * 1024;
 // Shared by both the mobile grid and the desktop scrapbook cluster in the
 // hero, so there's one list of who's on the team rather than two copies that
 // can drift out of sync.
+// Each photo carries its own emoji pinned to one of its corners. Corners and
+// tilts are varied deliberately rather than generated, so the cluster reads as
+// scattered without any emoji drifting off into empty space.
 const teamPhotos = [
-  { src: 'team-francis-fiel-roble.webp', alt: 'Francis', rotate: -8, y: 4 },
-  { src: 'team-angela-ando.webp', alt: 'Angela', rotate: 6, y: -3 },
-  { src: 'team-katleen-nellas.webp', alt: 'Katleen', rotate: -4, y: 6 },
-  { src: 'team-abigail-duterte.webp', alt: 'Abigail', rotate: 7, y: -2 },
-  { src: 'team-jesse-catedral.png', alt: 'Jesse', rotate: -6, y: 4 },
-  { src: 'team-reeva-jumawan.webp', alt: 'Reeva', rotate: 5, y: -3 },
-  { src: 'team-reese-jumawan.webp', alt: 'Reese', rotate: -7, y: 4 },
-  { src: 'team-thamara-ong.webp', alt: 'Thamara', rotate: 4, y: -2 },
-  { src: 'team-claudy-tahil.png', alt: 'Claudy', rotate: -5, y: 3 },
+  { src: 'team-francis-fiel-roble.webp', alt: 'Francis', rotate: -8, y: 4, emoji: '🎨', corner: '-bottom-4 -left-4', tilt: -12 },
+  { src: 'team-angela-ando.webp', alt: 'Angela', rotate: 6, y: -3, emoji: '✨', corner: '-top-5 -left-2', tilt: 14 },
+  { src: 'team-katleen-nellas.webp', alt: 'Katleen', rotate: -4, y: 6, emoji: '', corner: '', tilt: 0 },
+  { src: 'team-abigail-duterte.webp', alt: 'Abigail', rotate: 7, y: -2, emoji: '', corner: '', tilt: 0 },
+  { src: 'team-jesse-catedral.png', alt: 'Jesse', rotate: -6, y: 4, emoji: '🚀', corner: '-top-4 -right-4', tilt: 16 },
+  { src: 'team-reeva-jumawan.webp', alt: 'Reeva', rotate: 5, y: -3, emoji: '🎉', corner: '-bottom-4 -left-4', tilt: 10 },
+  { src: 'team-reese-jumawan.webp', alt: 'Reese', rotate: -7, y: 4, emoji: '', corner: '', tilt: 0 },
+  { src: 'team-thamara-ong.webp', alt: 'Thamara', rotate: 4, y: -2, emoji: '', corner: '', tilt: 0 },
+  { src: 'team-claudy-tahil.png', alt: 'Claudy', rotate: -5, y: 3, emoji: '⭐', corner: '-top-4 -right-4', tilt: -14 },
 ];
 
 export default function CareersPage() {
@@ -398,30 +401,62 @@ export default function CareersPage() {
               corners instead of a wider container's edges. */}
           <div className="flex flex-wrap justify-center space-x-1">
             {teamPhotos.slice(0, 5).map((p) => (
-              <img
+              <div
                 key={p.src}
-                src={`/images/${p.src}`}
-                alt={`${p.alt}, Huna Creatives team`}
-                className="w-44 h-56 object-cover object-top rounded-xl shadow-lg flex-shrink-0"
-                style={{ transform: `rotate(${p.rotate}deg) translateY(${p.y}px)`, animation: `float-gentle ${8 + Math.abs(p.rotate) * 0.3}s ease-in-out infinite ${Math.abs(p.y) * 0.05}s` }}
-              />
+                className="relative flex-shrink-0"
+                // Each card's transform makes its own stacking context, so a
+                // neighbour painted later covers an emoji sitting on this
+                // card's corner. Cards carrying one are lifted above the rest.
+                style={{ transform: `rotate(${p.rotate}deg) translateY(${p.y}px)`, animation: `float-gentle ${8 + Math.abs(p.rotate) * 0.3}s ease-in-out infinite ${Math.abs(p.y) * 0.05}s`, zIndex: p.emoji ? 5 : 1 }}
+              >
+                <img
+                  src={`/images/${p.src}`}
+                  alt={`${p.alt}, Huna Creatives team`}
+                  className="w-44 h-56 object-cover object-top rounded-xl shadow-lg"
+                />
+                {p.emoji && (
+                  <span
+                    className={`absolute ${p.corner} text-2xl select-none pointer-events-none`}
+                    style={{ transform: `rotate(${p.tilt}deg)`, zIndex: 7 }}
+                    aria-hidden="true"
+                  >
+                    {p.emoji}
+                  </span>
+                )}
+              </div>
             ))}
           </div>
           <div className="flex flex-wrap justify-center space-x-1 mt-3">
             {teamPhotos.slice(5).map((p) => (
-              <img
+              <div
                 key={p.src}
-                src={`/images/${p.src}`}
-                alt={`${p.alt}, Huna Creatives team`}
-                className="w-44 h-56 object-cover object-top rounded-xl shadow-lg flex-shrink-0"
-                style={{ transform: `rotate(${p.rotate}deg) translateY(${p.y}px)`, animation: `float-gentle ${8 + Math.abs(p.rotate) * 0.3}s ease-in-out infinite ${Math.abs(p.y) * 0.05}s` }}
-              />
+                className="relative flex-shrink-0"
+                // Each card's transform makes its own stacking context, so a
+                // neighbour painted later covers an emoji sitting on this
+                // card's corner. Cards carrying one are lifted above the rest.
+                style={{ transform: `rotate(${p.rotate}deg) translateY(${p.y}px)`, animation: `float-gentle ${8 + Math.abs(p.rotate) * 0.3}s ease-in-out infinite ${Math.abs(p.y) * 0.05}s`, zIndex: p.emoji ? 5 : 1 }}
+              >
+                <img
+                  src={`/images/${p.src}`}
+                  alt={`${p.alt}, Huna Creatives team`}
+                  className="w-44 h-56 object-cover object-top rounded-xl shadow-lg"
+                />
+                {p.emoji && (
+                  <span
+                    className={`absolute ${p.corner} text-2xl select-none pointer-events-none`}
+                    style={{ transform: `rotate(${p.tilt}deg)`, zIndex: 7 }}
+                    aria-hidden="true"
+                  >
+                    {p.emoji}
+                  </span>
+                )}
+              </div>
             ))}
           </div>
 
           {/* Floating quote bubbles */}
           <div
-            className="hidden sm:flex absolute -top-10 -left-36 max-w-[190px] items-start gap-2 rounded-2xl rounded-bl-sm px-4 py-3"
+            className="hidden sm:flex absolute -top-6 -left-16 max-w-[190px] items-start gap-2 rounded-2xl rounded-bl-sm px-4 py-3"
             style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', boxShadow: '0 8px 24px rgba(36,48,55,0.15)', transform: 'rotate(-5deg)', animation: 'float-gentle 9s ease-in-out infinite', zIndex: 6 }}
           >
             <i className="ri-double-quotes-l text-[#FF5B05] text-lg leading-none flex-shrink-0" />
@@ -431,7 +466,7 @@ export default function CareersPage() {
           </div>
 
           <div
-            className="hidden sm:flex absolute -bottom-12 -right-36 max-w-[190px] items-start gap-2 rounded-2xl rounded-tr-sm px-4 py-3"
+            className="hidden sm:flex absolute -bottom-6 -right-16 max-w-[190px] items-start gap-2 rounded-2xl rounded-tr-sm px-4 py-3"
             style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', boxShadow: '0 8px 24px rgba(36,48,55,0.15)', transform: 'rotate(4deg)', animation: 'float-gentle 10s ease-in-out infinite 0.7s', zIndex: 6 }}
           >
             <i className="ri-double-quotes-l text-[#075056] text-lg leading-none flex-shrink-0" />
@@ -440,14 +475,6 @@ export default function CareersPage() {
             </p>
           </div>
 
-          {/* Fun floating icons/emoji at the cluster's own corners — kept
-              clear of both quote bubbles (top-left and bottom-right) */}
-          <span className="hidden sm:block absolute -top-3 -right-2 text-3xl" style={{ transform: 'rotate(10deg)', animation: 'float-gentle 7.5s ease-in-out infinite 0.2s', zIndex: 6 }}>🎨</span>
-          <span className="hidden sm:block absolute -bottom-2 left-8 text-2xl" style={{ transform: 'rotate(6deg)', animation: 'float-gentle 8s ease-in-out infinite 1.1s', zIndex: 6 }}>✨</span>
-          <span className="hidden sm:block absolute top-1/3 -left-5 text-[1.6875rem]" style={{ transform: 'rotate(-8deg)', animation: 'float-gentle 9s ease-in-out infinite 0.9s', zIndex: 6 }}>🦄</span>
-          <span className="hidden sm:block absolute top-6 -left-6 text-2xl" style={{ transform: 'rotate(8deg)', animation: 'float-gentle 8.5s ease-in-out infinite 1.4s', zIndex: 6 }}>🎉</span>
-          <span className="hidden sm:block absolute top-1/2 -right-5 text-[1.6875rem]" style={{ transform: 'rotate(6deg)', animation: 'float-gentle 10s ease-in-out infinite 0.4s', zIndex: 6 }}>🚀</span>
-          <span className="hidden sm:block absolute bottom-6 -right-6 text-2xl" style={{ transform: 'rotate(-6deg)', animation: 'float-gentle 7.8s ease-in-out infinite 1.7s', zIndex: 6 }}>⭐</span>
         </div>
         </div>
       </section>
