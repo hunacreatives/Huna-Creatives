@@ -135,7 +135,10 @@ const GraphicDesignLayout = ({ category }) => {
       bg: 'transparent',
       description: 'Compact, eye-catching, and built to travel far. Flyers carry your message directly into people\'s hands.',
       subtext: 'Every flyer is crafted to grab attention, spark curiosity, and leave a clear memory of your brand.',
-      image: '/images/drive-vox-chifa-bowl.png',
+      // Same pre-rendered mockup treatment as the menus section, transparent
+      // background so it sits on the page without a backing plate.
+      image: '/images/flyers-mockup.png',
+      wideImage: true,
       imageLeft: false,
     },
   ];
