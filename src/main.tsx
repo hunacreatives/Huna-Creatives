@@ -38,6 +38,49 @@ if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
   });
 }
 
+// A new build is waiting: offer it instead of silently sitting on the old one
+// until every tab closes. Clicking posts SKIP_WAITING, the new SW activates,
+// and the controllerchange handler above reloads the page.
+if ('serviceWorker' in navigator) {
+  const offerUpdate = (waiting: ServiceWorker) => {
+    if (document.getElementById('sw-update-toast')) return;
+    const bar = document.createElement('div');
+    bar.id = 'sw-update-toast';
+    bar.setAttribute('role', 'status');
+    bar.style.cssText = [
+      'position:fixed', 'left:50%', 'bottom:24px', 'transform:translateX(-50%)',
+      'z-index:2147483647', 'display:flex', 'align-items:center', 'gap:12px',
+      'padding:10px 12px 10px 16px', 'border-radius:9999px',
+      'background:#243037', 'color:#fff', 'font:500 13px/1.2 system-ui,sans-serif',
+      'box-shadow:0 8px 28px rgba(0,0,0,0.28)',
+    ].join(';');
+    bar.innerHTML =
+      '<span>A new version is available</span>' +
+      '<button type="button" style="border:0;border-radius:9999px;padding:7px 14px;' +
+      'background:#FF5B05;color:#fff;font:600 13px/1 system-ui,sans-serif;cursor:pointer">Reload</button>';
+    bar.querySelector('button')!.addEventListener('click', () => {
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+    });
+    document.body.appendChild(bar);
+  };
+
+  navigator.serviceWorker.ready.then((reg) => {
+    if (reg.waiting) offerUpdate(reg.waiting);
+    reg.addEventListener('updatefound', () => {
+      const installing = reg.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        // 'installed' with an existing controller means an update is waiting
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+          offerUpdate(installing);
+        }
+      });
+    });
+    // Catch a build shipped while the tab sat idle
+    setInterval(() => { reg.update().catch(() => {}); }, 60_000);
+  }).catch(() => {});
+}
+
 // Deep-link handoff from the service worker: when a push notification is
 // clicked and the SW can't navigate the window itself (uncontrolled client),
 // it posts the target URL here instead.

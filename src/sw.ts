@@ -18,6 +18,14 @@ registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 // next cold visit instead.
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
+// ...but let the page ask for it on demand. Without this, a waiting SW only
+// activates once every tab from the old build is CLOSED -- reloading is not
+// enough, because navigations are served from the precached shell above. That
+// made new deploys invisible for anyone who kept a tab open.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
