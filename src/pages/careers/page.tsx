@@ -442,12 +442,12 @@ export default function CareersPage() {
 
           {/* Fun floating icons/emoji at the cluster's own corners — kept
               clear of both quote bubbles (top-left and bottom-right) */}
-          <span className="hidden sm:block absolute -top-6 -right-6 text-3xl" style={{ transform: 'rotate(10deg)', animation: 'float-gentle 7.5s ease-in-out infinite 0.2s', zIndex: 6 }}>🎨</span>
-          <span className="hidden sm:block absolute -bottom-5 left-4 text-2xl" style={{ transform: 'rotate(6deg)', animation: 'float-gentle 8s ease-in-out infinite 1.1s', zIndex: 6 }}>✨</span>
-          <span className="hidden sm:block absolute top-1/3 -left-14 text-[1.6875rem]" style={{ transform: 'rotate(-8deg)', animation: 'float-gentle 9s ease-in-out infinite 0.9s', zIndex: 6 }}>🦄</span>
-          <span className="hidden sm:block absolute top-6 -left-16 text-2xl" style={{ transform: 'rotate(8deg)', animation: 'float-gentle 8.5s ease-in-out infinite 1.4s', zIndex: 6 }}>🎉</span>
-          <span className="hidden sm:block absolute top-1/2 -right-14 text-[1.6875rem]" style={{ transform: 'rotate(6deg)', animation: 'float-gentle 10s ease-in-out infinite 0.4s', zIndex: 6 }}>🚀</span>
-          <span className="hidden sm:block absolute bottom-6 -right-16 text-2xl" style={{ transform: 'rotate(-6deg)', animation: 'float-gentle 7.8s ease-in-out infinite 1.7s', zIndex: 6 }}>⭐</span>
+          <span className="hidden sm:block absolute -top-3 -right-2 text-3xl" style={{ transform: 'rotate(10deg)', animation: 'float-gentle 7.5s ease-in-out infinite 0.2s', zIndex: 6 }}>🎨</span>
+          <span className="hidden sm:block absolute -bottom-2 left-8 text-2xl" style={{ transform: 'rotate(6deg)', animation: 'float-gentle 8s ease-in-out infinite 1.1s', zIndex: 6 }}>✨</span>
+          <span className="hidden sm:block absolute top-1/3 -left-5 text-[1.6875rem]" style={{ transform: 'rotate(-8deg)', animation: 'float-gentle 9s ease-in-out infinite 0.9s', zIndex: 6 }}>🦄</span>
+          <span className="hidden sm:block absolute top-6 -left-6 text-2xl" style={{ transform: 'rotate(8deg)', animation: 'float-gentle 8.5s ease-in-out infinite 1.4s', zIndex: 6 }}>🎉</span>
+          <span className="hidden sm:block absolute top-1/2 -right-5 text-[1.6875rem]" style={{ transform: 'rotate(6deg)', animation: 'float-gentle 10s ease-in-out infinite 0.4s', zIndex: 6 }}>🚀</span>
+          <span className="hidden sm:block absolute bottom-6 -right-6 text-2xl" style={{ transform: 'rotate(-6deg)', animation: 'float-gentle 7.8s ease-in-out infinite 1.7s', zIndex: 6 }}>⭐</span>
         </div>
         </div>
       </section>
