@@ -101,7 +101,6 @@ export default function AboutPage() {
       const { data } = await supabase.functions.invoke('public-team');
       const mapped: TeamMember[] = (data?.team ?? [])
         .filter((m: any) => !String(m.full_name || '').toLowerCase().includes('reeva'))
-        .filter((m: any) => !String(m.full_name || '').toLowerCase().includes('thamara'))
         .map((m: any) => ({
           name: m.full_name,
           role: m.job_title || m.department || '',
