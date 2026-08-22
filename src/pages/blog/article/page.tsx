@@ -204,6 +204,25 @@ const ArticlePage = () => {
                       />
                     );
                   }
+                  if (block.type === 'image') {
+                    return (
+                      <figure key={i} className="my-8">
+                        <div className="rounded-xl md:rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(36,48,55,0.08)' }}>
+                          <img
+                            src={block.content}
+                            alt={block.alt ?? block.caption ?? ''}
+                            loading="lazy"
+                            className="w-full h-auto object-cover"
+                          />
+                        </div>
+                        {block.caption && (
+                          <figcaption className="mt-2.5 text-xs text-[#243037]/45 leading-relaxed">
+                            {block.caption}
+                          </figcaption>
+                        )}
+                      </figure>
+                    );
+                  }
                   if (block.type === 'quote') {
                     return (
                       <blockquote
@@ -361,7 +380,8 @@ const ArticlePage = () => {
                             <img
                               src={rel.heroImage}
                               alt={rel.title}
-                              className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              style={{ objectPosition: rel.heroImagePosition ?? 'center top' }}
                             />
                           </div>
                           <p className="text-xs font-medium text-[#243037]/65 group-hover:text-[#FF5B05] transition-colors leading-snug">

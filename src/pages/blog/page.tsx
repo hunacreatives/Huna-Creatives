@@ -127,7 +127,8 @@ export default function BlogPage() {
                   <img
                     src={featured.heroImage}
                     alt={featured.title}
-                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    style={{ objectPosition: featured.heroImagePosition ?? 'center top' }}
                   />
                   <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(36,48,55,0.92) 0%, rgba(36,48,55,0.45) 55%, transparent 100%)' }} />
                   {/* Featured Badge */}
@@ -205,7 +206,8 @@ export default function BlogPage() {
                     <img
                       src={article.heroImage}
                       alt={article.title}
-                      className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      style={{ objectPosition: article.heroImagePosition ?? 'center top' }}
                     />
                     <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(36,48,55,0.35) 0%, transparent 60%)' }} />
                   </div>

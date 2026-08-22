@@ -14,121 +14,19 @@ export interface BlogArticle {
     keywords: string[];
   };
   body: {
-    type: 'heading' | 'paragraph' | 'quote' | 'list';
+    type: 'heading' | 'paragraph' | 'quote' | 'list' | 'image';
+    /** For 'image' blocks this is the src; for everything else, the text. */
     content: string;
     items?: string[];
+    /** 'image' only: caption shown beneath, and the alt text. */
+    caption?: string;
+    alt?: string;
   }[];
   cta: { heading: string; body: string };
   relatedSlugs: string[];
 }
 
 export const blogArticles: BlogArticle[] = [
-  {
-    slug: 'hulma-cebu-architectural-fiberglass-website',
-    category: 'Case Study',
-    title: 'Hulma Cebu: A Website for Architectural Fiberglass',
-    excerpt:
-      'Selling a material is harder than selling a product. Hulma Cebu fabricates architectural fiberglass for commercial, hospitality and residential projects \u2014 and needed a site that could convince an architect it belongs in their spec.',
-    readTime: '6 min read',
-    date: 'June 24, 2026',
-    isoDate: '2026-06-24',
-    heroImage: '/images/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png',
-    author: {
-      name: 'Francis Fiel Roble',
-      role: 'Founder & Creative Director',
-      avatar: '/images/team-francis-fiel-roble.webp',
-    },
-    seo: {
-      description:
-        'How we built the Hulma Cebu website for an architectural fiberglass fabricator \u2014 product catalog, project galleries and a lead flow tuned for architects and B2B buyers.',
-      keywords: [
-        'web design Cebu',
-        'architectural fiberglass Philippines',
-        'B2B website design Philippines',
-        'manufacturer website design',
-        'product catalog website',
-        'lead generation website Cebu',
-        'Hulma Cebu',
-        'Huna Creatives',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'Selling a material is a harder brief than selling a product. Nobody buys architectural fiberglass because the photography was nice. They buy it because a specifier decided it would hold up, arrive on schedule, and survive the detail they have drawn \u2014 and most of that decision happens before anyone picks up a phone.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          '<a href="https://hulmacebu.com" target="_blank" rel="noopener noreferrer">Hulma Cebu</a> fabricates architectural fiberglass for commercial, hospitality and residential projects. The work is genuinely custom, which is exactly what makes it hard to put on a website: there is no catalogue of SKUs to list, and no single photograph that explains what the company can do.',
-      },
-      { type: 'heading', content: 'Design for the specifier, not the browser' },
-      {
-        type: 'paragraph',
-        content:
-          'The visitor who matters here is not a homeowner idly browsing. It is an architect, an interior designer, or a project manager checking whether this supplier is credible enough to put into a drawing. That person has a specific and unromantic set of questions, and the site is judged on how fast it answers them.',
-      },
-      {
-        type: 'list',
-        content: 'What a specifier is actually looking for:',
-        items: [
-          'Has this fabricator done work at my project\u2019s scale before',
-          'What can the material actually do \u2014 spans, finishes, tolerances',
-          'Is it lightweight enough for the structure I have already designed',
-          'Can they work from my drawings rather than a fixed product range',
-          'Who do I talk to, and how quickly will they come back to me',
-        ],
-      },
-      {
-        type: 'paragraph',
-        content:
-          'So the structure follows those questions rather than a conventional marketing funnel. Capability first, evidence second, contact never more than a click away.',
-      },
-      { type: 'heading', content: 'Project galleries as proof, not decoration' },
-      {
-        type: 'paragraph',
-        content:
-          'For a custom fabricator, past projects are the entire argument. The galleries are built to be scanned by someone assessing scale and finish, not scrolled for inspiration \u2014 each project shown in enough detail that a designer can judge whether their own job is comparable.',
-      },
-      {
-        type: 'quote',
-        content:
-          'In B2B, the portfolio is not a flourish at the end of the site. It is the product page.',
-      },
-      { type: 'heading', content: 'One lead flow, qualified early' },
-      {
-        type: 'paragraph',
-        content:
-          'The enquiry flow asks for project type and scope up front. That is a deliberate trade: slightly fewer submissions, considerably better ones. A fabricator does not need volume of enquiries \u2014 they need enquiries that are worth quoting, and a form that filters at the front saves a week of back-and-forth at the back.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'It is the same discipline behind every commercial site we build \u2014 the clearest recent example being <a href="/blog/fs-architects-website-sentro-hub-staff-app">FS Architects</a>, where the public site had to carry the practice while a separate app ran everything behind it.',
-      },
-      { type: 'heading', content: 'Materials brands are their own category' },
-      {
-        type: 'paragraph',
-        content:
-          'A materials supplier sits awkwardly between a manufacturer and a service business. The website has to do the work a showroom would \u2014 convey quality through the screen, and stand in for the sample a designer cannot hold. That means restraint, generous imagery, and no visual noise competing with the material itself.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'You can see the site in our <a href="/portfolio/web-design">web design portfolio</a> alongside SmartGrid Western and FS Architects, or read how we approach identity work in the <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">Cooperative Plumbing case study</a>. If you sell something that has to be specified rather than simply bought, <a href="/contact">come talk to us</a>.',
-      },
-    ],
-    cta: {
-      heading: 'Selling something that has to be specified?',
-      body: 'We build B2B sites that answer a specifier\u2019s questions before they have to ask. Tell us what you make.',
-    },
-    relatedSlugs: [
-      'fs-architects-website-sentro-hub-staff-app',
-      'digital-invitations-evites-cebu',
-      'cooperative-plumbing-drain-employee-owned-branding',
-    ],
-  },
   {
     slug: 'fs-architects-website-sentro-hub-staff-app',
     category: 'Case Study',
@@ -239,6 +137,34 @@ export const blogArticles: BlogArticle[] = [
         content:
           'If you are running a practice on spreadsheets and a template site, the gap between those two things is probably costing more than you think. <a href="/contact">Come tell us how you work</a>.',
       },
+      {
+        type: 'heading',
+        content: 'Trilingual is a structure, not a translation layer',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Running English, Spanish and Chinese is straightforward if you plan for it and painful if you bolt it on. Text expands and contracts by up to thirty percent between languages, so any layout built around one language\u2019s line lengths breaks in the others \u2014 headlines wrap awkwardly, buttons overflow, careful spacing collapses.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Building it in from the start means components size themselves to content rather than to a fixed measure, and every string lives in one place instead of being scattered through markup. That is unglamorous engineering, and it is the difference between adding a language in an afternoon and rebuilding the site.',
+      },
+      {
+        type: 'heading',
+        content: 'Why the hub is not off-the-shelf software',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Generic HR platforms assume a company shaped like the platform. Philippine practices are not \u2014 the leave categories, holiday pay rules and thirteenth-month calculations are specific, and the gap between what the software does and what the law requires ends up filled by a spreadsheet someone maintains by hand.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Because this is their own deployment, those rules are encoded rather than approximated. Attendance produces the hours payroll actually uses, and approved leave lands in the right bucket without anyone reconciling two systems at month end.',
+      },
     ],
     cta: {
       heading: 'Need more than a website?',
@@ -246,6 +172,154 @@ export const blogArticles: BlogArticle[] = [
     },
     relatedSlugs: [
       'sentro-os-hr-operations-hub-creative-agencies-philippines',
+      'digital-invitations-evites-cebu',
+      'cooperative-plumbing-drain-employee-owned-branding',
+    ],
+  },
+  {
+    slug: 'hulma-cebu-architectural-fiberglass-website',
+    category: 'Case Study',
+    title: 'Hulma Cebu: A Website for Architectural Fiberglass',
+    excerpt:
+      'Selling a material is harder than selling a product. Hulma Cebu fabricates architectural fiberglass for commercial, hospitality and residential projects \u2014 and needed a site that could convince an architect it belongs in their spec.',
+    readTime: '6 min read',
+    date: 'June 24, 2026',
+    isoDate: '2026-06-24',
+    heroImage: '/images/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png',
+    author: {
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
+    },
+    seo: {
+      description:
+        'How we built the Hulma Cebu website for an architectural fiberglass fabricator \u2014 product catalog, project galleries and a lead flow tuned for architects and B2B buyers.',
+      keywords: [
+        'web design Cebu',
+        'architectural fiberglass Philippines',
+        'B2B website design Philippines',
+        'manufacturer website design',
+        'product catalog website',
+        'lead generation website Cebu',
+        'Hulma Cebu',
+        'Huna Creatives',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Selling a material is a harder brief than selling a product. Nobody buys architectural fiberglass because the photography was nice. They buy it because a specifier decided it would hold up, arrive on schedule, and survive the detail they have drawn \u2014 and most of that decision happens before anyone picks up a phone.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          '<a href="https://hulmacebu.com" target="_blank" rel="noopener noreferrer">Hulma Cebu</a> fabricates architectural fiberglass for commercial, hospitality and residential projects. The work is genuinely custom, which is exactly what makes it hard to put on a website: there is no catalogue of SKUs to list, and no single photograph that explains what the company can do.',
+      },
+      { type: 'heading', content: 'Design for the specifier, not the browser' },
+      {
+        type: 'paragraph',
+        content:
+          'The visitor who matters here is not a homeowner idly browsing. It is an architect, an interior designer, or a project manager checking whether this supplier is credible enough to put into a drawing. That person has a specific and unromantic set of questions, and the site is judged on how fast it answers them.',
+      },
+      {
+        type: 'list',
+        content: 'What a specifier is actually looking for:',
+        items: [
+          'Has this fabricator done work at my project\u2019s scale before',
+          'What can the material actually do \u2014 spans, finishes, tolerances',
+          'Is it lightweight enough for the structure I have already designed',
+          'Can they work from my drawings rather than a fixed product range',
+          'Who do I talk to, and how quickly will they come back to me',
+        ],
+      },
+      {
+        type: 'paragraph',
+        content:
+          'So the structure follows those questions rather than a conventional marketing funnel. Capability first, evidence second, contact never more than a click away.',
+      },
+      { type: 'heading', content: 'Project galleries as proof, not decoration' },
+      {
+        type: 'paragraph',
+        content:
+          'For a custom fabricator, past projects are the entire argument. The galleries are built to be scanned by someone assessing scale and finish, not scrolled for inspiration \u2014 each project shown in enough detail that a designer can judge whether their own job is comparable.',
+      },
+      {
+        type: 'quote',
+        content:
+          'In B2B, the portfolio is not a flourish at the end of the site. It is the product page.',
+      },
+      { type: 'heading', content: 'One lead flow, qualified early' },
+      {
+        type: 'paragraph',
+        content:
+          'The enquiry flow asks for project type and scope up front. That is a deliberate trade: slightly fewer submissions, considerably better ones. A fabricator does not need volume of enquiries \u2014 they need enquiries that are worth quoting, and a form that filters at the front saves a week of back-and-forth at the back.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'It is the same discipline behind every commercial site we build \u2014 the clearest recent example being <a href="/blog/fs-architects-website-sentro-hub-staff-app">FS Architects</a>, where the public site had to carry the practice while a separate app ran everything behind it.',
+      },
+      { type: 'heading', content: 'Materials brands are their own category' },
+      {
+        type: 'paragraph',
+        content:
+          'A materials supplier sits awkwardly between a manufacturer and a service business. The website has to do the work a showroom would \u2014 convey quality through the screen, and stand in for the sample a designer cannot hold. That means restraint, generous imagery, and no visual noise competing with the material itself.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'You can see the site in our <a href="/portfolio/web-design">web design portfolio</a> alongside SmartGrid Western and FS Architects, or read how we approach identity work in the <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">Cooperative Plumbing case study</a>. If you sell something that has to be specified rather than simply bought, <a href="/contact">come talk to us</a>.',
+      },
+      {
+        type: 'heading',
+        content: 'Why manufacturers get websites wrong',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Most fabricator sites are built like brochures: a history section, a mission statement, a grid of stock photography, and contact details at the bottom. That structure serves the company telling its story, not the specifier trying to make a decision \u2014 and the specifier is the one with the budget.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The inversion is simple but uncomfortable for a lot of clients. Capability and evidence go first. The company story, if it appears at all, appears after someone has decided you are technically credible. Nobody has ever specified a material because they were moved by a founding anecdote.',
+      },
+      {
+        type: 'heading',
+        content: 'Photography is the specification',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'For a custom fabricator, images carry information rather than mood. A designer looking at an installation is reading joint lines, surface finish, how the material meets adjacent surfaces, and how it holds up at the scale shown. Beautifully lit photography that hides those details is actively unhelpful.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'So the galleries favour clarity over drama, and show work at a size where those details survive. It is the opposite instinct to a hospitality or retail brand, where atmosphere is the product \u2014 and it is why materials brands sit in a category of their own.',
+      },
+      {
+        type: 'heading',
+        content: 'Speed of response is part of the design',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'For B2B enquiries, the site\u2019s job does not end at submission. A specifier is usually comparing two or three suppliers in the same week, and the one that responds with a relevant answer first has a structural advantage regardless of price.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Collecting project type and scope up front is what makes that possible \u2014 the first reply can be substantive instead of a request for more information. The form is doing sales work, not just data capture.',
+      },
+    ],
+    cta: {
+      heading: 'Selling something that has to be specified?',
+      body: 'We build B2B sites that answer a specifier\u2019s questions before they have to ask. Tell us what you make.',
+    },
+    relatedSlugs: [
+      'fs-architects-website-sentro-hub-staff-app',
       'digital-invitations-evites-cebu',
       'cooperative-plumbing-drain-employee-owned-branding',
     ],
@@ -330,6 +404,60 @@ export const blogArticles: BlogArticle[] = [
         type: 'paragraph',
         content:
           'The complete work is in our portfolio: <a href="/portfolio/project/whisk-up-matcha">Whisk Up Matcha brand identity</a>. For more café work, see <a href="/blog/peak-coffee-roasters-branding-cebu-it-park">Peak Coffee Roasters</a> or the full <a href="/services">range of what we do</a>.',
+      },
+      {
+        type: 'image',
+        content: '/images/wum-logo-h-green.webp',
+        alt: 'Whisk Up Matcha horizontal logo lockup in forest green',
+        caption: 'The horizontal lockup. The monstera silhouette carries the botanical idea without resorting to a tea leaf.',
+      },
+      {
+        type: 'heading',
+        content: 'Why not just draw a tea leaf',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The obvious mark for a matcha brand is a leaf, and that is exactly the argument against it. Walk through any mall in Cebu or Manila and count the green leaves above beverage counters \u2014 the symbol is so saturated it has stopped carrying meaning. It says "this is healthy" and nothing else, which is not an identity, it is a category label.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The monstera works because it is adjacent rather than literal. It reads botanical and alive, it is instantly recognisable in silhouette, and it is not what the shop next door is using. It also survives the hardest test in food and beverage: reduced to a single colour at the size of a stamp, it is still unmistakably itself.',
+      },
+      {
+        type: 'heading',
+        content: 'Designing for a cup, not a screen',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Most brand presentations show the mark large, centred, on white. Almost none of a caf\u00e9 brand\u2019s real life looks like that. It lives on a cup sleeve at 16 millimetres, on a sticker sealing a paper bag, on a sign read from across a food hall, and increasingly in a delivery app thumbnail beside forty competitors.',
+      },
+      {
+        type: 'image',
+        content: '/images/wum-cup-hand.webp',
+        alt: 'Whisk Up Matcha branded cup held in hand',
+        caption: 'Where the mark actually lives. Small, in motion, and usually slightly wet.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'That is why the suite includes a horizontal lockup, a stacked variation and a mark-only version rather than one logo and a set of rules. Each exists for a specific physical situation, so the person printing a sticker at 10pm does not have to improvise.',
+      },
+      {
+        type: 'heading',
+        content: 'What the palette has to do',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A five-colour palette drawn from nature sounds like a mood board exercise until you try to run a caf\u00e9 with it. Forest Green and Olive carry the product. Amber and Dark Brown do the work most matcha brands forget \u2014 they warm the brand up, so it reads as a place you sit rather than a supplement you buy. Cream holds everything together and, practically, is what most printed material is actually made of.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The tension we were solving is specific to this category. Matcha is a wellness product with an indulgent price point, sold as a treat but justified as a health choice. A palette that leans fully clinical loses the pleasure. One that leans fully indulgent loses the reason people pay the premium. Holding both is the whole job.',
       },
     ],
     cta: {
@@ -436,6 +564,74 @@ export const blogArticles: BlogArticle[] = [
         type: 'paragraph',
         content:
           'The complete refinement study is in our portfolio: <a href="/portfolio/project/uji-matcha-cafe">Uji-Matcha Caf\u00e9 logo refinement</a>. If you are running a caf\u00e9 or beverage brand that has outgrown its original identity, that is the work to look at \u2014 or see the full <a href="/services">range of what we do</a>.',
+      },
+      {
+        type: 'image',
+        content: '/images/uji-logo-primary.webp',
+        alt: 'Uji-Matcha Cafe refined primary logo mark',
+        caption: 'The refined mark. The chasen and bowl are preserved; the proportions and stroke weights are not.',
+      },
+      {
+        type: 'heading',
+        content: 'Refinement is harder than a rebrand',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A rebrand is, counterintuitively, the easier commission. You start from strategy, you are unconstrained, and anything you produce is new by definition. A refinement gives you a fixed silhouette you may not abandon, an audience who will notice any change, and a client who cannot articulate which parts are load-bearing \u2014 because to them it is simply the logo.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'So the first job is diagnostic, not creative. Which elements are carrying recognition, and which are just artefacts of how the original was drawn? For Uji-Matcha Caf\u00e9 the chasen and bowl were doing the recognising. The specific stroke weights, the exact tine count, the slight optical lean \u2014 none of that was load-bearing. That is the material you are free to fix.',
+      },
+      {
+        type: 'heading',
+        content: 'What actually breaks at small sizes',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Detailed line work fails in a predictable order. First the thinnest strokes fill in when printed on absorbent stock. Then adjacent lines merge into a single mass. Then the whole mark stops reading as an object and becomes a smudge with a recognisable outline. On a delivery app thumbnail or an embroidered polo, this happens well before the logo looks small to a designer on a large screen.',
+      },
+      {
+        type: 'image',
+        content: '/images/uji-insta-cafe.webp',
+        alt: 'Uji-Matcha Cafe interior and branding in situ',
+        caption: 'A single location can lean on its space to do the branding. A third branch cannot.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The fix is unglamorous: equalise stroke weights, open the counters, increase the spacing between tines, and correct the optical balance so the mark sits square when set beside type. None of it is visible as a change to a regular customer. All of it is the difference between a mark that survives a mall directory and one that does not.',
+      },
+      {
+        type: 'heading',
+        content: 'Three directions is a conversation, not a menu',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Presenting three routes is not about offering choice for its own sake. It is the fastest way to find out what a client is actually willing to give up. Direction A tested whether they wanted continuity. Direction B tested whether they were open to leaving the illustration behind entirely. Direction C tested whether a hybrid could hold.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The answer to that question tells you more than any brief. A brand that has just committed to a second city usually discovers, when shown the alternative, exactly how much of its existing recognition it is unwilling to spend \u2014 and that is the real decision underneath the logo.',
+      },
+      {
+        type: 'heading',
+        content: 'Type and colour carry the expansion',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Cinzel for display gives the brand classical structure \u2014 it echoes the craft heritage matcha carries without resorting to pastiche Japanese lettering, which ages badly and travels worse. Gilroy handles body copy, menus and signage, where legibility beats character every time.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The palette does similar work. Forest Green and Charcoal anchor it, while Amber and Sky Blue keep it from reading as another earnest wellness brand. For a caf\u00e9 opening in Legazpi Village \u2014 a business district, not a university strip \u2014 that lift matters. The same brand now has to work for a Baguio student and a Makati office worker on a Tuesday afternoon.',
       },
     ],
     cta: {
@@ -565,6 +761,40 @@ export const blogArticles: BlogArticle[] = [
         content:
           'If you are planning something \u2014 a wedding, a 30th, a debut \u2014 the invitation is the first thing anyone sees. It is worth more than a screenshot. Come <a href="/contact">talk to us</a> about it.',
       },
+      {
+        type: 'image',
+        content: '/images/evite-gel.png',
+        alt: 'Gel Turns Thirty digital invitation with pressed-flower watercolour',
+        caption: 'Milestone birthdays carry the same logistics as a wedding, and deserve the same treatment.',
+      },
+      {
+        type: 'heading',
+        content: 'The questions a Cebu guest list always asks',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Every host we have worked with underestimates the same thing: how many guests will ask a question that is already answered on the invitation. That is not carelessness on their part. A JPEG in a group chat is buried within an hour, and nobody scrolls back through six weeks of messages to find it.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A link survives that. It sits in the same message thread, but it always resolves to the current version \u2014 which matters enormously when a call time shifts or a venue changes. The page is the single source of truth, and it updates without anyone having to re-broadcast anything.',
+      },
+      {
+        type: 'heading',
+        content: 'Print and digital work together, not against each other',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Filipino weddings still print. That is not a problem to solve, it is a constraint to design around. The printed invitation carries the ceremony and the emotional weight; the site carries everything that might change and everything too long to print.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'In practice that means a short, memorable domain on the printed card \u2014 not a QR code buried in a corner, which reads as an afterthought. The domain does double duty: it is easy to type from memory, and it looks intentional on paper.',
+      },
     ],
     cta: {
       heading: 'Planning a Cebu wedding or milestone?',
@@ -678,6 +908,40 @@ export const blogArticles: BlogArticle[] = [
         type: 'paragraph',
         content:
           'You can see more of these in our <a href="/portfolio/web-design">web design portfolio</a>. When you are ready, <a href="/contact">tell us about your event</a> \u2014 including the theme you assume is too silly to work. Those are usually the good ones.',
+      },
+      {
+        type: 'image',
+        content: '/images/evite-tercel.png',
+        alt: 'Tercel 41st birthday digital invitation with glitter-cut numerals',
+        caption: 'A different personality entirely. The method is the same: pick a direction and commit to it.',
+      },
+      {
+        type: 'heading',
+        content: 'Themes make the RSVP easier, not harder',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A counterintuitive result: strongly themed invitations get faster responses. A generic invitation asks a guest to work out what kind of event this is, what to wear, and how seriously to take it. A themed one answers all three before the RSVP button, so the decision is simply yes or no.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'That is the argument to make to a host who is nervous about committing. The theme is not decoration \u2014 it is doing the explaining that would otherwise happen over messages in the week before.',
+      },
+      {
+        type: 'heading',
+        content: 'Where hosts get cold feet',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The hesitation is almost always the same: will older relatives find this confusing. In practice, they do not \u2014 a single large button on a single page is easier to use than a Facebook event, and considerably easier than a form. The complexity people fear comes from navigation and choice, neither of which a good invitation has.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'What genuinely does cause problems is weight. A page stuffed with high-resolution photography fails on a mid-range phone in a mall car park, and that failure is invisible to whoever approved it on a laptop. We treat page weight as a hard constraint for exactly that reason.',
       },
     ],
     cta: {
@@ -947,6 +1211,40 @@ export const blogArticles: BlogArticle[] = [
         content:
           'Coffee and matcha brands face the same problem from opposite ends \u2014 see how we approached it for <a href="/blog/whisk-up-matcha-brand-identity-cebu">Whisk Up Matcha</a> and <a href="/blog/uji-matcha-cafe-logo-refinement-baguio-makati">Uji-Matcha Caf\u00e9</a>. More of our identity work is in the <a href="/portfolio/branding">branding portfolio</a>.',
       },
+      {
+        type: 'image',
+        content: '/images/peak-coffee-app-cups.webp',
+        alt: 'Peak Coffee Roasters branded cups',
+        caption: 'A coffee mark spends most of its life at cup scale, in someone else\u2019s hand, in someone else\u2019s photo.',
+      },
+      {
+        type: 'heading',
+        content: 'Designing for an IT Park crowd',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Cebu IT Park is a specific commercial environment \u2014 dense, competitive, and populated by people making a fast decision on the way to or from work. A brand there is not competing on craft credentials alone; it is competing for recognition at a glance, often from across a lobby or in a queue.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'That pushes the identity toward clarity over intricacy. Marks that reward close inspection are wasted when the average viewing distance is ten metres and the average viewing time is under two seconds.',
+      },
+      {
+        type: 'heading',
+        content: 'Packaging is the advertising',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Specialty coffee has an unusual advantage: customers carry the branding out of the shop and photograph it. Cups, bean bags and paper bags do more distribution work than any paid campaign a local roaster could afford, which makes them the highest-leverage surfaces in the system.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'So the suite was built outward from those objects rather than from a letterhead. The same principle applied to <a href="/blog/whisk-up-matcha-brand-identity-cebu">Whisk Up Matcha</a> \u2014 in food and beverage, the packaging is not an application of the brand, it is where the brand actually lives.',
+      },
     ],
     cta: {
       heading: 'Opening a café or restaurant in Cebu? Your brand is your most important first impression.',
@@ -1058,6 +1356,64 @@ export const blogArticles: BlogArticle[] = [
         content:
           'For more retail and hospitality identity work, see <a href="/blog/peak-coffee-roasters-branding-cebu-it-park">Peak Coffee Roasters</a> and the full <a href="/portfolio/branding">branding portfolio</a>, or read what a complete identity includes in our <a href="/services">services</a>.',
       },
+      {
+        type: 'image',
+        content: '/images/tsh-app-packaging-001.jpg',
+        alt: 'The Second Haus branded packaging and tissue',
+        caption: 'Packaging is where a resale brand earns its price. It is the one part of the experience that is unambiguously new.',
+      },
+      {
+        type: 'heading',
+        content: 'The trust problem in secondhand luxury',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Resale carries a specific anxiety that first-hand retail does not. A buyer is asking two questions at once \u2014 is this authentic, and is this worth the price given someone else owned it first. Every element of the identity is either answering those questions or making them louder.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Brands that lean into the bargain framing lose here. Discount cues invite scepticism about authenticity, because cheap signalling and counterfeit goods share a visual vocabulary. The Second Haus needed to look like a boutique that happens to sell pre-owned pieces, not a marketplace that happens to be curated.',
+      },
+      {
+        type: 'heading',
+        content: 'Why the serif does the heavy lifting',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The logotype is a serif for a reason that is commercial rather than aesthetic. Serifs carry inherited authority \u2014 they read as established, considered, permanent. For a business whose entire proposition rests on being trusted with valuable goods, that association is doing measurable work before a single product is seen.',
+      },
+      {
+        type: 'image',
+        content: '/images/tsh-app-tags-001.jpg',
+        alt: 'The Second Haus swing tags and labels',
+        caption: 'Tags are the closest a resale brand gets to a certificate. They are worth over-designing.',
+      },
+      {
+        type: 'heading',
+        content: 'Packaging as the proof',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'In resale, packaging is disproportionately important because it is the only part of the transaction that is definitively new. The garment has a history; the box does not. A considered unboxing reframes the entire purchase \u2014 it tells the buyer they bought from a boutique, not from a stranger.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'That is why the system extends to tissue, tags, cards and totes rather than stopping at a logo. Each touchpoint is a small reassurance, and they compound. It is the same logic behind consistent identity systems generally \u2014 see how we applied it in the <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">Cooperative Plumbing case study</a>, where the proof had to live on a service van instead.',
+      },
+      {
+        type: 'heading',
+        content: 'A palette that reads as a home',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The earthy palette was chosen to evoke a beautifully kept home rather than a retail floor. That is deliberate positioning: consignment works on the idea that these pieces came from somewhere cared-for. Warm neutrals do that work quietly, and they photograph well against the enormous variety of products a resale business has to shoot.',
+      },
     ],
     cta: {
       heading: 'Launching a boutique, fashion label, or retail brand in Cebu?',
@@ -1154,6 +1510,63 @@ export const blogArticles: BlogArticle[] = [
         type: 'paragraph',
         content:
           'Content works hardest when it sits on a brand that already holds together \u2014 see <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">how we built one from strategy up</a>, or browse the <a href="/portfolio">portfolio</a> and our <a href="/services">services</a>.',
+      },
+      {
+        type: 'heading',
+        content: 'What actually goes wrong when you outsource',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The failure is almost never quality of writing. It is that the agency does not know things only the founder knows \u2014 which objection kills most deals, what customers say in the first call, which claims are legally risky. Without those, output is competent and generic, which is worse than nothing because it is expensive and invisible.',
+      },
+      {
+        type: 'list',
+        content: 'The handover that prevents it:',
+        items: [
+          'Recordings or notes from real sales calls, not a summary of them',
+          'The three objections you answer most, and how you answer them',
+          'Words your customers use that your industry does not',
+          'Claims you cannot legally or reputationally make',
+          'One piece of past content you thought was genuinely good, and why',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'Keep the opinions, outsource the production',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The division that works: you own point of view, the agency owns execution. Anything that requires a position \u2014 what you think the industry gets wrong, which trade-offs you accept \u2014 has to come from inside. Anything that is craft or volume can move outside.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Founders who try to outsource the thinking end up rewriting everything, then concluding outsourcing does not work. Founders who try to keep the production end up publishing nothing for four months. The split matters more than the vendor.',
+      },
+      {
+        type: 'heading',
+        content: 'Why Philippine agencies for this specifically',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'English fluency is the obvious reason and the least interesting one. The more practical advantages are overlap with US and Australian working hours, and a working culture where clarification is asked for rather than assumed \u2014 which matters enormously in content, where a wrong assumption produces a finished article nobody can use.',
+      },
+      {
+        type: 'heading',
+        content: 'Judge the first month on process, not output',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The first month of any content engagement produces mediocre work. That is not a warning sign, it is arithmetic \u2014 nobody learns a business in three weeks. What you should judge instead is whether the questions being asked are getting sharper, and whether corrections stay corrected.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'If month two repeats month one\u2019s mistakes, the problem is real. If the drafts need less rewriting each cycle, it is working, and the compounding is worth more than any single article.',
       },
     ],
     cta: {
@@ -1255,6 +1668,63 @@ export const blogArticles: BlogArticle[] = [
         content:
           'The value proposition is straightforward. Filipino <a href="/services">creative agencies</a> deliver strategic, world-class brand identities at a fraction of what US or European studios charge for the same scope. The English fluency is native. The cultural understanding of Western markets is deep. The quality ceiling — when you find the right agency — is as high as anywhere in the world. For founders who need to stretch every dollar, this is not a compromise. It is a smart decision. <a href="/portfolio">See our work</a> and judge for yourself.',
       },
+      {
+        type: 'heading',
+        content: 'What a startup package should actually contain',
+      },
+      {
+        type: 'list',
+        content: 'The deliverables that earn their place at seed stage:',
+        items: [
+          'Positioning \u2014 who it is for, what it replaces, why it is different',
+          'A logo suite, not a logo: horizontal, stacked and mark-only',
+          'A colour system with defined roles, not just five swatches',
+          'Two typefaces maximum, with a clear rule for each',
+          'A one-page usage guide someone can follow without you',
+        ],
+      },
+      {
+        type: 'paragraph',
+        content:
+          'What is usually missing from that list is the expensive part: a fifty-page brand book. At seed stage it is documentation of decisions that will change within a year. The one-page guide does ninety percent of the work at a fraction of the cost.',
+      },
+      {
+        type: 'heading',
+        content: 'Why the founder has to be in the room',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Brand work fails when it is delegated entirely. Not because agencies are careless, but because positioning requires decisions only a founder can make \u2014 which customer to disappoint, which comparison to invite, which market to concede. Those are strategy decisions wearing design clothes.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The most productive engagements we run start with a conversation about who the company is not for. Founders resist that question, and it is the one that makes everything downstream easier.',
+      },
+      {
+        type: 'heading',
+        content: 'When to do it, and when to wait',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Branding before product-market fit is usually premature \u2014 you are designing for a customer you have not met. Branding after your first ten paying customers is well timed, because you now know who they are and what they actually said when they bought.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The exception is a category where trust gates the first sale: fintech, health, anything handling money or data. There, looking unfinished costs you the customers you would have learned from, so the investment comes earlier.',
+      },
+      {
+        type: 'heading',
+        content: 'What it costs, honestly',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A complete startup identity from a Philippine agency generally runs well below US or Australian equivalents, which is why founders look here. The saving is real, but the reason to hire well is not price \u2014 it is that cheap branding gets redone within eighteen months, and paying twice is more expensive than paying properly once.',
+      },
     ],
     cta: {
       heading: 'Build your startup brand the right way from day one.',
@@ -1348,6 +1818,62 @@ export const blogArticles: BlogArticle[] = [
         type: 'paragraph',
         content:
           'Strategy only carries as far as the brand behind it. See <a href="/blog/the-second-haus-branding-consignment">The Second Haus</a> for an identity built to survive a feed, or start with our <a href="/services">services</a> and the <a href="/portfolio">portfolio</a>.',
+      },
+      {
+        type: 'heading',
+        content: 'Cadence beats volume, and it is not close',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The most common failure we see in Philippine SME accounts is not bad content. It is fourteen posts in one week followed by five weeks of silence, usually because someone motivated left or got busy. Platforms punish that pattern, and so do people \u2014 an account that appears and disappears never becomes a habit for anyone.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Two posts a week sustained for a year outperforms daily posting sustained for six weeks, by a wide margin. Set the cadence at the level you can hold during your busiest month, not your calmest one.',
+      },
+      {
+        type: 'heading',
+        content: 'Content pillars stop the blank page',
+      },
+      {
+        type: 'list',
+        content: 'Four pillars most Philippine businesses can actually sustain:',
+        items: [
+          'Proof \u2014 finished work, before and after, real results with real numbers',
+          'Process \u2014 how the thing gets made, which is the most underrated content there is',
+          'People \u2014 who does the work, because SMEs sell on trust more than brand',
+          'Point of view \u2014 what you think your industry gets wrong',
+        ],
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Pillars are less about strategy than about removing the daily decision. When someone sits down to post, the question is which pillar is due, not what should we post today. That single change is what makes a cadence survivable.',
+      },
+      {
+        type: 'heading',
+        content: 'The metrics worth watching',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Follower count is the least useful number available to you. Saves and shares are what actually correlate with business outcomes, because both signal that content was useful enough to keep or pass on. Reach tells you about distribution; saves tell you about value.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'For local businesses in Cebu and around the Philippines, the single most predictive metric is usually direct messages that mention a specific post. That is a lead attributable to content, and ten of those beat ten thousand impressions.',
+      },
+      {
+        type: 'heading',
+        content: 'Local beats broad for local businesses',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A Cebu business does not need national reach, it needs the right few thousand people. Naming the neighbourhood, tagging the actual location, and showing recognisable places outperforms polished but placeless content \u2014 because it tells a viewer this business is near them, which is the only question local intent is really asking.',
       },
     ],
     cta: {
@@ -1458,6 +1984,48 @@ export const blogArticles: BlogArticle[] = [
         type: 'paragraph',
         content:
           'Huna Creatives built <a href="/sentro">Sentro OS</a> to run our own agency operations. After using it internally and seeing how dramatically it reduced the time we spent on HR administration and payroll, we realized it could do the same for other agencies dealing with the same problems. If you are managing a creative team in the Philippines and spending hours each week on attendance tracking, payroll calculations, and contract administration — <a href="/sentro">Sentro OS</a> was built for exactly your situation.',
+      },
+      {
+        type: 'heading',
+        content: 'Why agencies outgrow spreadsheets faster than most',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A creative agency hits operational complexity earlier than headcount suggests. Project-based work, mixed employment arrangements, variable hours and client-billable time all interact \u2014 so by fifteen people you are reconciling several systems that disagree with each other, usually at month end, usually manually.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The cost is not the hours spent reconciling. It is that nobody trusts the numbers, so decisions get made on instinct while the data sits in a spreadsheet nobody quite believes.',
+      },
+      {
+        type: 'heading',
+        content: 'Built for Philippine payroll specifically',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Most international HR platforms treat Philippine requirements as an edge case. Thirteenth-month pay, holiday pay rules, the distinction between worked and unworked regular holidays, government contributions \u2014 these are not configuration options, they are the substance of running payroll here.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Sentro encodes them rather than approximating them, which is the difference between software that produces payroll and software that produces a starting point someone corrects by hand.',
+      },
+      {
+        type: 'heading',
+        content: 'One instance per client, not one platform for everyone',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'We deploy Sentro as a dedicated instance rather than a shared subscription. Each client\u2019s policies, approval chains and pay rules differ enough that configuration alone does not cover it \u2014 and their data sits in their own database rather than a shared one.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The clearest example is <a href="/blog/fs-architects-website-sentro-hub-staff-app">FS Architects</a>, where the hub runs attendance, leave, payroll and appraisals, and installs onto staff phones as their own app.',
       },
     ],
     cta: {
