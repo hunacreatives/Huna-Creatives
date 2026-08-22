@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
 import { useSEO } from '../../hooks/useSEO';
@@ -197,14 +196,14 @@ export default function AboutPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="relative rounded-2xl md:rounded-3xl overflow-hidden">
             <div className="w-full h-[220px] sm:h-[340px] md:h-[440px] lg:h-[520px]">
-              <motion.img
+              {/* Plain img, not a whileInView reveal: the blur-in started at
+                  blur(16px) and only cleared when the viewport callback fired.
+                  When it didn't, the photo stayed permanently blurred and read
+                  as a broken image. */}
+              <img
                 src="/images/team-photo.webp"
                 alt="Huna Creatives Team Photo"
                 className="w-full h-full object-cover object-top"
-                initial={{ filter: 'blur(16px)', scale: 1.04, opacity: 0.8 }}
-                whileInView={{ filter: 'blur(0px)', scale: 1, opacity: 1 }}
-                viewport={{ once: true, amount: 0.1 }}
-                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
               />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent" />

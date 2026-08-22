@@ -24,6 +24,441 @@ export interface BlogArticle {
 
 export const blogArticles: BlogArticle[] = [
   {
+    slug: 'whisk-up-matcha-brand-identity-cebu',
+    category: 'Case Study',
+    title: 'Whisk Up Matcha: Building a Matcha Brand Identity From Scratch',
+    excerpt:
+      'A new matcha brand with no existing equity, in a category where every competitor reaches for the same green leaf. How we built Whisk Up Matcha around a monstera silhouette and a palette drawn entirely from the landscape of the plant.',
+    readTime: '6 min read',
+    date: 'June 11, 2026',
+    isoDate: '2026-06-11',
+    heroImage: '/images/wum-hero.webp',
+    author: {
+      name: 'Thamara Ong',
+      role: 'Partner & Senior Brand Strategist',
+      avatar: '/images/team-thamara-ong.webp',
+    },
+    seo: {
+      description:
+        'How Huna Creatives built the Whisk Up Matcha brand identity from scratch \u2014 strategy, monstera-leaf logo mark, nature-drawn colour palette and full logo suite for a Philippine matcha caf\u00e9 brand.',
+      keywords: [
+        'matcha caf\u00e9 branding Philippines',
+        'caf\u00e9 logo design Cebu',
+        'food and beverage branding Philippines',
+        'matcha brand identity',
+        'Whisk Up Matcha',
+        'branding agency food beverage Philippines',
+        'Huna Creatives Cebu',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Matcha has gone from niche wellness trend to mainstream caf\u00e9 staple across the Philippines, and the number of matcha-focused brands has grown with it. Whisk Up Matcha arrived with no existing brand equity and one hard problem: every competitor in the category reaches for the same visual shorthand. A green leaf, a bamboo whisk, a serif in sage.',
+      },
+      {
+        type: 'heading',
+        content: 'Building an identity from the ground up',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Whisk Up Matcha needed everything \u2014 brand strategy, logo, colour system, a full logo suite, and the visual language to carry it forward. The brief called for warm and grounded: not the clinical minimalism of health-food brands, not the generic green-leaf aesthetic of every matcha competitor, but something rooted in the living world the plant comes from. We built the identity around a monstera leaf silhouette \u2014 botanical, distinctive, and connected to that world without being literal about the tea itself.',
+      },
+      {
+        type: 'quote',
+        content:
+          'The best food and beverage brands do not just make you want to buy the product. They make you want to be the kind of person who drinks it.',
+      },
+      {
+        type: 'heading',
+        content: 'A colour story drawn from the landscape',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The palette came entirely from the landscape of matcha: Forest Green for the tea itself, Olive for the dried leaf, Amber for the terracotta of the teaware, Dark Brown for soil, and a warm Cream tying it together. The result reads earthy and elegant at once \u2014 the visual equivalent of a caf\u00e9 that takes its ingredients as seriously as its interiors.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The full logo suite \u2014 horizontal lockup, stacked variation, mark only \u2014 was drawn to hold up at every scale, from a 16mm cup stamp to a billboard. That range matters more in food and beverage than almost any other category, because the mark spends most of its life very small and slightly wet.',
+      },
+      {
+        type: 'heading',
+        content: 'Why matcha branding is its own problem',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Matcha sits at an awkward intersection \u2014 healthy but indulgent, traditional but photogenic, Japanese in origin but global in appeal. An identity in this category has to hold both sides: honour the ritual without becoming a museum piece, and speak to an audience who found matcha through social media without becoming disposable.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'We worked on a second matcha brand in the same period with the opposite brief \u2014 an established caf\u00e9 that needed evolution rather than invention. That story is in <a href="/blog/uji-matcha-cafe-logo-refinement-baguio-makati">the Uji-Matcha Caf\u00e9 refinement</a>, and the contrast between the two is the clearest illustration we have of how differently the same category can be approached.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The complete work is in our portfolio: <a href="/portfolio/project/whisk-up-matcha">Whisk Up Matcha brand identity</a>. For more café work, see <a href="/blog/peak-coffee-roasters-branding-cebu-it-park">Peak Coffee Roasters</a> or the full <a href="/services">range of what we do</a>.',
+      },
+    ],
+    cta: {
+      heading: 'Building a caf\u00e9 or beverage brand?',
+      body: 'We build food and beverage identities made to survive a crowded shelf and a small cup. Tell us what you are opening.',
+    },
+    relatedSlugs: [
+      'uji-matcha-cafe-logo-refinement-baguio-makati',
+      'peak-coffee-roasters-branding-cebu-it-park',
+      'the-second-haus-branding-consignment',
+    ],
+  },
+  {
+    slug: 'uji-matcha-cafe-logo-refinement-baguio-makati',
+    category: 'Case Study',
+    title: 'Uji-Matcha Caf\u00e9: Refining a Logo for a Brand That Was About to Expand',
+    excerpt:
+      'Uji-Matcha Caf\u00e9 built its following in Baguio, then opened in Makati. A brand crossing cities puts pressure on a logo that a single location never does \u2014 here is how we refined the mark without erasing what its regulars already recognised.',
+    readTime: '6 min read',
+    date: 'August 22, 2026',
+    isoDate: '2026-08-22',
+    heroImage: '/images/uji-hero.webp',
+    author: {
+      name: 'Thamara Ong',
+      role: 'Partner & Senior Brand Strategist',
+      avatar: '/images/team-thamara-ong.webp',
+    },
+    seo: {
+      description:
+        'How Huna Creatives refined the Uji-Matcha Caf\u00e9 logo for a brand expanding from Baguio to Makati \u2014 three evolution directions, scalability fixes, and why refinement beats a rebrand when you already have an audience.',
+      keywords: [
+        'logo refinement Philippines',
+        'caf\u00e9 rebrand Philippines',
+        'Uji-Matcha Caf\u00e9',
+        'matcha caf\u00e9 branding Philippines',
+        'logo redesign Baguio',
+        'brand evolution Makati',
+        'food and beverage branding Philippines',
+        'Huna Creatives',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Uji-Matcha Caf\u00e9 started in Baguio in January 2024, in front of Saint Louis University, and built a genuine local following before adding a kiosk at SM City Baguio. It has since opened in Makati, at Legazpi Village \u2014 three branches, and a brand that now has to work for people who have never been to the original.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'That shift is exactly the moment a logo gets tested. A mark can be slightly imperfect for years while your customers know you by your storefront. The moment you open in a city where nobody does, it has to carry the introduction by itself.',
+      },
+      {
+        type: 'heading',
+        content: 'Refining without erasing',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The brand already existed and had an audience \u2014 that was the constraint, not the problem. The existing logo had scalability issues: detailed line work that broke down at small sizes, inconsistent stroke weight, a slight visual imbalance. The brief was to fix those without discarding the chasen (matcha whisk) and bowl character its regulars already recognised.',
+      },
+      {
+        type: 'quote',
+        content:
+          'When a brand already has an audience, recognition is an asset on the balance sheet. Refinement protects it. A rebrand spends it.',
+      },
+      {
+        type: 'heading',
+        content: 'Three directions, one clear answer',
+      },
+      {
+        type: 'list',
+        content: 'We presented three evolution paths:',
+        items: [
+          'Direction A \u2014 Refined Evolution: keep the whisk-in-bowl illustration, improve proportions, balance and stroke consistency for scalability',
+          'Direction B \u2014 New Brand Expression: an abstract "UJI" lettermark with the chasen integrated into the letterforms, bold and modern',
+          'Direction C \u2014 Unified Expression: the "U" merged with the whisk, the most conceptually unified of the three',
+          'Typography: Cinzel for display, echoing classical structure and Japanese craft heritage, paired with Gilroy for body copy',
+          'Colours: Forest Green, Charcoal, Amber and Sky Blue \u2014 bridging Japanese heritage and contemporary caf\u00e9 aesthetics',
+        ],
+      },
+      {
+        type: 'heading',
+        content: 'What expansion demands of a mark',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A single-location caf\u00e9 can lean on its space to do the branding. A multi-branch one cannot. The mark has to survive a mall directory, a delivery app thumbnail, a paper cup and a shopfront sign \u2014 often at sizes where fine line work simply disappears. Most of the refinement work was about exactly that: making the mark legible at 16 pixels without losing what makes it specific at full size.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'It is the same discipline behind the identity systems we build from scratch, just applied in reverse \u2014 preserving equity instead of creating it. The contrast is clearest against <a href="/blog/whisk-up-matcha-brand-identity-cebu">Whisk Up Matcha</a>, a matcha brand we built with no existing equity at all, in the same period.',
+      },
+      {
+        type: 'heading',
+        content: 'The portfolio',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The complete refinement study is in our portfolio: <a href="/portfolio/project/uji-matcha-cafe">Uji-Matcha Caf\u00e9 logo refinement</a>. If you are running a caf\u00e9 or beverage brand that has outgrown its original identity, that is the work to look at \u2014 or see the full <a href="/services">range of what we do</a>.',
+      },
+    ],
+    cta: {
+      heading: 'Has your brand outgrown its logo?',
+      body: 'Expanding to a new city is the moment it shows. We refine identities without throwing away the recognition you have already earned.',
+    },
+    relatedSlugs: [
+      'whisk-up-matcha-brand-identity-cebu',
+      'peak-coffee-roasters-branding-cebu-it-park',
+      'digital-invitations-evites-cebu',
+    ],
+  },
+  {
+    slug: 'digital-invitations-evites-cebu',
+    category: 'Web Design',
+    title: 'Digital Invitations in Cebu: Why Couples Are Giving Their Wedding Its Own Website',
+    excerpt:
+      'A Viber group and a JPEG cannot answer questions at 11pm the night before. Here is how digital invitations work for Cebu weddings and milestone birthdays \u2014 what belongs on the page, what RSVP tracking actually saves you, and what we built for real Cebu events.',
+    readTime: '7 min read',
+    date: 'August 19, 2026',
+    isoDate: '2026-08-19',
+    heroImage: '/images/evite-carlo-trixia.png',
+    author: {
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
+    },
+    seo: {
+      description:
+        'Digital invitations and wedding websites for Cebu events. How evites handle RSVP tracking, directions and dress code for Cebu weddings and milestone birthdays \u2014 with real examples from Huna Creatives.',
+      keywords: [
+        'digital invitation Cebu',
+        'wedding website Cebu',
+        'evite Philippines',
+        'online invitation Cebu',
+        'Cebu wedding RSVP',
+        'birthday invitation website',
+        'web design Cebu',
+        'Huna Creatives',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Every Cebu event runs on the same three questions. Where exactly is it. What am I supposed to wear. Am I still on the list. When the invitation is a JPEG in a Viber group, those questions come back to the host \u2014 one at a time, by private message, usually the night before.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'A digital invitation moves all of it to one link. Not a form, not a Facebook event \u2014 an actual page on its own domain that holds the details, takes the RSVP, and stays live until the day itself. We have built several of these for Cebu couples and families, and the pattern that makes them work is consistent enough to write down.',
+      },
+      { type: 'heading', content: 'What a Cebu event page actually needs' },
+      {
+        type: 'paragraph',
+        content:
+          'Cebu creates specific problems a generic template does not solve. Guests fly in from Manila and abroad. Venues sit in Mactan, up in Balamban, or down south past Carcar, where a pinned map matters more than an address. And the guest list crosses generations, so the page has to work for a titito on an old Android as well as a cousin on the latest iPhone.',
+      },
+      {
+        type: 'list',
+        content: 'The details that stop the follow-up questions:',
+        items: [
+          'A live map pin, not a typed address \u2014 Cebu venues are frequently unfindable by name alone',
+          'Ceremony and reception times stated separately, with travel time between them',
+          'Dress code shown, not described \u2014 a colour swatch settles arguments that paragraphs do not',
+          'RSVP that records who is coming, plus the plus-ones and the meal notes',
+          'A page that loads on mobile data, because most guests will open it in transit',
+        ],
+      },
+      {
+        type: 'paragraph',
+        content:
+          'That last point is the one templates fail. A heavy invitation page on a slow connection is functionally a broken invitation. We treat mobile weight as a design constraint from the start \u2014 the same discipline we apply to client sites, which we wrote about in <a href="/portfolio/web-design">web design that converts, not just impresses</a>.',
+      },
+      { type: 'heading', content: 'Carlo & Trixia: an invitation that opens' },
+      {
+        type: 'paragraph',
+        content:
+          'For <a href="https://carloandtrixia.com" target="_blank" rel="noopener noreferrer">carloandtrixia.com</a> we started with a wax-sealed envelope. You click the seal, it breaks, and the invitation unfolds \u2014 story, entourage, dress code, RSVP. It is one small moment of ceremony that a JPEG cannot do, and it sets the tone before a single detail is read.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Underneath the flourish, it is a working tool. The RSVP feeds a list the couple can actually read, so the headcount stops living in screenshots. The dress code has its own section, so nobody has to ask. And because it sits on its own domain, it can be printed on the physical invite as a short line: scan for details.',
+      },
+      {
+        type: 'quote',
+        content:
+          'The invitation is the first thing your guests experience. It should feel like the event, not like a form.',
+      },
+      { type: 'heading', content: 'Milestone birthdays deserve the same treatment' },
+      {
+        type: 'paragraph',
+        content:
+          'Weddings get the budget, but 30ths, 40ths and 50ths carry the same logistics. We built <a href="https://gelat30.com" target="_blank" rel="noopener noreferrer">gelat30.com</a> around hand-lettered type and pressed-flower watercolour, and <a href="https://tercelat41.com" target="_blank" rel="noopener noreferrer">tercelat41.com</a> with glitter-cut numerals styled like a printed keepsake. Different personalities entirely \u2014 which is the point. A milestone invitation should look like the person, not like a template someone else used last month.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'That is a branding decision as much as a design one. The same thinking we bring to <a href="/services">brand identity work</a> applies at the scale of a single event: choose a voice, commit to it, and let every element follow.',
+      },
+      { type: 'heading', content: 'What it costs you not to have one' },
+      {
+        type: 'paragraph',
+        content:
+          'The real expense of a JPEG invitation is not design \u2014 it is your own time. Every unanswered question becomes a message you personally reply to, in the week you are least able to. Multiply that across two hundred guests and the maths gets uncomfortable.',
+      },
+      {
+        type: 'list',
+        content: 'What a live page absorbs on your behalf:',
+        items: [
+          'Directions, at any hour, without you answering',
+          'Headcount that updates itself instead of living in a notebook',
+          'Late changes \u2014 a moved time or venue reaches everyone instantly',
+          'Dietary and plus-one details collected once, in one place',
+          'A gallery link afterwards, on the same domain guests already have',
+        ],
+      },
+      { type: 'heading', content: 'Working with a Cebu team' },
+      {
+        type: 'paragraph',
+        content:
+          'We are based in Cebu, which matters more than it sounds. We know which venues are hard to find, how Philippine guest lists actually behave, and why a page has to survive a patchy signal in Balamban. You can see the full range of what we build on our <a href="/portfolio/web-design">web design portfolio</a>, alongside client work like <a href="/portfolio/project/hulma-cebu">Hulma Cebu</a>.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'If you are planning something \u2014 a wedding, a 30th, a debut \u2014 the invitation is the first thing anyone sees. It is worth more than a screenshot. Come <a href="/contact">talk to us</a> about it.',
+      },
+    ],
+    cta: {
+      heading: 'Planning a Cebu wedding or milestone?',
+      body: 'We design digital invitations that handle the details so you do not have to. Tell us about your event.',
+    },
+    relatedSlugs: [
+      'milestone-birthday-evite-pickleball',
+    ],
+  },
+  {
+    slug: 'milestone-birthday-evite-pickleball',
+    category: 'Web Design',
+    title: 'A Pickleball Birthday Invite, and What It Taught Us About Themed Evites',
+    excerpt:
+      'We built a 30th birthday invitation around pickleball \u2014 one paddle, one court, one button. Here is why committing hard to a single theme outperforms the elegant, generic invitation almost every time, and how that applies to events anywhere in the Philippines.',
+    readTime: '6 min read',
+    date: 'August 22, 2026',
+    isoDate: '2026-08-22',
+    heroImage: '/images/evite-claudy.png',
+    author: {
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
+    },
+    seo: {
+      description:
+        'How a pickleball-themed 30th birthday evite was designed, and why committing to one strong theme beats a generic invitation. Digital invitation design for events across the Philippines.',
+      keywords: [
+        'birthday invitation website',
+        'digital invitation Philippines',
+        'evite design Philippines',
+        '30th birthday invitation',
+        'themed invitation design',
+        'online RSVP Philippines',
+        'pickleball birthday',
+        'Huna Creatives',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'When Claudy came to us about her 30th, she did not ask for an elegant invitation. She asked for a pickleball one. That is a better brief than it sounds, and the result \u2014 <a href="https://claudyat30.com" target="_blank" rel="noopener noreferrer">claudyat30.com</a> \u2014 taught us something we now bring to every event page we build.',
+      },
+      { type: 'heading', content: 'Commit to the theme or drop it' },
+      {
+        type: 'paragraph',
+        content:
+          'The instinct with a themed invitation is to hedge. Add a small racket icon in the corner, keep the rest tasteful and neutral, call it a nod. That hedge produces the worst of both outcomes: it is no longer elegant, and it was never actually fun.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'So we went the other way. The whole page is a pickleball court, shot from above, in a colour palette that has no business being subtle. A paddle with her name on it lies across the corner. The RSVP button does not say RSVP \u2014 it says Ready to Dink? A guest knows within half a second what kind of party this is and whether they are dressing for it.',
+      },
+      {
+        type: 'quote',
+        content:
+          'A theme that is only half-applied reads as a mistake. A theme that is fully applied reads as a decision.',
+      },
+      { type: 'heading', content: 'One page, one action' },
+      {
+        type: 'paragraph',
+        content:
+          'The other discipline here is restraint about function. There is one button. Not a navigation bar, not a schedule, not a gallery \u2014 one button, with a single line of copy underneath telling you what happens when you press it.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'This is the same principle that governs a landing page for a business, and it is the one clients most often push back on. Every extra option you offer reduces the chance any single one gets taken. We have written about this in the commercial context in <a href="/portfolio/web-design">web design that converts, not just impresses</a> \u2014 an invitation is simply the purest version of it. There is exactly one thing you want a guest to do.',
+      },
+      {
+        type: 'list',
+        content: 'What we deliberately left off the page:',
+        items: [
+          'A menu \u2014 there is nowhere else to go',
+          'A countdown timer, which adds pressure without adding information',
+          'A photo gallery, which belongs after the event and not before',
+          'Anything requiring a guest to create an account or install an app',
+        ],
+      },
+      { type: 'heading', content: 'The theme has to survive the RSVP' },
+      {
+        type: 'paragraph',
+        content:
+          'Most themed invitations break at the form. The front is beautifully art-directed, then the RSVP throws you to a stock form in an unrelated typeface, and the illusion collapses at the exact moment you need the guest to act.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Carrying the design through the RSVP is unglamorous work and it is the part that matters. Same palette, same type, same voice in the confirmation message. The guest never leaves the world you built. It is the same argument for consistency we make about brands in <a href="/services">the power of consistent visual branding</a>, compressed into a single page.',
+      },
+      { type: 'heading', content: 'Themes travel further than you expect' },
+      {
+        type: 'paragraph',
+        content:
+          'A strong theme is not limited to sport. We have built the same commitment into very different personalities \u2014 <a href="https://gelat30.com" target="_blank" rel="noopener noreferrer">gelat30.com</a> in hand-lettered script over pressed flowers, <a href="https://tercelat41.com" target="_blank" rel="noopener noreferrer">tercelat41.com</a> in glitter-cut numerals built like a keepsake, and <a href="https://carloandtrixia.com" target="_blank" rel="noopener noreferrer">carloandtrixia.com</a> as a wax-sealed envelope that opens.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'None of them share a template. Each one starts from the person and works outward, which is exactly how we approach identity work generally \u2014 see <a href="/services">brand strategy before design</a>. The event is small, but the method is the same.',
+      },
+      { type: 'heading', content: 'Anywhere in the Philippines' },
+      {
+        type: 'paragraph',
+        content:
+          'Because these are just websites, geography stops mattering. We are based in Cebu and have built invitations for events in Manila, Baguio and the provinces \u2014 the whole engagement happens over messages and calls. If you are planning something in Cebu specifically, we covered the local logistics in <a href="/blog/digital-invitations-evites-cebu">digital invitations in Cebu</a>.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'You can see more of these in our <a href="/portfolio/web-design">web design portfolio</a>. When you are ready, <a href="/contact">tell us about your event</a> \u2014 including the theme you assume is too silly to work. Those are usually the good ones.',
+      },
+    ],
+    cta: {
+      heading: 'Got a theme in mind?',
+      body: 'The stranger the better. We design digital invitations that commit properly \u2014 tell us what you are planning.',
+    },
+    relatedSlugs: [
+      'digital-invitations-evites-cebu',
+    ],
+  },
+  {
     slug: 'cooperative-plumbing-drain-employee-owned-branding',
     category: 'Case Study',
     title: 'Branding an Employee-Owned Trade Company — Cooperative Plumbing & Drain',
@@ -34,9 +469,9 @@ export const blogArticles: BlogArticle[] = [
     isoDate: '2026-08-21',
     heroImage: '/images/coop-hero.webp',
     author: {
-      name: 'Huna Creatives',
-      role: 'Brand Identity Team',
-      avatar: '/images/blog-author-huna-002.jpg',
+      name: 'Thamara Ong',
+      role: 'Partner & Senior Brand Strategist',
+      avatar: '/images/team-thamara-ong.webp',
     },
     seo: {
       description:
@@ -81,7 +516,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'We do not open a design file until the strategy is settled, and this project is a good argument for why. Before any mark existed, we wrote the brand platform: purpose, vision, mission, positioning statement, differentiators, personality, archetypes, core values, and a customer promise. Eleven pages of it. That document is what made the design decisions obvious later — when you already know the brand is The Everyman with a streak of The Reformer, "never arrogant, never flashy, never corporate," you have ruled out about ninety percent of the visual options before you start. We have written more about <a href="/blog/brand-strategy-before-design">why strategy has to come before design</a> if you want the longer argument.',
+          'We do not open a design file until the strategy is settled, and this project is a good argument for why. Before any mark existed, we wrote the brand platform: purpose, vision, mission, positioning statement, differentiators, personality, archetypes, core values, and a customer promise. Eleven pages of it. That document is what made the design decisions obvious later — when you already know the brand is The Everyman with a streak of The Reformer, "never arrogant, never flashy, never corporate," you have ruled out about ninety percent of the visual options before you start. We have written more about <a href="/services">why strategy has to come before design</a> if you want the longer argument.',
       },
       {
         type: 'paragraph',
@@ -128,7 +563,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'The pairing gives the brand two clear voices: formal where it signs its name, direct everywhere it does business. That consistency across touchpoints is what separates a brand from a logo — a point we make in more depth in <a href="/blog/the-power-of-consistent-visual-branding">what a complete visual identity actually includes</a>.',
+          'The pairing gives the brand two clear voices: formal where it signs its name, direct everywhere it does business. That consistency across touchpoints is what separates a brand from a logo — a point we make in more depth in <a href="/services">what a complete visual identity actually includes</a>.',
       },
       {
         type: 'heading',
@@ -148,7 +583,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'The through-line is that most trade companies buy a logo when what they need is a brand — the strategy, the system, and the language to go with it. That gap is the single most common reason a rebrand fails to change anything commercially. It is the same argument we make for every category we work in: your <a href="/blog/why-brand-identity-is-your-most-valuable-asset">brand identity is your most valuable asset</a>, and it is the one most owner-operators underinvest in.',
+          'The through-line is that most trade companies buy a logo when what they need is a brand — the strategy, the system, and the language to go with it. That gap is the single most common reason a rebrand fails to change anything commercially. It is the same argument we make for every category we work in: your <a href="/services">brand identity is your most valuable asset</a>, and it is the one most owner-operators underinvest in.',
       },
       {
         type: 'quote',
@@ -176,8 +611,6 @@ export const blogArticles: BlogArticle[] = [
     },
     relatedSlugs: [
       'cooperative-plumbing-drain-employee-owned-branding',
-      'brand-strategy-before-design',
-      'why-brand-identity-is-your-most-valuable-asset',
     ],
   },
   {
@@ -191,9 +624,9 @@ export const blogArticles: BlogArticle[] = [
     isoDate: '2026-06-11',
     heroImage: '/images/peak-coffee-pcr-1.webp',
     author: {
-      name: 'Huna Creatives',
-      role: 'Brand Identity Team',
-      avatar: '/images/blog-author-huna-001.jpg',
+      name: 'Thamara Ong',
+      role: 'Partner & Senior Brand Strategist',
+      avatar: '/images/team-thamara-ong.webp',
     },
     seo: {
       description:
@@ -287,7 +720,6 @@ export const blogArticles: BlogArticle[] = [
     relatedSlugs: [
       'whisk-up-matcha-brand-identity-cebu',
       'the-second-haus-branding-consignment',
-      'the-power-of-consistent-visual-branding',
     ],
   },
   {
@@ -301,9 +733,9 @@ export const blogArticles: BlogArticle[] = [
     isoDate: '2026-06-11',
     heroImage: '/images/tsh-insta-unboxing.webp',
     author: {
-      name: 'Huna Creatives',
-      role: 'Brand Identity Team',
-      avatar: '/images/blog-author-huna-002.jpg',
+      name: 'Thamara Ong',
+      role: 'Partner & Senior Brand Strategist',
+      avatar: '/images/team-thamara-ong.webp',
     },
     seo: {
       description:
@@ -394,396 +826,6 @@ export const blogArticles: BlogArticle[] = [
     relatedSlugs: [
       'peak-coffee-roasters-branding-cebu-it-park',
       'whisk-up-matcha-brand-identity-cebu',
-      'the-power-of-consistent-visual-branding',
-    ],
-  },
-  {
-    slug: 'whisk-up-matcha-brand-identity-cebu',
-    category: 'Case Study',
-    title: 'Whisk Up Matcha & Uji-Matcha Café: How We Built Two Matcha Brand Identities That Stand Apart',
-    excerpt:
-      'Two matcha brands, two distinct identities. How Huna Creatives approached the branding for Whisk Up Matcha — a full identity built from scratch — and the logo refinement for Uji-Matcha Café, an established brand ready to evolve.',
-    readTime: '7 min read',
-    date: 'June 11, 2026',
-    isoDate: '2026-06-11',
-    heroImage: '/images/wum-hero.webp',
-    author: {
-      name: 'Huna Creatives',
-      role: 'Brand Identity Team',
-      avatar: '/images/blog-author-huna-003.jpg',
-    },
-    seo: {
-      description:
-        'How Huna Creatives built brand identities for two matcha café brands in the Philippines — Whisk Up Matcha (full identity from scratch) and Uji-Matcha Café (logo refinement and evolution study). Discover what makes a matcha brand stand out in a crowded market.',
-      keywords: [
-        'matcha café branding Philippines',
-        'café logo design Cebu',
-        'food and beverage branding Philippines',
-        'matcha brand identity',
-        'coffee shop branding Cebu City',
-        'logo refinement Philippines',
-        'Whisk Up Matcha',
-        'Uji Matcha Cebu',
-        'branding agency food beverage Philippines',
-        'Huna Creatives Cebu',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'Matcha has gone from a niche wellness trend to a fully mainstream café staple in the Philippines — and the market for matcha-focused brands is growing fast. We worked with two of them in the same period: Whisk Up Matcha, a new brand we built from scratch, and Uji-Matcha Café, an established café with an existing identity that needed to evolve. Same category, completely different briefs. Here is how we approached both.',
-      },
-      {
-        type: 'heading',
-        content: 'Whisk Up Matcha: Building an Identity From the Ground Up',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Whisk Up Matcha needed everything — a brand strategy, a logo, a color system, a logo suite, and the visual language to carry it all forward. The brief called for something warm and grounded: not the clinical minimalism of health-food brands, not the generic green-leaf aesthetic of every matcha competitor, but something genuinely rooted in the natural world of the plant. We built the identity around a monstera leaf silhouette — botanical, distinctive, and immediately connected to the living world that matcha comes from.',
-      },
-      {
-        type: 'quote',
-        content:
-          'The best food and beverage brands do not just make you want to buy the product. They make you want to be the kind of person who drinks it. That is the emotional territory a great café brand needs to own.',
-      },
-      {
-        type: 'heading',
-        content: 'The WUM Color Story: Drawing Directly From Nature',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The Whisk Up Matcha palette was built entirely from the landscape of matcha: Forest Green for the tea itself, Olive for the dried leaf, Amber for the terracotta of the teaware, Dark Brown for the soil, and a warm Cream as the base that ties everything together. The palette feels simultaneously earthy and elegant — the visual equivalent of stepping into a café that takes its ingredients as seriously as its aesthetics. The full logo suite — horizontal lockup, stacked variation, mark only — was designed to work at every scale, from a 16mm cup stamp to a full billboard.',
-      },
-      {
-        type: 'heading',
-        content: 'Uji-Matcha Café: Refining What Already Exists',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The Uji-Matcha Café project was a different challenge entirely. The brand already existed and had an audience — but the existing logo had scalability problems. Detailed line work that broke down at small sizes, inconsistent stroke weight, slight visual imbalance. The brief was to refine without erasing: keep the chasen (matcha whisk) and bowl character that was already recognizable to the brand\'s audience, and evolve it into something that could carry the next phase of growth.',
-      },
-      {
-        type: 'heading',
-        content: 'Three Directions, One Clear Answer',
-      },
-      {
-        type: 'list',
-        content: 'We presented three evolution paths for Uji-Matcha Café:',
-        items: [
-          'Direction A — Refined Evolution: Keep the existing whisk-in-bowl illustration, improve proportions, balance, and stroke consistency for better scalability',
-          'Direction B — New Brand Expression: Abstract "UJI" lettermark with the chasen form integrated directly into the letterforms, bold and modern',
-          'Direction C — Unified Expression: The "U" letterform merged with the whisk — the most conceptually unified of the three directions',
-          'Typography: Cinzel for display (classical structure echoing Japanese craft heritage) paired with Gilroy for body copy',
-          'Colors: Forest Green, Charcoal, Amber, Sky Blue — a palette that bridges Japanese heritage with contemporary café aesthetics',
-        ],
-      },
-      {
-        type: 'heading',
-        content: 'What Makes Matcha Branding Different',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Matcha as a product sits at an interesting intersection — it is healthy but indulgent, traditional but Instagram-worthy, Japanese in origin but increasingly global in appeal. The brands that succeed in this space understand that their identity needs to hold both sides of that tension: honoring the ritual and heritage while speaking to a contemporary audience who discovered matcha through social media. Both Whisk Up Matcha and Uji-Matcha Café navigate this differently — one through a botanical mark, one through an evolved letterform — but both are built to carry that dual identity confidently.',
-      },
-      {
-        type: 'heading',
-        content: 'The Portfolio',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'You can see the complete work for both brands in our portfolio: <a href="/portfolio/project/whisk-up-matcha">Whisk Up Matcha brand identity</a> and <a href="/portfolio/project/uji-matcha-cafe">Uji-Matcha Café logo refinement</a>. If you are building a food and beverage brand in the Philippines — a café, a specialty drink concept, a restaurant, or a packaged product — the work speaks for itself.',
-      },
-    ],
-    cta: {
-      heading: 'Building a café, food brand, or beverage concept in the Philippines?',
-      body: 'Huna Creatives specializes in food and beverage brand identities built to stand out in a crowded market. From first cup to full brand system — let\'s build yours.',
-    },
-    relatedSlugs: [
-      'peak-coffee-roasters-branding-cebu-it-park',
-      'the-second-haus-branding-consignment',
-      'the-power-of-consistent-visual-branding',
-    ],
-  },
-  {
-    slug: 'why-brand-identity-is-your-most-valuable-asset',
-    category: 'Brand Identity',
-    title: 'Why US and Australian Brands Are Outsourcing Brand Identity to the Philippines in 2026',
-    excerpt:
-      'The quality gap has closed. Filipino creative agencies are now producing brand identities that compete with London and New York studios — at a fraction of the cost. Here is why smart founders are making the move.',
-    readTime: '6 min read',
-    date: 'March 18, 2026',
-    isoDate: '2026-03-18',
-    heroImage: '/images/blog-brand-identity-hero-001.jpg',
-    author: {
-      name: 'Huna Creatives',
-      role: 'Brand Strategy Team',
-      avatar: '/images/blog-author-huna-001.jpg',
-    },
-    seo: {
-      description:
-        'Discover why US, Australian, and UK brands are outsourcing brand identity work to Filipino creative agencies in 2026. Huna Creatives in Cebu delivers world-class branding at competitive rates — strategic, beautiful, and built to win international markets.',
-      keywords: [
-        'outsource branding Philippines',
-        'Filipino branding agency',
-        'hire brand designer Philippines',
-        'creative agency Philippines international',
-        'brand identity agency Cebu',
-        'affordable branding agency',
-        'Huna Creatives',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'Five years ago, outsourcing brand identity work to a Filipino agency meant settling for less. That is no longer true. In 2026, the Philippines has emerged as one of the most competitive creative markets in Asia — producing brand identities that have won international recognition, helped startups raise funding, and positioned businesses to compete in global markets. The talent is here. The tools are the same. The results speak for themselves.',
-      },
-      {
-        type: 'heading',
-        content: 'The Economics Make the Decision Easy',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'A brand identity project with a mid-tier agency in the United States typically runs between $8,000 and $25,000. The same scope with a top-tier Filipino creative agency like Huna Creatives runs a fraction of that — without compromising on strategy, quality, or deliverables. For bootstrapped founders, growing startups, and even established brands looking to stretch their marketing budget, this is a decision that practically makes itself.',
-      },
-      {
-        type: 'quote',
-        content:
-          'The question is no longer whether Filipino agencies can deliver world-class work. The question is why you would pay three times more elsewhere for the same result.',
-      },
-      {
-        type: 'heading',
-        content: 'What You Actually Get When You Outsource Branding',
-      },
-      {
-        type: 'list',
-        content: 'A complete brand identity engagement with Huna Creatives includes:',
-        items: [
-          'Brand strategy session — positioning, audience, competitive landscape',
-          'Full logo suite — primary, secondary, icon, and monogram variations',
-          'Color palette with exact codes across RGB, CMYK, and Hex',
-          'Typography system — display, heading, body, and caption fonts',
-          'Brand guidelines document — everything your team needs to stay consistent',
-          'Social media template kit — ready to use from day one',
-        ],
-      },
-      {
-        type: 'heading',
-        content: 'Why the Philippines Specifically',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Filipino creatives are uniquely positioned for international work. English is an official language. The education system produces designers, strategists, and marketers who are deeply fluent in Western culture, aesthetics, and business norms. Time zone overlap with Australia is near-perfect, and US clients on the East Coast can brief their team in the morning and receive work by the next morning. The workflow is seamless.',
-      },
-      {
-        type: 'heading',
-        content: 'What to Look for in a Filipino Creative Agency',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Not all agencies are equal. Before you hire, look for a portfolio that demonstrates range — not just one style. Look for a team that leads with strategy, not just execution. Ask about their process, their communication cadence, and their experience with international clients. At Huna Creatives, we have worked with brands across the US, Australia, and Southeast Asia — see our <a href="/portfolio">portfolio</a> for examples — and we treat every international engagement with the same rigor we bring to our local Cebu clients. <a href="/contact">Start with a free discovery call</a> to see if we are the right fit.',
-      },
-    ],
-    cta: {
-      heading: 'Ready to build a world-class brand without the agency price tag?',
-      body: "Huna Creatives delivers strategic, premium brand identities for international clients. Let's start with a free discovery call.",
-    },
-    relatedSlugs: [
-      'affordable-startup-branding-filipino-agency',
-      'outsource-content-creation-philippines',
-    ],
-  },
-  {
-    slug: 'web-design-that-converts-not-just-impresses',
-    category: 'Web Design',
-    title: 'Web Design Agency in Cebu That Converts Visitors Into Paying Clients',
-    excerpt:
-      'Most Cebu businesses have a website. Very few have one that actually works. The difference between a beautiful website and a converting one is strategy — and it is costing local businesses leads every single day.',
-    readTime: '7 min read',
-    date: 'March 11, 2026',
-    isoDate: '2026-03-11',
-    heroImage: '/images/blog-web-design-hero-001.jpg',
-    author: {
-      name: 'Huna Creatives',
-      role: 'Web Design Team',
-      avatar: '/images/blog-author-huna-002.jpg',
-    },
-    seo: {
-      description:
-        'Looking for a web design agency in Cebu that builds sites that actually convert? Huna Creatives designs high-converting, mobile-first websites for businesses in Cebu City and across the Philippines — built for results, not just aesthetics.',
-      keywords: [
-        'web design agency Cebu',
-        'website design Cebu City',
-        'web designer Cebu',
-        'professional website Cebu',
-        'conversion web design Philippines',
-        'mobile-first web design Cebu',
-        'Huna Creatives web design',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'Cebu City is one of the fastest-growing business hubs in the Philippines. New restaurants, retail stores, service businesses, and startups are launching every month — and almost all of them have a website. But having a website and having a website that works are two very different things. If your site is not generating leads, booking inquiries, or driving sales, it is not a digital asset — it is a digital placeholder.',
-      },
-      {
-        type: 'heading',
-        content: 'Why Most Cebu Business Websites Underperform',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The most common mistake we see when auditing websites for Cebu businesses is designing for aesthetics first and conversion second. A beautiful website that confuses visitors, loads slowly on mobile, or buries the contact button is a liability. Every visitor who leaves without taking action is a potential client you have lost — often permanently.',
-      },
-      {
-        type: 'quote',
-        content:
-          'Your website is your best salesperson. It should be working 24 hours a day, 7 days a week, guiding every visitor toward a clear next step. If it is not doing that, your design has failed — regardless of how good it looks.',
-      },
-      {
-        type: 'heading',
-        content: 'What a High-Converting Website for Cebu Businesses Looks Like',
-      },
-      {
-        type: 'list',
-        content: 'The non-negotiables for a website that generates leads:',
-        items: [
-          'A headline that immediately tells visitors what you do and who you serve',
-          'Mobile-first design — over 75% of Filipino web traffic is on mobile',
-          'Page load time under 3 seconds — every extra second loses 20% of visitors',
-          'One clear call-to-action per page, not five competing buttons',
-          'Social proof — testimonials, project photos, client logos, or reviews',
-          'Easy-to-find contact information above the fold on every page',
-        ],
-      },
-      {
-        type: 'heading',
-        content: 'Local SEO Built Into Every Website We Build',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'A website that cannot be found is a website that does not exist. Every site <a href="/services">Huna Creatives builds</a> is optimized for local search from the ground up — structured data, proper meta tags, Google Business integration, and page speed optimization. When someone in Cebu searches for your type of business, we want your site showing up at the top of the results.',
-      },
-      {
-        type: 'heading',
-        content: 'The Huna Web Design Process',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'We do not start with templates. We start with your business — your goals, your customers, and the actions you want visitors to take. From there, we design and build a custom site that is fast, beautiful, and built to convert. Every project includes mobile optimization, performance testing, and a 30-day support period after launch. <a href="/contact">Talk to us about your website today.</a>',
-      },
-    ],
-    cta: {
-      heading: 'Get a website that actually works for your Cebu business.',
-      body: "Huna Creatives builds conversion-focused websites for businesses in Cebu City and across the Philippines. Let's talk about yours.",
-    },
-    relatedSlugs: [
-      'website-design-for-small-businesses',
-      'why-brand-identity-is-your-most-valuable-asset',
-    ],
-  },
-  {
-    slug: 'social-media-marketing-that-actually-builds-your-brand',
-    category: 'Digital Marketing',
-    title: 'Best Social Media Agency in Cebu in 2026: What Real Results Look Like',
-    excerpt:
-      'There are dozens of social media agencies in Cebu. Most of them will post for you. Very few will actually grow your business. Here is what separates the ones that deliver from the ones that just keep you busy.',
-    readTime: '6 min read',
-    date: 'March 4, 2026',
-    isoDate: '2026-03-04',
-    heroImage: '/images/blog-social-media-hero-001.jpg',
-    author: {
-      name: 'Huna Creatives',
-      role: 'Digital Marketing Team',
-      avatar: '/images/blog-author-huna-003.jpg',
-    },
-    seo: {
-      description:
-        'Looking for the best social media agency in Cebu in 2026? Huna Creatives manages Instagram, Facebook, and TikTok for Cebu businesses — building real audiences and generating actual leads, not just vanity metrics.',
-      keywords: [
-        'social media agency Cebu',
-        'social media marketing Cebu City',
-        'Instagram agency Cebu',
-        'Facebook marketing Cebu',
-        'TikTok agency Philippines',
-        'social media management Cebu',
-        'digital marketing agency Cebu',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'If you are a business owner in Cebu and you have worked with a social media agency before, there is a good chance you were disappointed. You got a lot of posts, a follower count that moved slowly, and a monthly report full of numbers that did not connect to actual revenue. You are not alone. The gap between what most social media agencies promise and what they deliver is wide — and it is costing Cebu businesses real money.',
-      },
-      {
-        type: 'heading',
-        content: 'What Bad Social Media Management Looks Like',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The agencies that underdeliver share common patterns: they use the same generic content templates for every client, they chase follower counts instead of engagement, they post without a strategy, and they measure success by outputs instead of outcomes. The result is an Instagram feed that looks active but a business that sees no new clients from social media whatsoever.',
-      },
-      {
-        type: 'quote',
-        content:
-          'Your social media should be generating leads, not just impressions. If your agency cannot connect their work to your business results, they are not your marketing partner — they are your content vendor.',
-      },
-      {
-        type: 'heading',
-        content: 'What Good Social Media Management Looks Like in 2026',
-      },
-      {
-        type: 'list',
-        content: 'What Huna Creatives delivers for Cebu businesses:',
-        items: [
-          'A documented content strategy rooted in your brand identity and business goals',
-          'Original, on-brand content — not recycled templates',
-          'Platform-specific execution — what works on Instagram is not what works on TikTok',
-          'Community management — real responses to comments and DMs',
-          'Monthly reporting tied to actual business metrics: inquiries, profile visits, link clicks',
-          'Quarterly strategy reviews to adapt to what is working',
-        ],
-      },
-      {
-        type: 'heading',
-        content: 'The Cebu Market in 2026: What Platforms Are Actually Working',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Facebook remains the dominant platform for reaching Cebu consumers over 30, particularly for local service businesses. Instagram is essential for visual industries — food, fashion, interiors, and hospitality. TikTok is growing rapidly and delivering the highest organic reach of any platform right now, particularly for businesses willing to show personality and process. A smart Cebu social media strategy uses all three, with content tailored to each platform.',
-      },
-      {
-        type: 'heading',
-        content: 'Questions to Ask Any Social Media Agency Before You Hire Them',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Ask to see real results from real clients — not just beautiful posts, but actual metrics. Ask how they measure success and how they connect social media activity to business outcomes. Ask who creates the content and whether it is custom or templated. At <a href="/services">Huna Creatives</a>, we are transparent about our process, our results, and exactly what you can expect when we manage your social media. <a href="/contact">Get in touch</a> to see real client results.',
-      },
-    ],
-    cta: {
-      heading: 'Ready for social media that actually grows your Cebu business?',
-      body: "Huna Creatives manages social media for businesses in Cebu City and across the Philippines. Let's talk about your brand.",
-    },
-    relatedSlugs: [
-      'social-media-content-strategy-2025',
-      'web-design-that-converts-not-just-impresses',
     ],
   },
   {
@@ -797,9 +839,9 @@ export const blogArticles: BlogArticle[] = [
     isoDate: '2026-02-25',
     heroImage: '/images/blog-content-hero-001.jpg',
     author: {
-      name: 'Huna Creatives',
-      role: 'Content Team',
-      avatar: '/images/blog-author-huna-004.jpg',
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
     },
     seo: {
       description:
@@ -818,7 +860,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Content is the fuel that drives every marketing channel — your blog, your social media, your email list, your SEO. But creating consistent, high-quality content takes time that most business owners and marketing teams simply do not have. Outsourcing to a Filipino content agency is one of the smartest operational decisions a growing brand can make in 2026 — but only if the handoff is done right. Read how <a href="/blog/why-brand-identity-is-your-most-valuable-asset">brands are outsourcing more than just content to the Philippines</a>.',
+          'Content is the fuel that drives every marketing channel — your blog, your social media, your email list, your SEO. But creating consistent, high-quality content takes time that most business owners and marketing teams simply do not have. Outsourcing to a Filipino content agency is one of the smartest operational decisions a growing brand can make in 2026 — but only if the handoff is done right. Read how <a href="/services">brands are outsourcing more than just content to the Philippines</a>.',
       },
       {
         type: 'heading',
@@ -875,285 +917,6 @@ export const blogArticles: BlogArticle[] = [
     },
     relatedSlugs: [
       'cooperative-plumbing-drain-employee-owned-branding',
-      'why-brand-identity-is-your-most-valuable-asset',
-      'social-media-marketing-that-actually-builds-your-brand',
-    ],
-  },
-  {
-    slug: 'the-power-of-consistent-visual-branding',
-    category: 'Brand Identity',
-    title: 'Branding Agency in Cebu City: What a Complete Visual Identity Actually Includes',
-    excerpt:
-      'Most Cebu businesses think they have a brand because they have a logo. A logo is the beginning. A complete visual identity is what makes customers recognize you instantly, trust you faster, and pay you more.',
-    readTime: '5 min read',
-    date: 'February 18, 2026',
-    isoDate: '2026-02-18',
-    heroImage: '/images/blog-visual-branding-hero-001.jpg',
-    author: {
-      name: 'Huna Creatives',
-      role: 'Brand Design Team',
-      avatar: '/images/blog-author-huna-005.jpg',
-    },
-    seo: {
-      description:
-        'Searching for a branding agency in Cebu City? Huna Creatives builds complete visual identity systems for businesses in Cebu and the Philippines — logos, brand guidelines, color systems, and everything your brand needs to look professional and consistent everywhere.',
-      keywords: [
-        'branding agency Cebu City',
-        'logo design Cebu',
-        'brand identity Cebu',
-        'visual identity Philippines',
-        'graphic design Cebu City',
-        'brand guidelines Philippines',
-        'Huna Creatives branding',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'Walk through Cebu City\'s business district and count how many businesses have inconsistent branding — a logo on their storefront that does not match their Facebook page, business cards that look like they came from a different company, and a website that feels completely disconnected from everything else. It is everywhere. And it is quietly costing those businesses trust, credibility, and clients every single day.',
-      },
-      {
-        type: 'heading',
-        content: 'A Logo Is Not a Brand — Here Is What Is',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Your logo is one element of your visual identity. A complete brand identity is the entire visual system your business operates within — and it is what makes your brand recognizable whether someone sees it on a tarpaulin in Mabolo, an Instagram story, or a Google ad. Without a system, you have a logo. With a system, you have a brand.',
-      },
-      {
-        type: 'quote',
-        content:
-          'It takes 5 to 7 touchpoints before someone remembers your brand. Every inconsistency across those touchpoints resets the clock. Consistency is not just a design principle — it is a revenue strategy.',
-      },
-      {
-        type: 'heading',
-        content: 'What a Complete Visual Identity Includes',
-      },
-      {
-        type: 'list',
-        content: 'What Huna Creatives delivers in a full brand identity project:',
-        items: [
-          'Primary logo, horizontal lockup, stacked version, icon, and monogram',
-          'Full color system — primary, secondary, accent, and neutral with exact codes',
-          'Typography hierarchy — heading, subheading, body, and caption font pairings',
-          'Photography and imagery style guidelines',
-          'Pattern, texture, and graphic element library',
-          'Brand guidelines document — your visual rulebook',
-          'Social media templates, presentation decks, and print-ready files',
-        ],
-      },
-      {
-        type: 'heading',
-        content: 'Why Cebu Businesses Specifically Need This in 2026',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Competition in Cebu is intensifying across every category. Restaurants, retail, real estate, professional services — every sector is more crowded than it was three years ago. The businesses that are winning are not always the best at what they do. They are the best at looking the part, communicating their value, and creating a brand experience that clients want to return to. A complete visual identity is the infrastructure that makes that possible.',
-      },
-      {
-        type: 'heading',
-        content: 'The Huna Creatives Approach',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'We are based in Cebu and we understand the local market deeply — the visual language that resonates with Cebuano consumers, the platforms that matter most, and the competitive landscape across every major industry in the city. When we build a <a href="/services">brand identity for a Cebu business</a>, it is built with that context built in. See our <a href="/portfolio">portfolio of local and international work</a> to get a sense of what that looks like — including identity work well outside the usual creative categories, like <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">branding an employee-owned plumbing company</a>.',
-      },
-    ],
-    cta: {
-      heading: 'Does your brand look as good as your business actually is?',
-      body: "Huna Creatives builds complete visual identities for businesses in Cebu City and across the Philippines. Let's audit your brand for free.",
-    },
-    relatedSlugs: [
-      'why-brand-identity-is-your-most-valuable-asset',
-      'brand-strategy-before-design',
-    ],
-  },
-  {
-    slug: 'brand-strategy-before-design',
-    category: 'Brand Strategy',
-    title: 'Affordable Startup Branding: Why Founders Are Hiring Filipino Creative Agencies in 2026',
-    excerpt:
-      'You do not need a $20,000 branding budget to launch with a world-class brand. In 2026, the smartest startup founders are getting premium brand identities from Filipino creative agencies — and investing the savings into growth.',
-    readTime: '8 min read',
-    date: 'February 11, 2026',
-    isoDate: '2026-02-11',
-    heroImage: '/images/blog-brand-strategy-hero-001.jpg',
-    author: {
-      name: 'Huna Creatives',
-      role: 'Brand Strategy Team',
-      avatar: '/images/blog-author-huna-006.jpg',
-    },
-    seo: {
-      description:
-        'Discover why startup founders worldwide are hiring Filipino creative agencies for affordable, world-class branding in 2026. Huna Creatives delivers strategic brand identities for startups at a fraction of Western agency rates — without cutting corners on quality.',
-      keywords: [
-        'affordable startup branding',
-        'startup branding Philippines',
-        'Filipino creative agency for startups',
-        'outsource startup branding',
-        'cheap branding agency Philippines',
-        'brand identity for startups 2026',
-        'creative agency Philippines',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'Branding is one of the first things startup founders debate — and one of the most consistently mishandled. Some founders spend $30,000 with a New York agency before they have validated their product. Others throw a logo together on Canva and wonder why nobody takes them seriously. In 2026, there is a smarter middle path: hiring a Filipino creative agency that delivers strategic, premium brand work at a price that makes sense for a pre-Series A company.',
-      },
-      {
-        type: 'heading',
-        content: 'The Startup Branding Budget Problem',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Premium branding agencies in the US, UK, and Australia produce excellent work — and charge accordingly. For a venture-backed startup with runway to burn, that might be justifiable. For a bootstrapped founder or an early-stage company raising a seed round, spending $15,000 to $25,000 on branding before you have product-market fit is a significant risk. The alternative is not bad branding — it is smart sourcing.',
-      },
-      {
-        type: 'quote',
-        content:
-          'Your brand does not need to cost what a New York studio charges. It needs to look like it does. The savviest founders figured this out — and they are now investing the difference into customer acquisition.',
-      },
-      {
-        type: 'heading',
-        content: 'What Strategy-First Startup Branding Looks Like',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The mistake most cheap branding options make is skipping strategy. You get a logo, a color palette, and a font — but no understanding of why those choices communicate the right things to your specific audience. At Huna Creatives, we lead every engagement with strategy — learn more about our <a href="/services">branding services</a>. You can see that sequence play out in our <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">brand build for Cooperative Plumbing &amp; Drain</a>, where an eleven-page strategy platform was written before a single logo concept was drawn. We learn your market, your competitors, your target customer, and the emotional territory you want to own before we design anything.',
-      },
-      {
-        type: 'heading',
-        content: 'What Startup Founders Need From Day One',
-      },
-      {
-        type: 'list',
-        content: 'The branding deliverables that matter most for early-stage startups:',
-        items: [
-          'A logo that works at every size — from favicon to pitch deck cover',
-          'A color system that looks professional in both digital and print contexts',
-          'A typographic hierarchy that scales from social posts to investor presentations',
-          'Brand guidelines that keep freelancers and employees consistent without you policing it',
-          'Social media templates that make posting fast and on-brand',
-          'A brand story — the narrative that connects your product to your customers',
-        ],
-      },
-      {
-        type: 'heading',
-        content: 'The Working Relationship: How Remote Branding Projects Actually Run',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Working with a Filipino creative agency remotely is more straightforward than most founders expect. Discovery and strategy happen over video calls. Concepts are presented in Figma or PDF with clear rationale. Feedback rounds are structured to be efficient. Most branding projects run four to six weeks from kick-off to final delivery. The time zone difference with the US and Australia often works in your favor — you brief in the evening, and work is ready for your review the next morning. <a href="/contact">Start your project with Huna Creatives.</a>',
-      },
-    ],
-    cta: {
-      heading: 'Launch your startup with a brand that earns trust from day one.',
-      body: "Huna Creatives delivers strategic, world-class startup branding at rates that make sense for early-stage companies. Let's talk.",
-    },
-    relatedSlugs: [
-      'why-brand-identity-is-your-most-valuable-asset',
-      'startup-branding-identity-guide',
-    ],
-  },
-  {
-    slug: 'website-design-for-small-businesses',
-    category: 'Web Design',
-    title: 'Small Business Web Design in Cebu: Get a Professional Website Without Overspending',
-    excerpt:
-      'A professional website is no longer optional for Cebu small businesses. The good news: you do not need to spend a fortune to get one that looks premium, loads fast, and turns visitors into paying customers.',
-    readTime: '7 min read',
-    date: 'February 4, 2026',
-    isoDate: '2026-02-04',
-    heroImage: '/images/blog-smb-web-hero-001.jpg',
-    author: {
-      name: 'Huna Creatives',
-      role: 'Web Design Team',
-      avatar: '/images/blog-author-huna-007.jpg',
-    },
-    seo: {
-      description:
-        'Need a professional website for your small business in Cebu? Huna Creatives builds affordable, high-quality websites for small businesses in Cebu City — mobile-first, fast-loading, and optimized for local search so customers can find you easily.',
-      keywords: [
-        'small business website Cebu',
-        'affordable web design Cebu',
-        'website design Cebu City',
-        'professional website Philippines',
-        'web design for small business Philippines',
-        'cheap web design Cebu',
-        'local business website Cebu',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'If you run a small business in Cebu — a restaurant in IT Park, a salon in Mabolo, a consultancy in Lahug, a shop in Ayala — your potential customers are searching for you online right now. The question is what they find when they do. A Facebook page is not a website. A Wix template that loads slowly on mobile is not a professional online presence. In 2026, small businesses in Cebu that invest in a real, well-built website are pulling ahead of those that do not.',
-      },
-      {
-        type: 'heading',
-        content: 'How Much Should a Small Business Website Cost in Cebu?',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'This is the question every small business owner asks — and the answer varies wildly. Freelancers on Facebook will build you a website for ₱5,000 to ₱15,000. At that price, you typically get a template, basic setup, and no strategy. At the other end, full-service agencies in Manila or abroad charge ₱150,000 and up. Huna Creatives sits in the premium-but-accessible middle — delivering custom, high-quality websites built for Cebu businesses at rates that small business owners can actually afford.',
-      },
-      {
-        type: 'quote',
-        content:
-          'A cheap website that does not convert costs more than a quality website that does. Every missed inquiry, every lost booking, every customer who bounced because your site looked untrustworthy — those have a price.',
-      },
-      {
-        type: 'heading',
-        content: 'What Every Cebu Small Business Website Must Have in 2026',
-      },
-      {
-        type: 'list',
-        content: 'Non-negotiables for a small business website that works:',
-        items: [
-          'Mobile optimization — most Cebuanos browse on their phones, not desktops',
-          'Fast load times — if your site takes more than 3 seconds, you are losing customers',
-          'Clear contact options — phone, email, and ideally a booking or inquiry form',
-          'Google Maps integration and Google Business Profile connection',
-          'Basic local SEO so you show up when people search your category in Cebu',
-          'Testimonials or reviews — Cebuano consumers trust social proof heavily',
-        ],
-      },
-      {
-        type: 'heading',
-        content: 'Local SEO: Getting Found on Google in Cebu',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Having a website is only half the battle. If nobody can find it, it is not doing its job. Local SEO — optimizing your site and Google Business Profile to appear when people search for businesses like yours in Cebu — is one of the highest-return investments a local business can make. Every <a href="/services">website Huna Creatives builds</a> includes foundational local SEO setup: proper title tags, meta descriptions, structured data, and Google Business integration. See how we approach <a href="/blog/web-design-that-converts-not-just-impresses">web design that converts</a> for businesses in Cebu.',
-      },
-      {
-        type: 'heading',
-        content: 'The Process: What to Expect When You Work With Huna',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'We start every project with a discovery conversation — learning your business, your customers, and what you want the website to do. We design in phases, gathering your feedback before we build. Most small business projects go from first meeting to live launch in three to five weeks. After launch, we provide a 30-day support period so you are never left figuring things out on your own. <a href="/contact">Book a free consultation</a> to get started.',
-      },
-    ],
-    cta: {
-      heading: 'Your Cebu business deserves a website that actually works.',
-      body: "Huna Creatives builds professional, affordable websites for small businesses in Cebu City and across the Philippines. Let's build yours.",
-    },
-    relatedSlugs: [
-      'web-design-that-converts-not-just-impresses',
-      'the-power-of-consistent-visual-branding',
     ],
   },
   {
@@ -1167,9 +930,9 @@ export const blogArticles: BlogArticle[] = [
     isoDate: '2026-01-28',
     heroImage: '/images/blog-startup-brand-hero-001.jpg',
     author: {
-      name: 'Huna Creatives',
-      role: 'Brand Strategy Team',
-      avatar: '/images/blog-author-huna-008.jpg',
+      name: 'Thamara Ong',
+      role: 'Partner & Senior Brand Strategist',
+      avatar: '/images/team-thamara-ong.webp',
     },
     seo: {
       description:
@@ -1236,7 +999,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Once you have validated the business and the brand is working, the next phase is building a complete brand system that your growing team can use without you policing every design decision. This means comprehensive brand guidelines, template libraries, and a visual system that is strong enough to stay consistent whether it is being used by your in-house designer, a freelancer, or an external agency. Read more about <a href="/blog/the-power-of-consistent-visual-branding">what a complete visual identity actually includes</a>.',
+          'Once you have validated the business and the brand is working, the next phase is building a complete brand system that your growing team can use without you policing every design decision. This means comprehensive brand guidelines, template libraries, and a visual system that is strong enough to stay consistent whether it is being used by your in-house designer, a freelancer, or an external agency. Read more about <a href="/services">what a complete visual identity actually includes</a>.',
       },
       {
         type: 'heading',
@@ -1253,9 +1016,6 @@ export const blogArticles: BlogArticle[] = [
       body: "Huna Creatives builds strategic brand identities for early-stage startups at rates that make sense for pre-revenue companies. Let's talk.",
     },
     relatedSlugs: [
-      'brand-strategy-before-design',
-      'why-brand-identity-is-your-most-valuable-asset',
-      'website-design-for-small-businesses',
     ],
   },
   {
@@ -1269,9 +1029,9 @@ export const blogArticles: BlogArticle[] = [
     isoDate: '2026-01-21',
     heroImage: '/images/blog-social-strategy-hero-001.jpg',
     author: {
-      name: 'Huna Creatives',
-      role: 'Digital Marketing Team',
-      avatar: '/images/blog-author-huna-009.jpg',
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
     },
     seo: {
       description:
@@ -1345,7 +1105,6 @@ export const blogArticles: BlogArticle[] = [
       body: "Huna Creatives creates social media strategies and content for businesses in Cebu and across the Philippines. Let's build yours.",
     },
     relatedSlugs: [
-      'social-media-marketing-that-actually-builds-your-brand',
       'content-creation-that-builds-authority',
     ],
   },
@@ -1360,9 +1119,9 @@ export const blogArticles: BlogArticle[] = [
     isoDate: '2026-01-14',
     heroImage: '/images/blog-print-design-hero-001.jpg',
     author: {
-      name: 'Huna Creatives',
-      role: 'Brand Design Team',
-      avatar: '/images/blog-author-huna-010.jpg',
+      name: 'Katleen Nellas',
+      role: 'Senior Graphic Designer',
+      avatar: '/images/team-katleen-nellas.webp',
     },
     seo: {
       description:
@@ -1437,8 +1196,6 @@ export const blogArticles: BlogArticle[] = [
       body: "Huna Creatives designs premium brand collateral for businesses in Cebu City and across the Philippines. From business cards to full campaign materials, let's make something worth keeping.",
     },
     relatedSlugs: [
-      'the-power-of-consistent-visual-branding',
-      'why-brand-identity-is-your-most-valuable-asset',
     ],
   },
   {
@@ -1453,9 +1210,9 @@ export const blogArticles: BlogArticle[] = [
     heroImage: '/images/blog-sentro-os-hero.png',
     heroImagePosition: '50% 20%',
     author: {
-      name: 'Huna Creatives',
-      role: 'Product Team',
-      avatar: '/images/blog-author-huna-001.jpg',
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
     },
     seo: {
       description:
@@ -1548,8 +1305,6 @@ export const blogArticles: BlogArticle[] = [
       body: 'Sentro OS is the operations hub built for creative agencies in the Philippines. See how it works and get your team set up — starting at ₱2,500/month.',
     },
     relatedSlugs: [
-      'why-brand-identity-is-your-most-valuable-asset',
-      'brand-strategy-before-design',
     ],
   },
 ];
