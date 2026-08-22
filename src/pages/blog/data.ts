@@ -24,14 +24,120 @@ export interface BlogArticle {
 
 export const blogArticles: BlogArticle[] = [
   {
+    slug: 'hulma-cebu-architectural-fiberglass-website',
+    category: 'Case Study',
+    title: 'Hulma Cebu: A Website for Architectural Fiberglass',
+    excerpt:
+      'Selling a material is harder than selling a product. Hulma Cebu fabricates architectural fiberglass for commercial, hospitality and residential projects \u2014 and needed a site that could convince an architect it belongs in their spec.',
+    readTime: '6 min read',
+    date: 'June 24, 2026',
+    isoDate: '2026-06-24',
+    heroImage: '/images/171bfd1b-938b-4646-820a-d40659dd77d6_Screenshot-2026-03-27-at-12.53.20AM.png',
+    author: {
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
+    },
+    seo: {
+      description:
+        'How we built the Hulma Cebu website for an architectural fiberglass fabricator \u2014 product catalog, project galleries and a lead flow tuned for architects and B2B buyers.',
+      keywords: [
+        'web design Cebu',
+        'architectural fiberglass Philippines',
+        'B2B website design Philippines',
+        'manufacturer website design',
+        'product catalog website',
+        'lead generation website Cebu',
+        'Hulma Cebu',
+        'Huna Creatives',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'Selling a material is a harder brief than selling a product. Nobody buys architectural fiberglass because the photography was nice. They buy it because a specifier decided it would hold up, arrive on schedule, and survive the detail they have drawn \u2014 and most of that decision happens before anyone picks up a phone.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          '<a href="https://hulmacebu.com" target="_blank" rel="noopener noreferrer">Hulma Cebu</a> fabricates architectural fiberglass for commercial, hospitality and residential projects. The work is genuinely custom, which is exactly what makes it hard to put on a website: there is no catalogue of SKUs to list, and no single photograph that explains what the company can do.',
+      },
+      { type: 'heading', content: 'Design for the specifier, not the browser' },
+      {
+        type: 'paragraph',
+        content:
+          'The visitor who matters here is not a homeowner idly browsing. It is an architect, an interior designer, or a project manager checking whether this supplier is credible enough to put into a drawing. That person has a specific and unromantic set of questions, and the site is judged on how fast it answers them.',
+      },
+      {
+        type: 'list',
+        content: 'What a specifier is actually looking for:',
+        items: [
+          'Has this fabricator done work at my project\u2019s scale before',
+          'What can the material actually do \u2014 spans, finishes, tolerances',
+          'Is it lightweight enough for the structure I have already designed',
+          'Can they work from my drawings rather than a fixed product range',
+          'Who do I talk to, and how quickly will they come back to me',
+        ],
+      },
+      {
+        type: 'paragraph',
+        content:
+          'So the structure follows those questions rather than a conventional marketing funnel. Capability first, evidence second, contact never more than a click away.',
+      },
+      { type: 'heading', content: 'Project galleries as proof, not decoration' },
+      {
+        type: 'paragraph',
+        content:
+          'For a custom fabricator, past projects are the entire argument. The galleries are built to be scanned by someone assessing scale and finish, not scrolled for inspiration \u2014 each project shown in enough detail that a designer can judge whether their own job is comparable.',
+      },
+      {
+        type: 'quote',
+        content:
+          'In B2B, the portfolio is not a flourish at the end of the site. It is the product page.',
+      },
+      { type: 'heading', content: 'One lead flow, qualified early' },
+      {
+        type: 'paragraph',
+        content:
+          'The enquiry flow asks for project type and scope up front. That is a deliberate trade: slightly fewer submissions, considerably better ones. A fabricator does not need volume of enquiries \u2014 they need enquiries that are worth quoting, and a form that filters at the front saves a week of back-and-forth at the back.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'It is the same discipline behind every commercial site we build \u2014 the clearest recent example being <a href="/blog/fs-architects-website-sentro-hub-staff-app">FS Architects</a>, where the public site had to carry the practice while a separate app ran everything behind it.',
+      },
+      { type: 'heading', content: 'Materials brands are their own category' },
+      {
+        type: 'paragraph',
+        content:
+          'A materials supplier sits awkwardly between a manufacturer and a service business. The website has to do the work a showroom would \u2014 convey quality through the screen, and stand in for the sample a designer cannot hold. That means restraint, generous imagery, and no visual noise competing with the material itself.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'You can see the site in our <a href="/portfolio/web-design">web design portfolio</a> alongside SmartGrid Western and FS Architects, or read how we approach identity work in the <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">Cooperative Plumbing case study</a>. If you sell something that has to be specified rather than simply bought, <a href="/contact">come talk to us</a>.',
+      },
+    ],
+    cta: {
+      heading: 'Selling something that has to be specified?',
+      body: 'We build B2B sites that answer a specifier\u2019s questions before they have to ask. Tell us what you make.',
+    },
+    relatedSlugs: [
+      'fs-architects-website-sentro-hub-staff-app',
+      'digital-invitations-evites-cebu',
+      'cooperative-plumbing-drain-employee-owned-branding',
+    ],
+  },
+  {
     slug: 'fs-architects-website-sentro-hub-staff-app',
     category: 'Case Study',
     title: 'FS Architects: A Website, an Operations Hub, and a Staff App',
     excerpt:
       'Most studios need a portfolio site. FS Architects needed that plus somewhere to run the practice \u2014 payroll, leave, appraisals and project operations \u2014 and a way for staff to reach it from a phone. Three builds, one system.',
     readTime: '7 min read',
-    date: 'August 22, 2026',
-    isoDate: '2026-08-22',
+    date: 'August 5, 2026',
+    isoDate: '2026-08-05',
     heroImage: '/images/fsarchitects-home.png',
     author: {
       name: 'Francis Fiel Roble',
@@ -40,7 +146,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'How Huna Creatives built the FS Architects website, a custom Sentro operations hub, and an installable staff app \u2014 web design and development for an architecture practice in the Philippines.',
+        'How we built FS Architects a trilingual website plus their own dedicated app for attendance, requests and payroll. Web design and development, Philippines.',
       keywords: [
         'architecture website design Philippines',
         'web development Philippines',
@@ -61,7 +167,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'FS Architects decided to solve both properly. What we built for them at <a href="https://fsarchitects.ph" target="_blank" rel="noopener noreferrer">fsarchitects.ph</a> is really three things: the public site, their own instance of our operations hub, and an installable app so the team can reach it from a phone.',
+          'FS Architects decided to solve both properly. What we built for them at <a href="https://fsarchitects.ph" target="_blank" rel="noopener noreferrer">fsarchitects.ph</a> is the public site, plus their own dedicated app \u2014 an operations hub that installs onto a phone like any other app, and now runs the practice from the inside.',
       },
       { type: 'heading', content: 'The site: let the buildings be the loudest thing' },
       {
@@ -105,7 +211,12 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'A hub only earns its keep if people actually use it, and staff are rarely at a laptop when they need to file a request or clock in. So the hub is also an installable app \u2014 it sits on the home screen with its own icon, opens straight to login without browser furniture, and keeps working through the patchy connectivity that is a fact of life on site.',
+          'A hub only earns its keep if people actually use it, and staff are rarely at a laptop when they need to file a request or clock in. So the hub is the app \u2014 it installs onto the home screen with its own icon, opens straight to login without browser furniture, and keeps working through the patchy connectivity that is a fact of life on site.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The practical test is what the owner can do with it. They open the app on their phone and see attendance for the day, the requests waiting on them, and where payroll stands \u2014 without asking anyone to export anything. That is the difference between a system the office uses and a system the person running the practice actually uses.',
       },
       {
         type: 'paragraph',
@@ -142,12 +253,12 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'whisk-up-matcha-brand-identity-cebu',
     category: 'Case Study',
-    title: 'Whisk Up Matcha: Building a Matcha Brand Identity From Scratch',
+    title: 'Whisk Up Matcha: Building a Matcha Brand From Scratch',
     excerpt:
       'A new matcha brand with no existing equity, in a category where every competitor reaches for the same green leaf. How we built Whisk Up Matcha around a monstera silhouette and a palette drawn entirely from the landscape of the plant.',
     readTime: '6 min read',
-    date: 'June 11, 2026',
-    isoDate: '2026-06-11',
+    date: 'July 22, 2026',
+    isoDate: '2026-07-22',
     heroImage: '/images/wum-hero.webp',
     author: {
       name: 'Thamara Ong',
@@ -156,7 +267,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'How Huna Creatives built the Whisk Up Matcha brand identity from scratch \u2014 strategy, monstera-leaf logo mark, nature-drawn colour palette and full logo suite for a Philippine matcha caf\u00e9 brand.',
+        'How we built the Whisk Up Matcha identity from nothing \u2014 strategy, a monstera-leaf mark, and a palette drawn from the plant. Caf\u00e9 branding in the Philippines.',
       keywords: [
         'matcha caf\u00e9 branding Philippines',
         'caf\u00e9 logo design Cebu',
@@ -234,12 +345,12 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'uji-matcha-cafe-logo-refinement-baguio-makati',
     category: 'Case Study',
-    title: 'Uji-Matcha Caf\u00e9: Refining a Logo for a Brand That Was About to Expand',
+    title: 'Uji-Matcha Caf\u00e9: Refining a Logo Before Expansion',
     excerpt:
       'Uji-Matcha Caf\u00e9 built its following in Baguio, then opened in Makati. A brand crossing cities puts pressure on a logo that a single location never does \u2014 here is how we refined the mark without erasing what its regulars already recognised.',
     readTime: '6 min read',
-    date: 'August 22, 2026',
-    isoDate: '2026-08-22',
+    date: 'August 12, 2026',
+    isoDate: '2026-08-12',
     heroImage: '/images/uji-hero.webp',
     // Portrait source (1440x1800) in a wide banner. The mark sits at roughly
     // mid-height, so the default 'center top' crop cut it off.
@@ -251,7 +362,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'How Huna Creatives refined the Uji-Matcha Caf\u00e9 logo for a brand expanding from Baguio to Makati \u2014 three evolution directions, scalability fixes, and why refinement beats a rebrand when you already have an audience.',
+        'Uji-Matcha Caf\u00e9 grew from Baguio into Makati. How we refined the logo for multi-branch scale without losing the recognition it had already earned.',
       keywords: [
         'logo refinement Philippines',
         'caf\u00e9 rebrand Philippines',
@@ -340,7 +451,7 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'digital-invitations-evites-cebu',
     category: 'Web Design',
-    title: 'Digital Invitations in Cebu: Why Couples Are Giving Their Wedding Its Own Website',
+    title: 'Digital Invitations in Cebu: Wedding Websites That Work',
     excerpt:
       'A Viber group and a JPEG cannot answer questions at 11pm the night before. Here is how digital invitations work for Cebu weddings and milestone birthdays \u2014 what belongs on the page, what RSVP tracking actually saves you, and what we built for real Cebu events.',
     readTime: '7 min read',
@@ -354,7 +465,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'Digital invitations and wedding websites for Cebu events. How evites handle RSVP tracking, directions and dress code for Cebu weddings and milestone birthdays \u2014 with real examples from Huna Creatives.',
+        'Digital invitations for Cebu weddings and milestone birthdays \u2014 what belongs on the page, how RSVP tracking saves you time, and real examples we have built.',
       keywords: [
         'digital invitation Cebu',
         'wedding website Cebu',
@@ -466,7 +577,7 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'milestone-birthday-evite-pickleball',
     category: 'Web Design',
-    title: 'A Pickleball Birthday Invite, and What It Taught Us About Themed Evites',
+    title: 'A Pickleball Birthday Evite, and What It Taught Us',
     excerpt:
       'We built a 30th birthday invitation around pickleball \u2014 one paddle, one court, one button. Here is why committing hard to a single theme outperforms the elegant, generic invitation almost every time, and how that applies to events anywhere in the Philippines.',
     readTime: '6 min read',
@@ -480,7 +591,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'How a pickleball-themed 30th birthday evite was designed, and why committing to one strong theme beats a generic invitation. Digital invitation design for events across the Philippines.',
+        'Why committing fully to one theme beats a safe, generic invitation \u2014 and how we designed a pickleball 30th. Digital invitation design across the Philippines.',
       keywords: [
         'birthday invitation website',
         'digital invitation Philippines',
@@ -580,7 +691,7 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'cooperative-plumbing-drain-employee-owned-branding',
     category: 'Case Study',
-    title: 'Branding an Employee-Owned Trade Company — Cooperative Plumbing & Drain',
+    title: 'Branding an Employee-Owned Plumbing Company',
     excerpt:
       'How do you make an ownership model visible on a service van? Inside the brand strategy and identity system Huna Creatives built for Cooperative Plumbing & Drain — a monogram drawn from water ripples and pipeline forms, a deliberately narrow palette, and an eleven-page brand platform.',
     readTime: '8 min read',
@@ -594,7 +705,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'A case study in branding for the skilled trades: how Huna Creatives built the identity and brand strategy for Cooperative Plumbing & Drain, an employee-owned plumbing company — monogram design, color system, typography, positioning, and brand voice.',
+        'How do you make an ownership model visible on a service van? Inside the identity we built for Cooperative Plumbing & Drain \u2014 monogram, palette and brand platform.',
       keywords: [
         'plumbing company branding',
         'home services brand identity',
@@ -735,12 +846,12 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'peak-coffee-roasters-branding-cebu-it-park',
     category: 'Case Study',
-    title: 'How We Branded Peak Coffee Roasters — Cebu\'s Boldest Specialty Café Identity',
+    title: 'Branding Peak Coffee Roasters in Cebu IT Park',
     excerpt:
       'From a blank canvas to laser-cut wood signage, tasting cards, bean bags, and a complete visual system — how Huna Creatives built the brand identity for Peak Coffee Roasters, one of Cebu City\'s most ambitious specialty coffee concepts.',
     readTime: '7 min read',
-    date: 'June 11, 2026',
-    isoDate: '2026-06-11',
+    date: 'July 8, 2026',
+    isoDate: '2026-07-08',
     heroImage: '/images/peak-coffee-pcr-1.webp',
     author: {
       name: 'Thamara Ong',
@@ -749,7 +860,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'See how Huna Creatives built the complete brand identity for Peak Coffee Roasters in Cebu — logo suite, packaging, cups, menus, tasting cards, signage, and social media templates for a specialty coffee brand competing at the highest level in Cebu IT Park and beyond.',
+        'How we built the Peak Coffee Roasters brand identity for Cebu IT Park \u2014 logo, palette, packaging and the visual system behind a specialty coffee brand.',
       keywords: [
         'specialty coffee branding Cebu',
         'coffee shop brand identity Cebu',
@@ -831,6 +942,11 @@ export const blogArticles: BlogArticle[] = [
         content:
           'Peak Coffee Roasters launched with a brand identity that looked like it came from a studio in Tokyo or Melbourne — because the brief demanded nothing less. The complete system carries consistently from the first Instagram impression to the cup in the customer\'s hand, from the laser-cut sign on the wall to the tasting card on the table. Every touchpoint reinforces the same message: this is a café that cares about every detail. See the <a href="/portfolio/project/peak-coffee-roasters">full Peak Coffee Roasters case study</a> for the complete visual system.',
       },
+      {
+        type: 'paragraph',
+        content:
+          'Coffee and matcha brands face the same problem from opposite ends \u2014 see how we approached it for <a href="/blog/whisk-up-matcha-brand-identity-cebu">Whisk Up Matcha</a> and <a href="/blog/uji-matcha-cafe-logo-refinement-baguio-makati">Uji-Matcha Caf\u00e9</a>. More of our identity work is in the <a href="/portfolio/branding">branding portfolio</a>.',
+      },
     ],
     cta: {
       heading: 'Opening a café or restaurant in Cebu? Your brand is your most important first impression.',
@@ -844,7 +960,7 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'the-second-haus-branding-consignment',
     category: 'Case Study',
-    title: 'How We Built The Second Haus — A Premium Brand Identity for Cebu\'s Conscious Luxury Market',
+    title: 'The Second Haus: Branding a Consignment Boutique',
     excerpt:
       'The resale and consignment market is growing fast in Cebu. The Second Haus needed a brand that felt as premium as the pieces it carries — curated, warm, and built to earn trust from style-conscious buyers from day one.',
     readTime: '6 min read',
@@ -858,7 +974,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'See how Huna Creatives built a complete luxury brand identity for The Second Haus, a Cebu-based consignment boutique — logo, typography, color palette, packaging, dust bags, hang tags, and social media templates that positioned the brand as premium from launch day.',
+        'Building trust in secondhand luxury. How we created The Second Haus identity \u2014 logotype, palette, packaging and brand guidelines for a Cebu consignment boutique.',
       keywords: [
         'fashion brand identity Cebu',
         'consignment boutique branding Philippines',
@@ -937,6 +1053,11 @@ export const blogArticles: BlogArticle[] = [
         content:
           'The investment in a complete brand system — not just a logo — is what separates the boutiques that become institutions from the ones that quietly disappear. If your brand is inconsistent across your packaging, your social media, and your in-person experience, you are creating friction every time a potential customer encounters you. The Second Haus invested in getting it right from the very first touchpoint — and it shows. See the <a href="/portfolio/project/the-second-haus">full case study here</a>.',
       },
+      {
+        type: 'paragraph',
+        content:
+          'For more retail and hospitality identity work, see <a href="/blog/peak-coffee-roasters-branding-cebu-it-park">Peak Coffee Roasters</a> and the full <a href="/portfolio/branding">branding portfolio</a>, or read what a complete identity includes in our <a href="/services">services</a>.',
+      },
     ],
     cta: {
       heading: 'Launching a boutique, fashion label, or retail brand in Cebu?',
@@ -950,7 +1071,7 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'content-creation-that-builds-authority',
     category: 'Content Creation',
-    title: 'How to Outsource Content Creation to a Filipino Agency Without Losing Your Brand Voice',
+    title: 'Outsourcing Content Creation to a Filipino Agency',
     excerpt:
       'The biggest fear when outsourcing content is losing the voice that makes your brand feel like yours. Here is how to hand off content creation to a Filipino agency and get back work that sounds exactly like you — only better.',
     readTime: '6 min read',
@@ -964,7 +1085,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'Learn how to outsource content creation to a Filipino agency without losing your brand voice. Huna Creatives in Cebu produces blogs, social content, and brand copy for international clients — on-brand, on-time, and built to attract leads.',
+        'How to outsource content creation to a Philippine agency without losing your brand voice \u2014 what to hand over, what to keep, and how to brief it properly.',
       keywords: [
         'outsource content creation Philippines',
         'Filipino content agency',
@@ -1029,6 +1150,11 @@ export const blogArticles: BlogArticle[] = [
         content:
           'Month one is always about calibration — learning your voice, testing formats, and refining the workflow. By month two, the content starts to feel native to your brand. By month three, you have a content machine that runs predictably and requires minimal input from your team. This is where the compounding value of outsourced content creation really begins to show. <a href="/contact">Talk to Huna Creatives</a> about a content engagement that fits your brand.',
       },
+      {
+        type: 'paragraph',
+        content:
+          'Content works hardest when it sits on a brand that already holds together \u2014 see <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">how we built one from strategy up</a>, or browse the <a href="/portfolio">portfolio</a> and our <a href="/services">services</a>.',
+      },
     ],
     cta: {
       heading: 'Get content that sounds like you — and performs better than you have time to create.',
@@ -1041,7 +1167,7 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'startup-branding-identity-guide',
     category: 'Brand Identity',
-    title: "The Startup Founder's Complete Guide to Brand Identity in 2026",
+    title: 'Affordable Startup Branding With a Filipino Agency',
     excerpt:
       'Your brand is being formed whether you are intentional about it or not. Every pitch deck, every social post, every client email is shaping how people perceive your startup. Here is how to take control of that perception from day one.',
     readTime: '8 min read',
@@ -1055,7 +1181,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'The complete 2026 guide to building a brand identity for your startup from scratch. Learn what startup branding actually includes, when to invest, and how Filipino creative agencies deliver world-class brand identities at startup-friendly rates.',
+        'Why founders are hiring Philippine creative agencies for brand identity \u2014 what a startup branding package should include, and what it should actually cost.',
       keywords: [
         'startup branding guide 2026',
         'build brand identity startup',
@@ -1140,7 +1266,7 @@ export const blogArticles: BlogArticle[] = [
   {
     slug: 'social-media-content-strategy-2025',
     category: 'Digital Marketing',
-    title: 'Social Media Strategy for Philippine Businesses in 2026: What Is Actually Working',
+    title: 'Social Media Strategy for Philippine Businesses',
     excerpt:
       'The playbook that worked in 2023 is obsolete. Filipino consumers are more sophisticated, algorithms have changed, and the brands growing on social media in 2026 are doing something fundamentally different. Here is what it is.',
     readTime: '7 min read',
@@ -1154,7 +1280,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'What social media strategy is actually working for Philippine businesses in 2026? Huna Creatives shares the content frameworks, platform strategies, and engagement tactics that are growing brands in Cebu and across the Philippines right now.',
+        'What actually works on social media for Philippine businesses \u2014 content pillars, posting cadence and the metrics worth tracking, from a Cebu creative agency.',
       keywords: [
         'social media strategy Philippines 2026',
         'social media marketing Philippines',
@@ -1218,6 +1344,11 @@ export const blogArticles: BlogArticle[] = [
         content:
           'One viral post will not build your business. Consistent, quality content posted over twelve months will. The brands that dominate social media in their categories are not the ones chasing trends — they are the ones showing up with the same quality, the same voice, and the same value week after week. This is what builds the kind of brand recognition and trust that turns followers into paying customers. At Huna Creatives, every <a href="/services">social media strategy</a> we build is designed for the long game — because that is where the real returns are. <a href="/contact">Let us build yours.</a>',
       },
+      {
+        type: 'paragraph',
+        content:
+          'Strategy only carries as far as the brand behind it. See <a href="/blog/the-second-haus-branding-consignment">The Second Haus</a> for an identity built to survive a feed, or start with our <a href="/services">services</a> and the <a href="/portfolio">portfolio</a>.',
+      },
     ],
     cta: {
       heading: 'Build a social media presence that compounds over time.',
@@ -1228,99 +1359,9 @@ export const blogArticles: BlogArticle[] = [
     ],
   },
   {
-    slug: 'print-design-still-matters',
-    category: 'Brand Identity',
-    title: 'Graphic Design Services in Cebu: Premium Brand Collateral That Makes People Remember You',
-    excerpt:
-      'In a city full of tarpaulins and generic business cards, premium graphic design is one of the sharpest competitive advantages available to Cebu businesses. Here is how to use it.',
-    readTime: '6 min read',
-    date: 'January 14, 2026',
-    isoDate: '2026-01-14',
-    heroImage: '/images/blog-print-design-hero-001.jpg',
-    author: {
-      name: 'Katleen Nellas',
-      role: 'Senior Graphic Designer',
-      avatar: '/images/team-katleen-nellas.webp',
-    },
-    seo: {
-      description:
-        'Looking for graphic design services in Cebu? Huna Creatives designs premium brand collateral for businesses in Cebu City — business cards, brochures, packaging, event materials, and digital assets that make your brand impossible to forget.',
-      keywords: [
-        'graphic design Cebu',
-        'graphic designer Cebu City',
-        'brand collateral Cebu',
-        'print design Philippines',
-        'business card design Cebu',
-        'brochure design Cebu City',
-        'design agency Cebu',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'Walk into any networking event in Cebu City and collect the business cards. When you get home, spread them on the table. Some will be instantly forgettable — printed on thin stock, generic layout, Times New Roman. One or two will make you stop. Premium paper, a thoughtful design, a finish that makes you run your thumb across it. Those businesses already have an advantage before a single word has been exchanged. That is what great graphic design does.',
-      },
-      {
-        type: 'heading',
-        content: 'Why Print Still Matters in a Digital World',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The case for print has actually gotten stronger as everything has gone digital. Because everyone has moved online, physical brand materials have become rarer — and rarer things get more attention. A beautifully designed brochure left in a client\'s office, premium packaging that turns delivery into an experience, an event backdrop that commands the room — these physical touchpoints create brand impressions that no digital ad can replicate.',
-      },
-      {
-        type: 'quote',
-        content:
-          'In a digital world, great print design is a luxury signal. It says: we care enough about our brand to invest in the physical experience. That message lands before anyone reads a single word.',
-      },
-      {
-        type: 'heading',
-        content: 'Graphic Design Services Cebu Businesses Actually Need',
-      },
-      {
-        type: 'list',
-        content: 'What Huna Creatives designs for Cebu businesses:',
-        items: [
-          'Business cards — thick stock, premium finish, designed to be kept instead of thrown away',
-          'Brochures and company profiles — your offline sales tool for B2B meetings and events',
-          'Packaging design — for food, retail, and product businesses that want unboxing to feel premium',
-          'Event materials — backdrops, pull-up banners, programs, and booth design',
-          'Presentation decks — investor pitches and client proposals that look as good as your work',
-          'Social media graphics — on-brand digital assets that look consistent across every platform',
-        ],
-      },
-      {
-        type: 'heading',
-        content: 'The Bridge Between Print and Digital',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The smartest brand collateral in 2026 bridges physical and digital. A QR code on a premium brochure that leads to a beautifully designed landing page. Packaging designed to be photographed and shared on Instagram. Business cards that link to a digital portfolio or booking page. At Huna Creatives, we design <a href="/services">brand materials that work in both worlds</a> — so your physical touchpoints amplify your digital presence instead of existing separately from it. Browse our <a href="/portfolio">portfolio</a> to see how we bridge print and digital for Cebu businesses.',
-      },
-      {
-        type: 'heading',
-        content: 'Getting Print Right: What Most Cebu Businesses Miss',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Great print design requires understanding print production — color modes, bleed, resolution, paper stock, and finishing options like matte lamination, spot UV, or foil. These technical details are the difference between a print piece that looks amateur and one that looks premium. Our team handles every aspect from concept to print-ready files, ensuring your materials look as good in hand as they do on screen. <a href="/contact">Get a quote for your next print project.</a>',
-      },
-    ],
-    cta: {
-      heading: 'Make your brand impossible to forget — in print and online.',
-      body: "Huna Creatives designs premium brand collateral for businesses in Cebu City and across the Philippines. From business cards to full campaign materials, let's make something worth keeping.",
-    },
-    relatedSlugs: [
-    ],
-  },
-  {
     slug: 'sentro-os-hr-operations-hub-creative-agencies-philippines',
     category: 'Tools & Operations',
-    title: 'Sentro OS: The HR and Operations Hub Built for Creative Agencies in the Philippines',
+    title: 'Sentro OS: An HR and Operations Hub for Agencies',
     excerpt:
       'Most HR tools were built for corporations. Sentro OS was built for creative agencies — attendance via Slack, one-click payroll, client project tracking, and contracts, all in one system designed specifically for how Philippine agencies actually work.',
     readTime: '7 min read',
@@ -1335,7 +1376,7 @@ export const blogArticles: BlogArticle[] = [
     },
     seo: {
       description:
-        'Sentro OS is a custom-built HR and operations hub for creative agencies in the Philippines. Manage attendance, payroll, time-off, overtime, client projects, and contracts — all in one system built specifically for Philippine agencies and remote creative teams.',
+        'Sentro OS is the HR and operations hub we built for creative teams in the Philippines \u2014 attendance, payroll, leave and appraisals in one place.',
       keywords: [
         'HR software Philippines creative agency',
         'operations hub Philippines',

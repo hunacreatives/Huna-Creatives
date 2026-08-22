@@ -518,8 +518,8 @@ const webDesignSites = [
     displayUrl: 'fsarchitects.ph',
     category: 'Web Design & Branding',
     description:
-      'Three builds for one practice: a trilingual public site where the architecture stays the loudest thing on the page, their own instance of Sentro running HR, payroll and project operations, and an installable staff app so the team can clock in and file requests from a phone.',
-    tags: ['Web Design', 'Web Development', 'Sentro Hub', 'Staff App', 'Architecture'],
+      'A trilingual public site where the architecture stays the loudest thing on the page, plus their own dedicated app \u2014 an instance of Sentro running attendance, requests, payroll and appraisals, installed on the team\u2019s phones so the owner can check the practice from anywhere.',
+    tags: ['Web Design', 'Web Development', 'Dedicated App', 'Staff App', 'Architecture'],
     year: '2025',
     accentColor: '#7a8fa0',
     accentBg: 'rgba(122,143,160,0.1)',

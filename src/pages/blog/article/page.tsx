@@ -39,11 +39,17 @@ const ArticlePage = () => {
           url: `https://www.hunacreatives.com/blog/${slug}`,
           datePublished: article.isoDate,
           dateModified: article.isoDate,
+          // Person, not Organization: posts carry real bylines, and a named
+          // author with a stated role is what E-E-A-T actually rewards.
           author: {
-            '@type': 'Organization',
-            '@id': 'https://www.hunacreatives.com/#organization',
-            name: 'Huna Creatives',
-            url: 'https://www.hunacreatives.com',
+            '@type': 'Person',
+            name: article.author.name,
+            jobTitle: article.author.role,
+            worksFor: {
+              '@type': 'Organization',
+              '@id': 'https://www.hunacreatives.com/#organization',
+              name: 'Huna Creatives',
+            },
           },
           publisher: {
             '@id': 'https://www.hunacreatives.com/#organization',
