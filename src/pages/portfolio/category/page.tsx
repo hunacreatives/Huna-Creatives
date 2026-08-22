@@ -108,6 +108,8 @@ const GraphicDesignLayout = ({ category }) => {
       // sits on the section without needing a matching backing plate.
       image: '/images/menus-vox-flyers.png',
       wideImage: true,
+      imageMaxHeight: '700px',
+      imageGrow: true,
       // Segmented rather than a single string so the emphasis can be marked up
       // without dangerouslySetInnerHTML.
       richBody: [
@@ -139,6 +141,11 @@ const GraphicDesignLayout = ({ category }) => {
       // background so it sits on the page without a backing plate.
       image: '/images/flyers-mockup.png',
       wideImage: true,
+      // Runs larger than the menus mockup: three sheets share one width, so
+      // each reads smaller at a matched size. The column is the binding
+      // constraint here, not the height cap, so widen the column too.
+      imageMaxHeight: '760px',
+      imageGrow: true,
       imageLeft: false,
     },
   ];
@@ -151,8 +158,8 @@ const GraphicDesignLayout = ({ category }) => {
           className="relative py-16 sm:py-20 px-4 sm:px-6"
           style={{ background: sec.bg }}
         >
-          <div className="max-w-6xl mx-auto">
-            <div className={`flex flex-col ${sec.imageLeft ? 'lg:flex-row-reverse' : 'lg:flex-row'} gap-8 md:gap-12 lg:gap-20 items-center`}>
+          <div className={`mx-auto ${sec.wideImage ? 'max-w-7xl' : 'max-w-6xl'}`}>
+            <div className={`flex flex-col ${sec.imageLeft ? 'lg:flex-row-reverse' : 'lg:flex-row'} gap-8 md:gap-12 lg:gap-16 items-center`}>
               {/* Text */}
               <div className="flex-1 max-w-xl">
                 <span
@@ -200,12 +207,12 @@ const GraphicDesignLayout = ({ category }) => {
               </div>
               {/* Image — a single flat asset; the old site's menu artwork has
                   the fan, angle and shadow baked into the export itself. */}
-              <div className="flex-1 w-full flex items-center justify-center">
+              <div className={`w-full flex items-center justify-center ${sec.imageGrow ? 'lg:flex-[1.55]' : 'flex-1'}`}>
                 <img
                   src={sec.image}
                   alt={sec.title}
-                  className="w-full object-contain max-w-2xl"
-                  style={{ maxHeight: sec.wideImage ? '540px' : '680px' }}
+                  className={`w-full object-contain ${sec.imageGrow ? 'max-w-none' : 'max-w-2xl'}`}
+                  style={{ maxHeight: sec.imageMaxHeight ?? (sec.wideImage ? '540px' : '680px') }}
                 />
               </div>
             </div>
