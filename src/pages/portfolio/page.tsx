@@ -103,7 +103,9 @@ const heroCards: HeroCard[] = [
 // Clicking the already-active card navigates to its portfolio category.
 function HeroCardCarousel({ cards }: { cards: HeroCard[] }) {
   const navigate = useNavigate();
-  const [active, setActive] = useState(Math.min(2, cards.length - 1));
+  // Open on Brand Design (the first card). The offset math below wraps, so a
+  // centered index 0 still has cards on both sides -- no lopsided gap.
+  const [active, setActive] = useState(0);
   const len = cards.length;
   const go = (dir: number) => setActive((a) => (a + dir + len) % len);
 
