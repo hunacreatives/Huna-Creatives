@@ -70,7 +70,7 @@ export default function BlogPage() {
             Insights &amp; Ideas
           </span>
           <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-[#243037] mb-4">
-            The Huna <span className="text-[#FF5B05]">Journal</span>
+            The Huna Journal
           </h1>
           <p className="text-sm text-[#243037]/55 leading-relaxed max-w-xl mx-auto font-body">
             Strategy, design, and brand-building insights from the Huna Creatives team — written to help you grow a brand that actually means something.

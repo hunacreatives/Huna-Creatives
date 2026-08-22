@@ -442,12 +442,12 @@ export default function CareersPage() {
 
           {/* Fun floating icons/emoji at the cluster's own corners — kept
               clear of both quote bubbles (top-left and bottom-right) */}
-          <span className="hidden sm:flex absolute -top-6 -right-6 w-11 h-11 items-center justify-center rounded-2xl text-xl" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', boxShadow: '0 8px 24px rgba(36,48,55,0.12)', transform: 'rotate(10deg)', animation: 'float-gentle 7.5s ease-in-out infinite 0.2s', zIndex: 6 }}>🎨</span>
-          <span className="hidden sm:flex absolute -bottom-5 left-4 w-9 h-9 items-center justify-center rounded-full text-base" style={{ background: 'rgba(255,91,5,0.18)', border: '1px solid rgba(255,91,5,0.3)', transform: 'rotate(6deg)', animation: 'float-gentle 8s ease-in-out infinite 1.1s', zIndex: 6 }}>✨</span>
-          <span className="hidden sm:flex absolute top-1/3 -left-14 w-10 h-10 items-center justify-center rounded-full text-lg" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', boxShadow: '0 8px 20px rgba(36,48,55,0.1)', transform: 'rotate(-8deg)', animation: 'float-gentle 9s ease-in-out infinite 0.9s', zIndex: 6 }}>🦄</span>
-          <span className="hidden sm:flex absolute top-6 -left-16 w-9 h-9 items-center justify-center rounded-full text-base" style={{ background: 'rgba(7,80,86,0.15)', border: '1px solid rgba(7,80,86,0.25)', transform: 'rotate(8deg)', animation: 'float-gentle 8.5s ease-in-out infinite 1.4s', zIndex: 6 }}>🎉</span>
-          <span className="hidden sm:flex absolute top-1/2 -right-14 w-10 h-10 items-center justify-center rounded-full text-lg" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', boxShadow: '0 8px 20px rgba(36,48,55,0.1)', transform: 'rotate(6deg)', animation: 'float-gentle 10s ease-in-out infinite 0.4s', zIndex: 6 }}>🚀</span>
-          <span className="hidden sm:flex absolute bottom-6 -right-16 w-9 h-9 items-center justify-center rounded-full text-base" style={{ background: 'rgba(255,91,5,0.18)', border: '1px solid rgba(255,91,5,0.3)', transform: 'rotate(-6deg)', animation: 'float-gentle 7.8s ease-in-out infinite 1.7s', zIndex: 6 }}>⭐</span>
+          <span className="hidden sm:block absolute -top-6 -right-6 text-3xl" style={{ transform: 'rotate(10deg)', animation: 'float-gentle 7.5s ease-in-out infinite 0.2s', zIndex: 6 }}>🎨</span>
+          <span className="hidden sm:block absolute -bottom-5 left-4 text-2xl" style={{ transform: 'rotate(6deg)', animation: 'float-gentle 8s ease-in-out infinite 1.1s', zIndex: 6 }}>✨</span>
+          <span className="hidden sm:block absolute top-1/3 -left-14 text-[1.6875rem]" style={{ transform: 'rotate(-8deg)', animation: 'float-gentle 9s ease-in-out infinite 0.9s', zIndex: 6 }}>🦄</span>
+          <span className="hidden sm:block absolute top-6 -left-16 text-2xl" style={{ transform: 'rotate(8deg)', animation: 'float-gentle 8.5s ease-in-out infinite 1.4s', zIndex: 6 }}>🎉</span>
+          <span className="hidden sm:block absolute top-1/2 -right-14 text-[1.6875rem]" style={{ transform: 'rotate(6deg)', animation: 'float-gentle 10s ease-in-out infinite 0.4s', zIndex: 6 }}>🚀</span>
+          <span className="hidden sm:block absolute bottom-6 -right-16 text-2xl" style={{ transform: 'rotate(-6deg)', animation: 'float-gentle 7.8s ease-in-out infinite 1.7s', zIndex: 6 }}>⭐</span>
         </div>
         </div>
       </section>
@@ -479,8 +479,8 @@ export default function CareersPage() {
                 className="rounded-2xl p-5 sm:p-6"
                 style={{ background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 8px 32px rgba(36,48,55,0.08)' }}
               >
-                <div className="w-11 h-11 flex items-center justify-center rounded-xl mb-4" style={{ background: 'rgba(255,91,5,0.12)' }}>
-                  <i className={`${b.icon} text-lg text-[#FF5B05]`} />
+                <div className="mb-4">
+                  <i className={`${b.icon} text-[1.6875rem] text-[#FF5B05]`} />
                 </div>
                 <h3 className="font-display font-bold text-sm sm:text-base text-[#243037] mb-1.5">{b.title}</h3>
                 <p className="text-[13px] text-[#243037]/55 leading-relaxed">{b.desc}</p>
@@ -595,8 +595,8 @@ export default function CareersPage() {
                       className="w-full text-left cursor-pointer"
                     >
                       <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
-                        <div className="w-12 h-12 flex items-center justify-center rounded-xl shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
-                          <i className={`text-xl text-orange-400 ${job.portfolioRequired ? 'ri-palette-line' : 'ri-megaphone-line'}`} />
+                        <div className="shrink-0">
+                          <i className={`text-[1.875rem] text-orange-400 ${job.portfolioRequired ? 'ri-palette-line' : 'ri-megaphone-line'}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1.5">
@@ -685,8 +685,8 @@ export default function CareersPage() {
             <div className="max-w-5xl mx-auto">
               <div className="rounded-2xl md:rounded-3xl p-8 md:p-10 border border-[#243037]/8 flex flex-col md:flex-row items-center gap-6 md:gap-10 fade-up fade-up-2"
                 style={{ background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)', boxShadow: '0 8px 32px rgba(36,48,55,0.08)' }}>
-                <div className="w-14 h-14 flex items-center justify-center rounded-2xl shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
-                  <i className="ri-briefcase-4-line text-2xl text-orange-400" />
+                <div className="shrink-0">
+                  <i className="ri-briefcase-4-line text-[2.25rem] text-orange-400" />
                 </div>
                 <div>
                   <h2 className="font-display text-xl md:text-2xl font-bold text-[#243037] mb-2">No Open Positions Right Now</h2>

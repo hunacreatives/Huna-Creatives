@@ -307,7 +307,7 @@ export default function ServicesPage() {
               right of a phone screen. Reverts to left alignment from sm up. */}
           <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center sm:text-left">
             <h1 className="text-3xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display leading-tight text-[#243037]">
-              Brands that<br />turn <span className="text-[#FF5B05]">heads.</span>
+              Brands that<br />turn heads.
             </h1>
             <div className="flex flex-col items-center sm:flex-row sm:flex-wrap gap-3 sm:gap-6 text-[13px] sm:text-xs text-[#243037]/50 mt-7 sm:mt-8">
               <span className="flex items-center gap-2"><i className="ri-check-line text-[#FF5B05]" />Custom quote in 24 hrs</span>

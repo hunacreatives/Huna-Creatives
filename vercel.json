@@ -4,10 +4,53 @@
       "source": "/hub/:path*",
       "destination": "https://www.hunacreatives.com/hub/login",
       "permanent": false,
-      "has": [{ "type": "host", "value": "ops.hunacreatives.com" }]
+      "has": [
+        {
+          "type": "host",
+          "value": "ops.hunacreatives.com"
+        }
+      ]
+    },
+    {
+      "source": "/blog/web-design-that-converts-not-just-impresses",
+      "destination": "/portfolio/web-design",
+      "permanent": true
+    },
+    {
+      "source": "/blog/website-design-for-small-businesses",
+      "destination": "/portfolio/web-design",
+      "permanent": true
+    },
+    {
+      "source": "/blog/brand-strategy-before-design",
+      "destination": "/blog/startup-branding-identity-guide",
+      "permanent": true
+    },
+    {
+      "source": "/blog/why-brand-identity-is-your-most-valuable-asset",
+      "destination": "/blog/cooperative-plumbing-drain-employee-owned-branding",
+      "permanent": true
+    },
+    {
+      "source": "/blog/the-power-of-consistent-visual-branding",
+      "destination": "/blog/the-second-haus-branding-consignment",
+      "permanent": true
+    },
+    {
+      "source": "/blog/social-media-marketing-that-actually-builds-your-brand",
+      "destination": "/blog/social-media-content-strategy-2025",
+      "permanent": true
+    },
+    {
+      "source": "/blog/print-design-still-matters",
+      "destination": "/blog/peak-coffee-roasters-branding-cebu-it-park",
+      "permanent": true
     }
   ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
   ]
 }
