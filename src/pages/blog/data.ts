@@ -24,6 +24,122 @@ export interface BlogArticle {
 
 export const blogArticles: BlogArticle[] = [
   {
+    slug: 'fs-architects-website-sentro-hub-staff-app',
+    category: 'Case Study',
+    title: 'FS Architects: A Website, an Operations Hub, and a Staff App',
+    excerpt:
+      'Most studios need a portfolio site. FS Architects needed that plus somewhere to run the practice \u2014 payroll, leave, appraisals and project operations \u2014 and a way for staff to reach it from a phone. Three builds, one system.',
+    readTime: '7 min read',
+    date: 'August 22, 2026',
+    isoDate: '2026-08-22',
+    heroImage: '/images/fsarchitects-home.png',
+    author: {
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
+    },
+    seo: {
+      description:
+        'How Huna Creatives built the FS Architects website, a custom Sentro operations hub, and an installable staff app \u2014 web design and development for an architecture practice in the Philippines.',
+      keywords: [
+        'architecture website design Philippines',
+        'web development Philippines',
+        'HR software Philippines',
+        'custom staff app Philippines',
+        'architecture firm branding',
+        'Sentro OS',
+        'FS Architects',
+        'Huna Creatives',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'An architecture practice has two audiences that never meet. There are clients, who need to see the work and understand whether this studio can be trusted with a building. And there is the team, who need to file leave, log hours, and keep projects moving. Most studios solve the first with a website and the second with a spreadsheet.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'FS Architects decided to solve both properly. What we built for them at <a href="https://fsarchitects.ph" target="_blank" rel="noopener noreferrer">fsarchitects.ph</a> is really three things: the public site, their own instance of our operations hub, and an installable app so the team can reach it from a phone.',
+      },
+      { type: 'heading', content: 'The site: let the buildings be the loudest thing' },
+      {
+        type: 'paragraph',
+        content:
+          'Architecture sites fail in a specific way \u2014 they over-design around the work until the interface competes with the buildings. We went the other direction. A quiet, gallery-like presentation, generous space, and project pages that let a render fill the screen without a caption fighting for attention.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The practice works across Mindanao and takes commissions from commercial clients like BYD Butuan through to private residences, so the site runs trilingual navigation \u2014 English, Spanish and Chinese \u2014 rather than assuming every prospective client reads the same language. That is a structural decision, not a plugin: it shapes how every page is built.',
+      },
+      {
+        type: 'quote',
+        content:
+          'For an architecture studio, restraint is the credential. If your website is the loudest thing you have designed, that tells a client something.',
+      },
+      { type: 'heading', content: 'The hub: where the practice actually runs' },
+      {
+        type: 'paragraph',
+        content:
+          'Behind the public site sits their own instance of <a href="/blog/sentro-os-hr-operations-hub-creative-agencies-philippines">Sentro</a>, the HR and operations hub we built for creative teams in the Philippines. Not a generic SaaS subscription \u2014 their own deployment, shaped to how the practice works.',
+      },
+      {
+        type: 'list',
+        content: 'What it handles day to day:',
+        items: [
+          'Attendance and daily hours, feeding directly into payroll instead of being retyped',
+          'Leave and time-off requests, with the practice\u2019s own policy encoded rather than approximated',
+          'Payroll runs, payslips and the approval trail behind them',
+          'Performance appraisals as a staged workflow, not a form emailed around',
+          'Project and task tracking, so studio operations sit next to the people data',
+        ],
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The detail that matters most there is the last-mile one: time off flows into payroll automatically. That single connection removes an entire category of month-end reconciliation, which is the sort of thing nobody notices when it works and everybody notices when it does not.',
+      },
+      { type: 'heading', content: 'The app: because nobody clocks in at a desktop' },
+      {
+        type: 'paragraph',
+        content:
+          'A hub only earns its keep if people actually use it, and staff are rarely at a laptop when they need to file a request or clock in. So the hub is also an installable app \u2014 it sits on the home screen with its own icon, opens straight to login without browser furniture, and keeps working through the patchy connectivity that is a fact of life on site.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'We built it as a progressive web app rather than shipping to the app stores. For an internal tool used by one practice, store review cycles and separate iOS and Android codebases are cost with no return. Staff install it from a link, and updates reach everyone the moment we deploy.',
+      },
+      { type: 'heading', content: 'Why one team for all three' },
+      {
+        type: 'paragraph',
+        content:
+          'These are usually three separate vendors: an agency for the site, a SaaS subscription for HR, and a developer for anything custom. The seams between them are where the cost hides \u2014 data retyped between systems, branding drifting apart, and nobody owning the parts in between.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'Running it as one engagement meant the public site, the hub and the app share a visual language and a codebase lineage. You can see the site itself in our <a href="/portfolio/web-design">web design portfolio</a>, alongside work like <a href="/portfolio/project/hulma-cebu">Hulma Cebu</a> and SmartGrid Western.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'If you are running a practice on spreadsheets and a template site, the gap between those two things is probably costing more than you think. <a href="/contact">Come tell us how you work</a>.',
+      },
+    ],
+    cta: {
+      heading: 'Need more than a website?',
+      body: 'We build the public site, the system behind it, and the app your team actually opens. Tell us what your practice runs on.',
+    },
+    relatedSlugs: [
+      'sentro-os-hr-operations-hub-creative-agencies-philippines',
+      'digital-invitations-evites-cebu',
+      'cooperative-plumbing-drain-employee-owned-branding',
+    ],
+  },
+  {
     slug: 'whisk-up-matcha-brand-identity-cebu',
     category: 'Case Study',
     title: 'Whisk Up Matcha: Building a Matcha Brand Identity From Scratch',
@@ -125,6 +241,9 @@ export const blogArticles: BlogArticle[] = [
     date: 'August 22, 2026',
     isoDate: '2026-08-22',
     heroImage: '/images/uji-hero.webp',
+    // Portrait source (1440x1800) in a wide banner. The mark sits at roughly
+    // mid-height, so the default 'center top' crop cut it off.
+    heroImagePosition: '50% 50%',
     author: {
       name: 'Thamara Ong',
       role: 'Partner & Senior Brand Strategist',

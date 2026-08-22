@@ -518,8 +518,8 @@ const webDesignSites = [
     displayUrl: 'fsarchitects.ph',
     category: 'Web Design & Branding',
     description:
-      'An architecture and interior design practice with a portfolio that had to carry weight — trilingual navigation, project case studies from BYD Butuan to private residences, and a quiet, gallery-like presentation that keeps the buildings the loudest thing on the page.',
-    tags: ['Web Design', 'Architecture', 'Branding', 'Multilingual'],
+      'Three builds for one practice: a trilingual public site where the architecture stays the loudest thing on the page, their own instance of Sentro running HR, payroll and project operations, and an installable staff app so the team can clock in and file requests from a phone.',
+    tags: ['Web Design', 'Web Development', 'Sentro Hub', 'Staff App', 'Architecture'],
     year: '2025',
     accentColor: '#7a8fa0',
     accentBg: 'rgba(122,143,160,0.1)',
