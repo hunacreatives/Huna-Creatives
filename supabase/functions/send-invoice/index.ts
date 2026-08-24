@@ -154,7 +154,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, token: paymentLink.token }), { headers: cors });
     }
 
-    const paymentsRows = (payments ?? []).map((p: any) => `
+    const paymentsOrdered = [...(payments ?? [])].sort((a: any, b: any) => {
+      const at = new Date(a.paid_at).getTime();
+      const bt = new Date(b.paid_at).getTime();
+      if (Number.isNaN(at) || Number.isNaN(bt)) return 0;
+      return at - bt;
+    });
+
+    const paymentsRows = paymentsOrdered.map((p: any) => `
       <tr>
         <td style="padding:10px 16px;font-size:13px;color:#374151;border-top:1px solid #f3f4f6;">
           ${new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -270,6 +277,7 @@ Deno.serve(async (req) => {
           ${showPayments && paymentsRows ? `
           <tr>
             <td style="padding:16px 40px 0;">
+              <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;padding-bottom:8px;">Payments Received</div>
               <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
                 <thead>
                   <tr>
