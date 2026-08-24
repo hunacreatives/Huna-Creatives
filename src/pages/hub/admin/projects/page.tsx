@@ -260,6 +260,10 @@ export default function AdminProjectsPage() {
   const [ctxPayForm, setCtxPayForm] = useState<Record<number, { amount: string; date: string; notes: string; receipt: File | null; notify: boolean }>>({});
   const [ctxPaySaving, setCtxPaySaving] = useState<Record<number, boolean>>({});
   const [ctxPayError, setCtxPayError] = useState<Record<number, string>>({});
+  // Kept apart from ctxPayError: the payout IS recorded, but a follow-on step
+  // (so far, the notification email) failed. Showing it as an error would read
+  // as "the payment did not save", which is the opposite of what happened.
+  const [ctxPayWarn, setCtxPayWarn] = useState<Record<number, string>>({});
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
 
@@ -1305,6 +1309,7 @@ export default function AdminProjectsPage() {
     if (!form?.amount) return;
     setCtxPaySaving(p => ({ ...p, [pcId]: true }));
     setCtxPayError(p => ({ ...p, [pcId]: '' }));
+    setCtxPayWarn(p => ({ ...p, [pcId]: '' }));
 
     let receipt_url: string | null = null;
     if (form.receipt) {
@@ -1312,7 +1317,8 @@ export default function AdminProjectsPage() {
         receipt_url = await uploadFileToDrive(form.receipt, 'payout_receipt', { year: new Date().getFullYear().toString() });
       } catch (err) {
         setCtxPaySaving(p => ({ ...p, [pcId]: false }));
-        setCtxPayError(p => ({ ...p, [pcId]: err instanceof Error ? err.message : 'Receipt upload failed' }));
+        const why = err instanceof Error ? err.message : 'unknown error';
+        setCtxPayError(p => ({ ...p, [pcId]: `Receipt upload failed — ${why}. The payout was not recorded; remove the receipt to log it without one.` }));
         return;
       }
     }
@@ -1343,7 +1349,7 @@ export default function AdminProjectsPage() {
 
     // Send email notification
     if (form.notify && contractorEmail) {
-      supabase.functions.invoke('notify-contractor-payment', {
+      void supabase.functions.invoke('notify-contractor-payment', {
         body: {
           to: contractorEmail,
           contractor_name: contractorName,
@@ -1357,7 +1363,21 @@ export default function AdminProjectsPage() {
           total_cut: cut,
           is_fully_paid: newTotal >= cut,
         },
-      });
+      })
+        .then(({ error: notifyError }) => {
+          if (!notifyError) return;
+          setCtxPayWarn(p => ({
+            ...p,
+            [pcId]: `Payout recorded, but the email to ${contractorName} did not send — ${notifyError.message}. Let them know directly.`,
+          }));
+        })
+        .catch((err: unknown) => {
+          const why = err instanceof Error ? err.message : 'unknown error';
+          setCtxPayWarn(p => ({
+            ...p,
+            [pcId]: `Payout recorded, but the email to ${contractorName} did not send — ${why}. Let them know directly.`,
+          }));
+        });
     }
 
     fetchAll();
@@ -4087,6 +4107,7 @@ export default function AdminProjectsPage() {
                                 </span>
                               </label>
                               {ctxPayError[pc.id] && <p className="text-xs text-red-500">{ctxPayError[pc.id]}</p>}
+                              {ctxPayWarn[pc.id] && <p className="text-xs text-amber-600">{ctxPayWarn[pc.id]}</p>}
                             </div>
                           )}
                         </div>
