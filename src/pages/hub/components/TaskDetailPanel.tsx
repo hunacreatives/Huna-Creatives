@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabase';
 import { uploadFileToDrive } from '@/lib/driveUpload';
@@ -310,13 +310,29 @@ function buildTaskMetaPayload(
   return Object.keys(meta).length ? meta : null;
 }
 
-function buildTaskDraftSnapshot(task: TaskDraftSource) {
+/** Drop assignees the panel cannot show.
+ *
+ * `assignee_ids` is a plain uuid[] with no foreign key, so an id survives in it
+ * after that user is deleted from hub_users. The chip row filters those out for
+ * display, which made them invisible but still present in state — and saving
+ * promoted position zero into `assigned_to`, which IS constrained, so the write
+ * failed on a name nobody could see. What the panel shows is what it saves.
+ *
+ * An empty set means the team list has not loaded; filtering then would wipe
+ * every assignee, so leave the ids untouched.
+ */
+function keepKnownAssignees(ids: string[], known?: Set<string>) {
+  if (!known || known.size === 0) return ids;
+  return ids.filter((id) => known.has(id));
+}
+
+function buildTaskDraftSnapshot(task: TaskDraftSource, knownAssigneeIds?: Set<string>) {
   return {
     title: task.title.trim(),
     description: normalizeRichText(task.description),
     status: task.status,
     priority: task.priority,
-    ...normalizeTaskAssigneePayload(getTaskAssigneeIds(task)),
+    ...normalizeTaskAssigneePayload(keepKnownAssignees(getTaskAssigneeIds(task), knownAssigneeIds)),
     due_date: task.due_date ?? null,
     start_date: task.start_date ?? null,
     checklist: normalizeChecklistItems(task.checklist),
@@ -354,6 +370,10 @@ export default function TaskDetailPanel({
   const [status, setStatus]         = useState<TaskDetailTask['status']>('todo');
   const [priority, setPriority]     = useState<TaskDetailTask['priority']>('medium');
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const knownAssigneeIds = useMemo(
+    () => new Set(teamMembers.map((m) => m.id)),
+    [teamMembers],
+  );
   const [dueDate, setDueDate]       = useState('');
   const [startDate, setStartDate]   = useState('');
   const [checklist, setChecklist]   = useState<ChecklistItem[]>([]);
@@ -418,16 +438,16 @@ export default function TaskDetailPanel({
     description: normalizeRichText(descRef.current?.innerHTML ?? description),
     status,
     priority,
-    ...normalizeTaskAssigneePayload(assigneeIds),
+    ...normalizeTaskAssigneePayload(keepKnownAssignees(assigneeIds, knownAssigneeIds)),
     due_date: dueDate || null,
     start_date: startDate || null,
     checklist: normalizeChecklistItems(checklist),
     color: taskColor || null,
     meta: buildTaskMetaPayload(customFields, status, blockedReason),
-  }), [title, description, status, priority, assigneeIds, dueDate, startDate, checklist, taskColor, customFields, blockedReason]);
+  }), [title, description, status, priority, assigneeIds, knownAssigneeIds, dueDate, startDate, checklist, taskColor, customFields, blockedReason]);
 
   const initialDraft = task
-    ? buildTaskDraftSnapshot(task)
+    ? buildTaskDraftSnapshot(task, knownAssigneeIds)
     : {
         title: '',
         description: null,
@@ -451,7 +471,7 @@ export default function TaskDetailPanel({
     activeTaskIdRef.current = open && task ? task.id : null;
     if (!open) return;
     if (task) {
-      baselineDraftRef.current = { taskId: task.id, json: JSON.stringify(buildTaskDraftSnapshot(task)) };
+      baselineDraftRef.current = { taskId: task.id, json: JSON.stringify(buildTaskDraftSnapshot(task, knownAssigneeIds)) };
       lastFetchedTaskRef.current = null;
       setTitle(task.title);
       setDesc(task.description ?? '');
@@ -614,7 +634,7 @@ export default function TaskDetailPanel({
     if (activeTaskIdRef.current !== taskId) return;
     if (taskRes.data) {
       lastFetchedTaskRef.current = { id: taskId, ...taskRes.data };
-      baselineDraftRef.current = { taskId, json: JSON.stringify(buildTaskDraftSnapshot(taskRes.data)) };
+      baselineDraftRef.current = { taskId, json: JSON.stringify(buildTaskDraftSnapshot(taskRes.data, knownAssigneeIds)) };
       setTitle(taskRes.data.title);
       setDesc(taskRes.data.description ?? '');
       if (descRef.current) descRef.current.innerHTML = taskRes.data.description ?? '';
