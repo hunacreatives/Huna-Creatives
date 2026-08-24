@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import {
+  computeQuoteTotals, formatQuoteCurrency,
+  type QuoteCurrency, type QuoteLineItem, type ProposalStatus,
+} from '@/lib/quotation';
 
 const CALENDLY = 'https://calendly.com/hunacreatives/30min';
 
 type SubmissionStatus = 'new' | 'read' | 'replied' | 'archived';
-type ActiveTab = 'inbox' | 'sent' | 'proposals';
+type ActiveTab = 'inbox' | 'sent' | 'quotations';
 
 interface ContactSubmission {
   id: number;
@@ -32,12 +36,20 @@ interface ContactReply {
 interface Proposal {
   id: number;
   slug: string;
+  doc_type: 'proposal' | 'quotation';
   client_name: string;
   to_email: string;
   project_title: string | null;
   accent_color: string;
-  status: 'draft' | 'published' | 'sent';
+  line_items: QuoteLineItem[];
+  currency: QuoteCurrency;
+  discount: number | string;
+  tax_rate: number | string;
+  valid_until: string | null;
+  status: ProposalStatus;
   sent_at: string | null;
+  accepted_at: string | null;
+  accepted_by_name: string | null;
   created_at: string;
 }
 
@@ -48,10 +60,14 @@ const statusColors: Record<SubmissionStatus, string> = {
   archived: 'bg-gray-100 text-gray-500',
 };
 
-const proposalStatusColors = {
+const proposalStatusColors: Record<ProposalStatus, string> = {
   draft: 'bg-gray-100 text-gray-500',
   published: 'bg-sky-100 text-sky-700',
-  sent: 'bg-emerald-100 text-emerald-700',
+  sent: 'bg-indigo-100 text-indigo-700',
+  viewed: 'bg-amber-100 text-amber-700',
+  accepted: 'bg-emerald-100 text-emerald-700',
+  declined: 'bg-red-100 text-red-600',
+  expired: 'bg-gray-100 text-gray-400',
 };
 
 const statusOptions: SubmissionStatus[] = ['new', 'read', 'replied', 'archived'];
@@ -130,7 +146,7 @@ export default function ContactSubmissionsPage() {
 
   useEffect(() => { fetchSubmissions(); }, [filter]);
   useEffect(() => { if (tab === 'sent') fetchReplies(); }, [tab]);
-  useEffect(() => { if (tab === 'proposals') fetchProposals(); }, [tab]);
+  useEffect(() => { if (tab === 'quotations') fetchProposals(); }, [tab]);
 
   const openSendModal = (e: React.MouseEvent, p: Proposal) => {
     e.stopPropagation();
@@ -142,29 +158,25 @@ export default function ContactSubmissionsPage() {
 
   const sendProposalFromModal = async () => {
     const p = sendModal;
-    if (!p || !sendModalEmail) return;
+    if (!p || !sendModalEmail.trim()) return;
     setSendingProposalId(p.id);
+    setProposalSendResult(prev => { const r = { ...prev }; delete r[p.id]; return r; });
 
-    const proposalUrl = `https://www.hunacreatives.com/p/${p.slug}`;
     try {
-      if (p.status === 'draft') {
-        await supabase.from('hub_proposals').update({ status: 'published' }).eq('id', p.id);
-      }
-      const { error } = await supabase.functions.invoke('send-proposal', {
+      // send-quotation renders and mails what's in the database, then flips the
+      // status itself — so nothing here needs to duplicate that.
+      const { data, error } = await supabase.functions.invoke('send-quotation', {
         body: {
-          to_email: sendModalEmail,
-          to_name: p.client_name,
-          project_title: p.project_title || null,
-          proposal_url: proposalUrl,
-          subject: `Proposal from Huna Creatives${p.project_title ? ` — ${p.project_title}` : ''}`,
-          thank_you_context: sendModalThankYou.trim() || null,
+          id: p.id,
+          to_email: sendModalEmail.trim(),
+          intro: sendModalThankYou.trim() || null,
         },
       });
-      if (error) throw error;
-      await supabase.from('hub_proposals')
-        .update({ status: 'sent', sent_at: new Date().toISOString(), to_email: sendModalEmail })
-        .eq('id', p.id);
-      setProposals(prev => prev.map(x => x.id === p.id ? { ...x, status: 'sent', sent_at: new Date().toISOString(), to_email: sendModalEmail } : x));
+      if (error || data?.error) throw new Error(data?.error ?? error?.message ?? 'Send failed');
+
+      setProposals(prev => prev.map(x => x.id === p.id
+        ? { ...x, status: 'sent', sent_at: new Date().toISOString(), to_email: sendModalEmail.trim() }
+        : x));
       setProposalSendResult(prev => ({ ...prev, [p.id]: 'success' }));
       setSendModal(null);
     } catch {
@@ -245,26 +257,28 @@ export default function ContactSubmissionsPage() {
 
   const createProposal = async (fromSubmission?: ContactSubmission) => {
     setCreatingProposal(true);
-    const name = fromSubmission?.name || '';
-    const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'proposal'}-${Math.random().toString(36).slice(2, 6)}`;
+    const name = fromSubmission?.name || 'New Client';
+    const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'quote'}-${Math.random().toString(36).slice(2, 6)}`;
     const { data, error } = await supabase.from('hub_proposals').insert({
       slug,
+      doc_type: 'quotation',
       client_name: name,
-      to_email: fromSubmission?.email || '',
-      project_title: fromSubmission?.service ? `Brand Engagement — ${fromSubmission.service}` : '',
-      submission_id: fromSubmission?.id ?? null,
+      to_email: fromSubmission?.email ?? '',
+      project_title: fromSubmission?.service ?? '',
+      tagline: '',
       accent_color: '#FF6B35',
-      sections: [
-        { heading: 'What We Observed', body: '' },
-        { heading: 'What We Propose', body: '' },
-        { heading: 'Why Now', body: '' },
-        { heading: 'Our Scope', body: '' },
-      ],
+      sections: [],
+      line_items: [],
+      currency: 'PHP',
+      submission_id: fromSubmission?.id ?? null,
       status: 'draft',
     }).select().single();
     setCreatingProposal(false);
     if (!error && data) navigate(`/hub/admin/proposals/${data.id}`);
   };
+
+  // Sent or opened but no answer yet — the ones worth chasing.
+  const awaitingReply = proposals.filter(p => p.status === 'sent' || p.status === 'viewed').length;
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -281,7 +295,7 @@ export default function ContactSubmissionsPage() {
           {([
             ['inbox', 'ri-inbox-line', 'Inbox'],
             ['sent', 'ri-send-plane-line', 'Sent'],
-            ['proposals', 'ri-file-text-line', 'Proposals'],
+            ['quotations', 'ri-price-tag-3-line', 'Quotations'],
           ] as const).map(([t, icon, label]) => (
             <button key={t} onClick={() => setTab(t)}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -295,63 +309,95 @@ export default function ContactSubmissionsPage() {
           ))}
         </div>
 
-        {/* ── Proposals tab ── */}
-        {tab === 'proposals' && (
+        {/* ── Quotations tab ── */}
+        {tab === 'quotations' && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs text-gray-400">{proposals.length} proposal{proposals.length !== 1 ? 's' : ''}</p>
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-gray-400">
+                  {proposals.length} document{proposals.length !== 1 ? 's' : ''}
+                </p>
+                {awaitingReply > 0 && (
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">
+                    {awaitingReply} awaiting a decision
+                  </span>
+                )}
+              </div>
               <button onClick={() => createProposal()}
                 disabled={creatingProposal}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FF6B35] text-white text-xs font-semibold hover:bg-[#e55a27] transition-colors cursor-pointer disabled:opacity-40">
                 {creatingProposal
                   ? <><i className="ri-loader-4-line animate-spin text-sm" /> Creating…</>
-                  : <><i className="ri-add-line text-sm" /> New Proposal</>}
+                  : <><i className="ri-add-line text-sm" /> New Quotation</>}
               </button>
             </div>
             {proposals.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                <i className="ri-file-text-line text-3xl text-gray-200 block mb-3" />
-                <p className="text-sm text-gray-400 mb-4">No proposals yet</p>
+                <i className="ri-price-tag-3-line text-3xl text-gray-200 block mb-3" />
+                <p className="text-sm text-gray-400 mb-1">No quotations yet</p>
+                <p className="text-xs text-gray-400 mb-4">
+                  Open a message in the Inbox and hit Quotation to draft one from their enquiry.
+                </p>
                 <button onClick={() => createProposal()}
                   className="text-xs text-[#FF6B35] font-medium hover:underline cursor-pointer">
-                  Create your first proposal
+                  Or start one from scratch
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {proposals.map(p => (
-                  <button key={p.id}
-                    onClick={() => navigate(`/hub/admin/proposals/${p.id}`)}
-                    className="text-left bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-all cursor-pointer group">
-                    <div className="h-1.5" style={{ background: p.accent_color }} />
-                    <div className="p-4">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <span className="font-medium text-sm text-gray-900 truncate">{p.client_name || 'Untitled'}</span>
-                        <span className={`flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${proposalStatusColors[p.status]}`}>
-                          {p.status}
-                        </span>
+                {proposals.map(p => {
+                  const total = computeQuoteTotals(p.line_items ?? [], p.discount ?? 0, p.tax_rate ?? 0).total;
+                  const settled = p.status === 'accepted' || p.status === 'declined';
+                  return (
+                    <div key={p.id}
+                      onClick={() => navigate(`/hub/admin/proposals/${p.id}`)}
+                      className="text-left bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-all cursor-pointer group">
+                      <div className="h-1.5" style={{ background: p.accent_color }} />
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <span className="font-medium text-sm text-gray-900 truncate">{p.client_name || 'Untitled'}</span>
+                          <span className={`flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${proposalStatusColors[p.status]}`}>
+                            {p.status}
+                          </span>
+                        </div>
+                        {p.project_title && (
+                          <p className="text-xs text-gray-500 truncate mb-2">{p.project_title}</p>
+                        )}
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className="text-[11px] text-gray-400">{fmtShort(p.created_at)}</p>
+                          {p.doc_type === 'quotation' && total > 0 && (
+                            <p className="text-xs font-semibold text-gray-700 tabular-nums">
+                              {formatQuoteCurrency(total, p.currency === 'USD' ? 'USD' : 'PHP')}
+                            </p>
+                          )}
+                        </div>
+                        {p.status === 'accepted' && (
+                          <p className="text-[11px] text-emerald-600 mt-2 font-medium flex items-center gap-1">
+                            <i className="ri-checkbox-circle-line" />
+                            Accepted by {p.accepted_by_name || p.client_name} — send the contract
+                          </p>
+                        )}
                       </div>
-                      {p.project_title && (
-                        <p className="text-xs text-gray-500 truncate mb-2">{p.project_title}</p>
-                      )}
-                      <p className="text-[11px] text-gray-400">{fmtShort(p.created_at)}</p>
+                      <div className="px-4 pb-3 flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1 text-[11px] text-gray-400 group-hover:text-[#FF6B35] transition-colors">
+                          <i className="ri-edit-line" /> Open
+                        </span>
+                        {/* A settled quotation is a record, not a draft — don't offer to resend it. */}
+                        {!settled && (
+                          <button
+                            onClick={e => openSendModal(e, p)}
+                            className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors text-[#FF6B35] hover:text-[#e55a27]">
+                            {proposalSendResult[p.id] === 'error'
+                              ? <><i className="ri-error-warning-line" /> Failed</>
+                              : p.status === 'sent' || p.status === 'viewed'
+                                ? <><i className="ri-refresh-line" /> Resend</>
+                                : <><i className="ri-send-plane-line" /> Send to client</>}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="px-4 pb-3 flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1 text-[11px] text-gray-400 group-hover:text-[#FF6B35] transition-colors">
-                        <i className="ri-edit-line" /> Edit proposal
-                      </span>
-                      <button
-                        onClick={e => openSendModal(e, p)}
-                        className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors text-[#FF6B35] hover:text-[#e55a27]">
-                        {proposalSendResult[p.id] === 'error'
-                          ? <><i className="ri-error-warning-line" /> Failed</>
-                          : p.status === 'sent'
-                            ? <><i className="ri-refresh-line" /> Resend</>
-                            : <><i className="ri-send-plane-line" /> Send to client</>}
-                      </button>
-                    </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -434,7 +480,7 @@ export default function ContactSubmissionsPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-gray-700 transition-colors cursor-pointer disabled:opacity-40 flex-shrink-0">
                   {creatingProposal
                     ? <><i className="ri-loader-4-line animate-spin text-sm" /> Creating…</>
-                    : <><i className="ri-file-text-line text-sm" /> New Proposal</>}
+                    : <><i className="ri-price-tag-3-line text-sm" /> New Quotation</>}
                 </button>
                 <button onClick={openBlankCompose}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FF6B35] text-white text-xs font-semibold hover:bg-[#e55a27] transition-colors cursor-pointer flex-shrink-0">
@@ -605,7 +651,7 @@ export default function ContactSubmissionsPage() {
                           className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-40">
                           {creatingProposal
                             ? <><i className="ri-loader-4-line animate-spin" /> Creating…</>
-                            : <><i className="ri-file-text-line" /> Proposal</>}
+                            : <><i className="ri-price-tag-3-line" /> Quotation</>}
                         </button>
                       </div>
 
@@ -652,7 +698,7 @@ export default function ContactSubmissionsPage() {
         )}
       </div>
 
-      {/* ── Send Proposal Modal ── */}
+      {/* ── Send Quotation Modal ── */}
       {sendModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSendModal(null)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
@@ -665,7 +711,7 @@ export default function ContactSubmissionsPage() {
                 </div>
                 <div>
                   <p className="text-white text-sm font-semibold leading-tight">
-                    {sendModal.status === 'sent' ? 'Resend Proposal' : 'Send Proposal'}
+                    {sendModal.status === 'sent' || sendModal.status === 'viewed' ? 'Resend Quotation' : 'Send Quotation'}
                   </p>
                   <p className="text-gray-400 text-[11px] truncate max-w-[220px]">{sendModal.client_name}{sendModal.project_title ? ` — ${sendModal.project_title}` : ''}</p>
                 </div>
@@ -730,8 +776,8 @@ export default function ContactSubmissionsPage() {
                   {sendingProposalId === sendModal.id
                     ? <><i className="ri-loader-4-line animate-spin" /> Sending…</>
                     : sendModal.status === 'sent'
-                      ? <><i className="ri-refresh-line" /> Resend Proposal</>
-                      : <><i className="ri-send-plane-line" /> Send Proposal</>}
+                      ? <><i className="ri-refresh-line" /> Resend Quotation</>
+                      : <><i className="ri-send-plane-line" /> Send Quotation</>}
                 </button>
                 <button onClick={() => setSendModal(null)}
                   className="px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
