@@ -221,13 +221,34 @@ export default function ProposalPage() {
 
               {/* Body */}
               <div className="prose prose-gray max-w-none">
-                {section.body.split('\n\n').map((para, j) => (
-                  para.trim() ? (
+                {section.body.split('\n\n').map((block, j) => {
+                  const trimmed = block.trim();
+                  if (!trimmed) return null;
+
+                  // A block whose every line opens with "- " or "• " is a list.
+                  // Without this the lines collapse into one run-on paragraph and
+                  // the markers print as literal text.
+                  const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+                  const isList = lines.length > 0 && lines.every(l => /^[-•]\s+/.test(l));
+
+                  if (isList) {
+                    return (
+                      <ul key={j} className="list-disc pl-5 mb-4 last:mb-0 space-y-2">
+                        {lines.map((line, k) => (
+                          <li key={k} className="text-gray-600 text-[15px] leading-[1.85] pl-1">
+                            {line.replace(/^[-•]\s+/, '')}
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  }
+
+                  return (
                     <p key={j} className="text-gray-600 text-[15px] leading-[1.85] mb-4 last:mb-0">
-                      {para.trim()}
+                      {trimmed}
                     </p>
-                  ) : null
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

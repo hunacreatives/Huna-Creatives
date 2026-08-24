@@ -651,7 +651,7 @@ export default function ProposalBuilderPage() {
 
                   <div className="space-y-1">
                     <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">
-                      Content <span className="normal-case text-gray-300">— double line break = new paragraph</span>
+                      Content <span className="normal-case text-gray-300">— double line break = new paragraph · lines starting with &ldquo;- &rdquo; become bullets</span>
                     </label>
                     <textarea disabled={locked}
                       value={(proposal.sections || [])[activeSection]?.body || ''}
