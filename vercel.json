@@ -1,6 +1,16 @@
 {
   "redirects": [
     {
+      "source": "/blog/cooperative-plumbing-drain-employee-owned-branding",
+      "destination": "/blog/startup-branding-identity-guide",
+      "permanent": true
+    },
+    {
+      "source": "/portfolio/project/cooperative-plumbing-drain",
+      "destination": "/portfolio/branding",
+      "permanent": true
+    },
+    {
       "source": "/hub/:path*",
       "destination": "https://www.hunacreatives.com/hub/login",
       "permanent": false,
@@ -28,7 +38,7 @@
     },
     {
       "source": "/blog/why-brand-identity-is-your-most-valuable-asset",
-      "destination": "/blog/cooperative-plumbing-drain-employee-owned-branding",
+      "destination": "/blog/startup-branding-identity-guide",
       "permanent": true
     },
     {

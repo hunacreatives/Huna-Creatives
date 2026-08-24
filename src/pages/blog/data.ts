@@ -173,7 +173,6 @@ export const blogArticles: BlogArticle[] = [
     relatedSlugs: [
       'sentro-os-hr-operations-hub-creative-agencies-philippines',
       'digital-invitations-evites-cebu',
-      'cooperative-plumbing-drain-employee-owned-branding',
     ],
   },
   {
@@ -269,7 +268,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'You can see the site in our <a href="/portfolio/web-design">web design portfolio</a> alongside SmartGrid Western and FS Architects, or read how we approach identity work in the <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">Cooperative Plumbing case study</a>. If you sell something that has to be specified rather than simply bought, <a href="/contact">come talk to us</a>.',
+          'You can see the site in our <a href="/portfolio/web-design">web design portfolio</a> alongside SmartGrid Western and FS Architects, or read how we approach identity work in the <a href="/blog/startup-branding-identity-guide">startup branding guide</a>. If you sell something that has to be specified rather than simply bought, <a href="/contact">come talk to us</a>.',
       },
       {
         type: 'heading',
@@ -321,7 +320,6 @@ export const blogArticles: BlogArticle[] = [
     relatedSlugs: [
       'fs-architects-website-sentro-hub-staff-app',
       'digital-invitations-evites-cebu',
-      'cooperative-plumbing-drain-employee-owned-branding',
     ],
   },
   {
@@ -953,161 +951,6 @@ export const blogArticles: BlogArticle[] = [
     ],
   },
   {
-    slug: 'cooperative-plumbing-drain-employee-owned-branding',
-    category: 'Case Study',
-    title: 'Branding an Employee-Owned Plumbing Company',
-    excerpt:
-      'How do you make an ownership model visible on a service van? Inside the brand strategy and identity system Huna Creatives built for Cooperative Plumbing & Drain — a monogram drawn from water ripples and pipeline forms, a deliberately narrow palette, and an eleven-page brand platform.',
-    readTime: '8 min read',
-    date: 'August 21, 2026',
-    isoDate: '2026-08-21',
-    heroImage: '/images/coop-hero.webp',
-    author: {
-      name: 'Thamara Ong',
-      role: 'Partner & Senior Brand Strategist',
-      avatar: '/images/team-thamara-ong.webp',
-    },
-    seo: {
-      description:
-        'How do you make an ownership model visible on a service van? Inside the identity we built for Cooperative Plumbing & Drain \u2014 monogram, palette and brand platform.',
-      keywords: [
-        'plumbing company branding',
-        'home services brand identity',
-        'employee-owned company branding',
-        'trade company logo design',
-        'skilled trades branding agency',
-        'monogram logo design',
-        'brand strategy for service businesses',
-        'HVAC and plumbing marketing',
-        'Cooperative Plumbing and Drain',
-        'Huna Creatives case study',
-      ],
-    },
-    body: [
-      {
-        type: 'paragraph',
-        content:
-          'Most plumbing brands look the same, and they look that way on purpose. A cartoon mascot with a wrench. A red-and-blue palette borrowed from the hot and cold taps. A wordmark in a friendly rounded sans that is trying very hard to seem approachable. It is a visual language built on the assumption that customers hiring a trade are looking for something familiar and unthreatening. Cooperative Plumbing & Drain came to us as an exception to the category — and the brand needed to say so without shouting.',
-      },
-      {
-        type: 'heading',
-        content: 'The Brief: Make an Ownership Model Visible',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Cooperative Plumbing & Drain is employee-owned. Every technician holds a stake in the business, which means the person crawling under your sink at 11pm has a direct financial interest in whether you call back. That is a genuine structural difference, and it changes real things: the recommendations customers get, the care taken on a job, the reason someone stays with the company for a decade.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'It is also completely invisible. An ownership model does not show up on a van, a business card, or a Google listing. Our brief was to build an identity that signalled accountability and craftsmanship before a single word of explanation — established enough to win commercial property managers, warm enough for a homeowner with a burst pipe at midnight.',
-      },
-      {
-        type: 'heading',
-        content: 'Strategy First, Then Design',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'We do not open a design file until the strategy is settled, and this project is a good argument for why. Before any mark existed, we wrote the brand platform: purpose, vision, mission, positioning statement, differentiators, personality, archetypes, core values, and a customer promise. Eleven pages of it. That document is what made the design decisions obvious later — when you already know the brand is The Everyman with a streak of The Reformer, "never arrogant, never flashy, never corporate," you have ruled out about ninety percent of the visual options before you start. We have written more about <a href="/services">why strategy has to come before design</a> if you want the longer argument.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The platform landed on one line that everything else hangs from: Ownership Elevates Everyone. Not a tagline for advertising — a test for decisions. Every touchpoint had to reinforce it.',
-      },
-      {
-        type: 'heading',
-        content: 'The Monogram: Water Ripples and Pipeline Forms',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The mark is built from two overlapping ideas — the concentric rings of a water ripple and the curved sections of pipeline. Trace it one way and it reads as COOP. Trace it another and it reads as CPD. Look at the centre and it resolves into an eye, which is the part that does the strategic work: it stands for the employee-owned, customer-focused attention at the heart of the business.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'What the mark deliberately avoids is literalism. There is no wrench, no droplet, no pipe rendered as a pipe. Abstract geometry gives the brand room to grow beyond drains and gives it a quality most trade logos never achieve — it looks like it will still be right in twenty years. You can see the full logo suite and construction rationale in the <a href="/portfolio/project/cooperative-plumbing-drain">Cooperative Plumbing & Drain case study</a>.',
-      },
-      {
-        type: 'heading',
-        content: 'A Deliberately Narrow Palette',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The color system is four values and a gradient: an off-white ground, a near-black, and two depths of navy. That is it. No accent color, no secondary palette, no seasonal variation. The vans are the clearest proof of why: a white body, a navy monogram blown up to fill the panel, and nothing else competing for attention on the road.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Restraint is the point. A narrow palette is harder to get wrong across the touchpoints a trade company actually uses — vehicle wraps, invoices, uniform embroidery, yard signs, a phone-sized web page. It also does something to perception: brands that use less color read as more confident, because they are not compensating. Navy carries the associations the brand wanted anyway — water, depth, competence, institutional trust — without anyone having to explain the choice.',
-      },
-      {
-        type: 'heading',
-        content: 'Typography: Engraved at the Top, Plainspoken Everywhere Else',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Headlines are set in Copperplate Gothic. It is an unusual choice for the trades and a very deliberate one — Copperplate has the feel of a name cut into a building or stamped on a certificate, which is exactly the civic, permanent register a hundred-year-old-feeling company wants. Body copy is Open Sans, chosen because it disappears. Service descriptions, estimates, dispatch notes, and web copy all need to be read fast and never admired.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The pairing gives the brand two clear voices: formal where it signs its name, direct everywhere it does business. That consistency across touchpoints is what separates a brand from a logo — a point we make in more depth in <a href="/services">what a complete visual identity actually includes</a>.',
-      },
-      {
-        type: 'heading',
-        content: 'What the Trades Usually Get Wrong',
-      },
-      {
-        type: 'list',
-        content: 'Common branding mistakes in home services and skilled trades:',
-        items: [
-          'Leading with a mascot, which caps how seriously commercial clients take you',
-          'Using a logo instead of a system — no guidelines, no lockup variants, no rules for how it behaves on a van versus an invoice',
-          'Choosing colors for visibility alone, then discovering they are unusable in embroidery or single-color print',
-          'Writing a tagline before writing a positioning statement',
-          'Treating the brand as a launch project rather than something the whole team applies daily',
-        ],
-      },
-      {
-        type: 'paragraph',
-        content:
-          'The through-line is that most trade companies buy a logo when what they need is a brand — the strategy, the system, and the language to go with it. That gap is the single most common reason a rebrand fails to change anything commercially. It is the same argument we make for every category we work in: your <a href="/services">brand identity is your most valuable asset</a>, and it is the one most owner-operators underinvest in.',
-      },
-      {
-        type: 'quote',
-        content:
-          'Unlike traditional service companies, our people do not simply work here. They help own what they build.',
-      },
-      {
-        type: 'heading',
-        content: 'The Result',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'Cooperative Plumbing & Drain launched with a complete brand platform: three logo lockups, a disciplined color and type system, a full brand board, and the eleven-page strategy that explains why each decision exists — then carried it into the touchpoints that actually meet customers. The monogram scales down to embroidery on a uniform placket and up to a full-side vehicle wrap without losing its read, which is the real test of an abstract mark. The identity does not announce the ownership model — it behaves like a company that has one. Clean, corporate in the good sense, confident without noise.',
-      },
-      {
-        type: 'paragraph',
-        content:
-          'If you run a home services business, a trade company, or any operation where trust is the product, the work is worth a look. Browse the <a href="/portfolio/project/cooperative-plumbing-drain">full case study</a>, see the rest of our <a href="/portfolio">branding portfolio</a>, or read more about our <a href="/services">brand identity services</a>.',
-      },
-    ],
-    cta: {
-      heading: 'Building a brand for a business people have to trust?',
-      body: 'We build identity systems for trade and service companies — strategy, monogram, logo suite, color and type systems, and the brand platform underneath. Start with a free discovery call.',
-    },
-    relatedSlugs: [
-      'cooperative-plumbing-drain-employee-owned-branding',
-    ],
-  },
-  {
     slug: 'peak-coffee-roasters-branding-cebu-it-park',
     category: 'Case Study',
     title: 'Branding Peak Coffee Roasters in Cebu IT Park',
@@ -1403,7 +1246,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'That is why the system extends to tissue, tags, cards and totes rather than stopping at a logo. Each touchpoint is a small reassurance, and they compound. It is the same logic behind consistent identity systems generally \u2014 see how we applied it in the <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">Cooperative Plumbing case study</a>, where the proof had to live on a service van instead.',
+          'That is why the system extends to tissue, tags, cards and totes rather than stopping at a logo. Each touchpoint is a small reassurance, and they compound. It is the same logic behind consistent identity systems generally \u2014 see how we applied it in the <a href="/blog/peak-coffee-roasters-branding-cebu-it-park">Peak Coffee Roasters case study</a>, where the proof had to live on a bean bag instead.',
       },
       {
         type: 'heading',
@@ -1509,7 +1352,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Content works hardest when it sits on a brand that already holds together \u2014 see <a href="/blog/cooperative-plumbing-drain-employee-owned-branding">how we built one from strategy up</a>, or browse the <a href="/portfolio">portfolio</a> and our <a href="/services">services</a>.',
+          'Content works hardest when it sits on a brand that already holds together \u2014 see <a href="/blog/startup-branding-identity-guide">how we built one from strategy up</a>, or browse the <a href="/portfolio">portfolio</a> and our <a href="/services">services</a>.',
       },
       {
         type: 'heading',
@@ -1574,7 +1417,6 @@ export const blogArticles: BlogArticle[] = [
       body: "Huna Creatives produces brand content for international clients that is on-voice, on-brand, and built to attract leads. Let's talk about your content needs.",
     },
     relatedSlugs: [
-      'cooperative-plumbing-drain-employee-owned-branding',
     ],
   },
   {

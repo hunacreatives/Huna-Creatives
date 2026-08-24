@@ -883,14 +883,6 @@ const categoryDataMap = {
     stats: { projects: '25+', satisfaction: '100%', rating: '5.0★' },
     projects: [
       {
-        id: 'b5',
-        title: 'Cooperative Plumbing & Drain',
-        description:
-          'Brand strategy and identity for the first employee-owned plumbing and drain company in its market — monogram, logo suite, color system, typography, and a full written brand platform.',
-        image: '/images/coop-app-polo-front.webp',
-        slug: 'cooperative-plumbing-drain',
-      },
-      {
         id: 'b2',
         title: 'Peak Coffee Roasters',
         description:
