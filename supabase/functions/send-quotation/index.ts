@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     // the bundled anon key could otherwise send Huna-branded mail to anyone.
     await requireAdmin(req, adminClient());
 
-    const { id, to_email, intro } = await req.json();
+    const { id, to_email, cc, intro } = await req.json();
     if (!id) {
       return new Response(JSON.stringify({ error: 'id is required' }), { status: 400, headers: cors });
     }
@@ -50,6 +50,18 @@ Deno.serve(async (req) => {
     if (!recipient) {
       return new Response(JSON.stringify({ error: 'No recipient email on this quotation' }), { status: 400, headers: cors });
     }
+
+    // CC accepts a comma- or semicolon-separated list. Anything that is not a
+    // plausible address is dropped rather than passed to Resend, which rejects
+    // the whole send on one bad entry -- losing the quotation over a stray
+    // comma is not a good trade. The recipient is filtered out so nobody is
+    // both To and CC.
+    const ccList = String(cc ?? '')
+      .split(/[,;]/)
+      .map((e: string) => e.trim())
+      .filter((e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+      .filter((e: string) => e.toLowerCase() !== recipient.toLowerCase());
+    const ccUnique = [...new Set(ccList.map((e: string) => e.toLowerCase()))].slice(0, 10);
 
     const q = quote as unknown as QuoteRecord;
     const accent = /^#[0-9a-f]{3,8}$/i.test(q.accent_color) ? q.accent_color : '#FF6B35';
@@ -161,6 +173,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: [recipient],
+        ...(ccUnique.length ? { cc: ccUnique } : {}),
         bcc: [REPLY_TO],
         reply_to: REPLY_TO,
         subject,
@@ -175,10 +188,10 @@ Deno.serve(async (req) => {
     // Only flip status once the mail actually went out.
     await supabase
       .from('hub_proposals')
-      .update({ status: 'sent', sent_at: new Date().toISOString(), to_email: recipient })
+      .update({ status: 'sent', sent_at: new Date().toISOString(), to_email: recipient, cc_email: ccUnique.join(', ') || null })
       .eq('id', id);
 
-    return new Response(JSON.stringify({ ok: true, sent_to: recipient }), { headers: cors });
+    return new Response(JSON.stringify({ ok: true, sent_to: recipient, cc: ccUnique }), { headers: cors });
   } catch (err) {
     const authRes = authErrorResponse(err, cors);
     if (authRes) return authRes;

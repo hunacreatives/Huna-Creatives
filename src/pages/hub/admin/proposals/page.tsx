@@ -20,6 +20,7 @@ interface Proposal {
   doc_type: ProposalDocType;
   client_name: string;
   to_email: string;
+  cc_email: string | null;
   project_title: string;
   tagline: string;
   accent_color: string;
@@ -81,6 +82,7 @@ export default function ProposalBuilderPage() {
     doc_type: (searchParams.get('type') as ProposalDocType) || 'quotation',
     client_name: '',
     to_email: '',
+    cc_email: null,
     project_title: '',
     tagline: '',
     accent_color: '#FF6B35',
@@ -113,6 +115,7 @@ export default function ProposalBuilderPage() {
   const [sendOpen, setSendOpen] = useState(false);
   const [sendEmail, setSendEmail] = useState('');
   const [sendIntro, setSendIntro] = useState('');
+  const [sendCc, setSendCc] = useState('');
 
   const isQuote = proposal.doc_type === 'quotation';
   const status = (proposal.status ?? 'draft') as ProposalStatus;
@@ -168,6 +171,7 @@ export default function ProposalBuilderPage() {
           doc_type: data.doc_type,
           client_name: data.client_name,
           to_email: data.to_email,
+          cc_email: data.cc_email ?? null,
           project_title: data.project_title,
           tagline: data.tagline,
           accent_color: data.accent_color,
@@ -268,6 +272,7 @@ export default function ProposalBuilderPage() {
   // ── Send ────────────────────────────────────────────────────────────
   const openSend = () => {
     setSendEmail(proposal.to_email || '');
+    setSendCc(proposal.cc_email || '');
     setSendIntro('');
     setSendError('');
     setSendOpen(true);
@@ -283,12 +288,13 @@ export default function ProposalBuilderPage() {
       await save(status === 'draft' ? { status: 'published' } : undefined);
 
       const { data, error } = await supabase.functions.invoke('send-quotation', {
-        body: { id, to_email: sendEmail.trim(), intro: sendIntro.trim() || null },
+        body: { id, to_email: sendEmail.trim(), cc: sendCc.trim() || null, intro: sendIntro.trim() || null },
       });
       if (error || data?.error) throw new Error(data?.error ?? error?.message ?? 'Send failed');
 
       setProposal(prev => ({
-        ...prev, status: 'sent', sent_at: new Date().toISOString(), to_email: sendEmail.trim(),
+        ...prev, status: 'sent', sent_at: new Date().toISOString(),
+        to_email: sendEmail.trim(), cc_email: sendCc.trim() || null,
       }));
       setSendResult('success');
       setSendOpen(false);
@@ -849,6 +855,14 @@ export default function ProposalBuilderPage() {
                 <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Send To</label>
                 <input type="email" value={sendEmail} onChange={e => setSendEmail(e.target.value)}
                   placeholder="client@email.com" className={inputCls} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">
+                  CC <span className="normal-case text-gray-300">(optional)</span>
+                </label>
+                <input type="text" value={sendCc} onChange={e => setSendCc(e.target.value)}
+                  placeholder="finance@client.com, assistant@client.com" className={inputCls} />
+                <p className="text-[11px] text-gray-400">Separate multiple addresses with commas.</p>
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">
