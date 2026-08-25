@@ -276,7 +276,10 @@ export default function ContractorPayoutsPage() {
   const [closedPeriods, setClosedPeriods] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (isDemo) return;
-    supabase.from('hub_payroll_batches').select('period_start').eq('status', 'closed')
+    // hub_payroll_batches is staff-only: it carries total_amount, the
+    // company-wide payroll spend. hub_payroll_periods is the same rows with
+    // only the period fields, which is all this needs.
+    supabase.from('hub_payroll_periods').select('period_start').eq('status', 'closed')
       .then(({ data }) => setClosedPeriods(new Set((data ?? []).map((r: any) => r.period_start))));
   }, [isDemo]);
   const isSelectedPeriodClosed = !!selectedPeriod && closedPeriods.has(selectedPeriod.start);
