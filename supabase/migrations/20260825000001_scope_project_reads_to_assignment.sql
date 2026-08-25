@@ -1,40 +1,35 @@
--- Scope project-related reads to the people actually on the project.
+-- Scope project reads to the people actually on the project.
 --
--- Around a dozen tables carried "for select to authenticated using (true)".
--- Those policies never look at hub_users, so deleting someone's profile does
--- not revoke anything: an account that can still authenticate reads every
--- project, every client payment, and every contractor's payout percentage --
--- straight from the REST API with the anon key, without going near the app.
--- Found while off-boarding two employees whose auth accounts outlived their
--- hub_users rows.
+-- REWRITTEN 2026-08-25 against the live pg_policies output. The first draft was
+-- written from this repo's migrations and got five policy NAMES wrong. The
+-- drops would have matched nothing while the creates succeeded, leaving those
+-- tables open and the migration looking like it worked. Policies OR together,
+-- so a missed drop is not a partial fix -- it is no fix at all.
 --
--- Same shape as the fix already applied to hub_project_costs on 2026-08-24:
--- assigned contractors, or staff. Nothing here changes what staff can read.
+-- Live names that the repo's migrations do not match:
+--   hub_project_activity          "Auth users read project activity"
+--   hub_project_contractors       "hub_pc_read"
+--   hub_project_task_activity     "read task activity"
+--   hub_project_task_attachments  "read task attachments"
+--   hub_project_task_comments     "Auth users read task comments"
 --
--- STEP 1 (diagnostic) -- run FIRST and read the output. The repo's migrations
--- have twice been found to disagree with this database, so confirm the live
--- policy names before dropping anything by name:
+-- Deliberately NOT touching hub_project_payments. It has no permissive read
+-- policy at all -- only "Admins can manage project payments" (FOR ALL). Adding
+-- an assigned-contractor read would WIDEN access, not narrow it. It also means
+-- the contractor projects page queries that table and silently gets nothing,
+-- the same empty-result bug that made Angelica's payout look inflated. Worth
+-- fixing, but as its own decision, not inside a lockdown.
 --
---   select tablename, policyname, cmd, roles, qual
---   from pg_policies
---   where schemaname = 'public'
---     and tablename like 'hub_%'
---     and cmd in ('SELECT', 'ALL')
---   order by tablename, policyname;
---
--- Any permissive read policy this file does not drop keeps the table open,
--- because RLS policies OR together. If STEP 1 shows a using(true) SELECT
--- policy under a name not listed below, add it to the drops.
+-- hub_project_costs is already correctly scoped (applied 2026-08-24) and is
+-- absent here on purpose.
 
 -- ---------------------------------------------------------------------------
 -- Helpers
 -- ---------------------------------------------------------------------------
 
--- is_hub_admin() covers admin and owner only, but 'hr' is a real role here --
--- it already reads payouts, settings and the invoice log, and under the old
--- using(true) policies it could read all of this too. Excluding it would
--- quietly break HR rather than tighten anything, since HR is staff, not an
--- ex-employee with a stale login. This is the line that keeps them working.
+-- is_hub_admin() covers admin and owner only, but 'hr' is a real role here that
+-- already reads payouts, settings and the invoice log, and could read all of
+-- this before. Excluding it would break HR rather than tighten anything.
 create or replace function is_hub_staff()
 returns boolean
 language sql
@@ -47,9 +42,9 @@ as $$
   )
 $$;
 
--- SECURITY DEFINER for two reasons: it reads hub_project_contractors, which is
--- itself protected below (a policy on that table querying that table would
--- recurse), and it matches the existing is_hub_admin() pattern.
+-- SECURITY DEFINER is required, not stylistic: this reads
+-- hub_project_contractors, and the policy on that same table calls it. Without
+-- it, the policy would recurse.
 create or replace function is_assigned_to_project(pid bigint)
 returns boolean
 language sql
@@ -63,7 +58,7 @@ as $$
   )
 $$;
 
--- Task-level tables hang off task_id and have no project_id of their own.
+-- Task-level tables carry task_id and no project_id of their own.
 create or replace function is_assigned_to_task(tid bigint)
 returns boolean
 language sql
@@ -80,7 +75,7 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- Projects and money
+-- Projects
 -- ---------------------------------------------------------------------------
 
 drop policy if exists "Authenticated users can read projects" on hub_projects;
@@ -88,12 +83,7 @@ create policy "Assigned contractors read projects" on hub_projects
   for select to authenticated
   using (is_hub_staff() or is_assigned_to_project(id));
 
-drop policy if exists "Authenticated users can read project payments" on hub_project_payments;
-create policy "Assigned contractors read project payments" on hub_project_payments
-  for select to authenticated
-  using (is_hub_staff() or is_assigned_to_project(project_id));
-
-drop policy if exists "Authenticated users can read project contractors" on hub_project_contractors;
+drop policy if exists "hub_pc_read" on hub_project_contractors;
 create policy "Assigned contractors read project team" on hub_project_contractors
   for select to authenticated
   using (is_hub_staff() or is_assigned_to_project(project_id));
@@ -107,30 +97,34 @@ create policy "Assigned contractors read tasks" on hub_project_tasks
   for select to authenticated
   using (is_hub_staff() or is_assigned_to_project(project_id));
 
-drop policy if exists "Auth users read comments" on hub_project_task_comments;
-drop policy if exists "Authenticated users can read task comments" on hub_project_task_comments;
+drop policy if exists "Auth users read task comments" on hub_project_task_comments;
 create policy "Assigned contractors read task comments" on hub_project_task_comments
   for select to authenticated
   using (is_hub_staff() or is_assigned_to_task(task_id));
 
-drop policy if exists "Auth users read attachments" on hub_project_task_attachments;
-drop policy if exists "Authenticated users can read task attachments" on hub_project_task_attachments;
+drop policy if exists "read task attachments" on hub_project_task_attachments;
 create policy "Assigned contractors read task attachments" on hub_project_task_attachments
   for select to authenticated
   using (is_hub_staff() or is_assigned_to_task(task_id));
 
-drop policy if exists "Auth users read task activity" on hub_project_task_activity;
-drop policy if exists "Authenticated users can read task activity" on hub_project_task_activity;
+drop policy if exists "read task activity" on hub_project_task_activity;
 create policy "Assigned contractors read task activity" on hub_project_task_activity
   for select to authenticated
   using (is_hub_staff() or is_assigned_to_task(task_id));
+
+-- FOR ALL with using(true): any authenticated user can read AND write watchers
+-- on any task, including projects they have nothing to do with.
+drop policy if exists "manage task watchers" on hub_project_task_watchers;
+create policy "Assigned contractors manage task watchers" on hub_project_task_watchers
+  for all to authenticated
+  using (is_hub_staff() or is_assigned_to_task(task_id))
+  with check (is_hub_staff() or is_assigned_to_task(task_id));
 
 -- ---------------------------------------------------------------------------
 -- Activity log
 -- ---------------------------------------------------------------------------
 
-drop policy if exists "Auth users read activity" on hub_project_activity;
-drop policy if exists "Authenticated users can read project activity" on hub_project_activity;
+drop policy if exists "Auth users read project activity" on hub_project_activity;
 create policy "Assigned contractors read project activity" on hub_project_activity
   for select to authenticated
   using (is_hub_staff() or is_assigned_to_project(project_id));
@@ -139,39 +133,35 @@ create policy "Assigned contractors read project activity" on hub_project_activi
 -- Client assignments -- personal, not project-scoped: you see your own.
 -- ---------------------------------------------------------------------------
 
-drop policy if exists "Auth users read client assignments" on hub_client_assignments;
 drop policy if exists "Authenticated users can read client assignments" on hub_client_assignments;
 create policy "Contractors read their own client assignments" on hub_client_assignments
   for select to authenticated
   using (is_hub_staff() or contractor_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
--- STEP 2 (verify) -- no using(true) SELECT policies should remain:
+-- VERIFY -- what should remain with qual = true afterwards:
+--   hub_questionnaires "Public read by token"  (anon, separate question)
+--   hub_payroll_batches, hub_payroll_cache, hub_rate_history, hub_settings
+--     (handled in 20260825000002)
 --
---   select tablename, policyname, qual
+--   select tablename, policyname, roles, qual
 --   from pg_policies
---   where schemaname = 'public'
---     and tablename like 'hub_%'
---     and cmd = 'SELECT'
---     and qual = 'true';
+--   where schemaname = 'public' and tablename like 'hub_%'
+--     and cmd in ('SELECT','ALL') and qual = 'true';
 --
--- STEP 3 (smoke test, as a contractor) -- the first must return only their own
--- projects, the second zero rows:
+-- SMOKE TEST as a contractor -- first returns only their projects, second 0:
 --
 --   begin;
 --   select set_config('request.jwt.claims',
---     '{"sub":"<contractor uuid>","role":"authenticated"}', true);
+--     '{"sub":"7a2ac130-53c6-4402-a43c-98cc320639dd","role":"authenticated"}', true);
 --   set local role authenticated;
 --   select count(*) from hub_projects;
---   select count(*) from hub_project_payments
---     where project_id not in (
---       select project_id from hub_project_contractors
---       where contractor_id = '<contractor uuid>');
+--   select count(*) from hub_project_tasks
+--     where project_id not in (select project_id from hub_project_contractors
+--                              where contractor_id = '7a2ac130-53c6-4402-a43c-98cc320639dd');
 --   rollback;
 --
--- ROLLBACK -- if the hub misbehaves, this restores the previous behaviour for
--- one table (repeat per table, substituting names):
---
+-- ROLLBACK, per table:
 --   drop policy if exists "Assigned contractors read projects" on hub_projects;
 --   create policy "Authenticated users can read projects" on hub_projects
 --     for select to authenticated using (true);
