@@ -57,6 +57,7 @@ interface PayRow {
   dailyBreakdown: DayHours[];
   prorated: boolean;
   proratedNote?: string;
+  noRateOnFile?: boolean;
   accruing?: boolean;
   accrualDays?: number;
   accrualTotal?: number;
@@ -944,6 +945,15 @@ export default function AdminPayrollPage() {
         .filter(r => r.effective_date < selectedPeriod.start)
         .pop() || null;
 
+      // Every rate lookup below ends in `?? 0`, so someone with no rate on file
+      // and no rate on their user row computes to a clean zero and reads as a
+      // finished payslip. Flagged here rather than inferred from pay === 0,
+      // which is also what a legitimate zero-hours period looks like.
+      const noRateOnFile =
+        (rateAtStart?.monthly_rate ?? c.monthly_rate ?? 0) <= 0 &&
+        (rateAtStart?.hourly_rate ?? c.hourly_rate ?? 0) <= 0 &&
+        history.every(r => (r.monthly_rate ?? 0) <= 0 && (r.hourly_rate ?? 0) <= 0);
+
       let pay = 0;
       let overtimePay = 0;
       let derivedHourlyRate = 0;
@@ -1092,6 +1102,7 @@ export default function AdminPayrollPage() {
         dailyBreakdown,
         prorated,
         proratedNote,
+        noRateOnFile,
         accruing: isAccruing,
         accrualTotal: isAccruing && accrualTotalOriginalCurrency !== undefined
           ? (isUSD ? accrualTotalOriginalCurrency * usdRate : accrualTotalOriginalCurrency)
@@ -1291,6 +1302,16 @@ export default function AdminPayrollPage() {
             </div>
           );
         })()}
+
+        {rows.some(r => r.noRateOnFile) && (
+          <div className="flex items-start gap-3 px-4 py-2.5 rounded-xl bg-red-50 border border-red-100">
+            <i className="ri-error-warning-line text-red-500 mt-0.5"></i>
+            <p className="text-xs font-semibold text-red-700 flex-1 min-w-0">
+              No rate on file for {rows.filter(r => r.noRateOnFile).map(r => r.contractor.full_name).join(', ')}.
+              {' '}Their pay is calculating as zero, not because they earned nothing — set a rate before approving.
+            </p>
+          </div>
+        )}
 
         {slackSyncFailed && (
           <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-red-50 border border-red-100">
@@ -1582,6 +1603,9 @@ export default function AdminPayrollPage() {
                       <p className="text-sm font-bold text-gray-900 tabular-nums">{fmt(total, 'PHP')}</p>
                       {(r.prorated || r.accruing) && (
                         <p className="text-[10px] text-sky-500">{r.accruing ? 'accruing' : 'prorated'}</p>
+                      )}
+                      {r.noRateOnFile && (
+                        <p className="text-[10px] font-semibold text-red-600">no rate on file</p>
                       )}
                     </div>
                   </button>
