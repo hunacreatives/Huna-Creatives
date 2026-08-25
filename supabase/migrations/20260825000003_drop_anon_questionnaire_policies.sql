@@ -1,0 +1,42 @@
+-- Close the last open read: anon could list every questionnaire.
+--
+--   "Public read by token"    for select to anon using (true)
+--   "Public submit by token"  for update to anon using (status = 'sent')
+--
+-- The read policy is named for a check it never performed. RLS cannot see the
+-- token in the request, so "only the row whose token was supplied" is not
+-- expressible as a policy -- using(true) was the only thing that made the
+-- public page work, and it meant an unauthenticated caller could enumerate
+-- every questionnaire in the system, tokens included.
+--
+-- The public-questionnaire edge function now does the token match with the
+-- service role and returns exactly one row, so neither policy is needed.
+--
+-- ORDER MATTERS. Run this only AFTER:
+--   1. supabase functions deploy public-questionnaire
+--   2. the Vercel deploy carrying the updated src/pages/q/page.tsx is live
+--
+-- Applied early, the public questionnaire link breaks for anyone who opens it
+-- while the old bundle is still being served.
+
+drop policy if exists "Public read by token" on hub_questionnaires;
+drop policy if exists "Public submit by token" on hub_questionnaires;
+
+-- VERIFY -- should return zero rows:
+--
+--   select policyname, cmd, roles, qual
+--   from pg_policies
+--   where tablename = 'hub_questionnaires' and 'anon' = any(roles);
+--
+-- SMOKE TEST -- open a real questionnaire link in a private window. It should
+-- load and submit as before. Then confirm enumeration is dead: with the anon
+-- key alone, this must now return no rows rather than the whole table.
+--
+--   curl "$SUPABASE_URL/rest/v1/hub_questionnaires?select=id,token" \
+--     -H "apikey: $ANON_KEY"
+--
+-- ROLLBACK:
+--   create policy "Public read by token" on hub_questionnaires
+--     for select to anon using (true);
+--   create policy "Public submit by token" on hub_questionnaires
+--     for update to anon using (status = 'sent') with check (status = 'submitted');

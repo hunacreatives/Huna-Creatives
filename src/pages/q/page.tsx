@@ -64,16 +64,17 @@ export default function PublicQuestionnairePage() {
 
   useEffect(() => {
     if (!token) { setNotFound(true); setLoading(false); return; }
-    supabase
-      .from('hub_questionnaires')
-      .select('id, service_type, client_name, token, status, questions, answers, intro_message')
-      .eq('token', token)
-      .single()
+    // Goes through the edge function, not the table. Matching a token is a
+    // capability check, and RLS cannot see the token in the request -- the only
+    // policy that made a direct anon query work was using(true), which let
+    // anyone list every questionnaire.
+    supabase.functions
+      .invoke('public-questionnaire', { body: { mode: 'get', token } })
       .then(({ data, error }) => {
-        if (error || !data) { setNotFound(true); }
-        else if (data.status === 'submitted') { setSubmitted(true); setQ(data as Questionnaire); }
-        else if (data.status === 'draft') { setNotFound(true); }
-        else { setQ(data as Questionnaire); }
+        const row = data?.questionnaire as Questionnaire | undefined;
+        if (error || !row) { setNotFound(true); }
+        else if (row.status === 'submitted') { setSubmitted(true); setQ(row); }
+        else { setQ(row); }
         setLoading(false);
       });
   }, [token]);
@@ -132,13 +133,11 @@ export default function PublicQuestionnairePage() {
   const submit = async () => {
     if (submitting || !validate() || !q) return;
     setSubmitting(true);
-    const { error } = await supabase
-      .from('hub_questionnaires')
-      .update({ answers, status: 'submitted', submitted_at: new Date().toISOString() })
-      .eq('token', token!)
-      .eq('status', 'sent');
+    const { data, error } = await supabase.functions.invoke('public-questionnaire', {
+      body: { mode: 'submit', token: token!, answers },
+    });
     setSubmitting(false);
-    if (error) { setErrors({ _form: 'Something went wrong. Please try again.' }); return; }
+    if (error || !data?.ok) { setErrors({ _form: 'Something went wrong. Please try again.' }); return; }
     await supabase.functions.invoke('notify-questionnaire-submitted', {
       body: { client_name: q!.client_name, service_type: q!.service_type },
     });
