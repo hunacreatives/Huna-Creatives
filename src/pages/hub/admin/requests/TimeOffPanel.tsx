@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { HubTimeOff, HubUser } from '@/lib/types';
 import { logAudit } from '@/lib/audit';
 import { DEMO_TIME_OFF } from '@/lib/demoData';
+import { ADVANCE_DAYS, daysOfNotice, isShortNotice } from '@/lib/leavePolicy';
 
 const typeLabels: Record<string, string> = {
   pto: 'PTO', vacation: 'PTO', sick: 'Sick', emergency: 'Emergency', unpaid: 'Unpaid', other: 'Other',
@@ -359,6 +360,14 @@ export default function TimeOffPanel() {
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[r.type] || 'bg-gray-100 text-gray-600'}`}>
                               {typeLabels[r.type] || r.type}
                             </span>
+                            {r.type === 'pto' && r.created_at && isShortNotice(r.created_at, r.start_date) && (
+                              <span
+                                className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700 whitespace-nowrap"
+                                title={`Filed ${daysOfNotice(r.created_at, r.start_date)} day(s) ahead — inside the ${ADVANCE_DAYS}-day notice window`}
+                              >
+                                SHORT NOTICE
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3.5 text-sm text-gray-600 whitespace-nowrap">
                             {new Date(r.start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

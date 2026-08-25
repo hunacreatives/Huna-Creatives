@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ADVANCE_DAYS, isShortNotice } from '@/lib/leavePolicy';
 import { createPortal } from 'react-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,7 +34,6 @@ const emptyReqForm = { title: '', description: '', type: 'reimbursement' };
 
 const VL_LIMIT = 6;
 const SL_LIMIT = 4;
-const ADVANCE_DAYS = 30;
 const MAX_CONSECUTIVE = 3;
 
 const toTypeLabels: Record<string, string> = {
@@ -178,8 +178,9 @@ export default function ContractorMyRequestsPage() {
     ? ptoEligibleDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
   const effectiveDays = halfDay ? 0.5 : (leaveStart && leaveEnd ? daysBetween(leaveStart, leaveEnd) : 0);
-  const advanceWarning = leaveType === 'pto' && leaveStart && leaveStart < addDays(todayStr(), ADVANCE_DAYS)
-    ? `Earliest PTO start date is ${addDays(todayStr(), ADVANCE_DAYS)}.` : null;
+  const advanceWarning = leaveType === 'pto' && leaveStart && isShortNotice(todayStr(), leaveStart)
+    ? `This is inside the ${ADVANCE_DAYS}-day notice window. You can still submit it — give a reason and HR will review it as an exception.`
+    : null;
 
   // ── Submitters ──────────────────────────────────────────────────────────────
 
@@ -213,7 +214,9 @@ export default function ContractorMyRequestsPage() {
       if (!isEligibleForPTO) return 'You are not yet eligible for PTO. Available 6 months after your start date.';
       if (ptoLeft <= 0) return 'You have no PTO days remaining for this year.';
       if (effectiveDays > ptoLeft) return `You only have ${ptoLeft} PTO day${ptoLeft !== 1 ? 's' : ''} left.`;
-      if (leaveStart < addDays(todayStr(), ADVANCE_DAYS)) return `PTO must be submitted at least ${ADVANCE_DAYS} days in advance.`;
+      if (isShortNotice(todayStr(), leaveStart) && !leaveReason.trim()) {
+        return `PTO is normally filed ${ADVANCE_DAYS} days ahead. Please give a reason so HR can review this as an exception.`;
+      }
       if (!halfDay && effectiveDays > MAX_CONSECUTIVE) return `PTO cannot exceed ${MAX_CONSECUTIVE} consecutive days in a month.`;
     }
     if (leaveType === 'sick') {
@@ -401,7 +404,7 @@ export default function ContractorMyRequestsPage() {
             <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
               <li>VL: 6 days/year · available 6 months after start date · no carryover</li>
               <li>SL: 4 days/year · available 6 months after start date · separate from VL</li>
-              <li>PTO must be filed <strong className="text-gray-500">30 days in advance</strong> · max 3 consecutive days per month</li>
+              <li>PTO must be filed <strong className="text-gray-500">{ADVANCE_DAYS} days in advance</strong> · max 3 consecutive days per month</li>
               <li>Emergencies: notify HR immediately</li>
               <li>Unpaid leave: subject to approval based on workload</li>
               <li>Unused leaves are forfeited at year-end</li>
@@ -648,7 +651,7 @@ export default function ContractorMyRequestsPage() {
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700">{halfDay ? 'Date' : 'Start Date'}</label>
                   <input type="date" value={leaveStart}
-                    min={leaveType === 'emergency' ? undefined : leaveType === 'pto' ? addDays(todayStr(), ADVANCE_DAYS) : todayStr()}
+                    min={leaveType === 'emergency' ? undefined : todayStr()}
                     onChange={e => { setLeaveStart(e.target.value); setLeaveError(''); }}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                 </div>

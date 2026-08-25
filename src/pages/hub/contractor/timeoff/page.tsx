@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react';
+import { ADVANCE_DAYS, MAX_CONSECUTIVE, VL_LIMIT, SL_LIMIT, isShortNotice } from '@/lib/leavePolicy';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { HubTimeOff } from '@/lib/types';
 
-const VL_LIMIT = 6;
-const SL_LIMIT = 4;
 const PTO_LIMIT = VL_LIMIT;
 const SICK_LIMIT = SL_LIMIT;
-const ADVANCE_DAYS = 30;
-const MAX_CONSECUTIVE = 3;
 
 const typeLabels: Record<string, string> = {
   pto: 'Vacation Leave (VL)',
@@ -112,9 +109,11 @@ export default function ContractorTimeOffPage() {
       if (!isEligibleForPTO) return 'You are not yet eligible for PTO. Available 6 months after your start date.';
       if (ptoLeft <= 0) return 'You have no PTO days remaining for this year.';
       if (effectiveDays > ptoLeft) return `You only have ${ptoLeft} PTO day${ptoLeft !== 1 ? 's' : ''} left.`;
-      // 30-day advance notice
-      const advanceDate = addDays(today(), ADVANCE_DAYS);
-      if (startDate < advanceDate) return `PTO must be submitted at least ${ADVANCE_DAYS} days in advance. Earliest start: ${advanceDate}.`;
+      // Inside the advance-notice window the request still goes through, but
+      // it needs a reason and reaches HR flagged as an exception.
+      if (isShortNotice(today(), startDate) && !reason.trim()) {
+        return `PTO is normally filed ${ADVANCE_DAYS} days ahead. Please give a reason so HR can review this as an exception.`;
+      }
       // Max 3 consecutive days
       if (!halfDay && effectiveDays > MAX_CONSECUTIVE) return `PTO cannot exceed ${MAX_CONSECUTIVE} consecutive days in a month.`;
     }
@@ -181,8 +180,9 @@ export default function ContractorTimeOffPage() {
   };
 
   // Advance notice check for display
-  const advanceWarning = type === 'pto' && startDate && startDate < addDays(today(), ADVANCE_DAYS)
-    ? `Earliest PTO start date is ${addDays(today(), ADVANCE_DAYS)}.` : null;
+  const advanceWarning = type === 'pto' && startDate && isShortNotice(today(), startDate)
+    ? `This is inside the ${ADVANCE_DAYS}-day notice window. You can still submit it — give a reason and HR will review it as an exception.`
+    : null;
 
   return (
     <ContractorLayout title="Time Off">
@@ -230,7 +230,7 @@ export default function ContractorTimeOffPage() {
           <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
             <li>VL: 6 days/year · available 6 months after start date · no carryover</li>
             <li>SL: 4 days/year · available 6 months after start date · separate from VL</li>
-            <li>PTO must be filed <strong className="text-gray-500">30 days in advance</strong> · max 3 consecutive days per month</li>
+            <li>PTO must be filed <strong className="text-gray-500">{ADVANCE_DAYS} days in advance</strong> · max {MAX_CONSECUTIVE} consecutive days per month</li>
             <li>Emergencies: notify HR immediately</li>
             <li>Unpaid leave: subject to approval based on workload</li>
             <li>Unused leaves are forfeited at year-end</li>
@@ -409,7 +409,7 @@ export default function ContractorTimeOffPage() {
                   <input
                     type="date"
                     value={startDate}
-                    min={type === 'emergency' ? undefined : type === 'pto' ? addDays(today(), ADVANCE_DAYS) : today()}
+                    min={type === 'emergency' ? undefined : today()}
                     onChange={(e) => { setStartDate(e.target.value); setFormError(''); }}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
                   />
