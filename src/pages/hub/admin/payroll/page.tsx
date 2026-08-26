@@ -320,10 +320,39 @@ export default function AdminPayrollPage() {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id,date' });
       } else if (otH > 0) {
-        // No existing OT rows — update period's last day if it exists, else insert a stub.
-        // Only set overtime_hours; don't overwrite hours_capped/hours_raw so the
-        // contractor's real work hours for that day are preserved.
-        const lastDay = selectedPeriod.end;
+        // No daily-hours row in this period already carries OT. The old code put
+        // the hours on selectedPeriod.end, which invents a date -- and on a
+        // current period that date has not happened yet, so a payslip showed
+        // overtime dated in the future.
+        //
+        // The contractor filed the OT against a real date, so use that. The
+        // lookup above misses it because it filters on overtime_hours > 0: a day
+        // worked with the OT not yet recorded has a row, just a zero one.
+        const { data: otReqs } = await supabase
+          .from('hub_overtime_requests')
+          .select('date')
+          .eq('contractor_id', contractorId)
+          .eq('status', 'approved')
+          .gte('date', selectedPeriod.start)
+          .lte('date', selectedPeriod.end)
+          .order('date', { ascending: true });
+
+        // Failing that, the most recent day actually worked -- still a real date
+        // someone can check against a timesheet. Period end is used only when the
+        // period is over, so it can never be in the future.
+        const { data: workedDays } = await supabase
+          .from('hub_daily_hours')
+          .select('date')
+          .eq('user_id', contractorId)
+          .gte('date', selectedPeriod.start)
+          .lte('date', selectedPeriod.end)
+          .order('date', { ascending: true });
+
+        const today = localToday();
+        const lastDay =
+          otReqs?.length ? otReqs[otReqs.length - 1].date
+          : workedDays?.length ? workedDays[workedDays.length - 1].date
+          : (selectedPeriod.end <= today ? selectedPeriod.end : today);
         const { data: lastDayRow } = await supabase.from('hub_daily_hours')
           .select('id').eq('user_id', contractorId).eq('date', lastDay).maybeSingle();
         if (lastDayRow) {
