@@ -202,8 +202,9 @@ export default function AdminPayrollPage() {
   const [editHours, setEditHours] = useState('');
   const [editPay, setEditPay] = useState('');
   const [editOTHours, setEditOTHours] = useState('');
+  const [editOTDate, setEditOTDate] = useState('');
   const [editOTRate, setEditOTRate] = useState('');
-  const [rowOverrides, setRowOverrides] = useState<Record<string, { hours?: number; pay?: number; otHours?: number; otRate?: number }>>({});
+  const [rowOverrides, setRowOverrides] = useState<Record<string, { hours?: number; pay?: number; otHours?: number; otRate?: number; otDate?: string }>>({});
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const toggleRowExpanded = (id: string) =>
     setExpandedRows((prev) => {
@@ -236,6 +237,10 @@ export default function AdminPayrollPage() {
     setEditPay(String(override?.pay !== undefined ? override.pay : parseFloat(r.pay.toFixed(2))));
     setEditOTHours(String(override?.otHours !== undefined ? override.otHours : r.overtimeHours));
     setEditOTRate(String(override?.otRate !== undefined ? override.otRate : r.derivedHourlyRate));
+    // The day the overtime is already recorded against, so the dialog shows what
+    // is stored rather than asking again. Blank when there is none, which is what
+    // used to send the save path guessing.
+    setEditOTDate(override?.otDate ?? (r.dailyBreakdown.find(d => (d.overtime || 0) > 0)?.date ?? ''));
     setEditAdjItems((p?.adjustments || []).map((a: any) => ({ ...a, type: a.type || 'other' })));
     setEditAdjLabel('');
     setEditAdjAmount('');
@@ -282,6 +287,7 @@ export default function AdminPayrollPage() {
         hours: isNaN(h) ? undefined : h,
         pay: isNaN(p) ? undefined : p,
         otHours: isNaN(otH) ? undefined : otH,
+        otDate: editOTDate || undefined,
         otRate: isNaN(otR) ? undefined : otR,
       },
     }));
@@ -294,7 +300,39 @@ export default function AdminPayrollPage() {
 
     // Write edited OT hours back to hub_daily_hours and mark them manual so Slack sync
     // cannot overwrite them. Always write when OT > 0 (not just when value changed).
-    if (!isNaN(otH) && row) {
+    if (!isNaN(otH) && row && editOTDate) {
+      // The dialog now asks which day. Clear OT from every other day in the
+      // period first, so correcting a wrong date moves the hours instead of
+      // duplicating them, then write the total to the named day without
+      // touching the hours actually worked on it.
+      await supabase
+        .from('hub_daily_hours')
+        .update({ overtime_hours: 0, is_manual: true, updated_at: new Date().toISOString() })
+        .eq('user_id', contractorId)
+        .gte('date', selectedPeriod.start)
+        .lte('date', selectedPeriod.end)
+        .neq('date', editOTDate)
+        .gt('overtime_hours', 0);
+
+      if (otH > 0) {
+        const { data: existingRow } = await supabase.from('hub_daily_hours')
+          .select('id').eq('user_id', contractorId).eq('date', editOTDate).maybeSingle();
+        if (existingRow) {
+          await supabase.from('hub_daily_hours')
+            .update({ overtime_hours: otH, is_manual: true, updated_at: new Date().toISOString() })
+            .eq('user_id', contractorId).eq('date', editOTDate);
+        } else {
+          await supabase.from('hub_daily_hours').insert({
+            user_id: contractorId, date: editOTDate, overtime_hours: otH,
+            hours_capped: 0, hours_raw: 0, is_manual: true,
+          });
+        }
+      } else {
+        await supabase.from('hub_daily_hours')
+          .update({ overtime_hours: 0, is_manual: true, updated_at: new Date().toISOString() })
+          .eq('user_id', contractorId).eq('date', editOTDate);
+      }
+    } else if (!isNaN(otH) && row) {
       const { data: dailyRows } = await supabase
         .from('hub_daily_hours')
         .select('date, overtime_hours')
@@ -2196,6 +2234,14 @@ export default function AdminPayrollPage() {
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                       <p className="text-[10px] text-gray-400">Computed: {fmt(editRow.derivedHourlyRate, 'PHP')}/hr</p>
                     </div>
+                    <div className="space-y-1.5 col-span-2">
+                      <label className="text-xs font-medium text-gray-600">OT Date</label>
+                      <input type="date" value={editOTDate} onChange={e => setEditOTDate(e.target.value)}
+                        min={selectedPeriod.start}
+                        max={selectedPeriod.end < localToday() ? selectedPeriod.end : localToday()}
+                        className="w-full min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                      <p className="text-[10px] text-gray-400">The day the overtime was worked. Cannot be a future date.</p>
+                    </div>
                   </div>
                   {otPay > 0 && (
                     <p className="text-[10px] text-gray-400 mt-1.5">OT pay: {fmt(otPay, 'PHP')}</p>
@@ -2291,7 +2337,7 @@ export default function AdminPayrollPage() {
 
               <div className="px-5 pb-4 pt-3 border-t border-gray-100 flex justify-between gap-2 flex-shrink-0">
                 <button
-                  onClick={() => { setRowOverrides(prev => { const n = { ...prev }; delete n[editRowId!]; return n; }); setEditAdjItems([]); setEditOTHours(''); setEditOTRate(''); setEditRowId(null); }}
+                  onClick={() => { setRowOverrides(prev => { const n = { ...prev }; delete n[editRowId!]; return n; }); setEditAdjItems([]); setEditOTHours(''); setEditOTDate(''); setEditOTRate(''); setEditRowId(null); }}
                   className="px-3 py-2 text-xs text-rose-400 hover:text-rose-600 cursor-pointer"
                 >
                   Reset all
