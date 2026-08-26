@@ -269,7 +269,12 @@ export default function AdminPayrollPage() {
 
     const h = parseFloat(editHours);
     const p = parseFloat(editPay);
-    const otH = parseFloat(editOTHours);
+    // An empty OT field means no overtime. parseFloat('') is NaN, and NaN was
+    // checked in three places below -- so clearing the box skipped the write
+    // entirely and the hours stayed on the payslip. Typing 0 worked; deleting
+    // the value silently did nothing.
+    const otRaw = editOTHours.trim();
+    const otH = otRaw === '' ? 0 : parseFloat(otRaw);
     const otR = parseFloat(editOTRate);
     setRowOverrides(prev => ({
       ...prev,
@@ -2216,7 +2221,7 @@ export default function AdminPayrollPage() {
                   )}
                   {/* Add line item */}
                   <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2 min-w-0">
                       <select value={editAdjType} onChange={e => {
                         setEditAdjType(e.target.value);
                         setEditAdjSign(e.target.value === 'deduction' ? '-' : '+');
@@ -2224,7 +2229,7 @@ export default function AdminPayrollPage() {
                         className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white cursor-pointer">
                         {ADJ_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 min-w-0">
                         <button
                           type="button"
                           onClick={() => setEditAdjSign(s => s === '+' ? '-' : '+')}
@@ -2238,14 +2243,14 @@ export default function AdminPayrollPage() {
                         </button>
                         <input type="number" placeholder="Amount (₱)" value={editAdjAmount} onChange={e => setEditAdjAmount(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && addEditAdjItem()}
-                          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                          className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <input type="text" placeholder="Description (e.g. May referral — John)" value={editAdjLabel}
                         onChange={e => setEditAdjLabel(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && addEditAdjItem()}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                        className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                       <button onClick={addEditAdjItem}
                         className="px-3 py-2 bg-[#111827] text-white text-xs rounded-lg hover:bg-gray-700 cursor-pointer whitespace-nowrap">
                         Add
