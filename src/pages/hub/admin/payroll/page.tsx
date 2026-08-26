@@ -406,6 +406,38 @@ export default function AdminPayrollPage() {
         }
       }
     }
+
+    // Clean up after ourselves. Zeroing overtime on a stub -- a row this page
+    // created purely to carry OT -- leaves a row with nothing in it, which then
+    // lingers in the daily breakdown and counts as a day worked. Removing
+    // overtime should not leave a database chore behind.
+    //
+    // Punch times are the guard: a row with no hours and no overtime can still
+    // hold first_on/last_off from a broken punch, and that is real attendance
+    // data worth keeping. Only rows empty on every count are removed.
+    if (row) {
+      // Decided in JS rather than as chained .or() filters: each .or() emits its
+      // own or= parameter, and if PostgREST keeps only the last one the delete
+      // would widen to rows that still have hours. Reading the candidates and
+      // deleting explicit ids cannot misfire.
+      const { data: periodRows } = await supabase
+        .from('hub_daily_hours')
+        .select('id, hours_capped, hours_raw, overtime_hours, first_on, last_off')
+        .eq('user_id', contractorId)
+        .gte('date', selectedPeriod.start)
+        .lte('date', selectedPeriod.end);
+
+      const emptyIds = (periodRows ?? [])
+        .filter((r: any) =>
+          !(r.hours_capped || 0) && !(r.hours_raw || 0) && !(r.overtime_hours || 0)
+          && !r.first_on && !r.last_off)
+        .map((r: any) => r.id);
+
+      if (emptyIds.length) {
+        await supabase.from('hub_daily_hours').delete().in('id', emptyIds);
+      }
+    }
+
     const existing = payoutsMap[contractorId];
 
     // Use explicit UPDATE when row exists, INSERT when new — avoids PostgREST
