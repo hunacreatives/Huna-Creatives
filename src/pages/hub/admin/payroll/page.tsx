@@ -932,6 +932,11 @@ export default function AdminPayrollPage() {
       // Skip hours already covered by a paid payout (on or before payment_date)
       const paymentDate = paidPaymentDateMap[h.user_id];
       if (paymentDate && h.date <= paymentDate) continue;
+      // A row with no hours and no overtime is not a day worked. These exist as
+      // leftovers -- an OT stub whose hours were later cleared, for one -- and
+      // counting them inflated the days figure and printed an empty line in the
+      // daily breakdown.
+      if (!(h.hours_capped || 0) && !(h.hours_raw || 0) && !(h.overtime_hours || 0)) continue;
 
       if (!hoursMap[h.user_id]) hoursMap[h.user_id] = { capped: 0, raw: 0, overtime: 0, days: 0 };
       hoursMap[h.user_id].capped += h.hours_capped || 0;
