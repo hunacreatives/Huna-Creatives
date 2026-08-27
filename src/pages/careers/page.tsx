@@ -336,7 +336,7 @@ export default function CareersPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] font-body">
-      <Navigation invertOnScroll />
+      <Navigation invertOnScroll barTheme="light" />
 
       {/* Same continuous orb field used on About/Services — one wrapper
           spanning the whole page so the glass cards below actually have
