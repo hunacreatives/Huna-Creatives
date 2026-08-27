@@ -195,7 +195,21 @@ export default function ContractorsPage() {
 
   const handleDeactivate = async (c: HubUser) => {
     setActionLoading(true);
-    await supabase.from('hub_users').update({ status: 'inactive' }).eq('id', c.id);
+    // Route through the edge function so login access is actually revoked
+    // alongside the status flip -- a direct client-side status update leaves
+    // their Supabase Auth session live (nothing checks status on sign-in),
+    // which is exactly what this confirmation dialog already promises won't
+    // happen.
+    const { data, error } = await supabase.functions.invoke('deactivate-contractor', {
+      body: { contractor_id: c.id },
+    });
+    if (error || data?.error) {
+      showToast(data?.error ?? 'Failed to deactivate', 'error');
+    } else if (data?.auth_revoked === false) {
+      showToast(`${c.full_name} is marked inactive, but revoking login access failed — try again.`, 'error');
+    } else {
+      showToast(`${c.full_name} deactivated`, 'success');
+    }
     setActionLoading(false);
     setConfirm(null);
     fetchContractors();
