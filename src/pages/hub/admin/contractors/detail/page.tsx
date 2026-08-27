@@ -10,7 +10,7 @@ import { logAudit } from '@/lib/audit';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { DEMO_CONTRACTORS } from '@/lib/demoData';
-import { computeFixedAccrual, computeSplitFixedAccrual, isAutoPayrollUser, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { computeFixedAccrual, computeSplitFixedAccrual, deriveHoursPerDay, isAutoPayrollUser, mergeLiveAttendanceIntoDailyHours, standardMonthlyHours } from '@/lib/payrollUtils';
 
 interface DayRow {
   date: string;
@@ -862,6 +862,7 @@ export default function ContractorDetailPage() {
               const today = localToday();
               const autoPayroll = isAutoPayrollUser(contractor as any);
               const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+              const hoursPerDay = deriveHoursPerDay((contractor as any)?.shift_start, (contractor as any)?.shift_end);
               let hrsAtOld = 0;
               let hrsAtNew = 0;
               for (const d of payslipDays) {
@@ -877,13 +878,14 @@ export default function ContractorDetailPage() {
                 newMonthlyRate: newMonthly,
                 oldCappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrsAtOld,
                 newCappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrsAtNew,
+                hoursPerDay,
               });
               const isStillAccruing = !autoPayroll && isCurrentPeriod
                 && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) > 0
                 && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) < splitAccrual.totalScheduledDays;
               basePay = splitAccrual.accruedPay;
-              const oldOT = oldHourly || oldMonthly / 176;
-              const newOT = newHourly || newMonthly / 176;
+              const oldOT = oldHourly || oldMonthly / standardMonthlyHours(hoursPerDay);
+              const newOT = newHourly || newMonthly / standardMonthlyHours(hoursPerDay);
               let otAtOld = 0, otAtNew = 0;
               for (const d of payslipDays) {
                 if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
@@ -914,12 +916,14 @@ export default function ContractorDetailPage() {
               const today = localToday();
               const autoPayroll = isAutoPayrollUser(contractor as any);
               const isCurrentPeriod = today >= selectedPeriod.start && today <= selectedPeriod.end;
+              const hoursPerDay = deriveHoursPerDay((contractor as any)?.shift_start, (contractor as any)?.shift_end);
               const fixedAccrual = computeFixedAccrual({
                 periodStart: selectedPeriod.start,
                 periodEnd: selectedPeriod.end,
                 monthlyRate: monthly,
                 workDays: (contractor as any)?.work_days || [],
                 cappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : totalHoursBillable,
+                hoursPerDay,
               });
               const isStillAccruing = !autoPayroll && isCurrentPeriod
                 && fixedAccrual.earnedDayUnits > 0
@@ -929,7 +933,7 @@ export default function ContractorDetailPage() {
               proratedLabel = autoPayroll
                 ? 'auto-included full cutoff'
                 : `${fixedAccrual.earnedDayUnits.toFixed(2)}/${fixedAccrual.totalScheduledDays} earned days${isStillAccruing ? ' · accruing' : ''}`;
-              otRate = hourly || monthly / 176;
+              otRate = hourly || monthly / standardMonthlyHours(hoursPerDay);
             } else {
               basePay = totalHoursBillable * hourly;
               otRate = hourly;

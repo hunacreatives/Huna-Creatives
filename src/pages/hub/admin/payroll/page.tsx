@@ -9,7 +9,7 @@ import { FULL_MONTHS, getPeriods, fmtCurrency as fmt, getNextPayrollCutoff, loca
 import { logAudit } from '@/lib/audit';
 import { getSetting, setSetting } from '@/lib/settings';
 import { DEMO_PAYOUTS, DEMO_CONTRACTORS } from '@/lib/demoData';
-import { computeFixedAccrual, computeSplitFixedAccrual, isAutoPayrollUser, isScheduledWorkday, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { computeFixedAccrual, computeSplitFixedAccrual, deriveHoursPerDay, isAutoPayrollUser, isScheduledWorkday, mergeLiveAttendanceIntoDailyHours, standardMonthlyHours } from '@/lib/payrollUtils';
 
 interface Contractor {
   id: string;
@@ -23,6 +23,8 @@ interface Contractor {
   monthly_rate: number | null;
   start_date: string | null;
   work_days: string[] | null;
+  shift_start?: string | null;
+  shift_end?: string | null;
   payment_method?: string | null;
   bank_name?: string | null;
   bank_account_name?: string | null;
@@ -919,7 +921,7 @@ export default function AdminPayrollPage() {
       isCurrentPeriod ? supabase.functions.invoke('slack-attendance') : Promise.resolve({ data: null } as any),
       supabase
         .from('hub_users')
-        .select('id, full_name, role, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days, payment_method, bank_name, bank_account_name, bank_account_number, bank_account_type')
+        .select('id, full_name, role, avatar_url, department, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days, shift_start, shift_end, payment_method, bank_name, bank_account_name, bank_account_number, bank_account_type')
         .eq('status', 'active')
         .in('role', ['contractor', 'admin']),
       supabase
@@ -1043,6 +1045,7 @@ export default function AdminPayrollPage() {
       const hrs = hoursMap[c.id] || { capped: 0, raw: 0, overtime: 0, days: 0 };
       const payType = c.payment_type || 'hourly';
       const history = rateHistoryMap[c.id] || [];
+      const hoursPerDay = deriveHoursPerDay(c.shift_start, c.shift_end);
 
       // Rate change that occurred DURING this period (first one only)
       const changeInPeriod = history.find(r =>
@@ -1104,14 +1107,15 @@ export default function AdminPayrollPage() {
             newMonthlyRate: newMonthly,
             oldCappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrsAtOld,
             newCappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrsAtNew,
+            hoursPerDay,
           });
           const isStillAccruing = !autoPayroll && isCurrentPeriod
             && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) > 0
             && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) < splitAccrual.totalScheduledDays;
 
           // Split OT by date so pre-raise OT uses old OT rate, post-raise uses new
-          const oldHourlyForOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
-          const newHourlyForOT = changeInPeriod.hourly_rate || newMonthly / 176;
+          const oldHourlyForOT = (beforeChange?.hourly_rate) || oldMonthly / standardMonthlyHours(hoursPerDay);
+          const newHourlyForOT = changeInPeriod.hourly_rate || newMonthly / standardMonthlyHours(hoursPerDay);
           const otDates = overtimeByDate[c.id] || {};
           let otAtOld = 0;
           let otAtNew = 0;
@@ -1145,7 +1149,7 @@ export default function AdminPayrollPage() {
         const hourly  = effectiveRate?.hourly_rate  ?? c.hourly_rate  ?? 0;
 
         // For fixed: use explicit hourly_rate as OT rate if set, else derive from monthly
-        derivedHourlyRate = payType === 'fixed' ? (hourly || monthly / 176) : hourly;
+        derivedHourlyRate = payType === 'fixed' ? (hourly || monthly / standardMonthlyHours(hoursPerDay)) : hourly;
 
         if (payType === 'hourly') {
           overtimePay = hrs.overtime * derivedHourlyRate;
@@ -1161,6 +1165,7 @@ export default function AdminPayrollPage() {
             monthlyRate: monthly,
             workDays: c.work_days,
             cappedHours: autoPayroll ? Number.MAX_SAFE_INTEGER : hrs.capped,
+            hoursPerDay,
           });
           const isStillAccruing = !autoPayroll && isCurrentPeriod
             && fixedAccrual.earnedDayUnits > 0

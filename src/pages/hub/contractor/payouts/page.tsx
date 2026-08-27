@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { getPeriods, fmtTime, fmtDate, fmtPHP, localToday } from '@/lib/formatUtils';
-import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { computeFixedAccrual, computeSplitFixedAccrual, deriveHoursPerDay, mergeLiveAttendanceIntoDailyHours, standardMonthlyHours } from '@/lib/payrollUtils';
 import { FRANCIS_SIG } from '@/pages/hub/admin/documents/contractAssets';
 import { getSetting } from '@/lib/settings';
 
@@ -424,6 +424,7 @@ export default function ContractorPayoutsPage() {
   const currentHourlyRate = Number((hubUser as any)?.hourly_rate || 0);
   const currentMonthlyRate = Number((hubUser as any)?.monthly_rate || 0);
   const workDays = ((hubUser as any)?.work_days as string[] | null | undefined) || [];
+  const hoursPerDay = deriveHoursPerDay((hubUser as any)?.shift_start, (hubUser as any)?.shift_end);
   const currency = (hubUser as any)?.currency || 'PHP';
   const isUSD = currency === 'USD';
   const [usdRate, setUsdRate] = useState(56);
@@ -480,13 +481,14 @@ export default function ContractorPayoutsPage() {
         newMonthlyRate: newMonthly,
         oldCappedHours: hrsAtOld,
         newCappedHours: hrsAtNew,
+        hoursPerDay,
       });
       const isStillAccruing = isCurrentPeriod
         && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) > 0
         && (splitAccrual.oldEarnedDayUnits + splitAccrual.newEarnedDayUnits) < splitAccrual.totalScheduledDays;
       basePay = splitAccrual.accruedPay;
-      const oldOT = oldHourly || oldMonthly / 176;
-      const newOT = newHourly || newMonthly / 176;
+      const oldOT = oldHourly || oldMonthly / standardMonthlyHours(hoursPerDay);
+      const newOT = newHourly || newMonthly / standardMonthlyHours(hoursPerDay);
       let otAtOld = 0, otAtNew = 0;
       for (const d of days) {
         if (d.date < changeInPeriod.effective_date) otAtOld += d.overtime_hours || 0;
@@ -520,6 +522,7 @@ export default function ContractorPayoutsPage() {
         monthlyRate: monthly,
         workDays,
         cappedHours: totalHoursBillable,
+        hoursPerDay,
       });
       const isStillAccruing = isCurrentPeriod
         && fixedAccrual.earnedDayUnits > 0
@@ -527,7 +530,7 @@ export default function ContractorPayoutsPage() {
       basePay = fixedAccrual.accruedPay;
       isProrated = true;
       proratedLabel = `${fixedAccrual.earnedDayUnits.toFixed(2)}/${fixedAccrual.totalScheduledDays} earned days${isStillAccruing ? ' · accruing' : ''}`;
-      otRate = hourly || monthly / 176;
+      otRate = hourly || monthly / standardMonthlyHours(hoursPerDay);
     } else {
       basePay = totalHoursBillable * hourly;
       otRate = hourly;
@@ -574,7 +577,7 @@ export default function ContractorPayoutsPage() {
       cutoff_start: activePeriod!.start,
       cutoff_end: activePeriod!.end,
       approved_hours: totalHoursBillable,
-      hourly_rate: paymentType === 'hourly' ? displayHourlyRate : displayMonthlyRate / 176,
+      hourly_rate: paymentType === 'hourly' ? displayHourlyRate : displayMonthlyRate / standardMonthlyHours(hoursPerDay),
       base_pay: basePay,
       bonus: 0,
       incentives: 0,

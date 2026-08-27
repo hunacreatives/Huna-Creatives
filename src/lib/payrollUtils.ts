@@ -132,6 +132,28 @@ export function mergeLiveAttendanceIntoDailyHours<T extends {
   return Array.from(merged.values());
 }
 
+// Fixed-rate accrual assumed an 8-hour day for every contractor, sourced from
+// nowhere but the formula itself. A contractor scheduled for a shorter shift
+// (shift_start/shift_end, already editable on their profile) would show up
+// every one of their scheduled days and still only earn half credit, because
+// clampDayUnits divided by 8 regardless of what a full day meant for them.
+// Deriving the day length from their own shift keeps that arithmetic honest;
+// unset shift times fall back to 8h so nothing changes for full-time staff.
+export function deriveHoursPerDay(shiftStart?: string | null, shiftEnd?: string | null) {
+  if (!shiftStart || !shiftEnd) return 8;
+  const [sh, sm] = shiftStart.split(':').map(Number);
+  const [eh, em] = shiftEnd.split(':').map(Number);
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 8;
+  let minutes = (eh * 60 + em) - (sh * 60 + sm);
+  if (minutes <= 0) minutes += 24 * 60; // overnight shift
+  const hours = minutes / 60;
+  return hours > 0 ? hours : 8;
+}
+
+export function standardMonthlyHours(hoursPerDay = 8) {
+  return 22 * hoursPerDay;
+}
+
 export function countWorkingDays(startDate: string, endDate: string, workDays: string[] = []) {
   const scheduled = workDays.length > 0
     ? new Set(
@@ -172,9 +194,9 @@ export function dateBefore(dateStr: string, days = 1) {
   return d.toISOString().slice(0, 10);
 }
 
-function clampDayUnits(hours: number, scheduledDays: number) {
+function clampDayUnits(hours: number, scheduledDays: number, hoursPerDay = 8) {
   if (scheduledDays <= 0) return 0;
-  return Math.min(hours / 8, scheduledDays);
+  return Math.min(hours / hoursPerDay, scheduledDays);
 }
 
 export function computeFixedAccrual(params: {
@@ -183,10 +205,11 @@ export function computeFixedAccrual(params: {
   monthlyRate: number;
   workDays: string[] | null | undefined;
   cappedHours: number;
+  hoursPerDay?: number;
 }) {
-  const { periodStart, periodEnd, monthlyRate, workDays, cappedHours } = params;
+  const { periodStart, periodEnd, monthlyRate, workDays, cappedHours, hoursPerDay = 8 } = params;
   const totalScheduledDays = countWorkingDays(periodStart, periodEnd, workDays || []);
-  const earnedDayUnits = clampDayUnits(cappedHours, totalScheduledDays);
+  const earnedDayUnits = clampDayUnits(cappedHours, totalScheduledDays, hoursPerDay);
   const fullPeriodPay = monthlyRate / 2;
   const accruedPay = totalScheduledDays > 0 ? fullPeriodPay * (earnedDayUnits / totalScheduledDays) : 0;
   return {
@@ -206,6 +229,7 @@ export function computeSplitFixedAccrual(params: {
   newMonthlyRate: number;
   oldCappedHours: number;
   newCappedHours: number;
+  hoursPerDay?: number;
 }) {
   const {
     periodStart,
@@ -216,6 +240,7 @@ export function computeSplitFixedAccrual(params: {
     newMonthlyRate,
     oldCappedHours,
     newCappedHours,
+    hoursPerDay = 8,
   } = params;
 
   const totalScheduledDays = countWorkingDays(periodStart, periodEnd, workDays || []);
@@ -226,8 +251,8 @@ export function computeSplitFixedAccrual(params: {
   const newScheduledDays = changeDate <= periodEnd
     ? countWorkingDays(changeDate, periodEnd, workDays || [])
     : 0;
-  const oldEarnedDayUnits = clampDayUnits(oldCappedHours, oldScheduledDays);
-  const newEarnedDayUnits = clampDayUnits(newCappedHours, newScheduledDays);
+  const oldEarnedDayUnits = clampDayUnits(oldCappedHours, oldScheduledDays, hoursPerDay);
+  const newEarnedDayUnits = clampDayUnits(newCappedHours, newScheduledDays, hoursPerDay);
 
   const oldPortion = totalScheduledDays > 0 ? (oldMonthlyRate / 2) * (oldScheduledDays / totalScheduledDays) : 0;
   const newPortion = totalScheduledDays > 0 ? (newMonthlyRate / 2) * (newScheduledDays / totalScheduledDays) : 0;
@@ -256,7 +281,7 @@ export async function fetchPayrollTotal(
   const [contractorsRes, hoursRes, allPayoutsRes] = await Promise.all([
     supabase
       .from('hub_users')
-      .select('id, full_name, role, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days')
+      .select('id, full_name, role, currency, payment_type, hourly_rate, monthly_rate, start_date, work_days, shift_start, shift_end')
       .eq('status', 'active')
       .in('role', ['contractor', 'admin']),
     supabase
@@ -349,6 +374,7 @@ export async function fetchPayrollTotal(
     const hrs = hoursMap[c.id] || { capped: 0, overtime: 0 };
     const payType = c.payment_type || 'hourly';
     const history = rateHistoryMap[c.id] || [];
+    const hoursPerDay = deriveHoursPerDay(c.shift_start, c.shift_end);
 
     const changeInPeriod = history.find(r =>
       r.effective_date >= periodStart && r.effective_date <= periodEnd
@@ -376,6 +402,7 @@ export async function fetchPayrollTotal(
               newMonthlyRate: newMonthly,
               oldCappedHours: Number.MAX_SAFE_INTEGER,
               newCappedHours: Number.MAX_SAFE_INTEGER,
+              hoursPerDay,
             }).accruedPay
           : (() => {
               const datesMap = hoursByDate[c.id] || {};
@@ -394,10 +421,11 @@ export async function fetchPayrollTotal(
                 newMonthlyRate: newMonthly,
                 oldCappedHours: hrsAtOld,
                 newCappedHours: hrsAtNew,
+                hoursPerDay,
               }).accruedPay;
             })();
-        const oldOT = (beforeChange?.hourly_rate) || oldMonthly / 176;
-        const newOT = changeInPeriod.hourly_rate || newMonthly / 176;
+        const oldOT = (beforeChange?.hourly_rate) || oldMonthly / standardMonthlyHours(hoursPerDay);
+        const newOT = changeInPeriod.hourly_rate || newMonthly / standardMonthlyHours(hoursPerDay);
         const otDates = overtimeByDate[c.id] || {};
         let otAtOld = 0, otAtNew = 0;
         for (const [date, ot] of Object.entries(otDates)) {
@@ -417,7 +445,7 @@ export async function fetchPayrollTotal(
     } else {
       const monthly = rateAtStart?.monthly_rate ?? c.monthly_rate ?? 0;
       const hourly  = rateAtStart?.hourly_rate  ?? c.hourly_rate  ?? 0;
-      const otRate  = payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / 176) : hourly;
+      const otRate  = payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / standardMonthlyHours(hoursPerDay)) : hourly;
       if (payType === 'fixed' || payType === 'fixed_flexible') {
         pay = computeFixedAccrual({
           periodStart,
@@ -425,6 +453,7 @@ export async function fetchPayrollTotal(
           monthlyRate: monthly,
           workDays: c.work_days,
           cappedHours: isAutoPayrollUser(c) ? Number.MAX_SAFE_INTEGER : hrs.capped,
+          hoursPerDay,
         }).accruedPay + hrs.overtime * otRate;
       } else {
         pay = hrs.capped * hourly + hrs.overtime * hourly;
@@ -438,7 +467,7 @@ export async function fetchPayrollTotal(
         const monthly = (rateAtStart ?? changeInPeriod)?.monthly_rate ?? c.monthly_rate ?? 0;
         const hourly  = (rateAtStart ?? changeInPeriod)?.hourly_rate  ?? c.hourly_rate  ?? 0;
         const payType = c.payment_type || 'hourly';
-        return payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / 176) : hourly;
+        return payType === 'fixed' || payType === 'fixed_flexible' ? (hourly || monthly / standardMonthlyHours(hoursPerDay)) : hourly;
       })();
       const computedOTPay = hrs.overtime * computedOTRate;
       const persistedOTPay = Number(payout.overtime_pay);

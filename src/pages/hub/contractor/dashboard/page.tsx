@@ -8,7 +8,7 @@ import { getSetting } from '@/lib/settings';
 import { supabase } from '@/lib/supabase';
 import { HubAnnouncement, HubRequest, HubTimeOff } from '@/lib/types';
 import { DEMO_ANNOUNCEMENTS, DEMO_REQUESTS, DEMO_TIME_OFF, DEMO_ATTENDANCE, DEMO_CONTRACTOR_PROJECTS, DEMO_CONTRACTOR_TASKS } from '@/lib/demoData';
-import { computeFixedAccrual, computeSplitFixedAccrual, mergeLiveAttendanceIntoDailyHours } from '@/lib/payrollUtils';
+import { computeFixedAccrual, computeSplitFixedAccrual, deriveHoursPerDay, mergeLiveAttendanceIntoDailyHours, standardMonthlyHours } from '@/lib/payrollUtils';
 import { getTaskAssigneeIds } from '@/lib/taskAssignments';
 
 interface ProjectTask {
@@ -492,6 +492,7 @@ export default function ContractorDashboard() {
 
       const currentMonthly = (user as any).monthly_rate || 0;
       const currentHourly  = (user as any).hourly_rate  || 0;
+      const hoursPerDay = deriveHoursPerDay((user as any)?.shift_start, (user as any)?.shift_end);
       const history: any[] = rateRes.data ?? [];
       const changeInPeriod = history.find(r => r.effective_date >= periodStartStr && r.effective_date <= periodEndStr);
       const rateAtStart = [...history].filter(r => r.effective_date < periodStartStr).pop() || null;
@@ -519,9 +520,10 @@ export default function ContractorDashboard() {
             newMonthlyRate: newMonthly,
             oldCappedHours: hrsAtOld,
             newCappedHours: hrsAtNew,
+            hoursPerDay,
           }).accruedPay;
-          const oldOT = oldHourly || oldMonthly / 176;
-          const newOT = newHourly || newMonthly / 176;
+          const oldOT = oldHourly || oldMonthly / standardMonthlyHours(hoursPerDay);
+          const newOT = newHourly || newMonthly / standardMonthlyHours(hoursPerDay);
           let otAtOld = 0;
           let otAtNew = 0;
           for (const d of days as any[]) {
@@ -542,7 +544,8 @@ export default function ContractorDashboard() {
             monthlyRate: monthly,
             workDays: (user as any)?.work_days || [],
             cappedHours: totalHours,
-          }).accruedPay + totalOT * (hourly || monthly / 176);
+            hoursPerDay,
+          }).accruedPay + totalOT * (hourly || monthly / standardMonthlyHours(hoursPerDay));
         } else {
           estimated = totalHours * hourly + totalOT * hourly;
         }
