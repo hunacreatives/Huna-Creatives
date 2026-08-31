@@ -38,41 +38,32 @@ if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
   });
 }
 
-// A new build is waiting: offer it instead of silently sitting on the old one
-// until every tab closes. Clicking posts SKIP_WAITING, the new SW activates,
-// and the controllerchange handler above reloads the page.
+// A new build is waiting: apply it silently. The SW itself never calls
+// skipWaiting on install (see src/sw.ts) — the page drives it, so we can
+// control exactly when the swap happens. Here we post SKIP_WAITING as soon
+// as an update is ready; the new SW activates, controllerchange fires, and
+// the handler above reloads once into the fresh build. Any lazy chunk that
+// 404s in the millisecond gap is caught by the stale-chunk guard at the top.
+//
+// No prompt: the old toast kept reappearing because its Reload tap doesn't
+// reliably promote the waiting worker on installed iOS PWAs, so reg.waiting
+// stayed set across launches.
 if ('serviceWorker' in navigator) {
-  const offerUpdate = (waiting: ServiceWorker) => {
-    if (document.getElementById('sw-update-toast')) return;
-    const bar = document.createElement('div');
-    bar.id = 'sw-update-toast';
-    bar.setAttribute('role', 'status');
-    bar.style.cssText = [
-      'position:fixed', 'left:50%', 'bottom:24px', 'transform:translateX(-50%)',
-      'z-index:2147483647', 'display:flex', 'align-items:center', 'gap:12px',
-      'padding:10px 12px 10px 16px', 'border-radius:9999px',
-      'background:#243037', 'color:#fff', 'font:500 13px/1.2 system-ui,sans-serif',
-      'box-shadow:0 8px 28px rgba(0,0,0,0.28)',
-    ].join(';');
-    bar.innerHTML =
-      '<span>A new version is available</span>' +
-      '<button type="button" style="border:0;border-radius:9999px;padding:7px 14px;' +
-      'background:#FF5B05;color:#fff;font:600 13px/1 system-ui,sans-serif;cursor:pointer">Reload</button>';
-    bar.querySelector('button')!.addEventListener('click', () => {
-      waiting.postMessage({ type: 'SKIP_WAITING' });
-    });
-    document.body.appendChild(bar);
+  const applyUpdate = (worker: ServiceWorker) => {
+    // Nothing to swap into on a first-ever install (no controller yet) —
+    // that SW activates on its own and must not trigger a reload loop.
+    if (navigator.serviceWorker.controller) worker.postMessage({ type: 'SKIP_WAITING' });
   };
 
   navigator.serviceWorker.ready.then((reg) => {
-    if (reg.waiting) offerUpdate(reg.waiting);
+    if (reg.waiting) applyUpdate(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const installing = reg.installing;
       if (!installing) return;
       installing.addEventListener('statechange', () => {
         // 'installed' with an existing controller means an update is waiting
         if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-          offerUpdate(installing);
+          applyUpdate(installing);
         }
       });
     });
