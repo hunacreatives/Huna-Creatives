@@ -38,37 +38,47 @@ if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
   });
 }
 
-// A new build is waiting: apply it silently. The SW itself never calls
-// skipWaiting on install (see src/sw.ts) — the page drives it, so we can
-// control exactly when the swap happens. Here we post SKIP_WAITING as soon
-// as an update is ready; the new SW activates, controllerchange fires, and
-// the handler above reloads once into the fresh build. Any lazy chunk that
-// 404s in the millisecond gap is caught by the stale-chunk guard at the top.
-//
-// No prompt: the old toast kept reappearing because its Reload tap doesn't
-// reliably promote the waiting worker on installed iOS PWAs, so reg.waiting
-// stayed set across launches.
+// A new build is waiting: apply it silently, but NEVER while the tab is in
+// use. Posting SKIP_WAITING fires controllerchange -> a full reload (see
+// handler above), which wipes any in-progress form / scroll / edit. So we
+// just hold the waiting worker and promote it the moment the tab is hidden.
+// Next time it's opened, it's already the new build — no reload on screen,
+// no background polling, no prompt. The stale-chunk guard at the top covers
+// the rare case of a lazy import 404ing before the swap.
 if ('serviceWorker' in navigator) {
-  const applyUpdate = (worker: ServiceWorker) => {
-    // Nothing to swap into on a first-ever install (no controller yet) —
-    // that SW activates on its own and must not trigger a reload loop.
-    if (navigator.serviceWorker.controller) worker.postMessage({ type: 'SKIP_WAITING' });
+  let pending: ServiceWorker | null = null;
+
+  const flushIfHidden = () => {
+    if (!pending || document.visibilityState !== 'hidden') return;
+    if (!navigator.serviceWorker.controller) return;
+    pending.postMessage({ type: 'SKIP_WAITING' });
+    pending = null;
+  };
+  const holdUpdate = (worker: ServiceWorker) => {
+    // First-ever install (no controller yet) activates on its own — ignore.
+    if (!navigator.serviceWorker.controller) return;
+    pending = worker;
+    flushIfHidden();
   };
 
+  document.addEventListener('visibilitychange', flushIfHidden);
+
   navigator.serviceWorker.ready.then((reg) => {
-    if (reg.waiting) applyUpdate(reg.waiting);
+    if (reg.waiting) holdUpdate(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const installing = reg.installing;
       if (!installing) return;
       installing.addEventListener('statechange', () => {
         // 'installed' with an existing controller means an update is waiting
         if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-          applyUpdate(installing);
+          holdUpdate(installing);
         }
       });
     });
-    // Catch a build shipped while the tab sat idle
-    setInterval(() => { reg.update().catch(() => {}); }, 60_000);
+    // Check for a new build only when the tab is reopened after being hidden.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') reg.update().catch(() => {});
+    });
   }).catch(() => {});
 }
 
