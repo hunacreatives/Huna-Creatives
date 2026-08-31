@@ -185,7 +185,10 @@ export default function AdminPayrollPage() {
 
   // Payout workflow state
   const [payoutsMap, setPayoutsMap] = useState<Record<string, any>>({});
-  const [batch, setBatch] = useState<any>(null);
+  // All fund-transfer batches for the selected period. A period can have more
+  // than one: an off-cycle final payout for a leaver gets its own batch, and
+  // the regular end-of-period run is a separate batch for everyone else.
+  const [batches, setBatches] = useState<any[]>([]);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [slackSyncFailed, setSlackSyncFailed] = useState(false);
@@ -504,9 +507,7 @@ export default function AdminPayrollPage() {
         .from('hub_payroll_batches')
         .select('*')
         .eq('period_start', selectedPeriod.start)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .order('created_at', { ascending: true }),
     ]);
     if (mySeq !== workflowSeqRef.current) return; // a newer call already started — discard this stale response
     const map: Record<string, any> = {};
@@ -516,7 +517,7 @@ export default function AdminPayrollPage() {
       if (!existing || p.cutoff_start === selectedPeriod.start) map[p.contractor_id] = p;
     }
     setPayoutsMap(map);
-    setBatch(batchRes.data ?? null);
+    setBatches(batchRes.data ?? []);
 
     // Fetch open disputes for this period's payouts
     const payoutIds = (payoutsRes.data || []).map((p: any) => p.id);
@@ -590,7 +591,7 @@ export default function AdminPayrollPage() {
   const approveAll = async () => {
     const toApprove = rows.filter(r => {
       const p = payoutsMap[r.contractor.id];
-      return !batch && (!p || p.status === 'pending' || p.status === 'submitted');
+      return !isSelectedPeriodClosed && (!p || p.status === 'pending' || p.status === 'submitted');
     });
     if (toApprove.length === 0) return;
     setWorkflowLoading(true);
@@ -642,9 +643,12 @@ export default function AdminPayrollPage() {
 
   const requestFundTransfer = async () => {
     setWorkflowLoading(true);
+    // Only approved payouts not already attached to a transfer. This is what
+    // lets a period hold several batches: once a leaver's batch is created,
+    // their payout has a batch_id and is skipped by the next request.
     const approved = rows.filter(r => {
       const p = payoutsMap[r.contractor.id];
-      return p?.status === 'hr_approved';
+      return p?.status === 'hr_approved' && !p.batch_id;
     });
     if (approved.length === 0) {
       setWorkflowLoading(false);
@@ -686,16 +690,31 @@ export default function AdminPayrollPage() {
     setWorkflowLoading(false);
   };
 
-  const approveBatch = async () => {
-    if (!batch) return;
+  const approveBatch = async (b: any) => {
+    if (!b) return;
     setWorkflowLoading(true);
     await supabase.from('hub_payroll_batches').update({
       status: 'owner_approved',
       approved_by: hubUser?.id,
       approved_at: new Date().toISOString(),
-    }).eq('id', batch.id);
-    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'payroll_batch', entity_id: batch.id, description: `Approved fund transfer of ${fmt(batch.total_amount)} for ${batch.period_label} (${batch.contractor_count} contractors)` });
-    supabase.functions.invoke('notify-owner', { body: { batch_id: batch.id, type: 'fund_approved' } }).catch(console.error);
+    }).eq('id', b.id);
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'approve', entity_type: 'payroll_batch', entity_id: b.id, description: `Approved fund transfer of ${fmt(b.total_amount)} for ${b.period_label} (${b.contractor_count} contractors)` });
+    supabase.functions.invoke('notify-owner', { body: { batch_id: b.id, type: 'fund_approved' } }).catch(console.error);
+    await fetchWorkflow();
+    setWorkflowLoading(false);
+  };
+
+  // Scrap a fund transfer that hasn't paid anyone yet: detach its payouts
+  // (they drop back to hr_approved and can be re-requested) and delete the
+  // batch. This is the no-SQL escape for a transfer created by mistake or one
+  // stranded by a since-removed employee.
+  const cancelBatch = async (b: any) => {
+    if (!b || (paidByBatch[b.id]?.paid ?? 0) > 0) return;
+    if (!window.confirm(`Cancel this fund transfer for ${b.period_label}?\n\nThe ${b.contractor_count} payout${b.contractor_count !== 1 ? 's' : ''} go back to Approved and can be put in a new transfer.`)) return;
+    setWorkflowLoading(true);
+    await supabase.from('hub_payouts').update({ batch_id: null }).eq('batch_id', b.id);
+    await supabase.from('hub_payroll_batches').delete().eq('id', b.id);
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'delete', entity_type: 'payroll_batch', entity_id: b.id, description: `Cancelled fund transfer of ${fmt(b.total_amount)} for ${b.period_label}` });
     await fetchWorkflow();
     setWorkflowLoading(false);
   };
@@ -704,6 +723,7 @@ export default function AdminPayrollPage() {
   const cancelPayout = async (contractorId: string) => {
     const p = payoutsMap[contractorId];
     if (!p) return;
+    const affectedBatchId = p.batch_id;
     setWorkflowLoading(true);
     if (p.status === 'paid') {
       await supabase.from('hub_payouts').update({
@@ -714,18 +734,18 @@ export default function AdminPayrollPage() {
     } else {
       await supabase.from('hub_payouts').delete().eq('id', p.id);
     }
-    // Clean up batch if no payouts remain in it. Counted AFTER the mutation
-    // above: a deleted payout is gone from the count, while a reverted
-    // paid payout keeps its batch_id and correctly keeps the batch alive
-    // (the old .neq(id) exclusion deleted batches still referenced by
-    // reverted payouts, leaving dangling batch_ids).
-    if (batch) {
+    // Clean up the payout's own batch if nothing remains in it. Counted AFTER
+    // the mutation above: a deleted payout is gone from the count, while a
+    // reverted paid payout keeps its batch_id and correctly keeps the batch
+    // alive. Uses the id captured before the mutation, not the "active" batch,
+    // since the cancelled payout may belong to an earlier settled batch.
+    if (affectedBatchId) {
       const { count } = await supabase
         .from('hub_payouts')
         .select('id', { count: 'exact', head: true })
-        .eq('batch_id', batch.id);
+        .eq('batch_id', affectedBatchId);
       if ((count ?? 0) === 0) {
-        await supabase.from('hub_payroll_batches').delete().eq('id', batch.id);
+        await supabase.from('hub_payroll_batches').delete().eq('id', affectedBatchId);
       }
     }
     setConfirmCancelId(null);
@@ -805,25 +825,29 @@ export default function AdminPayrollPage() {
   };
 
   const closePeriod = async () => {
-    if (!batch || isDemo) return;
+    const openForPeriod = batches.filter(b => b.status !== 'closed');
+    if (openForPeriod.length === 0 || isDemo) return;
     const confirmed = window.confirm(
-      `Close payroll period "${batch.period_label}"?\n\nThis will:\n• Lock the batch permanently\n• Make all payslips read-only\n• Archive this period from the active view\n\nThis cannot be undone.`
+      `Close payroll period "${selectedPeriod.label}"?\n\nThis will:\n• Lock ${openForPeriod.length === 1 ? 'the fund transfer' : `all ${openForPeriod.length} fund transfers`} permanently\n• Make all payslips read-only\n• Archive this period from the active view\n\nThis cannot be undone.`
     );
     if (!confirmed) return;
     setWorkflowLoading(true);
+    // Close every still-open batch for this period in one shot. The
+    // save-payroll-report DB trigger fires per row but is idempotent via its
+    // payroll_pdf_saved_<period> flag, so multiple fires are harmless.
     const { error } = await supabase.from('hub_payroll_batches').update({
       status: 'closed',
       closed_at: new Date().toISOString(),
       closed_by: hubUser?.id ?? null,
-    }).eq('id', batch.id);
+    }).eq('period_start', selectedPeriod.start).neq('status', 'closed');
     if (error) {
       console.error('Close period failed:', error);
       alert('Failed to close period: ' + error.message);
     } else {
-      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'close', entity_type: 'payroll_batch', entity_id: batch.id, description: `Closed payroll period ${batch.period_label}` });
+      logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'close', entity_type: 'payroll_batch', entity_id: selectedPeriod.start, description: `Closed payroll period ${selectedPeriod.label}` });
       supabase.functions.invoke('notify-payroll-closed', {
         body: {
-          batch_id: batch.id,
+          batch_id: openForPeriod[0].id,
           closed_by_name: hubUser?.full_name ?? null,
         },
       }).catch((invokeError) => {
@@ -887,7 +911,7 @@ export default function AdminPayrollPage() {
       }
       setRows(demoRows);
       setPayoutsMap(map);
-      setBatch(null);
+      setBatches([]);
       setLoading(false);
       setWorkflowLoading(false);
       return;
@@ -1260,8 +1284,41 @@ export default function AdminPayrollPage() {
     const adjTotal = adjs.reduce((s: number, a: any) => s + (a.amount || 0), 0);
     return basePay + otPay + adjTotal;
   };
-  const displayTotalPay = isSelectedPeriodClosed && batch?.total_amount != null
-    ? Number(batch.total_amount)
+  // --- Fund-transfer batch helpers (a period can hold more than one batch) ---
+  const batchById: Record<string, any> = {};
+  for (const b of batches) batchById[b.id] = b;
+  // Paid / total counts per batch, derived from the payouts linked to each.
+  const paidByBatch: Record<string, { paid: number; total: number }> = {};
+  for (const p of Object.values(payoutsMap)) {
+    if (!(p as any)?.batch_id) continue;
+    const bid = (p as any).batch_id;
+    (paidByBatch[bid] ??= { paid: 0, total: 0 }).total++;
+    if ((p as any).status === 'paid') paidByBatch[bid].paid++;
+  }
+  const batchSettled = (b: any) =>
+    b.contractor_count > 0 && (paidByBatch[b.id]?.paid ?? 0) >= b.contractor_count;
+  // Approved payouts not yet attached to any transfer — these start the next one.
+  const unbatchedApprovedRows = rows.filter(r => {
+    const p = payoutsMap[r.contractor.id];
+    return p?.status === 'hr_approved' && !p.batch_id;
+  });
+  // Closable only when every current employee is paid and every batch is
+  // settled — so a leaver's early transfer being "complete" can't archive the
+  // period out from under the rest of the team.
+  const allVisibleRowsPaid =
+    rows.length > 0 && rows.every(r => payoutsMap[r.contractor.id]?.status === 'paid');
+  const canCloseSelectedPeriod =
+    !isSelectedPeriodClosed &&
+    batches.length > 0 &&
+    allVisibleRowsPaid &&
+    unbatchedApprovedRows.length === 0 &&
+    batches.every(b => b.status === 'closed' || batchSettled(b));
+
+  const closedBatchTotal = batches
+    .filter(b => b.status === 'closed')
+    .reduce((s, b) => s + Number(b.total_amount || 0), 0);
+  const displayTotalPay = isSelectedPeriodClosed && closedBatchTotal > 0
+    ? closedBatchTotal
     : rows.reduce((s, r) => s + getRowDisplayTotal(r), 0);
 
   useEffect(() => {
@@ -1766,13 +1823,14 @@ export default function AdminPayrollPage() {
                             </button>
                           )}
                           {(() => {
-                            const batchApproved = batch?.status === 'owner_approved';
+                            const pBatch = effectivePayout?.batch_id ? batchById[effectivePayout.batch_id] : null;
+                            const batchApproved = pBatch?.status === 'owner_approved';
                             if (effectivePayout?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                             if (batchApproved && effectivePayout?.status === 'hr_approved') return (
-                              <button onClick={() => markPaid(c.id)} disabled={workflowLoading || batch?.status === 'closed'} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
+                              <button onClick={() => markPaid(c.id)} disabled={workflowLoading || isSelectedPeriodClosed} className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Mark Paid</button>
                             );
                             if (!effectivePayout || effectivePayout.status === 'pending' || effectivePayout.status === 'submitted') return (
-                              <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || batch?.status === 'closed'} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Approve</button>
+                              <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || isSelectedPeriodClosed} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium">Approve</button>
                             );
                             return null;
                           })()}
@@ -1787,7 +1845,7 @@ export default function AdminPayrollPage() {
               <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-700">Total</span>
                 <div className="flex items-center gap-3">
-                  {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
+                  {!isSelectedPeriodClosed && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
                     <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
                       Approve All
                     </button>
@@ -1991,11 +2049,12 @@ export default function AdminPayrollPage() {
                                   );
                                 })()}
                                 {(() => {
-                                  const batchApproved = batch?.status === 'owner_approved';
+                                  const pBatch = effectivePayout?.batch_id ? batchById[effectivePayout.batch_id] : null;
+                                  const batchApproved = pBatch?.status === 'owner_approved';
                                   if (effectivePayout?.status === 'paid') return <i className="ri-checkbox-circle-fill text-emerald-400 text-base"></i>;
                                   if (batchApproved && effectivePayout?.status === 'hr_approved') {
                                     return (
-                                      <button onClick={() => markPaid(c.id)} disabled={workflowLoading || batch?.status === 'closed'}
+                                      <button onClick={() => markPaid(c.id)} disabled={workflowLoading || isSelectedPeriodClosed}
                                         className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer disabled:opacity-40 whitespace-nowrap font-medium">
                                         Mark Paid
                                       </button>
@@ -2003,7 +2062,7 @@ export default function AdminPayrollPage() {
                                   }
                                   if (!effectivePayout || effectivePayout.status === 'pending' || effectivePayout.status === 'submitted') {
                                     return (
-                                      <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || !!batch || batch?.status === 'closed'}
+                                      <button onClick={() => approvePayout(c.id, r.pay)} disabled={workflowLoading || isSelectedPeriodClosed}
                                         className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap font-medium">
                                         Approve
                                       </button>
@@ -2044,7 +2103,7 @@ export default function AdminPayrollPage() {
                       <td className="px-5 py-3.5"></td>
                       <td className="px-5 py-3.5 font-bold text-gray-900">{fmt(displayTotalPay, 'PHP')}</td>
                       <td className="px-5 py-3.5 text-right">
-                        {!batch && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
+                        {!isSelectedPeriodClosed && rows.some(r => { const p = payoutsMap[r.contractor.id]; return !p || p.status === 'pending' || p.status === 'submitted'; }) && (
                           <button onClick={approveAll} disabled={workflowLoading} className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg cursor-pointer disabled:opacity-40 font-medium whitespace-nowrap">
                             Approve All
                           </button>
@@ -2060,43 +2119,39 @@ export default function AdminPayrollPage() {
         )}
 
         {/* Fund Transfer Workflow */}
-        {!loading && (() => {
-          const approvedCount = rows.filter(r =>
-            payoutsMap[r.contractor.id]?.status === 'hr_approved'
-          ).length;
-          const paidCount = rows.filter(r => payoutsMap[r.contractor.id]?.status === 'paid').length;
-          const isClosed = batch?.status === 'closed';
-
-          return (
-            <>
+        {!loading && (
             <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-[#111827]">Fund Transfer</h3>
                   <p className="text-xs text-gray-400 mt-0.5">{selectedPeriod.label}</p>
                 </div>
-                {!batch && approvedCount > 0 && (
+                {!isSelectedPeriodClosed && unbatchedApprovedRows.length > 0 && (
                   <button
                     onClick={requestFundTransfer}
                     disabled={workflowLoading}
                     className="flex items-center gap-1.5 px-3 py-2 bg-[#FF6B35] text-white text-xs font-medium rounded-lg hover:bg-[#e55a27] cursor-pointer disabled:opacity-40 whitespace-nowrap"
                   >
                     <i className="ri-send-plane-line text-sm"></i>
-                    Request Fund Transfer ({approvedCount} contractors)
+                    {batches.length > 0
+                      ? `Request Another Transfer (${unbatchedApprovedRows.length})`
+                      : `Request Fund Transfer (${unbatchedApprovedRows.length} contractor${unbatchedApprovedRows.length !== 1 ? 's' : ''})`}
                   </button>
                 )}
               </div>
 
-              {!batch && approvedCount === 0 && (
+              {batches.length === 0 && unbatchedApprovedRows.length === 0 && (
                 <p className="text-xs text-gray-400">Approve at least one employee to request a fund transfer.</p>
               )}
 
-              {batch && (() => {
-                const isPending = batch.status === 'pending_owner';
-                const isApproved = batch.status === 'owner_approved';
-                const isBatchClosed = batch.status === 'closed';
+              {batches.map((b) => {
+                const isPending = b.status === 'pending_owner';
+                const isApproved = b.status === 'owner_approved';
+                const isBatchClosed = b.status === 'closed';
+                const counts = paidByBatch[b.id] ?? { paid: 0, total: b.contractor_count };
+                const settled = batchSettled(b);
                 return (
-                  <div className="space-y-3">
+                  <div key={b.id} className="space-y-3">
                     {/* Status card */}
                     <div className="flex items-center gap-4 rounded-2xl border px-5 py-4" style={{
                       background: isBatchClosed ? '#f9fafb' : isApproved ? 'linear-gradient(135deg,#f0fdf4,#f9fafb)' : 'linear-gradient(135deg,#fffbeb,#fefce8)',
@@ -2109,19 +2164,19 @@ export default function AdminPayrollPage() {
                       {/* Text */}
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-semibold ${isBatchClosed ? 'text-gray-500' : isApproved ? 'text-emerald-800' : 'text-amber-800'}`}>
-                          {isBatchClosed ? 'Period archived' : isApproved ? 'Transfer approved — send payments' : 'Awaiting owner approval'}
+                          {isBatchClosed ? 'Period archived' : isApproved ? (settled ? 'Transfer complete' : 'Transfer approved — send payments') : 'Awaiting owner approval'}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-xs text-gray-500">{batch.contractor_count} employee{batch.contractor_count !== 1 ? 's' : ''}</span>
+                          <span className="text-xs text-gray-500">{b.contractor_count} employee{b.contractor_count !== 1 ? 's' : ''}</span>
                           <span className="text-gray-300">·</span>
-                          <span className="text-xs font-semibold text-gray-700">{fmt(batch.total_amount, 'PHP')}</span>
-                          {batch.approved_at && <><span className="text-gray-300">·</span><span className="text-xs text-gray-400">Approved {new Date(batch.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></>}
-                          {isBatchClosed && batch.closed_at && <><span className="text-gray-300">·</span><span className="text-xs text-gray-400">Closed {new Date(batch.closed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
+                          <span className="text-xs font-semibold text-gray-700">{fmt(b.total_amount, 'PHP')}</span>
+                          {b.approved_at && <><span className="text-gray-300">·</span><span className="text-xs text-gray-400">Approved {new Date(b.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></>}
+                          {isBatchClosed && b.closed_at && <><span className="text-gray-300">·</span><span className="text-xs text-gray-400">Closed {new Date(b.closed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
                         </div>
                       </div>
                       {/* CTA */}
                       {isOwner && isPending && (
-                        <button onClick={approveBatch} disabled={workflowLoading}
+                        <button onClick={() => approveBatch(b)} disabled={workflowLoading}
                           className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-[#111827] hover:bg-gray-800 text-white text-xs font-semibold rounded-xl cursor-pointer disabled:opacity-40 transition-colors whitespace-nowrap">
                           <i className="ri-check-line text-sm"></i> Approve Transfer
                         </button>
@@ -2129,35 +2184,43 @@ export default function AdminPayrollPage() {
                     </div>
 
                     {/* Progress */}
-                    {isApproved && paidCount < batch.contractor_count && (
+                    {isApproved && !settled && b.contractor_count > 0 && (
                       <div className="flex items-center gap-3 px-1">
                         <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${(paidCount / batch.contractor_count) * 100}%` }} />
+                          <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${(counts.paid / b.contractor_count) * 100}%` }} />
                         </div>
-                        <span className="text-xs text-gray-500 flex-shrink-0">{paidCount} / {batch.contractor_count} paid</span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">{counts.paid} / {b.contractor_count} paid</span>
                       </div>
                     )}
 
-                    {/* All paid — close period */}
-                    {paidCount > 0 && paidCount === batch.contractor_count && !isBatchClosed && (
-                      <div className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <i className="ri-check-double-line text-emerald-500 text-sm"></i>
-                          <p className="text-xs font-medium text-emerald-700">All {paidCount} employees paid</p>
-                        </div>
-                        <button onClick={closePeriod} disabled={workflowLoading}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-40 transition-colors flex-shrink-0">
-                          <i className="ri-lock-line text-[11px]"></i> Close Period
-                        </button>
-                      </div>
+                    {/* Cancel a transfer that hasn't paid anyone yet */}
+                    {!isBatchClosed && counts.paid === 0 && (
+                      <button onClick={() => cancelBatch(b)} disabled={workflowLoading}
+                        className="text-[11px] text-gray-400 hover:text-rose-500 cursor-pointer disabled:opacity-40 px-1">
+                        Cancel this transfer
+                      </button>
                     )}
                   </div>
                 );
-              })()}
+              })}
+
+              {/* Everything settled — close the whole period */}
+              {canCloseSelectedPeriod && (
+                <div className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <i className="ri-check-double-line text-emerald-500 text-sm"></i>
+                    <p className="text-xs font-medium text-emerald-700">
+                      {batches.length > 1 ? `All ${batches.length} transfers settled` : 'All employees paid'}
+                    </p>
+                  </div>
+                  <button onClick={closePeriod} disabled={workflowLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg cursor-pointer disabled:opacity-40 transition-colors flex-shrink-0">
+                    <i className="ri-lock-line text-[11px]"></i> Close Period
+                  </button>
+                </div>
+              )}
             </div>
-            </>
-          );
-        })()}
+        )}
       </div>
       {/* Edit Row Modal — hours, pay override + additions/deductions */}
       {editRowId && (() => {
