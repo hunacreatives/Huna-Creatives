@@ -1738,8 +1738,8 @@ export default function ContractorProjectsPage() {
 
       {/* Questionnaire answers modal */}
       {wsQModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4 pb-16 sm:pb-0" onClick={() => setWsQModal(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[80vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0" onClick={() => setWsQModal(null)}>
+          <div className="bg-white rounded-2xl w-full sm:max-w-lg max-h-[80vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 flex-shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-[#111827]">{wsQModal.service_type}</h3>

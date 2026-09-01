@@ -302,8 +302,8 @@ export default function AdminPerformancePage() {
 
       {/* New/Edit Review modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-2xl w-full sm:max-w-lg max-h-[82vh] lg:max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white">
               <h2 className="font-semibold text-[#111827]">{editingId ? 'Edit Review' : 'New Performance Review'}</h2>
               <button onClick={() => { setShowForm(false); setEditingId(null); }} className="text-gray-400 hover:text-gray-600 cursor-pointer">
@@ -395,8 +395,8 @@ export default function AdminPerformancePage() {
 
       {/* View Review modal */}
       {selectedReview && !showForm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-2xl w-full sm:max-w-md max-h-[82vh] lg:max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
                 <h2 className="font-semibold text-[#111827]">{(selectedReview.hub_users as any)?.full_name}</h2>

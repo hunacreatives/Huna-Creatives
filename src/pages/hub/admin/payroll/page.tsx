@@ -864,6 +864,49 @@ export default function AdminPayrollPage() {
 
   const isPdfSavedToDrive = savedPdfPeriods.has(selectedPeriod.start);
 
+  const resolveDispute = async (dispute: any, payout: any) => {
+    const note = disputeNotesMap[dispute.id]?.trim() || null;
+    await supabase.from('hub_payslip_disputes').update({ status: 'resolved', admin_notes: note }).eq('id', dispute.id);
+    if (payout?.id) {
+      supabase.functions.invoke('notify-contractor', { body: { payout_id: payout.id, type: 'dispute_resolved' } }).catch(console.error);
+    }
+    setDisputeNotesMap(prev => { const n = { ...prev }; delete n[dispute.id]; return n; });
+    await fetchWorkflow();
+  };
+
+  // Shown inline on any flagged row (expanded panel) and inside the Edit modal,
+  // so the flag and its resolution are visible without opening the modal.
+  const renderDisputeBanner = (dispute: any, payout: any) => (
+    <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl space-y-2.5">
+      <div className="flex items-start gap-2.5">
+        <i className="ri-flag-fill text-rose-500 text-sm mt-0.5 flex-shrink-0"></i>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-rose-700">Flagged by employee</p>
+          <p className="text-xs text-rose-600 mt-0.5 whitespace-pre-wrap">{dispute.reason}</p>
+          {dispute.admin_notes && (
+            <p className="text-xs text-gray-500 mt-1 italic">Note: {dispute.admin_notes}</p>
+          )}
+        </div>
+      </div>
+      <textarea
+        rows={3}
+        placeholder="Resolution note (optional) — the employee sees this"
+        value={disputeNotesMap[dispute.id] ?? ''}
+        onChange={e => setDisputeNotesMap(prev => ({ ...prev, [dispute.id]: e.target.value }))}
+        onClick={e => e.stopPropagation()}
+        className="w-full text-xs border border-rose-200 rounded-lg px-2.5 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-rose-300 placeholder-gray-300 resize-y min-h-[64px]"
+      />
+      <div className="flex justify-end">
+        <button
+          onClick={(e) => { e.stopPropagation(); resolveDispute(dispute, payout); }}
+          className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer whitespace-nowrap"
+        >
+          Mark resolved
+        </button>
+      </div>
+    </div>
+  );
+
   useEffect(() => {
     if (isDemo) {
       // Build PayRow[] from DEMO_PAYOUTS
@@ -1787,6 +1830,10 @@ export default function AdminPayrollPage() {
                     </div>
                   )}
 
+                  {dispute && (
+                    <div className="mb-3">{renderDisputeBanner(dispute, p)}</div>
+                  )}
+
                   {/* Action row */}
                   <div className="flex items-center justify-between pt-3 border-t border-gray-50">
                     {(() => {
@@ -2081,6 +2128,13 @@ export default function AdminPayrollPage() {
                           </div>
                         </td>
                       </tr>
+                      {dispute && (
+                        <tr className="bg-rose-50/30">
+                          <td colSpan={5} className="px-5 pb-3 pt-1">
+                            <div className="pl-11 pr-2 max-w-2xl">{renderDisputeBanner(dispute, p)}</div>
+                          </td>
+                        </tr>
+                      )}
                       {expandedRows.has(c.id) && (
                         <tr className="bg-gray-50/40">
                           <td colSpan={5} className="px-5 pb-4 pt-1">
@@ -2234,8 +2288,8 @@ export default function AdminPayrollPage() {
         const otPay = otHoursVal * otRateVal;
         const grandTotal = basePay + otPay + adjTotal;
         return (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setEditRowId(null)}>
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4" onClick={() => setEditRowId(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[82vh] lg:max-h-[82vh] lg:max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div>
                   <h3 className="text-sm font-semibold text-[#111827]">Edit Payroll</h3>
@@ -2250,43 +2304,7 @@ export default function AdminPayrollPage() {
                   const payout = payoutsMap[editRowId!];
                   const dispute = payout ? disputesMap[payout.id] : null;
                   if (!dispute) return null;
-                  return (
-                    <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl space-y-2">
-                      <div className="flex items-start gap-3">
-                        <i className="ri-flag-fill text-rose-500 text-sm mt-0.5 flex-shrink-0"></i>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-rose-700">Flagged by employee</p>
-                          <p className="text-xs text-rose-600 mt-0.5">{dispute.reason}</p>
-                          {dispute.admin_notes && (
-                            <p className="text-xs text-gray-500 mt-1 italic">Note: {dispute.admin_notes}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 items-center">
-                        <input
-                          type="text"
-                          placeholder="Resolution note (optional)"
-                          value={disputeNotesMap[dispute.id] ?? ''}
-                          onChange={e => setDisputeNotesMap(prev => ({ ...prev, [dispute.id]: e.target.value }))}
-                          className="flex-1 text-xs border border-rose-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-rose-300 placeholder-gray-300"
-                        />
-                        <button
-                          onClick={async () => {
-                            const note = disputeNotesMap[dispute.id]?.trim() || null;
-                            await supabase.from('hub_payslip_disputes').update({ status: 'resolved', admin_notes: note }).eq('id', dispute.id);
-                            if (payout?.id) {
-                              supabase.functions.invoke('notify-contractor', { body: { payout_id: payout.id, type: 'dispute_resolved' } }).catch(console.error);
-                            }
-                            setDisputeNotesMap(prev => { const n = { ...prev }; delete n[dispute.id]; return n; });
-                            await fetchWorkflow();
-                          }}
-                          className="text-xs px-2 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 cursor-pointer flex-shrink-0 whitespace-nowrap"
-                        >
-                          Resolve
-                        </button>
-                      </div>
-                    </div>
-                  );
+                  return renderDisputeBanner(dispute, payout);
                 })()}
                 {/* Hours + Base pay */}
                 <div>
@@ -2466,8 +2484,8 @@ export default function AdminPayrollPage() {
         ].filter(r => r.value);
         const hasBankDetails = !!(c.bank_name || c.bank_account_number);
         return (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setBankInfoContractor(null)}>
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4" onClick={() => setBankInfoContractor(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full sm:max-w-sm max-h-[82vh] lg:max-h-[82vh] lg:max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <Avatar name={c.full_name} url={c.avatar_url} size={8} />

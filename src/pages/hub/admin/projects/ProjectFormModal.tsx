@@ -43,8 +43,8 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
   const [importing, setImporting] = useState(false);
 
   return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-2xl w-full sm:max-w-md max-h-[82vh] lg:max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-[#111827]">{isEditing ? 'Edit Project' : 'New Project'}</h2>
               <div className="flex items-center gap-2">

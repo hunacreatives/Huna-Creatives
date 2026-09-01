@@ -957,8 +957,8 @@ export default function InvoiceLogPage() {
       </div>
 
       {editingInvoice && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-3xl max-h-[92vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-2xl w-full sm:max-w-3xl max-h-[82vh] lg:max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="font-semibold text-[#111827]">Re-edit Invoice #{editingInvoice.invoice_number.padStart(4, '0')}</h2>

@@ -586,8 +586,8 @@ export default function QuestionnairesPage() {
 
       {/* Create modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4" onClick={() => setShowCreate(false)}>
+          <div className="bg-white rounded-2xl w-full sm:max-w-lg max-h-[82vh] lg:max-h-[90vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <h3 className="text-sm font-semibold text-[#111827]">New Questionnaire</h3>
               <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>

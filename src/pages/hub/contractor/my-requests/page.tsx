@@ -515,8 +515,8 @@ export default function ContractorMyRequestsPage() {
 
       {/* New General Request modal */}
       {showReqModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-[#111827]">New Request</h2>
               <button onClick={() => setShowReqModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>
@@ -555,8 +555,8 @@ export default function ContractorMyRequestsPage() {
 
       {/* Request detail modal */}
       {selectedReq && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-[#111827] truncate pr-4">{selectedReq.title}</h2>
               <button onClick={() => setSelectedReq(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center flex-shrink-0"><i className="ri-close-line text-lg"></i></button>
@@ -584,9 +584,9 @@ export default function ContractorMyRequestsPage() {
           otherwise caps its effective stacking order below the fixed bottom
           nav on mobile. */}
       {showLeaveModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
           <div
-            className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl w-full sm:max-w-md max-h-[82vh] lg:max-h-[90vh] overflow-y-auto"
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
           >
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
@@ -705,8 +705,8 @@ export default function ContractorMyRequestsPage() {
 
       {/* Request Overtime modal */}
       {showOtModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="font-semibold text-[#111827]">Request Overtime</h2>
               <button onClick={() => setShowOtModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer w-7 h-7 flex items-center justify-center"><i className="ri-close-line text-lg"></i></button>

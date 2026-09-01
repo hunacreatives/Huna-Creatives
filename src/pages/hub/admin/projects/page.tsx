@@ -4464,8 +4464,8 @@ export default function AdminProjectsPage() {
 
       {/* Unarchive: reopen or just restore visibility */}
       {unarchiveChoice && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setUnarchiveChoice(null)}>
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm shadow-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4" onClick={() => setUnarchiveChoice(null)}>
+          <div className="bg-white rounded-2xl w-full sm:max-w-sm shadow-2xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div>
               <h3 className="text-sm font-bold text-[#111827]">Bring back “{unarchiveChoice.project_name}”?</h3>
               <p className="text-xs text-gray-400 mt-1">Tell the hub what this means for the project.</p>

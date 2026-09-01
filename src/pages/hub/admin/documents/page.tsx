@@ -74,7 +74,7 @@ function ReviewModal({ req, onClose, onSaved }: { req: HubDocRequest; onClose: (
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
       <div className="bg-white rounded-xl w-full max-w-lg">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-base font-semibold text-gray-900">Review Document Request</h2>
@@ -711,8 +711,8 @@ export default function AdminDocumentsPage() {
 
       {/* Upload Modal */}
       {showUpload && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-xl w-full max-w-lg max-h-[82vh] lg:max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
               <h2 className="text-base font-semibold text-gray-900">Upload Document</h2>
               <button onClick={() => { setShowUpload(false); resetForm(); }} className="text-gray-400 hover:text-gray-600 cursor-pointer">
@@ -789,8 +789,8 @@ export default function AdminDocumentsPage() {
 
       {/* Detail Modal */}
       {selectedDoc && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
+          <div className="bg-white rounded-xl w-full max-w-lg max-h-[82vh] lg:max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
               <div className="min-w-0">
                 <h2 className="text-base font-semibold text-gray-900 truncate">{selectedDoc.title}</h2>
@@ -885,7 +885,7 @@ export default function AdminDocumentsPage() {
 
       {/* Sign modal for admins with pending assignments */}
       {signModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center sm:p-4">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4">
           <div className="bg-white rounded-xl w-full max-w-md p-6 space-y-4">
             <div>
               <h2 className="text-base font-semibold text-gray-900">Sign Document</h2>

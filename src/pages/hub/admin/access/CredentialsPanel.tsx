@@ -684,8 +684,8 @@ export default function CredentialsPanel() {
 
       {/* Manage Access Modal */}
       {manageCred && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md my-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full sm:max-w-md my-4">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <div className="flex items-center gap-2">
@@ -794,8 +794,8 @@ export default function CredentialsPanel() {
 
       {/* Add / Edit Modal */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg my-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full sm:max-w-lg my-4">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <i className="ri-lock-2-line text-[#FF6B35]"></i>
