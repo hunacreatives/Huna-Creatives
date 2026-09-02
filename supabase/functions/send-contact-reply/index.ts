@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     const paragraphs = renderRichBody(cleanBody);
 
     const btn = (href: string, label: string, dark: boolean) =>
-      `<a href="${href}" style="display:inline-block;background:${dark ? '#111111' : '#FF6B35'};color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:14px 28px;border-radius:3px;text-decoration:none;margin:0 10px 10px 0">${label}</a>`;
+      `<a href="${href}" style="display:block;width:300px;box-sizing:border-box;text-align:center;background:${dark ? '#111111' : '#FF6B35'};color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:14px 24px;border-radius:3px;text-decoration:none;margin:0 0 10px">${label}</a>`;
 
     const buttonsRow = `
       <tr><td height="16"></td></tr>

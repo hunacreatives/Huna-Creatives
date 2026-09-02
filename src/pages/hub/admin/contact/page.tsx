@@ -140,12 +140,12 @@ function ReplyPreview({ body, withQuote }: { body: string; withQuote: boolean })
       <div className="border border-gray-100 rounded-lg px-3 py-3 bg-gray-50 text-sm text-gray-700 leading-relaxed max-h-72 overflow-y-auto"
         style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
         {body.trim() ? renderRichText(body) : <span className="text-gray-400 italic">Nothing to preview yet</span>}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <span className="inline-block bg-gray-900 text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded">
+        <div className="mt-3 flex flex-col items-start gap-2">
+          <span className="w-64 text-center bg-gray-900 text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-2 rounded">
             Schedule a Meeting →
           </span>
           {withQuote && (
-            <span className="inline-block bg-[#FF6B35] text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded">
+            <span className="w-64 text-center bg-[#FF6B35] text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-2 rounded">
               Request a Formal Quotation →
             </span>
           )}
