@@ -135,12 +135,12 @@ function renderRichText(text: string): React.ReactNode[] {
 
 function ReplyPreview({ body, withQuote }: { body: string; withQuote: boolean }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Preview</label>
-      <div className="border border-gray-100 rounded-lg px-3 py-3 bg-gray-50 text-sm text-gray-700 leading-relaxed max-h-72 overflow-y-auto"
+    <div className="flex flex-col gap-1 min-h-0">
+      <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Email preview</label>
+      <div className="border border-gray-200 rounded-lg px-4 py-4 bg-white text-sm text-gray-700 leading-relaxed overflow-y-auto flex-1 min-h-[200px]"
         style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
         {body.trim() ? renderRichText(body) : <span className="text-gray-400 italic">Nothing to preview yet</span>}
-        <div className="mt-3 flex flex-col items-start gap-2">
+        <div className="mt-4 flex flex-col items-start gap-2">
           <span className="w-64 text-center bg-gray-900 text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-2 rounded">
             Schedule a Meeting →
           </span>
@@ -151,10 +151,136 @@ function ReplyPreview({ body, withQuote }: { body: string; withQuote: boolean })
           )}
         </div>
       </div>
-      <p className="text-[11px] text-gray-400">
-        <code className="bg-gray-100 px-1 rounded">- </code> for bullets, <code className="bg-gray-100 px-1 rounded">**text**</code> for bold.
-        {withQuote ? ' Both buttons are added automatically.' : ' The Schedule a Meeting button is added automatically.'}
-      </p>
+    </div>
+  );
+}
+
+interface ComposeModalProps {
+  submission: ContactSubmission | null;
+  to: string; name: string; subject: string; body: string;
+  setTo: (v: string) => void; setName: (v: string) => void;
+  setSubject: (v: string) => void; setBody: (v: string) => void;
+  sending: boolean; sendResult: 'success' | 'error' | null;
+  onSend: () => void; onClose: () => void;
+}
+
+function ComposeModal(p: ComposeModalProps) {
+  const { submission } = p;
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const canSend = !!p.subject.trim() && !!p.body.trim() && (submission ? true : !!p.to.trim());
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:p-6" onClick={p.onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="relative bg-white sm:rounded-2xl shadow-2xl w-full sm:max-w-5xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-8 w-8 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
+              <i className="ri-mail-send-line text-white text-sm" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">
+                {submission ? `Reply to ${submission.name}` : 'New message'}
+              </p>
+              <p className="text-[11px] text-gray-400 truncate">{submission ? submission.email : p.to || 'No recipient yet'}</p>
+            </div>
+          </div>
+          <button onClick={p.onClose} className="text-gray-300 hover:text-gray-500 cursor-pointer flex-shrink-0">
+            <i className="ri-close-line text-xl" />
+          </button>
+        </div>
+
+        {/* Two panes */}
+        <div className="flex-1 min-h-0 grid lg:grid-cols-2 overflow-hidden">
+
+          {/* Left — context + live preview */}
+          <div className="border-b lg:border-b-0 lg:border-r border-gray-100 p-6 overflow-y-auto bg-gray-50/60 flex flex-col gap-5">
+            {submission ? (
+              <div>
+                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide mb-2">Their message</p>
+                {submission.service && (
+                  <span className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full bg-orange-50 text-[#FF6B35] mb-3">{submission.service}</span>
+                )}
+                {!submission.service && submission.subject && (
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{submission.subject}</p>
+                )}
+                <div className="bg-white rounded-xl border border-gray-100 p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {submission.message}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-3">{fmt(submission.created_at)}</p>
+                {submission.quote_requested_at && (
+                  <div className="flex items-start gap-2 bg-orange-50 border border-orange-100 rounded-xl p-3 mt-4">
+                    <i className="ri-price-tag-3-line text-[#FF6B35] mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-[#FF6B35]">Formal quotation requested</p>
+                      <p className="text-[11px] text-gray-500">{fmt(submission.quote_requested_at)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">To (email)</label>
+                  <input type="email" value={p.to} onChange={e => p.setTo(e.target.value)} placeholder="client@email.com"
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 bg-white" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Name</label>
+                  <input type="text" value={p.name} onChange={e => p.setName(e.target.value)} placeholder="Client name"
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 bg-white" />
+                </div>
+              </>
+            )}
+            <ReplyPreview body={p.body} withQuote={!!submission} />
+          </div>
+
+          {/* Right — editor */}
+          <div className="p-6 overflow-y-auto flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Subject</label>
+              <input type="text" value={p.subject} onChange={e => p.setSubject(e.target.value)} placeholder="Subject line"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300" />
+            </div>
+            <div className="flex flex-col gap-1 flex-1 min-h-0">
+              <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Message</label>
+              <textarea value={p.body} onChange={e => p.setBody(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 leading-relaxed resize-none flex-1 min-h-[300px]" />
+              <p className="text-[11px] text-gray-400 mt-1">
+                <code className="bg-gray-100 px-1 rounded">- </code> for bullets, <code className="bg-gray-100 px-1 rounded">**text**</code> for bold.
+                {submission
+                  ? ' Schedule a Meeting and Request a Quotation buttons are added automatically.'
+                  : ' The Schedule a Meeting button is added automatically.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+          {p.sendResult === 'error'
+            ? <p className="text-xs text-red-500">Failed to send. Please try again.</p>
+            : p.sendResult === 'success'
+              ? <p className="text-xs text-emerald-600">Sent!</p>
+              : <span />}
+          <div className="flex gap-2">
+            <button onClick={p.onClose}
+              className="px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
+              Cancel
+            </button>
+            <button onClick={p.onSend} disabled={p.sending || !canSend}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF6B35] hover:bg-[#e55a27] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+              {p.sending ? <><i className="ri-loader-4-line animate-spin" /> Sending…</>
+                : p.sendResult === 'success' ? <><i className="ri-check-line" /> Sent!</>
+                : <><i className="ri-send-plane-line" /> Send Email</>}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -599,101 +725,10 @@ export default function ContactSubmissionsPage() {
                 ))}
               </div>
 
-              {/* Standalone compose panel */}
-              {composing && !selected && (
-                <div className="w-[380px] flex-shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm sticky top-0 overflow-hidden">
-                  <div className="p-5 flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">New Message</p>
-                      <button onClick={() => setComposing(false)} className="text-gray-300 hover:text-gray-500 cursor-pointer">
-                        <i className="ri-close-line text-lg" />
-                      </button>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">To (email)</label>
-                      <input type="email" value={composeTo} onChange={e => setComposeTo(e.target.value)}
-                        placeholder="client@email.com"
-                        className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Name</label>
-                      <input type="text" value={composeName} onChange={e => setComposeName(e.target.value)}
-                        placeholder="Client name"
-                        className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Subject</label>
-                      <input type="text" value={composeSubject} onChange={e => setComposeSubject(e.target.value)}
-                        placeholder="Subject line"
-                        className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Message</label>
-                      <textarea value={composeBody} onChange={e => setComposeBody(e.target.value)}
-                        rows={12}
-                        className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 resize-none leading-relaxed" />
-                    </div>
-                    <ReplyPreview body={composeBody} withQuote={false} />
-                    {sendResult === 'error' && <p className="text-xs text-red-500">Failed to send. Please try again.</p>}
-                    <div className="flex gap-2">
-                      <button onClick={sendReply}
-                        disabled={sending || !composeTo.trim() || !composeSubject.trim() || !composeBody.trim()}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#e55a27] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                        {sending ? <><i className="ri-loader-4-line animate-spin" /> Sending…</>
-                          : sendResult === 'success' ? <><i className="ri-check-line" /> Sent!</>
-                          : <><i className="ri-send-plane-line" /> Send Email</>}
-                      </button>
-                      <button onClick={() => setComposing(false)}
-                        className="px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Submission detail panel */}
               {selected && (
                 <div className="w-[380px] flex-shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm sticky top-0 overflow-hidden">
-                  {composing ? (
-                    <div className="p-5 flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">Reply to {selected.name}</p>
-                        <button onClick={() => setComposing(false)} className="text-gray-300 hover:text-gray-500 cursor-pointer">
-                          <i className="ri-close-line text-lg" />
-                        </button>
-                      </div>
-                      <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
-                        To: <span className="text-gray-700 font-medium">{selected.email}</span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Subject</label>
-                        <input type="text" value={composeSubject} onChange={e => setComposeSubject(e.target.value)}
-                          className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300" />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Message</label>
-                        <textarea value={composeBody} onChange={e => setComposeBody(e.target.value)}
-                          rows={14}
-                          className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 resize-none leading-relaxed" />
-                      </div>
-                      <ReplyPreview body={composeBody} withQuote={!!selected} />
-                      {sendResult === 'error' && <p className="text-xs text-red-500">Failed to send. Please try again.</p>}
-                      <div className="flex gap-2">
-                        <button onClick={sendReply}
-                          disabled={sending || !composeSubject.trim() || !composeBody.trim()}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#e55a27] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                          {sending ? <><i className="ri-loader-4-line animate-spin" /> Sending…</>
-                            : sendResult === 'success' ? <><i className="ri-check-line" /> Sent!</>
-                            : <><i className="ri-send-plane-line" /> Send Email</>}
-                        </button>
-                        <button onClick={() => setComposing(false)}
-                          className="px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
+                  {(
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-2 mb-4">
                         <div>
@@ -785,6 +820,17 @@ export default function ContactSubmissionsPage() {
           </>
         )}
       </div>
+
+      {/* ── Compose / Reply Modal ── */}
+      {composing && (
+        <ComposeModal
+          submission={selected}
+          to={composeTo} name={composeName} subject={composeSubject} body={composeBody}
+          setTo={setComposeTo} setName={setComposeName} setSubject={setComposeSubject} setBody={setComposeBody}
+          sending={sending} sendResult={sendResult}
+          onSend={sendReply} onClose={() => { setComposing(false); setSendResult(null); }}
+        />
+      )}
 
       {/* ── Send Quotation Modal ── */}
       {sendModal && (
