@@ -7,8 +7,6 @@ import {
   type QuoteCurrency, type QuoteLineItem, type ProposalStatus,
 } from '@/lib/quotation';
 
-const CALENDLY = 'https://calendly.com/hunacreatives/30min';
-
 type SubmissionStatus = 'new' | 'read' | 'replied' | 'archived';
 type ActiveTab = 'inbox' | 'sent' | 'quotations';
 
@@ -20,6 +18,7 @@ interface ContactSubmission {
   service: string | null;
   message: string;
   status: SubmissionStatus;
+  quote_requested_at: string | null;
   created_at: string;
 }
 
@@ -73,19 +72,91 @@ const proposalStatusColors: Record<ProposalStatus, string> = {
 const statusOptions: SubmissionStatus[] = ['new', 'read', 'replied', 'archived'];
 
 function buildReplyTemplate(name: string, service: string | null) {
-  const serviceRef = service ? ` regarding ${service}` : '';
+  const serviceRef = service ? ` about ${service}` : '';
   return `Hi ${name},
 
-Thank you for reaching out${serviceRef} — we're excited to learn more about what you have in mind.
+Thank you for reaching out${serviceRef} — we'd love to help.
 
-We'd love to set up a quick call to discuss your goals and see how Huna Creatives can help.
+Here's a quick overview of how we work:
 
-${CALENDLY}
+**Social Media Design — from ₱10,000 / month**
+- 8 deliverables per month (feed posts, carousels, or Stories sets)
+- On-brand templates so your feed stays consistent
+- Caption writing and hashtag research
+- Scheduling, publishing, and a monthly performance snapshot
+- 2 revision rounds per deliverable
+
+The best next step is a short call so we can tailor a package to your goals. You can also request a formal quotation using the button below.
 
 Looking forward to connecting!
 
 Warm regards,
 The Huna Creatives Team`;
+}
+
+// Inline **bold** for the reply preview.
+function renderInline(s: string): React.ReactNode {
+  return s.split(/(\*\*[^*]+\*\*)/g).map((p, i) => {
+    const m = p.match(/^\*\*([^*]+)\*\*$/);
+    return m ? <strong key={i}>{m[1]}</strong> : <span key={i}>{p}</span>;
+  });
+}
+
+// Mirrors renderRichBody() in the send-contact-reply edge function so the
+// preview matches the email the client receives.
+function renderRichText(text: string): React.ReactNode[] {
+  const lines = text.split('\n').map((l) => l.trim());
+  const blocks: React.ReactNode[] = [];
+  let bullets: string[] = [];
+  const flush = (key: string) => {
+    if (!bullets.length) return;
+    blocks.push(
+      <ul key={key} className="list-disc pl-5 my-2 space-y-1">
+        {bullets.map((b, i) => <li key={i}>{renderInline(b)}</li>)}
+      </ul>,
+    );
+    bullets = [];
+  };
+  lines.forEach((line, idx) => {
+    const bullet = line.match(/^[-*•]\s+(.*)$/);
+    if (bullet) { bullets.push(bullet[1]); return; }
+    flush(`ul-${idx}`);
+    if (line === '') { blocks.push(<div key={idx} className="h-2" />); return; }
+    const heading = line.match(/^\*\*(.+)\*\*$/);
+    if (heading) {
+      blocks.push(<p key={idx} className="font-bold text-gray-900 mt-2 mb-1">{heading[1]}</p>);
+      return;
+    }
+    blocks.push(<p key={idx} className="mb-2">{renderInline(line)}</p>);
+  });
+  flush('ul-end');
+  return blocks;
+}
+
+function ReplyPreview({ body, withQuote }: { body: string; withQuote: boolean }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Preview</label>
+      <div className="border border-gray-100 rounded-lg px-3 py-3 bg-gray-50 text-sm text-gray-700 leading-relaxed max-h-72 overflow-y-auto"
+        style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+        {body.trim() ? renderRichText(body) : <span className="text-gray-400 italic">Nothing to preview yet</span>}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="inline-block bg-gray-900 text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded">
+            Schedule a Meeting →
+          </span>
+          {withQuote && (
+            <span className="inline-block bg-[#FF6B35] text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-1.5 rounded">
+              Request a Formal Quotation →
+            </span>
+          )}
+        </div>
+      </div>
+      <p className="text-[11px] text-gray-400">
+        <code className="bg-gray-100 px-1 rounded">- </code> for bullets, <code className="bg-gray-100 px-1 rounded">**text**</code> for bold.
+        {withQuote ? ' Both buttons are added automatically.' : ' The Schedule a Meeting button is added automatically.'}
+      </p>
+    </div>
+  );
 }
 
 export default function ContactSubmissionsPage() {
@@ -519,6 +590,11 @@ export default function ContactSubmissionsPage() {
                     {s.service && <p className="text-xs font-medium text-[#FF6B35] truncate">{s.service}</p>}
                     {!s.service && s.subject && <p className="text-xs font-medium text-gray-600 truncate">{s.subject}</p>}
                     <p className="text-xs text-gray-400 truncate mt-1">{s.message}</p>
+                    {s.quote_requested_at && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-[#FF6B35] mt-1.5">
+                        <i className="ri-price-tag-3-line" /> Quotation requested
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -557,6 +633,7 @@ export default function ContactSubmissionsPage() {
                         rows={12}
                         className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 resize-none leading-relaxed" />
                     </div>
+                    <ReplyPreview body={composeBody} withQuote={false} />
                     {sendResult === 'error' && <p className="text-xs text-red-500">Failed to send. Please try again.</p>}
                     <div className="flex gap-2">
                       <button onClick={sendReply}
@@ -600,6 +677,7 @@ export default function ContactSubmissionsPage() {
                           rows={14}
                           className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 resize-none leading-relaxed" />
                       </div>
+                      <ReplyPreview body={composeBody} withQuote={!!selected} />
                       {sendResult === 'error' && <p className="text-xs text-red-500">Failed to send. Please try again.</p>}
                       <div className="flex gap-2">
                         <button onClick={sendReply}
@@ -639,6 +717,16 @@ export default function ContactSubmissionsPage() {
                       </div>
 
                       <p className="text-[11px] text-gray-400 mb-4">{fmt(selected.created_at)}</p>
+
+                      {selected.quote_requested_at && (
+                        <div className="flex items-start gap-2 bg-orange-50 border border-orange-100 rounded-xl p-3 mb-4">
+                          <i className="ri-price-tag-3-line text-[#FF6B35] mt-0.5" />
+                          <div>
+                            <p className="text-xs font-semibold text-[#FF6B35]">Formal quotation requested</p>
+                            <p className="text-[11px] text-gray-500">{fmt(selected.quote_requested_at)} — use the Quotation button below to draft one.</p>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Action buttons */}
                       <div className="flex gap-2 mb-4">

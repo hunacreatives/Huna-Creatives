@@ -15,6 +15,52 @@ const cors = {
   'Content-Type': 'application/json',
 };
 
+const SERIF = "Georgia,'Times New Roman',serif";
+
+function esc(s: string): string {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!
+  ));
+}
+
+// Inline **bold** → <strong>, after escaping.
+function inline(s: string): string {
+  return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+// Turns the admin's lightly-marked-up plain text into email-safe table rows.
+// Supported: blank line = spacing, "- " / "* " / "• " = bullet list,
+// a line that is entirely **wrapped** = a bold subheading, everything else
+// = a paragraph. Mirrors renderRichText() in the contact inbox preview.
+function renderRichBody(text: string): string {
+  const lines = text.split('\n').map((l) => l.trim());
+  const out: string[] = [];
+  let bullets: string[] = [];
+
+  const flush = () => {
+    if (!bullets.length) return;
+    const items = bullets.map((b) =>
+      `<li style="margin:0 0 6px;padding-left:4px">${inline(b)}</li>`).join('');
+    out.push(`<tr><td style="padding:0 0 16px"><ul style="margin:0;padding:0 0 0 22px;font-size:15px;line-height:1.75;color:#2a2a2a;font-family:${SERIF}">${items}</ul></td></tr>`);
+    bullets = [];
+  };
+
+  for (const line of lines) {
+    const bullet = line.match(/^[-*•]\s+(.*)$/);
+    if (bullet) { bullets.push(bullet[1]); continue; }
+    flush();
+    if (line === '') { out.push('<tr><td height="12"></td></tr>'); continue; }
+    const heading = line.match(/^\*\*(.+)\*\*$/);
+    if (heading) {
+      out.push(`<tr><td style="padding:6px 0 10px;font-size:16px;line-height:1.5;font-weight:700;color:#1a1a1a;font-family:${SERIF}">${esc(heading[1])}</td></tr>`);
+      continue;
+    }
+    out.push(`<tr><td style="padding:0 0 16px;font-size:15px;line-height:1.75;color:#2a2a2a;font-family:${SERIF}">${inline(line)}</td></tr>`);
+  }
+  flush();
+  return out.join('');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
@@ -25,15 +71,32 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: cors });
     }
 
-    const hasCalendly = body.includes('calendly.com');
-    const cleanBody = body.replace(/https:\/\/calendly\.com\/[^\s<"']*/g, '').trim();
+    // A reply tied to a submission can carry the "Request a formal quotation"
+    // button — the client's click is authorised by this unguessable token.
+    let quoteUrl: string | null = null;
+    if (submission_id) {
+      const { data: sub } = await supabase
+        .from('contact_submissions')
+        .select('public_token')
+        .eq('id', submission_id)
+        .single();
+      if (sub?.public_token) {
+        quoteUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/request-quotation?token=${sub.public_token}`;
+      }
+    }
 
-    const paragraphs = cleanBody
-      .split('\n')
-      .map(line => line.trim() === ''
-        ? '<tr><td height="12"></td></tr>'
-        : `<tr><td style="padding:0 0 16px;font-size:15px;line-height:1.75;color:#2a2a2a;font-family:Georgia,'Times New Roman',serif">${line}</td></tr>`)
-      .join('');
+    const cleanBody = body.replace(/https:\/\/calendly\.com\/[^\s<"']*/g, '').trim();
+    const paragraphs = renderRichBody(cleanBody);
+
+    const btn = (href: string, label: string, dark: boolean) =>
+      `<a href="${href}" style="display:inline-block;background:${dark ? '#111111' : '#FF6B35'};color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:14px 28px;border-radius:3px;text-decoration:none;margin:0 10px 10px 0">${label}</a>`;
+
+    const buttonsRow = `
+      <tr><td height="16"></td></tr>
+      <tr><td style="padding:8px 0 4px">
+        ${btn('https://calendly.com/hunacreatives/30min', 'Schedule a Meeting &rarr;', true)}
+        ${quoteUrl ? btn(quoteUrl, 'Request a Formal Quotation &rarr;', false) : ''}
+      </td></tr>`;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -89,16 +152,7 @@ Deno.serve(async (req) => {
             <td class="email-body" style="padding:44px 40px 36px;background:#ffffff">
               <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
                 ${paragraphs}
-                ${hasCalendly ? `
-                <tr><td height="12"></td></tr>
-                <tr>
-                  <td style="padding:8px 0 4px">
-                    <a href="https://calendly.com/hunacreatives/30min"
-                       style="display:inline-block;background:#111111;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:14px 32px;border-radius:3px;text-decoration:none">
-                      Book a Call &rarr;
-                    </a>
-                  </td>
-                </tr>` : ''}
+                ${buttonsRow}
               </table>
             </td>
           </tr>
