@@ -37,6 +37,89 @@ interface Proposal {
 
 const CALENDLY = 'https://calendly.com/hunacreatives/30min';
 
+const OL_RE = /^\s*\d+[.)]\s+(.*)$/;
+const UL_RE = /^\s*[-•]\s+(.*)$/;
+
+// "Discovery — we dig into the brand" → bolds the short label before the dash.
+function renderItemText(s: string) {
+  const dash = s.match(/^([^—–]{2,44})\s+[—–]\s+(.+)$/);
+  if (dash && dash[1].trim().split(/\s+/).length <= 5) {
+    return <><span className="font-semibold text-gray-900">{dash[1].trim()}</span> — {renderBold(dash[2])}</>;
+  }
+  return renderBold(s);
+}
+
+function renderBold(s: string) {
+  return s.split(/(\*\*[^*]+\*\*)/g).map((p, i) => {
+    const m = p.match(/^\*\*([^*]+)\*\*$/);
+    return m ? <strong key={i} className="text-gray-900">{m[1]}</strong> : <span key={i}>{p}</span>;
+  });
+}
+
+// One block from a section body: a paragraph, or a bullet/numbered list with an
+// optional lead-in line and one level of indented sub-bullets.
+function ProposalBlock({ raw }: { raw: string }) {
+  const lines = raw.split('\n').filter(l => l.trim());
+  const firstListIdx = lines.findIndex(l => OL_RE.test(l) || UL_RE.test(l));
+
+  if (firstListIdx === -1) {
+    return <p className="text-gray-600 text-[15px] leading-[1.85]">{renderBold(raw.replace(/\n/g, ' '))}</p>;
+  }
+
+  const lead = firstListIdx > 0 ? lines.slice(0, firstListIdx).join(' ') : null;
+  const listLines = lines.slice(firstListIdx);
+  const ordered = OL_RE.test(listLines[0]);
+
+  type Item = { text: string; children: string[] };
+  const items: Item[] = [];
+  for (const line of listLines) {
+    const indented = /^(\s{2,}|\t)/.test(line);
+    const mO = line.match(OL_RE);
+    const mU = line.match(UL_RE);
+    if (indented && items.length) {
+      items[items.length - 1].children.push(line.replace(/^\s+/, '').replace(/^([-•]|\d+[.)])\s+/, ''));
+    } else if (mO) {
+      items.push({ text: mO[1], children: [] });
+    } else if (mU) {
+      items.push({ text: mU[1], children: [] });
+    } else if (items.length) {
+      items[items.length - 1].text += ' ' + line.trim();
+    }
+  }
+
+  const listClass = `${ordered ? 'list-decimal' : 'list-disc'} pl-6 space-y-2 marker:text-gray-400`;
+  const inner = items.map((it, k) => (
+    <li key={k} className="text-gray-600 text-[15px] leading-[1.85] pl-1.5">
+      {renderItemText(it.text)}
+      {it.children.length > 0 && (
+        <ul className="list-disc pl-5 mt-2 space-y-1.5 marker:text-gray-300">
+          {it.children.map((c, m) => (
+            <li key={m} className="text-gray-500 text-[14px] leading-[1.7]">{renderBold(c)}</li>
+          ))}
+        </ul>
+      )}
+    </li>
+  ));
+
+  return (
+    <div className="space-y-3">
+      {lead && <p className="text-gray-600 text-[15px] leading-[1.85]">{renderBold(lead)}</p>}
+      {ordered
+        ? <ol className={listClass}>{inner}</ol>
+        : <ul className={listClass}>{inner}</ul>}
+    </div>
+  );
+}
+
+function ProposalBody({ body }: { body: string }) {
+  const blocks = body.split(/\n{2,}/).map(b => b.replace(/\s+$/, '')).filter(b => b.trim());
+  return (
+    <div className="space-y-5">
+      {blocks.map((block, i) => <ProposalBlock key={i} raw={block} />)}
+    </div>
+  );
+}
+
 export default function ProposalPage() {
   const { slug } = useParams<{ slug: string }>();
   const [proposal, setProposal] = useState<Proposal | null>(null);
@@ -144,14 +227,19 @@ export default function ProposalPage() {
   });
 
   const isQuote = proposal.doc_type === 'quotation';
+  const docNoun = isQuote ? 'quotation' : 'proposal';
   const currency: QuoteCurrency = proposal.currency === 'USD' ? 'USD' : 'PHP';
   const money = (n: number) => formatQuoteCurrency(n, currency);
   const totals = computeQuoteTotals(proposal.line_items ?? [], proposal.discount ?? 0, proposal.tax_rate ?? 0);
+  const hasPricing = (proposal.line_items ?? []).length > 0;
+  const askHref = `mailto:contact@hunacreatives.com?subject=${encodeURIComponent(`Questions about the ${proposal.project_title || docNoun}`)}`;
   const expired = isQuoteExpired(proposal.valid_until);
   // Server state wins on reload; `decided` covers the same session pre-refetch.
   const settled = decided ?? (proposal.status === 'accepted' ? 'accepted'
     : proposal.status === 'declined' ? 'declined' : null);
-  const canDecide = isQuote && !settled && !expired;
+  // Proposals and quotations both approve through the same flow now — the
+  // client is already on the shared link, so a published doc is fair game.
+  const canDecide = !settled && !expired && ['published', 'sent', 'viewed'].includes(proposal.status);
 
   return (
     <div className="min-h-screen bg-white font-sans">
@@ -220,43 +308,16 @@ export default function ProposalPage() {
               </div>
 
               {/* Body */}
-              <div className="prose prose-gray max-w-none">
-                {section.body.split('\n\n').map((block, j) => {
-                  const trimmed = block.trim();
-                  if (!trimmed) return null;
-
-                  // A block whose every line opens with "- " or "• " is a list.
-                  // Without this the lines collapse into one run-on paragraph and
-                  // the markers print as literal text.
-                  const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
-                  const isList = lines.length > 0 && lines.every(l => /^[-•]\s+/.test(l));
-
-                  if (isList) {
-                    return (
-                      <ul key={j} className="list-disc pl-5 mb-4 last:mb-0 space-y-2">
-                        {lines.map((line, k) => (
-                          <li key={k} className="text-gray-600 text-[15px] leading-[1.85] pl-1">
-                            {line.replace(/^[-•]\s+/, '')}
-                          </li>
-                        ))}
-                      </ul>
-                    );
-                  }
-
-                  return (
-                    <p key={j} className="text-gray-600 text-[15px] leading-[1.85] mb-4 last:mb-0">
-                      {trimmed}
-                    </p>
-                  );
-                })}
+              <div className="max-w-none">
+                <ProposalBody body={section.body} />
               </div>
             </div>
           </div>
         </section>
       ))}
 
-      {/* ── Investment (quotations only) ── */}
-      {isQuote && (proposal.line_items ?? []).length > 0 && (
+      {/* ── Investment ── */}
+      {hasPricing && (
         <section className="bg-white border-t border-gray-100">
           <div className="max-w-5xl mx-auto px-8 py-16 sm:py-20">
             <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-8 sm:gap-16 items-start">
@@ -285,7 +346,9 @@ export default function ProposalPage() {
                       {item.notes && <p className="text-[13px] text-gray-400 mt-1 leading-relaxed">{item.notes}</p>}
                     </div>
                     <span className="w-12 text-center text-[14px] text-gray-500 tabular-nums">{Number(item.qty ?? 1)}</span>
-                    <span className="w-32 text-right text-[15px] text-gray-900 tabular-nums">{money(lineTotal(item))}</span>
+                    <span className="w-32 text-right text-[15px] text-gray-900 tabular-nums">
+                      {item.unit_price == null || item.unit_price === '' ? <span className="text-gray-400">On request</span> : money(lineTotal(item))}
+                    </span>
                   </div>
                 ))}
 
@@ -365,8 +428,10 @@ export default function ProposalPage() {
                   Thank you{proposal.accepted_by_name ? `, ${proposal.accepted_by_name.split(' ')[0]}` : ''}.
                 </h2>
                 <p className="text-white/50 text-[15px] leading-relaxed">
-                  We've recorded your acceptance and emailed you a PDF copy for your records.
-                  Next, we'll send over the agreement to sign, followed by the first invoice.
+                  We've recorded your {isQuote ? 'acceptance' : 'approval'}
+                  {isQuote ? ' and emailed you a PDF copy for your records' : ''}.
+                  Next, we'll send over the agreement to sign
+                  {isQuote ? ', followed by the first invoice' : ' along with the first invoice'}.
                 </p>
               </>
             ) : settled === 'declined' ? (
@@ -394,8 +459,10 @@ export default function ProposalPage() {
                 </h2>
                 <p className="text-white/50 text-[15px] leading-relaxed mb-10">
                   {canDecide
-                    ? "Accept below and we'll send the agreement straight over. Or if you'd rather talk it through first, grab a time that suits you."
-                    : "Let's set up a short call to walk through this together and make sure everything is right before we start."}
+                    ? (isQuote
+                        ? "Accept below and we'll send the agreement straight over. Or if you'd rather talk it through first, grab a time that suits you."
+                        : "Approve below and we'll send the agreement and first invoice straight over. If anything needs clarifying, send your questions our way and we'll come back fast.")
+                    : "Send us a note and we'll walk through this together to make sure everything's right before we start."}
                 </p>
 
                 {canDecide ? (
@@ -421,8 +488,12 @@ export default function ProposalPage() {
                         <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
                           className="mt-1 w-4 h-4 accent-current cursor-pointer flex-shrink-0" style={{ accentColor: accent }} />
                         <span className="text-white/50 text-[13px] leading-relaxed group-hover:text-white/70 transition-colors">
-                          I accept this quotation at <span className="text-white font-medium">{money(totals.total)}</span> and
-                          understand a formal agreement will follow for signature.
+                          {isQuote ? (
+                            <>I accept this quotation at <span className="text-white font-medium">{money(totals.total)}</span> and
+                            understand a formal agreement will follow for signature.</>
+                          ) : (
+                            <>I approve this proposal and understand a detailed quotation and a formal agreement will follow for signature.</>
+                          )}
                         </span>
                       </label>
 
@@ -439,7 +510,7 @@ export default function ProposalPage() {
                         disabled={accepting || !signerName.trim() || !agreed}
                         className="inline-flex items-center gap-2 px-7 py-3.5 text-white text-sm font-semibold rounded-sm transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                         style={{ background: accent }}>
-                        {accepting ? 'Recording…' : 'Accept this quotation'}
+                        {accepting ? 'Recording…' : isQuote ? 'Accept this quotation' : 'Approve proposal'}
                         {!accepting && (
                           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                             <path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -447,9 +518,10 @@ export default function ProposalPage() {
                         )}
                       </button>
 
-                      <a href={CALENDLY} target="_blank" rel="noopener noreferrer"
+                      <a href={isQuote ? CALENDLY : askHref}
+                        {...(isQuote ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                         className="inline-flex items-center gap-2 px-7 py-3.5 text-white text-sm font-semibold border border-white/20 rounded-sm hover:border-white/45 hover:bg-white/[0.04] transition-colors">
-                        Schedule a meeting
+                        {isQuote ? 'Schedule a meeting' : 'Ask questions'}
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                           <path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
@@ -469,7 +541,7 @@ export default function ProposalPage() {
                         <button onClick={() => submitDecision('declined')}
                           disabled={accepting || !signerName.trim()}
                           className="text-[13px] text-white/50 border border-white/15 rounded-sm px-5 py-2.5 hover:border-white/35 hover:text-white/70 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
-                          {accepting ? 'Sending…' : 'Decline this quotation'}
+                          {accepting ? 'Sending…' : isQuote ? 'Decline this quotation' : 'Decline this proposal'}
                         </button>
                         {!signerName.trim() && (
                           <p className="text-white/20 text-[12px]">Add your name above first.</p>
@@ -479,10 +551,10 @@ export default function ProposalPage() {
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-4">
-                    <a href={CALENDLY} target="_blank" rel="noopener noreferrer"
+                    <a href={askHref}
                       className="inline-flex items-center gap-2 px-7 py-3.5 text-white text-sm font-semibold rounded-sm transition-opacity hover:opacity-80"
                       style={{ background: accent }}>
-                      Book a Discovery Call
+                      Ask questions
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                         <path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>

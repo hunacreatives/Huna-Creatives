@@ -84,8 +84,11 @@ Deno.serve(async (req) => {
     if (quote.status === 'accepted' || quote.status === 'declined') {
       return new Response(JSON.stringify({ ok: true, already: quote.status }), { headers: cors });
     }
-    if (!['sent', 'viewed'].includes(quote.status)) {
-      return new Response(JSON.stringify({ error: 'This quotation is not open for a decision.' }), { status: 409, headers: cors });
+    // Proposals are shared while still "published"; quotations get "sent".
+    // Both are fair game once the client is on the link acting on it.
+    const OPEN = ['published', 'sent', 'viewed'];
+    if (!OPEN.includes(quote.status)) {
+      return new Response(JSON.stringify({ error: 'This document is not open for a decision.' }), { status: 409, headers: cors });
     }
 
     const now = new Date().toISOString();
@@ -101,7 +104,7 @@ Deno.serve(async (req) => {
       .from('hub_proposals')
       .update(patch)
       .eq('id', quote.id)
-      .in('status', ['sent', 'viewed'])
+      .in('status', OPEN)
       .select()
       .single();
 
@@ -112,14 +115,19 @@ Deno.serve(async (req) => {
     const q = { ...quote, ...patch } as unknown as QuoteRecord;
     const currency = q.currency === 'USD' ? 'USD' : 'PHP';
     const totals = computeQuoteTotals(q.line_items, q.discount, q.tax_rate);
-    const title = q.project_title || `Quotation for ${q.client_name}`;
-    const money = fmtMoney(totals.total, currency);
+    const isProposal = quote.doc_type === 'proposal';
+    const Noun = isProposal ? 'Proposal' : 'Quotation';
+    const verbA = decision === 'accepted' ? (isProposal ? 'approved' : 'accepted') : 'declined';
+    const title = q.project_title || `${Noun} for ${q.client_name}`;
+    // A proposal often carries only an indicative figure — don't state it as final.
+    const money = totals.total > 0 && !isProposal ? fmtMoney(totals.total, currency) : '';
+    const amt = money ? ` — ${money}` : '';
     const accepted = decision === 'accepted';
 
     // ── Notify the team (the only step Francis actually needs) ──────────
     const slackText = accepted
-      ? `✅ *Quotation accepted*\n*${q.client_name}* accepted *${title}* — ${money}.\nAccepted by ${signer}.${note ? `\n\n> ${note}` : ''}\n\nNext: send the contract.`
-      : `⚠️ *Quotation declined*\n*${q.client_name}* declined *${title}* — ${money}.${note ? `\n\n> ${note}` : ''}`;
+      ? `✅ *${Noun} ${verbA}*\n*${q.client_name}* ${verbA} *${title}*${amt}.\nRecorded by ${signer}.${note ? `\n\n> ${note}` : ''}\n\nNext: send the agreement.`
+      : `⚠️ *${Noun} declined*\n*${q.client_name}* declined *${title}*${amt}.${note ? `\n\n> ${note}` : ''}`;
 
     const blocks = [
       { type: 'section', text: { type: 'mrkdwn', text: slackText } },
@@ -142,22 +150,22 @@ Deno.serve(async (req) => {
         from: FROM_EMAIL,
         to: [TEAM_EMAIL],
         subject: accepted
-          ? `Quotation accepted — ${title} (${money})`
-          : `Quotation declined — ${title}`,
+          ? `${Noun} ${verbA} — ${title}${money ? ` (${money})` : ''}`
+          : `${Noun} declined — ${title}`,
         html: `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;padding:32px;margin:0">
 <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
   <div style="background:#080604;padding:20px 24px">
     <span style="color:#C4873A;font-weight:700;font-size:14px;letter-spacing:0.1em">HUNA CREATIVES</span>
   </div>
   <div style="padding:28px 24px">
-    <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Quotation ${accepted ? 'accepted ✅' : 'declined'}</h2>
+    <h2 style="margin:0 0 8px;font-size:18px;color:#111827">${Noun} ${accepted ? `${verbA} ✅` : 'declined'}</h2>
     <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6">
-      <strong>${esc(q.client_name)}</strong> ${accepted ? 'accepted' : 'declined'}
-      <strong>${esc(title)}</strong> — ${esc(money)}.<br>
+      <strong>${esc(q.client_name)}</strong> ${verbA}
+      <strong>${esc(title)}</strong>${money ? ` — ${esc(money)}` : ''}.<br>
       Recorded under the name <strong>${esc(signer)}</strong>.
     </p>
     ${note ? `<p style="margin:0 0 16px;padding:12px 14px;background:#f9fafb;border-left:3px solid #C4873A;font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap">${esc(note)}</p>` : ''}
-    ${accepted ? `<p style="margin:0;font-size:14px;color:#6b7280">Next step: send the contract, then the deposit invoice.</p>` : ''}
+    ${accepted ? `<p style="margin:0;font-size:14px;color:#6b7280">Next step: send the agreement${isProposal ? ' and the detailed quotation' : ', then the deposit invoice'}.</p>` : ''}
   </div>
   <div style="padding:16px 24px;border-top:1px solid #f3f4f6;font-size:11px;color:#9ca3af">
     <a href="${HUB}/hub/admin/proposals/${quote.id}" style="color:#C4873A;text-decoration:none">Open in hub →</a>
@@ -169,8 +177,9 @@ Deno.serve(async (req) => {
     // ── Send the client their PDF copy (accepted only) ──────────────────
     // Best-effort: the acceptance is already recorded and the team already
     // notified. A PDFShift outage must not surface as a failed acceptance.
+    // Proposals get a bespoke quotation later, not an auto-rendered quote PDF.
     let pdfSent = false;
-    if (accepted && quote.to_email) {
+    if (accepted && quote.to_email && !isProposal) {
       try {
         const pdfBytes = await htmlToPdf(renderQuotePdf(q));
         let binary = '';
