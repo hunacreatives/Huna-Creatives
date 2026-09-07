@@ -53,6 +53,7 @@ interface Project {
 
 const SERVICES = [
   'Website Design',
+  'Partner — Shopify Store Build',
   'Event Website / E-vite',
   'Graphic Design / Flyer',
   'Branding & Identity',
@@ -166,6 +167,41 @@ const TEMPLATES: Record<string, Question[]> = {
     q('budget', 'single_choice', 'What is your budget range?', { options: ['₱60k–₱100k', '₱100k–₱200k', '₱200k–₱500k', '₱500k+', "I have a specific budget in mind", "Let's discuss"] }),
     q('budget_custom', 'short_text', 'If you have a specific budget in mind, please share it.', { placeholder: 'e.g. ₱150,000' }),
     q('other', 'paragraph', 'Anything else we should know?'),
+  ],
+  // Filled by a partner agency (e.g. DOBO) about their end client's store,
+  // after a partnership proposal is approved. Feeds the Statement of Work and
+  // the Discovery kickoff for the first Shopify build.
+  'Partner — Shopify Store Build': [
+    // THE CLIENT & STORE
+    q('client_brand', 'short_text', "Client / brand name", { required: true }),
+    q('client_url', 'short_text', "Current website, if any", { placeholder: 'https://...' }),
+    q('sells', 'paragraph', "What does the brand sell? One or two lines.", { required: true }),
+    q('customer', 'paragraph', "Who is the customer?"),
+    // CATALOG & CONTENT
+    q('product_count', 'single_choice', "Roughly how many products at launch?", { options: ['Under 10', '10–30', '30–75', '75–150', '150+'], required: true }),
+    q('collections', 'single_choice', "Are product collections / categories defined?", { options: ['Yes, defined', 'Rough idea', "We'd like Huna to propose them"] }),
+    q('photos_status', 'single_choice', "Product photography status", { options: ['Ready — link below', 'Being shot now', 'Not started'], required: true }),
+    q('photos_link', 'short_text', "Link to product photos and assets folder", { description: 'Drive, Dropbox, etc. — DOBO supplies the shots; we place them.' }),
+    q('copy_owner', 'single_choice', "Who writes the product and page copy?", { options: ['DOBO', 'The client', 'Huna to assist'] }),
+    q('brand_assets', 'short_text', "Brand assets — logo, fonts, colours, guidelines (link)"),
+    // THE SITE
+    q('pages', 'multi_choice', "Pages you want", { options: ['Home', 'Shop / collections', 'Product page', 'About', 'Contact', 'Blog / journal', 'FAQ', 'Lookbook / gallery', 'Wholesale / B2B', 'Other'], required: true }),
+    q('references', 'paragraph', "2–5 store sites you like, and what you like about them"),
+    q('custom_features', 'multi_choice', "Any custom functionality beyond a standard store?", { options: ['None', 'Subscriptions', 'Bundles / kits', 'Product quiz / finder', 'Loyalty / rewards', 'Wholesale / B2B pricing', 'Gift cards', 'Multi-currency or multi-language', 'Other'] }),
+    q('custom_features_detail', 'paragraph', "If you selected anything above, describe how it should work"),
+    // SHOPIFY SETUP
+    q('shopify_account', 'single_choice', "Shopify store status", { options: ["Already created — we'll get collaborator access", 'Client will create it', 'Huna to set it up'], required: true }),
+    q('domain', 'single_choice', "Domain", { options: ["Registered — we'll point it", 'Need to buy one', 'Using a subdomain for now'], required: true }),
+    q('domain_name', 'short_text', "The domain name, if you have one", { placeholder: 'brand.com' }),
+    q('payments', 'multi_choice', "Payment methods to enable", { options: ['Cards (Shopify Payments)', 'GCash', 'Maya', 'PayPal', 'Shop Pay', 'Bank transfer', 'Cash on delivery', 'Other'] }),
+    q('shipping_regions', 'short_text', "Where does the brand ship?"),
+    q('shipping_model', 'single_choice', "Shipping rates", { options: ['Flat rate', 'By weight', 'By region', 'Free over a threshold', 'Not sure yet'] }),
+    q('existing_apps', 'paragraph', "Any Shopify apps already in use that must carry over?"),
+    // LOGISTICS & PARTNERSHIP
+    q('launch_date', 'date', "Target launch date"),
+    q('point_of_contact', 'short_text', "Main point of contact and who signs off", { required: true }),
+    q('white_label', 'single_choice', "Deliver white-label under DOBO's name?", { options: ['Yes', 'No', 'Partly'], required: true }),
+    q('anything_else', 'paragraph', "Anything else we should know?"),
   ],
   'Graphic Design / Flyer': [
     q('purpose', 'short_text', 'What is this design for?', { required: true }),
