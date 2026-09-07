@@ -275,8 +275,8 @@ Deno.serve(async (req) => {
       const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif";
       const steps: [string, string][] = [
         ['The project brief', "A short form so we have everything for the first site: brand, products, pages, timeline, and what you'll be supplying."],
-        ['Quotation &amp; agreement', 'Once your brief is in, we send the final quotation with the confirmed price, plus the partnership agreement to sign.'],
-        ['Kickoff', 'On sign-off and the deposit, we start Discovery on the first build.'],
+        ['Quotation &amp; agreement', 'Within 24 hours of your brief, we send the final quotation with the confirmed price, plus the partnership agreement to sign.'],
+        ['Kickoff', 'On sign-off and the deposit, we kick off stage one of the first build.'],
       ];
       const stepsRows = steps.map(([label, desc], i) => `
         <tr>

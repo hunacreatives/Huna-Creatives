@@ -9,7 +9,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { DemoProvider } from "./contexts/DemoContext";
 
 // Pages that use a light/white background
-const LIGHT_BG_ROUTES = ['/about', '/hub', '/privacy', '/terms'];
+const LIGHT_BG_ROUTES = ['/about', '/hub', '/privacy', '/terms', '/q'];
 const DARK_HUB_ROUTES = ['/hub/login'];
 // Routes where navigation should feel instant (no fade animation)
 const NO_TRANSITION_ROUTES = ['/hub'];

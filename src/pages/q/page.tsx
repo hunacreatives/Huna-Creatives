@@ -58,6 +58,7 @@ export default function PublicQuestionnairePage() {
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [justSubmitted, setJustSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, string>>({});
@@ -141,7 +142,9 @@ export default function PublicQuestionnairePage() {
     await supabase.functions.invoke('notify-questionnaire-submitted', {
       body: { client_name: q!.client_name, service_type: q!.service_type },
     });
+    setJustSubmitted(true);
     setSubmitted(true);
+    window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   if (loading) return (
@@ -175,13 +178,19 @@ export default function PublicQuestionnairePage() {
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-2 mb-2">
             <i className="ri-check-line text-emerald-600"></i>
-            <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Already answered</span>
+            <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+              {justSubmitted ? 'Received' : 'Already answered'}
+            </span>
           </div>
           <h1 className="text-2xl font-bold text-[#111827] mb-2">
-            Thanks{q.client_name ? `, ${q.client_name.split(' ')[0]}` : ''}! This questionnaire has been submitted.
+            {justSubmitted
+              ? `Thanks${q.client_name ? `, ${q.client_name.split(' ')[0]}` : ''} — we've got your brief.`
+              : `Thanks${q.client_name ? `, ${q.client_name.split(' ')[0]}` : ''}! This questionnaire has been submitted.`}
           </h1>
           <p className="text-sm text-gray-500 leading-relaxed">
-            Someone has already answered this — it's locked from further edits. Here's what was submitted, for reference.
+            {justSubmitted
+              ? "We'll review it and send your formal quotation, along with the agreement, within 24 hours. You can close this tab — a copy of your answers is below."
+              : "Someone has already answered this — it's locked from further edits. Here's what was submitted, for reference."}
           </p>
         </div>
       </div>
