@@ -3,10 +3,10 @@ import { supabase } from '@/lib/supabase';
 
 // Bespoke proposal for Matthew Oyos / DOBO (growdobo.com) — an ongoing
 // arrangement where Huna builds the Shopify stores for DOBO's clients while
-// DOBO runs growth, paid and retention. The page binds itself to whichever
-// hub_proposals row carries `custom_path = '/p/dobo'` (set in the Sentro
-// proposal builder), and records approval + views against that row via the
-// shared accept-quotation flow. Falls back to a fixed slug if none is wired.
+// DOBO runs strategy, creative, paid media and retention. The page binds
+// itself to whichever hub_proposals row carries `custom_path = '/p/dobo'`
+// (set in the Sentro proposal builder), and records approval + views
+// against that row via the shared accept-quotation flow.
 const PATH = '/p/dobo';
 const FALLBACK_SLUG = 'matthew-oyos-kh2y';
 const ASK_HREF = 'mailto:contact@hunacreatives.com?subject=' +
@@ -16,45 +16,45 @@ const V = '#5B3DF5';        // DOBO-flavoured violet
 const INK = '#0E0E12';
 
 const STEPS: [string, string, string][] = [
-  ['01', 'Discovery', 'We learn the brand, its customer, and the numbers that matter — sales, AOV, what the paid side needs from the site.'],
-  ['02', 'Structure', 'Sitemap and shopping journey first. We bring proposed positioning, page structure and content direction for the brand to react to.'],
-  ['03', 'Design', "Custom layouts and sections designed in Shopify's grain — mobile-first, on-brand, with real revision rounds."],
-  ['04', 'Build', 'Developed on Shopify: catalog and collections, checkout configured and styled, payments, shipping and tax, apps only where they earn their place.'],
-  ['05', 'QA', 'Tested across devices and browsers, test transactions end to end, SEO basics, redirects, and analytics wired for the paid team.'],
-  ['06', 'Launch & handover', 'We go live with you, hand over a backend your team can run, train them, and stay on for a 30-day bug window.'],
+  ['01', 'Discovery', 'We start with the brand, the customer and the business behind the store. We will also look at sales, AOV, current performance and what DOBO needs the website to support.'],
+  ['02', 'Structure', 'Before we design anything, we map the sitemap, customer journey and key pages. We will also recommend the content and messaging each page needs before moving into design.'],
+  ['03', 'Design', 'We design the key pages and reusable sections around the brand, with mobile considered from the start. Feedback and revisions are built into this stage.'],
+  ['04', 'Build', 'Once the design is approved, we build everything in Shopify: products, collections, checkout, payments, shipping, tax settings and any required app integrations.'],
+  ['05', 'QA', 'Before launch, we test the site across devices and browsers, run test purchases, check redirects and basic SEO, and make sure analytics and tracking are working properly.'],
+  ['06', 'Launch and handover', 'We handle launch with your team, walk the client through the Shopify backend, and provide 30 days of support for any post-launch bugs or fixes.'],
 ];
 
 const INCLUDED = [
-  'Discovery and strategy — customer, goals, and site architecture',
-  'UX wireframes and custom UI design, not a template',
-  'Fully responsive build, tested across devices',
-  'Shopify admin set up so the brand can manage products and content',
-  'Ecommerce setup — catalog, cart and checkout, payments, shipping and tax rules',
-  'Key app integrations, kept to the ones that earn their place',
-  'SEO fundamentals, analytics, and event tracking wired for the paid side',
-  'Performance optimization for fast load and better ad efficiency',
-  'Launch support, a 30-day bug window, and full handover with training',
+  'Discovery and planning, including customer journey, goals and site structure',
+  'UX wireframes and custom interface design based on the brand, not a pre-made template',
+  'Shopify development for agreed pages, reusable sections and responsive layouts',
+  'Product, collection and navigation setup based on the agreed catalog',
+  'Checkout, payments, shipping and tax configuration',
+  'Setup and integration of the apps the store actually needs',
+  'Basic SEO setup, redirects and analytics / tracking implementation',
+  'Performance optimisation to keep the site fast and reduce friction from paid traffic',
+  'Launch support, Shopify training and 30 days of post-launch bug support',
 ];
 
 const PARTNERSHIP = [
-  ['You own the client relationship', 'DOBO stays the growth partner and the face to the client. We are the build engine behind you.'],
-  ['White-label by default', 'NDAs, delivery under the DOBO name, and we can join client calls as your team when that helps.'],
-  ['First build, then a rhythm', 'We price and run the first store, then agree rates for succeeding builds once we have one under our belt together.'],
-  ['No scope overlap', 'You run creative, paid and retention. We run the store it all points at. Nothing to negotiate over.'],
+  ['You own the client relationship', 'DOBO remains the lead partner and primary client contact. Huna works behind the scenes as your Shopify design and development team.'],
+  ['White-label by default', 'We can work fully white-label, including NDAs and delivery under the DOBO name. When needed, we can also join client meetings as part of your wider team.'],
+  ['Start with one project', 'We will agree the scope and pricing for the first site. Once we have worked through a full project together, we can establish a repeatable process and partner rates for future builds.'],
+  ['Clear scope, no duplicated work', 'DOBO continues to own strategy, creative, paid media and retention. Huna takes responsibility for the Shopify website. Clear roles, no duplicated work.'],
 ];
 
 const INVEST: [string, string, string][] = [
-  ['Shopify custom ecommerce website', 'Discovery, design, build, launch and handover — per site', 'PHP 60,000–80,000'],
-  ['Product photography & content production', 'Optional. Quoted per shoot day once the product list is final', 'On request'],
-  ['Post-launch care & support retainer', 'Optional. Scoped after the 30-day bug window if you want us on standby', 'On request'],
-  ['Succeeding Shopify builds', 'Rates for additional sites agreed once we have run the first build', 'On request'],
+  ['Shopify custom ecommerce website', 'Discovery, design, build, launch and handover, per site', 'PHP 60,000–80,000'],
+  ['Product photography and content production', 'Quoted separately depending on requirements', 'Optional'],
+  ['Future Shopify builds', 'Partner pricing can be agreed after the first project, once we have a clear sense of the typical scope and workflow', 'Partner rate'],
+  ['Ongoing Shopify support', 'Available on request and quoted based on the support needed', 'On request'],
 ];
 
 const TIMELINE: [string, string][] = [
-  ['Discovery', '~1 week'],
-  ['Structure & design', '2–3 weeks'],
-  ['Build', '2–3 weeks'],
-  ['QA & launch', '~1 week'],
+  ['Discovery', 'around 1 week'],
+  ['Structure and design', '2 to 3 weeks'],
+  ['Build', '2 to 3 weeks'],
+  ['QA and launch', 'around 1 week'],
 ];
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
@@ -131,11 +131,12 @@ export default function DoboProposal() {
           Prepared for Matthew Oyos · DOBO
         </p>
         <h1 className="font-semibold leading-[1.08] tracking-[-0.02em] text-[40px] sm:text-[56px]">
-          The build partner<br />behind your growth work.
+          You grow the brand.<br />We build the store behind it.
         </h1>
         <p className="mt-6 text-[17px] sm:text-[19px] leading-[1.75] text-gray-600 max-w-2xl">
-          DOBO runs creative, paid and retention for DTC brands. This is a proposal for the piece next to that:
-          the Shopify stores those campaigns point at — designed to convert, built to hand over, delivered under your name.
+          DOBO stays focused on strategy, creative, paid media and retention. Huna handles the Shopify build
+          from planning and design through development, launch and handover, working behind the scenes and
+          delivering under your name.
         </p>
         <div className="mt-9 flex flex-wrap items-center gap-4">
           <a href="#approve" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white text-sm font-semibold"
@@ -155,13 +156,13 @@ export default function DoboProposal() {
       <section className="max-w-4xl mx-auto px-6 sm:px-8 py-16">
         <Eyebrow>Part I · Why this works</Eyebrow>
         <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.01em] mb-8">
-          One team for the build, so you stay on the growth.
+          You keep the client. We take care of the build.
         </h2>
         <div className="grid sm:grid-cols-3 gap-5">
           {[
-            ['No scope overlap', 'You own creative, paid and retention. We own the store. Nothing to carve up or compete over.'],
-            ['Built to convert', 'Custom layouts and a checkout tuned to the platform — not a theme your paid traffic bounces off.'],
-            ['Made to hand over', 'A Shopify backend the brand can actually run, plus training and a 30-day bug window.'],
+            ['Clear responsibilities', 'DOBO continues to lead strategy, creative, paid media and retention. Huna handles the Shopify build, so responsibilities stay clear from the start.'],
+            ['Built around the customer journey', 'We design each store around how customers arrive, browse and buy, with paid traffic and conversion considered from the start.'],
+            ['Easy to hand over', 'Once the site is live, the client gets a Shopify setup they can confidently manage, along with training and 30 days of post-launch support.'],
           ].map(([t, d]) => (
             <div key={t} className="rounded-xl border border-gray-100 p-5 bg-[#FAFAFC]">
               <p className="font-semibold text-[15px] mb-1.5">{t}</p>
@@ -173,11 +174,11 @@ export default function DoboProposal() {
 
       <div className="h-px w-full bg-gray-100" />
 
-      {/* How we build — numbered */}
+      {/* How we build */}
       <section className="max-w-4xl mx-auto px-6 sm:px-8 py-16">
         <Eyebrow>Part II · How we build</Eyebrow>
         <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.01em] mb-10">
-          Six stages, a checkpoint at each.
+          A clear process from kickoff to launch.
         </h2>
         <ol className="space-y-7">
           {STEPS.map(([n, title, desc]) => (
@@ -198,7 +199,7 @@ export default function DoboProposal() {
       <section className="max-w-4xl mx-auto px-6 sm:px-8 py-16">
         <Eyebrow>Part III · What every build includes</Eyebrow>
         <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.01em] mb-8">
-          The standard scope, per site.
+          What is included in each build.
         </h2>
         <ul className="grid sm:grid-cols-2 gap-x-10 gap-y-3.5">
           {INCLUDED.map((item) => (
@@ -216,7 +217,7 @@ export default function DoboProposal() {
       <section className="max-w-4xl mx-auto px-6 sm:px-8 py-16">
         <Eyebrow>Part IV · The partnership model</Eyebrow>
         <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.01em] mb-8">
-          How we'd work together.
+          How we would work together.
         </h2>
         <div className="grid sm:grid-cols-2 gap-5">
           {PARTNERSHIP.map(([t, d]) => (
@@ -234,7 +235,7 @@ export default function DoboProposal() {
       <section className="max-w-4xl mx-auto px-6 sm:px-8 py-16">
         <Eyebrow>Part V · Investment</Eyebrow>
         <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-[-0.01em] mb-8">
-          The numbers.
+          Project investment
         </h2>
         <div className="border-b-2 pb-2 mb-1 flex items-end gap-4" style={{ borderColor: INK }}>
           <span className="flex-1 text-[10px] font-bold tracking-[0.16em] uppercase text-gray-400">Item</span>
@@ -247,15 +248,16 @@ export default function DoboProposal() {
               <p className="text-[13px] text-gray-400 mt-1 leading-relaxed">{sub}</p>
             </div>
             <span className="w-40 text-right text-[15px] tabular-nums whitespace-nowrap">
-              {amt === 'On request'
-                ? <span className="text-gray-400">On request</span>
-                : <span className="font-semibold" style={{ color: V }}>{amt}</span>}
+              {/\d/.test(amt)
+                ? <span className="font-semibold" style={{ color: V }}>{amt}</span>
+                : <span className="text-gray-400">{amt}</span>}
             </span>
           </div>
         ))}
         <p className="mt-5 text-[13px] leading-relaxed text-gray-500 max-w-xl">
-          The figure is an indicative range, not a fixed price. It firms up once the page count, the product count,
-          and any custom checkout or app work are locked — that's the detailed quotation that follows approval.
+          The range above is an estimate for a typical build. We will confirm the final price once the page count,
+          product catalog and any custom functionality are agreed. A detailed quotation will be provided before
+          work begins.
         </p>
       </section>
 
@@ -276,7 +278,8 @@ export default function DoboProposal() {
           ))}
         </div>
         <p className="mt-5 text-[13px] leading-relaxed text-gray-500 max-w-xl">
-          Catalog size and content readiness move this the most. We confirm real dates in Discovery.
+          Final timing will depend mainly on the size of the product catalog and how ready the content is at
+          kickoff. We will confirm the project schedule during Discovery.
         </p>
       </section>
 
@@ -293,7 +296,7 @@ export default function DoboProposal() {
                 </h2>
                 <p className="text-white/55 text-[15px] leading-relaxed">
                   {done
-                    ? "We've recorded your approval. Next, we'll send the detailed quotation for the first build along with the partnership agreement. Then we start Discovery."
+                    ? "We've recorded your approval. We'll send over the detailed quotation and the partnership agreement, then we start Discovery."
                     : "This proposal has already been approved. We'll be in touch with the detailed quotation and the partnership agreement."}
                 </p>
               </>
@@ -301,11 +304,11 @@ export default function DoboProposal() {
               <>
                 <p className="text-white/30 text-xs tracking-[0.16em] uppercase mb-4">Next step</p>
                 <h2 className="text-white text-[34px] sm:text-[42px] font-semibold leading-tight mb-5">
-                  Ready to run the first one?
+                  Let's start with the first one.
                 </h2>
                 <p className="text-white/55 text-[15px] leading-relaxed mb-9">
-                  Approve below and we'll send the detailed quotation and the partnership agreement straight over.
-                  If anything needs clarifying first, send your questions our way.
+                  If everything looks good, approve the proposal below and we will send over the detailed quotation
+                  and partnership agreement. If you would like to talk through anything first, just send us your questions.
                 </p>
 
                 <div className="bg-white/[0.04] border border-white/10 rounded-lg p-6 space-y-4">
