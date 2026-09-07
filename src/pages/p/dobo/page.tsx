@@ -3,9 +3,12 @@ import { supabase } from '@/lib/supabase';
 
 // Bespoke proposal for Matthew Oyos / DOBO (growdobo.com) — an ongoing
 // arrangement where Huna builds the Shopify stores for DOBO's clients while
-// DOBO runs growth, paid and retention. Approval is recorded against the
-// existing hub_proposals row via the shared accept-quotation function.
-const SLUG = 'matthew-oyos-kh2y';
+// DOBO runs growth, paid and retention. The page binds itself to whichever
+// hub_proposals row carries `custom_path = '/p/dobo'` (set in the Sentro
+// proposal builder), and records approval + views against that row via the
+// shared accept-quotation flow. Falls back to a fixed slug if none is wired.
+const PATH = '/p/dobo';
+const FALLBACK_SLUG = 'matthew-oyos-kh2y';
 const ASK_HREF = 'mailto:contact@hunacreatives.com?subject=' +
   encodeURIComponent('Questions about the DOBO partnership proposal');
 
@@ -71,13 +74,34 @@ export default function DoboProposal() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState(false);
+  const [slug, setSlug] = useState(FALLBACK_SLUG);
+  const [settled, setSettled] = useState(false);
+
+  // Bind to the proposal row wired to this page and, best-effort, mark it viewed.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('hub_proposals')
+        .select('slug, status')
+        .eq('custom_path', PATH)
+        .maybeSingle();
+      if (!data) return;
+      setSlug(data.slug);
+      if (data.status === 'accepted' || data.status === 'declined') { setSettled(true); return; }
+      if (data.status === 'sent') {
+        supabase.from('hub_proposals')
+          .update({ status: 'viewed', viewed_at: new Date().toISOString() })
+          .eq('slug', data.slug).eq('status', 'sent').then(() => {}, () => {});
+      }
+    })();
+  }, []);
 
   const approve = async () => {
     if (!name.trim() || !agreed) return;
     setBusy(true); setErr('');
     try {
       const { data, error } = await supabase.functions.invoke('accept-quotation', {
-        body: { slug: SLUG, accepted_by_name: name.trim(), note: note.trim() || null, decision: 'accepted' },
+        body: { slug, accepted_by_name: name.trim(), note: note.trim() || null, decision: 'accepted' },
       });
       if (error || data?.error) throw new Error(data?.error ?? error?.message ?? 'Something went wrong.');
       setDone(true);
@@ -260,15 +284,16 @@ export default function DoboProposal() {
         <div className="h-[3px]" style={{ background: V }} />
         <div className="max-w-4xl mx-auto px-6 sm:px-8 py-20">
           <div className="max-w-xl">
-            {done ? (
+            {done || settled ? (
               <>
                 <p className="text-white/30 text-xs tracking-[0.16em] uppercase mb-4">Approved</p>
                 <h2 className="text-white text-[34px] sm:text-[42px] font-semibold leading-tight mb-5">
-                  Thank you{name ? `, ${name.trim().split(' ')[0]}` : ''}.
+                  {done ? `Thank you${name ? `, ${name.trim().split(' ')[0]}` : ''}.` : "You're all set."}
                 </h2>
                 <p className="text-white/55 text-[15px] leading-relaxed">
-                  We've recorded your approval. Next, we'll send the detailed quotation for the first build
-                  along with the partnership agreement. Then we start Discovery.
+                  {done
+                    ? "We've recorded your approval. Next, we'll send the detailed quotation for the first build along with the partnership agreement. Then we start Discovery."
+                    : "This proposal has already been approved. We'll be in touch with the detailed quotation and the partnership agreement."}
                 </p>
               </>
             ) : (

@@ -21,6 +21,7 @@ interface Proposal {
   client_name: string;
   to_email: string;
   cc_email: string | null;
+  custom_path: string | null;
   project_title: string;
   tagline: string;
   accent_color: string;
@@ -83,6 +84,7 @@ export default function ProposalBuilderPage() {
     client_name: '',
     to_email: '',
     cc_email: null,
+    custom_path: null,
     project_title: '',
     tagline: '',
     accent_color: '#FF6B35',
@@ -172,6 +174,7 @@ export default function ProposalBuilderPage() {
           client_name: data.client_name,
           to_email: data.to_email,
           cc_email: data.cc_email ?? null,
+          custom_path: data.custom_path?.trim() || null,
           project_title: data.project_title,
           tagline: data.tagline,
           accent_color: data.accent_color,
@@ -371,7 +374,10 @@ export default function ProposalBuilderPage() {
       ],
     }));
 
-  const publicUrl = proposal.slug ? `${window.location.origin}/p/${proposal.slug}` : null;
+  const customPath = proposal.custom_path?.trim();
+  const publicUrl = customPath
+    ? `${window.location.origin}${customPath.startsWith('/') ? '' : '/'}${customPath}`
+    : proposal.slug ? `${window.location.origin}/p/${proposal.slug}` : null;
   const label = isQuote ? 'Quotation' : 'Proposal';
   const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 disabled:bg-gray-50 disabled:text-gray-400';
 
@@ -530,6 +536,19 @@ export default function ProposalBuilderPage() {
                     placeholder={placeholder} className={inputCls} />
                 </div>
               ))}
+            </div>
+
+            {/* Custom page override */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Custom Page</p>
+              <input type="text" value={proposal.custom_path || ''} disabled={locked}
+                onChange={e => setProposal(p => ({ ...p, custom_path: e.target.value }))}
+                placeholder="/p/dobo" className={inputCls} />
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                Point Preview, the public link and the Send email at a hand-built page instead of the
+                generated one. Leave blank to use <span className="font-mono">/p/{proposal.slug || '…'}</span>.
+                The bespoke page still records approval and views against this proposal.
+              </p>
             </div>
 
             {/* AI draft */}

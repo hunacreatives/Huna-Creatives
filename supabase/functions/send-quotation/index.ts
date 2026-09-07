@@ -68,8 +68,12 @@ Deno.serve(async (req) => {
     const currency = q.currency === 'USD' ? 'USD' : 'PHP';
     const totals = computeQuoteTotals(q.line_items, q.discount, q.tax_rate);
     const title = q.project_title || `Quotation for ${q.client_name}`;
-    const quoteUrl = `${SITE}/p/${q.slug}`;
-    const acceptUrl = `${quoteUrl}#accept`;
+    // A row can point at a hand-built page (e.g. /p/dobo) via custom_path.
+    const customPath = String((quote as { custom_path?: string }).custom_path ?? '').trim();
+    const quoteUrl = customPath
+      ? `${SITE}${customPath.startsWith('/') ? '' : '/'}${customPath}`
+      : `${SITE}/p/${q.slug}`;
+    const acceptUrl = customPath ? `${quoteUrl}#approve` : `${quoteUrl}#accept`;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
