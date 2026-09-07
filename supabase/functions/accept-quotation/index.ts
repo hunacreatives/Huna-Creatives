@@ -8,6 +8,7 @@
 // server-side, and sending mail.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { renderQuotePdf, computeQuoteTotals, fmtMoney, esc, QuoteRecord } from '../_shared/quotationTemplate.ts';
+import { QUESTIONNAIRE_TEMPLATES } from '../_shared/questionnaireTemplates.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN') ?? '';
@@ -16,9 +17,10 @@ const ADMIN_SLACK_IDS = ['U091BL9PQ77', 'U0838LWSY4E'];
 const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
 const TEAM_EMAIL = 'contact@hunacreatives.com';
 const HUB = 'https://hub.hunacreatives.com';
-// Project-brief form linked from the "proposal approved" client email.
-// Set to the live form URL (a hub questionnaire /q/<slug> or a Google Form).
-// Leave blank and the email tells the client the form is coming separately.
+const SITE = 'https://www.hunacreatives.com';
+// Fallback project-brief form for the "proposal approved" email when the
+// proposal has no intake_template set. Leave blank and the email tells the
+// client the form is coming separately.
 const PROJECT_FORM_URL = '';
 
 const supabase = createClient(
@@ -247,13 +249,36 @@ Deno.serve(async (req) => {
     let clientEmailSent = false;
     if (accepted && isProposal && quote.to_email) {
       const firstName = esc(signer.split(' ')[0]);
-      const formBlock = PROJECT_FORM_URL
+
+      // If the proposal names an intake template, create the client
+      // questionnaire now and link the email straight to it.
+      let intakeUrl = PROJECT_FORM_URL;
+      const tplName = String((quote as { intake_template?: string }).intake_template ?? '').trim();
+      const tpl = QUESTIONNAIRE_TEMPLATES[tplName];
+      if (tpl) {
+        const { data: qRow, error: qErr } = await supabase
+          .from('hub_questionnaires')
+          .insert({
+            service_type: tplName,
+            client_name: quote.client_name,
+            client_email: quote.to_email,
+            questions: tpl,
+            status: 'sent',
+            intro_message: `Thanks for approving the ${title} proposal. This short brief gives us everything we need for the first site. Once it is in, we will send your formal quotation and the partnership agreement.`,
+          })
+          .select('token')
+          .single();
+        if (qErr) console.error('Intake questionnaire create failed:', qErr);
+        if (qRow?.token) intakeUrl = `${SITE}/q/${qRow.token}`;
+      }
+
+      const formBlock = intakeUrl
         ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
              First step is a short project brief, so we have everything we need for the first site:
              the brand, the products, the pages you want, your timeline, and what you'll be supplying.
            </p>
            <p style="margin:0 0 22px">
-             <a href="${PROJECT_FORM_URL}" style="display:inline-block;background:#111111;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;padding:14px 28px;border-radius:3px;text-decoration:none">Fill out the project brief &rarr;</a>
+             <a href="${intakeUrl}" style="display:inline-block;background:#111111;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;padding:14px 28px;border-radius:3px;text-decoration:none">Fill out the project brief &rarr;</a>
            </p>`
         : `<p style="margin:0 0 22px;font-size:14px;line-height:1.8;color:#4a4a4a">
              First step is a short project brief. We'll send you the form shortly, so we have everything we need

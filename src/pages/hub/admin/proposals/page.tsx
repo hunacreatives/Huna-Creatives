@@ -22,6 +22,7 @@ interface Proposal {
   to_email: string;
   cc_email: string | null;
   custom_path: string | null;
+  intake_template: string | null;
   project_title: string;
   tagline: string;
   accent_color: string;
@@ -85,6 +86,7 @@ export default function ProposalBuilderPage() {
     to_email: '',
     cc_email: null,
     custom_path: null,
+    intake_template: null,
     project_title: '',
     tagline: '',
     accent_color: '#FF6B35',
@@ -175,6 +177,7 @@ export default function ProposalBuilderPage() {
           to_email: data.to_email,
           cc_email: data.cc_email ?? null,
           custom_path: data.custom_path?.trim() || null,
+          intake_template: data.intake_template || null,
           project_title: data.project_title,
           tagline: data.tagline,
           accent_color: data.accent_color,
@@ -548,6 +551,21 @@ export default function ProposalBuilderPage() {
                 Point Preview, the public link and the Send email at a hand-built page instead of the
                 generated one. Leave blank to use <span className="font-mono">/p/{proposal.slug || '…'}</span>.
                 The bespoke page still records approval and views against this proposal.
+              </p>
+            </div>
+
+            {/* Intake form on approval */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Intake Form On Approval</p>
+              <select value={proposal.intake_template || ''} disabled={locked}
+                onChange={e => setProposal(p => ({ ...p, intake_template: e.target.value || null }))}
+                className={inputCls}>
+                <option value="">None — email says the form is coming</option>
+                <option value="Partner — Shopify Store Build">Partner — Shopify Store Build</option>
+              </select>
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                When the client approves, this questionnaire is created and the "next steps" email links
+                straight to it. When they submit it, they get a "we've got your brief" email.
               </p>
             </div>
 
