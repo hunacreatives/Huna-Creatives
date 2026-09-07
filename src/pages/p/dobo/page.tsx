@@ -45,7 +45,7 @@ const PARTNERSHIP = [
 ];
 
 const INVEST: [string, string, string][] = [
-  ['Shopify custom ecommerce website', 'Discovery, design, build, launch and handover, per site', 'PHP 60,000–80,000'],
+  ['Shopify custom ecommerce website', 'Discovery, design, build, launch and handover, per site', 'PHP 70,000–80,000'],
   ['Future Shopify builds', 'Partner pricing can be agreed after the first project, once we have a clear sense of the typical scope and workflow', 'Partner rate'],
   ['Support retainer', "Once we're supporting multiple live sites, we can move to a shared monthly retainer instead of quoting every update separately. This can cover ongoing maintenance, bug fixes, monitoring, and small site changes across the portfolio.\n\nRetainer pricing depends on the number of sites and how much ongoing support they need. As a guide, support for two to three low-maintenance sites may start around PHP 15,000/month, while a larger or more active portfolio may fall around PHP 40,000–60,000/month.\n\nMonth to month.", 'From PHP 15,000 / mo'],
 ];
