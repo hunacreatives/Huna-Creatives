@@ -63,6 +63,7 @@ const HubAdminProposalBuilder = lazy(() => import('../pages/hub/admin/proposals/
 const PublicProposalPage = lazy(() => import('../pages/p/page'));
 const ProposalCapuCoffee = lazy(() => import('../pages/p/capu-coffee/page'));
 const ProposalCapuCoffeeApprove = lazy(() => import('../pages/p/capu-coffee/approve/page'));
+const ProposalDobo = lazy(() => import('../pages/p/dobo/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const ClientStatusPage = lazy(() => import('../pages/status/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
@@ -201,6 +202,7 @@ const routes: RouteObject[] = [
   { path: '/hub/install', element: <HubInstallPage /> },
   { path: '/p/capu-coffee', element: <ProposalCapuCoffee /> },
   { path: '/p/capu-coffee/approve', element: <ProposalCapuCoffeeApprove /> },
+  { path: '/p/dobo', element: <ProposalDobo /> },
   { path: '/p/:slug', element: <PublicProposalPage /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },
