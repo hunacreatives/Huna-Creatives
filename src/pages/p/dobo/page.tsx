@@ -117,7 +117,8 @@ export default function DoboProposal() {
 
       {/* Top bar */}
       <div className="max-w-4xl mx-auto px-6 sm:px-8 pt-8 flex items-center justify-between">
-        <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" className="h-6" />
+        <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives"
+          className="h-6" style={{ filter: 'brightness(0)' }} />
         <span className="text-[10px] font-bold tracking-[0.22em] uppercase px-3 py-1.5 rounded"
           style={{ color: V, border: `1px solid ${V}33`, background: `${V}0F` }}>
           Partnership Proposal
