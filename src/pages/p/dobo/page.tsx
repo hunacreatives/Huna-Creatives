@@ -314,7 +314,7 @@ export default function DoboProposal() {
                 </h2>
                 <p className="text-white/55 text-[15px] leading-relaxed">
                   {done
-                    ? "We've recorded your approval and emailed you the next steps. First is a short project brief; once we have that we'll send the final quotation and the partnership agreement within 24 hours, then we kick off stage one of the build."
+                    ? "We've recorded your approval and emailed you the next steps: a short kickoff form, then the agreement and the deposit invoice, sent separately. Once those are settled, we begin."
                     : "This proposal has already been approved. Check your email for the next steps, or reply to us and we'll resend them."}
                 </p>
               </>
@@ -325,8 +325,8 @@ export default function DoboProposal() {
                   Let's start with the first one.
                 </h2>
                 <p className="text-white/55 text-[15px] leading-relaxed mb-9">
-                  If everything looks good, approve the proposal below and we will send over the detailed quotation
-                  and partnership agreement. If you would like to talk through anything first, just send us your questions.
+                  If everything looks good, approve below. We'll follow with a short kickoff form, then the agreement
+                  and the deposit invoice. Prefer to talk something through first? Just send us your questions.
                 </p>
 
                 <div className="bg-white/[0.04] border border-white/10 rounded-lg p-6 space-y-4">
@@ -347,7 +347,7 @@ export default function DoboProposal() {
                     <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
                       className="mt-1 w-4 h-4 cursor-pointer flex-shrink-0" style={{ accentColor: V }} />
                     <span className="text-white/50 text-[13px] leading-relaxed group-hover:text-white/70 transition-colors">
-                      I approve this proposal and understand a detailed quotation and a partnership agreement will follow for signature.
+                      I approve this partnership proposal and understand an agreement and a deposit invoice will follow.
                     </span>
                   </label>
                   {err && (

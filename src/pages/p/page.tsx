@@ -35,7 +35,6 @@ interface Proposal {
   created_at: string;
 }
 
-const CALENDLY = 'https://calendly.com/hunacreatives/30min';
 
 const OL_RE = /^\s*\d+[.)]\s+(.*)$/;
 const UL_RE = /^\s*[-•]\s+(.*)$/;
@@ -226,8 +225,7 @@ export default function ProposalPage() {
     month: 'long', year: 'numeric',
   });
 
-  const isQuote = proposal.doc_type === 'quotation';
-  const docNoun = isQuote ? 'quotation' : 'proposal';
+  const docNoun = 'proposal';
   const currency: QuoteCurrency = proposal.currency === 'USD' ? 'USD' : 'PHP';
   const money = (n: number) => formatQuoteCurrency(n, currency);
   const totals = computeQuoteTotals(proposal.line_items ?? [], proposal.discount ?? 0, proposal.tax_rate ?? 0);
@@ -428,10 +426,8 @@ export default function ProposalPage() {
                   Thank you{proposal.accepted_by_name ? `, ${proposal.accepted_by_name.split(' ')[0]}` : ''}.
                 </h2>
                 <p className="text-white/50 text-[15px] leading-relaxed">
-                  We've recorded your {isQuote ? 'acceptance' : 'approval'}
-                  {isQuote ? ' and emailed you a PDF copy for your records' : ''}.
-                  Next, we'll send over the agreement to sign
-                  {isQuote ? ', followed by the first invoice' : ' along with the first invoice'}.
+                  We've recorded your approval and emailed you the next steps — a short kickoff form, then the
+                  agreement and the deposit invoice, sent separately. Once those are settled, we begin.
                 </p>
               </>
             ) : settled === 'declined' ? (
@@ -445,9 +441,9 @@ export default function ProposalPage() {
                   If the scope or budget wasn't quite right, we'd genuinely like to hear why —
                   we can usually find a version that works.
                 </p>
-                <a href={CALENDLY} target="_blank" rel="noopener noreferrer"
+                <a href={askHref}
                   className="inline-flex items-center gap-2 px-7 py-3.5 text-white/60 text-sm font-medium border border-white/10 rounded-sm hover:border-white/25 transition-colors">
-                  Book a call anyway
+                  Get in touch
                 </a>
               </>
             ) : (
@@ -459,9 +455,7 @@ export default function ProposalPage() {
                 </h2>
                 <p className="text-white/50 text-[15px] leading-relaxed mb-10">
                   {canDecide
-                    ? (isQuote
-                        ? "Accept below and we'll send the agreement straight over. Or if you'd rather talk it through first, grab a time that suits you."
-                        : "Approve below and we'll send the agreement and first invoice straight over. If anything needs clarifying, send your questions our way and we'll come back fast.")
+                    ? "Approve below and we'll email your next steps: a short kickoff form, then the agreement and the deposit invoice. Prefer to talk something through first? Send your questions our way."
                     : "Send us a note and we'll walk through this together to make sure everything's right before we start."}
                 </p>
 
@@ -488,12 +482,8 @@ export default function ProposalPage() {
                         <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
                           className="mt-1 w-4 h-4 accent-current cursor-pointer flex-shrink-0" style={{ accentColor: accent }} />
                         <span className="text-white/50 text-[13px] leading-relaxed group-hover:text-white/70 transition-colors">
-                          {isQuote ? (
-                            <>I accept this quotation at <span className="text-white font-medium">{money(totals.total)}</span> and
-                            understand a formal agreement will follow for signature.</>
-                          ) : (
-                            <>I approve this proposal and understand a detailed quotation and a formal agreement will follow for signature.</>
-                          )}
+                          I approve this proposal{hasPricing && <> at <span className="text-white font-medium">{money(totals.total)}</span></>} and
+                          understand an agreement and a deposit invoice will follow.
                         </span>
                       </label>
 
@@ -510,7 +500,7 @@ export default function ProposalPage() {
                         disabled={accepting || !signerName.trim() || !agreed}
                         className="inline-flex items-center gap-2 px-7 py-3.5 text-white text-sm font-semibold rounded-sm transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                         style={{ background: accent }}>
-                        {accepting ? 'Recording…' : isQuote ? 'Accept this quotation' : 'Approve proposal'}
+                        {accepting ? 'Recording…' : 'Approve proposal'}
                         {!accepting && (
                           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                             <path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -518,10 +508,9 @@ export default function ProposalPage() {
                         )}
                       </button>
 
-                      <a href={isQuote ? CALENDLY : askHref}
-                        {...(isQuote ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                      <a href={askHref}
                         className="inline-flex items-center gap-2 px-7 py-3.5 text-white text-sm font-semibold border border-white/20 rounded-sm hover:border-white/45 hover:bg-white/[0.04] transition-colors">
-                        {isQuote ? 'Schedule a meeting' : 'Ask questions'}
+                        Ask questions
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                           <path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
@@ -541,7 +530,7 @@ export default function ProposalPage() {
                         <button onClick={() => submitDecision('declined')}
                           disabled={accepting || !signerName.trim()}
                           className="text-[13px] text-white/50 border border-white/15 rounded-sm px-5 py-2.5 hover:border-white/35 hover:text-white/70 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
-                          {accepting ? 'Sending…' : isQuote ? 'Decline this quotation' : 'Decline this proposal'}
+                          {accepting ? 'Sending…' : 'Decline this proposal'}
                         </button>
                         {!signerName.trim() && (
                           <p className="text-white/20 text-[12px]">Add your name above first.</p>

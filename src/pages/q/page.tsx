@@ -160,7 +160,7 @@ export default function PublicQuestionnairePage() {
           <i className="ri-error-warning-line text-2xl text-gray-400"></i>
         </div>
         <h1 className="text-lg font-bold text-gray-800 mb-2">Link not found</h1>
-        <p className="text-sm text-gray-500">This questionnaire link is invalid or has expired.</p>
+        <p className="text-sm text-gray-500">This form link is invalid or has expired.</p>
       </div>
     </div>
   );
@@ -184,12 +184,12 @@ export default function PublicQuestionnairePage() {
           </div>
           <h1 className="text-2xl font-bold text-[#111827] mb-2">
             {justSubmitted
-              ? `Thanks${q.client_name ? `, ${q.client_name.split(' ')[0]}` : ''} — we've got your brief.`
-              : `Thanks${q.client_name ? `, ${q.client_name.split(' ')[0]}` : ''}! This questionnaire has been submitted.`}
+              ? `Thanks${q.client_name ? `, ${q.client_name.split(' ')[0]}` : ''} — we've got your details.`
+              : `Thanks${q.client_name ? `, ${q.client_name.split(' ')[0]}` : ''}! This form has been submitted.`}
           </h1>
           <p className="text-sm text-gray-500 leading-relaxed">
             {justSubmitted
-              ? "We'll review it and send your formal quotation, along with the agreement, within 24 hours. You can close this tab — a copy of your answers is below."
+              ? "We're reviewing this now and will be in touch shortly. You can close this tab — a copy of your answers is below."
               : "Someone has already answered this — it's locked from further edits. Here's what was submitted, for reference."}
           </p>
         </div>
@@ -252,7 +252,7 @@ export default function PublicQuestionnairePage() {
             Hi {q.client_name.split(' ')[0]}, tell us about your project
           </h1>
           <p className="text-sm text-gray-500 leading-relaxed">
-            {q.intro_message || `We'd love to understand your ${q.service_type.toLowerCase()} needs before putting together your proposal. This takes about 5 minutes.`}
+            {q.intro_message || `A few details to help us set things up. This takes about 5 minutes.`}
           </p>
         </div>
       </div>
@@ -385,7 +385,7 @@ export default function PublicQuestionnairePage() {
           disabled={submitting}
           className="w-full py-3.5 bg-[#FF6B35] text-white font-semibold rounded-xl hover:bg-[#e55a27] transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
         >
-          {submitting ? <><i className="ri-loader-4-line animate-spin text-base"></i> Submitting…</> : 'Submit Questionnaire →'}
+          {submitting ? <><i className="ri-loader-4-line animate-spin text-base"></i> Submitting…</> : 'Submit →'}
         </button>
 
         <p className="text-center text-xs text-gray-400 pb-8">

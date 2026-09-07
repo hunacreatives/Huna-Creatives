@@ -180,78 +180,32 @@ Deno.serve(async (req) => {
       }),
     }).catch(console.error);
 
-    // ── Send the client their PDF copy (accepted only) ──────────────────
-    // Best-effort: the acceptance is already recorded and the team already
-    // notified. A PDFShift outage must not surface as a failed acceptance.
-    // Proposals get a bespoke quotation later, not an auto-rendered quote PDF.
+    // ── A PDF copy of what they approved, attached to the one next-steps
+    // email below. Only when there's a real total to render, and best-effort
+    // — a PDFShift outage must never surface as a failed acceptance.
     let pdfSent = false;
-    if (accepted && quote.to_email && !isProposal) {
+    let pdfAttachment: { filename: string; content: string } | null = null;
+    if (accepted && quote.to_email && totals.total > 0) {
       try {
         const pdfBytes = await htmlToPdf(renderQuotePdf(q));
         let binary = '';
         for (let i = 0; i < pdfBytes.length; i++) binary += String.fromCharCode(pdfBytes[i]);
-
-        const safeTitle = title.replace(/[^a-zA-Z0-9 \-_]/g, '').trim() || 'Quotation';
-        const mailRes = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: FROM_EMAIL,
-            to: [quote.to_email],
-            bcc: [TEAM_EMAIL],
-            reply_to: TEAM_EMAIL,
-            subject: `Confirmed — ${title}`,
-            attachments: [{ filename: `${safeTitle} - Huna Creatives.pdf`, content: btoa(binary) }],
-            html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0ede8">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#f0ede8">
-  <tr><td align="center" style="padding:40px 16px">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"
-      style="max-width:560px;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-      <tr><td style="background:#111;padding:26px 40px">
-        <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
-             alt="Huna Creatives" height="26" style="display:block;height:26px;width:auto;border:0">
-      </td></tr>
-      <tr><td style="padding:36px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-        <h1 style="margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:25px;font-weight:400;color:#1a1a1a">
-          Thank you, ${esc(signer.split(' ')[0])}.
-        </h1>
-        <p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
-          We've recorded your acceptance of <strong>${esc(title)}</strong> at <strong>${esc(money)}</strong>.
-          A PDF copy is attached for your records.
-        </p>
-        <p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
-          Next, we'll send over the service agreement to sign, followed by the invoice
-          for the first payment. Once that's settled, we begin.
-        </p>
-        <p style="margin:0;font-size:14px;line-height:1.8;color:#4a4a4a">
-          Any questions in the meantime, just reply to this email.
-        </p>
-      </td></tr>
-      <tr><td style="background:#111;padding:22px 40px;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
-        <span style="font-size:11px;color:#888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</span>
-        <span style="font-size:11px;color:#555"> &middot; Cebu City, Philippines</span>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`,
-          }),
-        });
-        pdfSent = mailRes.ok;
-        if (!mailRes.ok) console.error('Acceptance receipt failed to send:', await mailRes.text());
+        const safeTitle = title.replace(/[^a-zA-Z0-9 \-_]/g, '').trim() || (isProposal ? 'Proposal' : 'Quotation');
+        pdfAttachment = { filename: `${safeTitle} - Huna Creatives.pdf`, content: btoa(binary) };
       } catch (pdfErr) {
-        console.error('Acceptance PDF generation failed — acceptance still recorded:', pdfErr);
+        console.error('PDF generation failed — acceptance still recorded:', pdfErr);
       }
     }
 
-    // ── Proposal approved: send the client their next-steps email ───────
-    // No PDF — the firm quotation comes after they submit the project brief.
+    // ── One next-steps email for every approved doc ─────────────────────
+    // Price is fixed on the proposal, so no "formal quotation" follows —
+    // just the kickoff form, then the agreement + invoice (sent separately).
     let clientEmailSent = false;
-    if (accepted && isProposal && quote.to_email) {
+    if (accepted && quote.to_email) {
       const firstName = esc(signer.split(' ')[0]);
 
-      // If the proposal names an intake template, create the client
-      // questionnaire now and link the email straight to it.
+      // If the proposal names a kickoff template, create the form now and
+      // link the email straight to it.
       let intakeUrl = PROJECT_FORM_URL;
       const tplName = String((quote as { intake_template?: string }).intake_template ?? '').trim();
       const tpl = QUESTIONNAIRE_TEMPLATES[tplName];
@@ -264,19 +218,19 @@ Deno.serve(async (req) => {
             client_email: quote.to_email,
             questions: tpl,
             status: 'sent',
-            intro_message: `Thanks for approving the ${title} proposal. This short brief gives us everything we need for the first site. Once it is in, we will send your formal quotation and the partnership agreement.`,
+            intro_message: `Thanks for approving ${title}. This kickoff form gives us what we need to set your project up. We'll send the agreement and the deposit invoice separately.`,
           })
           .select('token')
           .single();
-        if (qErr) console.error('Intake questionnaire create failed:', qErr);
+        if (qErr) console.error('Kickoff form create failed:', qErr);
         if (qRow?.token) intakeUrl = `${SITE}/q/${qRow.token}`;
       }
 
       const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif";
       const steps: [string, string][] = [
-        ['The project brief', "A short form so we have everything for the first site: brand, products, pages, timeline, and what you'll be supplying."],
-        ['Quotation &amp; agreement', 'Within 24 hours of your brief, we send the final quotation with the confirmed price, plus the partnership agreement to sign.'],
-        ['Kickoff', 'On sign-off and the deposit, we kick off stage one of the first build.'],
+        ['Project Kickoff form', 'A few project details so we can set everything up on our side.'],
+        ['Agreement &amp; invoice', "We'll send these separately — the agreement to sign, and the deposit invoice."],
+        ['We begin', 'Once the kickoff form is in and the deposit is settled, your project manager gets in touch and work starts.'],
       ];
       const stepsRows = steps.map(([label, desc], i) => `
         <tr>
@@ -289,8 +243,8 @@ Deno.serve(async (req) => {
           </td>
         </tr>`).join('');
       const ctaRow = intakeUrl
-        ? `<a href="${intakeUrl}" style="display:inline-block;background:#111111;color:#ffffff;font-family:${SANS};font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:15px 34px;border-radius:3px;text-decoration:none">Fill out the project brief &rarr;</a>`
-        : `<p style="margin:0;font-size:13px;color:#5a5a5a;font-family:${SANS}">We'll send the brief form through shortly.</p>`;
+        ? `<a href="${intakeUrl}" style="display:inline-block;background:#111111;color:#ffffff;font-family:${SANS};font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:15px 34px;border-radius:3px;text-decoration:none">Open the kickoff form &rarr;</a>`
+        : `<p style="margin:0;font-size:13px;color:#5a5a5a;font-family:${SANS}">We'll send your kickoff form through shortly.</p>`;
 
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -300,7 +254,8 @@ Deno.serve(async (req) => {
           to: [quote.to_email],
           bcc: [TEAM_EMAIL],
           reply_to: TEAM_EMAIL,
-          subject: 'Proposal approved — next steps',
+          subject: `${Noun} approved — next steps`,
+          ...(pdfAttachment ? { attachments: [pdfAttachment] } : {}),
           html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0ede8">
 <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#f0ede8">
   <tr><td align="center" style="padding:40px 16px">
@@ -318,7 +273,7 @@ Deno.serve(async (req) => {
         <p style="margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#FF6B35;font-family:${SANS}">Next steps</p>
         <h1 style="margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;color:#1a1a1a">Thank you, ${firstName}.</h1>
         <p style="margin:0 0 28px;font-size:14px;line-height:1.75;color:#4a4a4a;font-family:${SANS}">
-          We've recorded your approval of <strong>${esc(title)}</strong>. Here's how we get moving:
+          We've recorded your approval of <strong>${esc(title)}</strong>${pdfAttachment ? ' — a copy is attached for your records' : ''}. Here's how we get moving:
         </p>
 
         <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">${stepsRows}</table>
@@ -342,7 +297,8 @@ Deno.serve(async (req) => {
         }),
       });
       clientEmailSent = res.ok;
-      if (!res.ok) console.error('Proposal next-steps email failed:', await res.text());
+      pdfSent = res.ok && !!pdfAttachment;
+      if (!res.ok) console.error('Next-steps email failed:', await res.text());
     }
 
     return new Response(JSON.stringify({ ok: true, status: patch.status, pdf_sent: pdfSent, client_email_sent: clientEmailSent }), { headers: cors });

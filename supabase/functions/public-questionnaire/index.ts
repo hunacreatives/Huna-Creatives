@@ -17,54 +17,8 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
-const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
-const TEAM_EMAIL = 'contact@hunacreatives.com';
-
-// Confirms to the client that their brief landed, and says what comes next.
-async function sendReceivedEmail(to: string, clientName: string, serviceType: string) {
-  if (!RESEND_API_KEY || !to) return;
-  const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif";
-  const first = String(clientName ?? '').trim().split(' ')[0] || 'there';
-  const nextLine = serviceType === 'Partner — Shopify Store Build'
-    ? "We'll review it and send your formal quotation for the first site, along with the partnership agreement, <strong>within 24 hours</strong>. On sign-off and the deposit, we kick off stage one of the build."
-    : "We'll review it and come back to you <strong>within 24 hours</strong> with the next steps.";
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [to],
-      bcc: [TEAM_EMAIL],
-      reply_to: TEAM_EMAIL,
-      subject: 'We’ve got your brief',
-      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0ede8">
-<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f0ede8">
-  <tr><td align="center" style="padding:40px 16px">
-    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-      <tr><td style="background:#111111;padding:24px 40px;border-bottom:3px solid #FF6B35">
-        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
-          <td><img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" height="26" style="display:block;height:26px;width:auto;border:0"></td>
-          <td align="right"><span style="font-family:${SANS};font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#FF6B35;border:1px solid rgba(255,107,53,0.35);padding:5px 10px">Received</span></td>
-        </tr></table>
-      </td></tr>
-      <tr><td style="padding:40px 40px 36px">
-        <p style="margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#FF6B35;font-family:${SANS}">Project brief received</p>
-        <h1 style="margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;color:#1a1a1a">Thank you, ${first}.</h1>
-        <p style="margin:0 0 16px;font-size:14px;line-height:1.75;color:#4a4a4a;font-family:${SANS}">Your project brief is in. ${nextLine}</p>
-        <p style="margin:0;font-size:13px;line-height:1.7;color:#8a8a8a;font-family:${SANS}">Questions in the meantime? Just reply to this email.</p>
-      </td></tr>
-      <tr><td align="center" style="background:#111111;padding:22px 40px;font-family:${SANS}">
-        <span style="font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</span>
-        <span style="font-size:11px;color:#555555"> &middot; Cebu City, Philippines</span>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`,
-    }),
-  }).catch((e) => console.error('brief-received email failed:', e));
-}
+// No client email on submit — the /q page shows the confirmation and the
+// team is notified via notify-questionnaire-submitted. Keeps the flow lean.
 
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
@@ -126,14 +80,11 @@ Deno.serve(async (req) => {
         })
         .eq('token', token)
         .eq('status', 'sent')
-        .select('client_name, client_email, service_type')
+        .select('client_name, service_type')
         .maybeSingle();
 
       if (error) return json({ error: 'submit_failed' }, 500);
       if (!data) return json({ error: 'not_submittable' }, 409);
-
-      // Best-effort: the submission is already saved.
-      await sendReceivedEmail(data.client_email, data.client_name, data.service_type);
 
       return json({ ok: true, client_name: data.client_name, service_type: data.service_type });
     }
