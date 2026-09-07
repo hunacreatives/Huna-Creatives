@@ -272,18 +272,26 @@ Deno.serve(async (req) => {
         if (qRow?.token) intakeUrl = `${SITE}/q/${qRow.token}`;
       }
 
-      const formBlock = intakeUrl
-        ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
-             First step is a short project brief, so we have everything we need for the first site:
-             the brand, the products, the pages you want, your timeline, and what you'll be supplying.
-           </p>
-           <p style="margin:0 0 22px">
-             <a href="${intakeUrl}" style="display:inline-block;background:#111111;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;padding:14px 28px;border-radius:3px;text-decoration:none">Fill out the project brief &rarr;</a>
-           </p>`
-        : `<p style="margin:0 0 22px;font-size:14px;line-height:1.8;color:#4a4a4a">
-             First step is a short project brief. We'll send you the form shortly, so we have everything we need
-             for the first site: the brand, the products, the pages you want, your timeline, and what you'll be supplying.
-           </p>`;
+      const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif";
+      const steps: [string, string][] = [
+        ['The project brief', "A short form so we have everything for the first site: brand, products, pages, timeline, and what you'll be supplying."],
+        ['Quotation &amp; agreement', 'Once your brief is in, we send the final quotation with the confirmed price, plus the partnership agreement to sign.'],
+        ['Kickoff', 'On sign-off and the deposit, we start Discovery on the first build.'],
+      ];
+      const stepsRows = steps.map(([label, desc], i) => `
+        <tr>
+          <td width="30" valign="top" style="padding:0 14px 20px 0">
+            <div style="width:26px;height:26px;border-radius:50%;background:#FF6B35;color:#ffffff;font-family:${SANS};font-size:13px;font-weight:700;text-align:center;line-height:26px">${i + 1}</div>
+          </td>
+          <td valign="top" style="padding:0 0 20px">
+            <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#1a1a1a;font-family:${SANS}">${label}</p>
+            <p style="margin:0;font-size:13px;line-height:1.7;color:#5a5a5a;font-family:${SANS}">${desc}</p>
+          </td>
+        </tr>`).join('');
+      const ctaRow = intakeUrl
+        ? `<a href="${intakeUrl}" style="display:inline-block;background:#111111;color:#ffffff;font-family:${SANS};font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:15px 34px;border-radius:3px;text-decoration:none">Fill out the project brief &rarr;</a>`
+        : `<p style="margin:0;font-size:13px;color:#5a5a5a;font-family:${SANS}">We'll send the brief form through shortly.</p>`;
+
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -297,34 +305,36 @@ Deno.serve(async (req) => {
 <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#f0ede8">
   <tr><td align="center" style="padding:40px 16px">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"
-      style="max-width:560px;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-      <tr><td style="background:#111;padding:26px 40px;border-bottom:3px solid #FF6B35">
-        <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
-             alt="Huna Creatives" height="28" style="display:block;height:28px;width:auto;border:0">
+      style="max-width:560px;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+
+      <tr><td style="background:#111111;padding:24px 40px;border-bottom:3px solid #FF6B35">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+          <td><img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" height="26" style="display:block;height:26px;width:auto;border:0"></td>
+          <td align="right"><span style="font-family:${SANS};font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#FF6B35;border:1px solid rgba(255,107,53,0.35);padding:5px 10px">Approved</span></td>
+        </tr></table>
       </td></tr>
-      <tr><td style="padding:36px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-        <h1 style="margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:25px;font-weight:400;color:#1a1a1a">
-          Thank you, ${firstName}.
-        </h1>
-        <p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
-          We've recorded your approval of <strong>${esc(title)}</strong>. Here's how we get moving.
+
+      <tr><td style="padding:40px 40px 36px">
+        <p style="margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#FF6B35;font-family:${SANS}">Next steps</p>
+        <h1 style="margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;color:#1a1a1a">Thank you, ${firstName}.</h1>
+        <p style="margin:0 0 28px;font-size:14px;line-height:1.75;color:#4a4a4a;font-family:${SANS}">
+          We've recorded your approval of <strong>${esc(title)}</strong>. Here's how we get moving:
         </p>
-        ${formBlock}
-        <p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
-          Once we have your brief, we'll send two things: the <strong>final quotation</strong> with the confirmed
-          price for the first site, and the <strong>partnership agreement</strong> for signature.
-        </p>
-        <p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
-          On sign-off and the deposit, we start Discovery on the first build.
-        </p>
-        <p style="margin:0;font-size:14px;line-height:1.8;color:#4a4a4a">
-          Any questions in the meantime, just reply to this email.
+
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">${stepsRows}</table>
+
+        <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top:8px"><tr><td>${ctaRow}</td></tr></table>
+
+        <p style="margin:28px 0 0;font-size:13px;color:#8a8a8a;line-height:1.7;font-family:${SANS}">
+          Questions in the meantime? Just reply to this email.
         </p>
       </td></tr>
-      <tr><td style="background:#111;padding:22px 40px;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
-        <span style="font-size:11px;color:#888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</span>
-        <span style="font-size:11px;color:#555"> &middot; Cebu City, Philippines</span>
+
+      <tr><td align="center" style="background:#111111;padding:22px 40px;font-family:${SANS}">
+        <span style="font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</span>
+        <span style="font-size:11px;color:#555555"> &middot; Cebu City, Philippines</span>
       </td></tr>
+
     </table>
   </td></tr>
 </table>
