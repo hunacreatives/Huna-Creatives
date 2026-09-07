@@ -203,6 +203,7 @@ const routes: RouteObject[] = [
   { path: '/p/capu-coffee', element: <ProposalCapuCoffee /> },
   { path: '/p/capu-coffee/approve', element: <ProposalCapuCoffeeApprove /> },
   { path: '/p/dobo', element: <ProposalDobo /> },
+  { path: '/p/dobo-preview', element: <ProposalDobo /> },
   { path: '/p/:slug', element: <PublicProposalPage /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },

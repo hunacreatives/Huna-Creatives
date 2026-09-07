@@ -4,10 +4,15 @@ import { supabase } from '@/lib/supabase';
 // Bespoke proposal for Matthew Oyos / DOBO (growdobo.com) — an ongoing
 // arrangement where Huna builds the Shopify stores for DOBO's clients while
 // DOBO runs strategy, creative, paid media and retention. The page binds
-// itself to whichever hub_proposals row carries `custom_path = '/p/dobo'`
+// itself to the hub_proposals row whose `custom_path` matches this URL
 // (set in the Sentro proposal builder), and records approval + views
 // against that row via the shared accept-quotation flow.
-const PATH = '/p/dobo';
+//
+// Same component serves /p/dobo (real) and /p/dobo-preview (a test row
+// addressed to contact@hunacreatives.com — approvals there never reach the
+// client). The path drives which row it binds to.
+const PATH = window.location.pathname.replace(/\/+$/, '') || '/p/dobo';
+const IS_PREVIEW = PATH !== '/p/dobo';
 const ASK_HREF = 'mailto:contact@hunacreatives.com?subject=' +
   encodeURIComponent('Questions about the DOBO partnership proposal');
 
@@ -65,7 +70,9 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 }
 
 export default function DoboProposal() {
-  useEffect(() => { document.title = 'Partnership Proposal — DOBO × Huna Creatives'; }, []);
+  useEffect(() => {
+    document.title = `Partnership Proposal — DOBO × Huna Creatives${IS_PREVIEW ? ' (Preview)' : ''}`;
+  }, []);
 
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
@@ -80,14 +87,11 @@ export default function DoboProposal() {
   // best-effort, mark it viewed. No slug bound → the approve button stays off.
   useEffect(() => {
     (async () => {
-      // Take the newest if more than one row is (mistakenly) tagged with this path.
-      const { data: rows } = await supabase
+      const { data } = await supabase
         .from('hub_proposals')
         .select('slug, status')
         .eq('custom_path', PATH)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      const data = rows?.[0];
+        .maybeSingle();
       if (!data?.slug) return;
       setSlug(data.slug);
       if (data.status === 'accepted' || data.status === 'declined') { setSettled(true); return; }
@@ -117,6 +121,13 @@ export default function DoboProposal() {
 
   return (
     <div className="min-h-screen bg-white" style={{ color: INK, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" }}>
+
+      {IS_PREVIEW && (
+        <div className="w-full text-center text-white text-[11px] font-bold tracking-[0.14em] uppercase py-2 px-4"
+          style={{ background: V }}>
+          Preview — approvals here go to the Huna team, not the client
+        </div>
+      )}
 
       {/* Top bar */}
       <div className="max-w-4xl mx-auto px-6 sm:px-8 pt-8 flex items-center justify-between">
