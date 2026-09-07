@@ -300,8 +300,8 @@ export default function DoboProposal() {
                 </h2>
                 <p className="text-white/55 text-[15px] leading-relaxed">
                   {done
-                    ? "We've recorded your approval. We'll send over the detailed quotation and the partnership agreement, then we start Discovery."
-                    : "This proposal has already been approved. We'll be in touch with the detailed quotation and the partnership agreement."}
+                    ? "We've recorded your approval and emailed you the next steps. First is a short project brief; once we have that we'll send the final quotation and the partnership agreement, then we start Discovery."
+                    : "This proposal has already been approved. Check your email for the next steps, or reply to us and we'll resend them."}
                 </p>
               </>
             ) : (
