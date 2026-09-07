@@ -47,7 +47,7 @@ const PARTNERSHIP = [
 const INVEST: [string, string, string][] = [
   ['Shopify custom ecommerce website', 'Discovery, design, build, launch and handover, per site', 'PHP 60,000–80,000'],
   ['Future Shopify builds', 'Partner pricing can be agreed after the first project, once we have a clear sense of the typical scope and workflow', 'Partner rate'],
-  ['Support retainer (once there are a few sites)', 'We start with one site. Once you have several live with us, a single monthly retainer covers all of them together, updates, monitoring, bug fixes and small changes, instead of quoting each one separately. We size it once we know how many sites and how active they are. As a rough guide: around PHP 15,000/month for two or three low-maintenance sites, scaling toward PHP 40,000–60,000/month for a larger, more active portfolio. Month to month.', 'From ~PHP 15,000 / mo'],
+  ['Support retainer', "Once we're supporting multiple live sites, we can move to a shared monthly retainer instead of quoting every update separately. This can cover ongoing maintenance, bug fixes, monitoring, and small site changes across the portfolio.\n\nRetainer pricing depends on the number of sites and how much ongoing support they need. As a guide, support for two to three low-maintenance sites may start around PHP 15,000/month, while a larger or more active portfolio may fall around PHP 40,000–60,000/month.\n\nMonth to month.", 'From PHP 15,000 / mo'],
 ];
 
 const TIMELINE: [string, string][] = [
@@ -245,7 +245,9 @@ export default function DoboProposal() {
           <div key={item} className="flex items-start gap-4 py-4 border-b border-gray-100">
             <div className="flex-1 min-w-0">
               <p className="text-[15px] leading-snug">{item}</p>
-              <p className="text-[13px] text-gray-400 mt-1 leading-relaxed">{sub}</p>
+              <div className="text-[13px] text-gray-400 mt-1 leading-relaxed space-y-2">
+                {sub.split('\n\n').map((para, k) => <p key={k}>{para}</p>)}
+              </div>
             </div>
             <span className="w-40 text-right text-[15px] tabular-nums whitespace-nowrap">
               {/\d/.test(amt)
