@@ -29,6 +29,7 @@ const INCLUDED = [
   'UX wireframes and custom interface design based on the brand, not a pre-made template',
   'Shopify development for agreed pages, reusable sections and responsive layouts',
   'Product, collection and navigation setup based on the agreed catalog',
+  'Placing the product photography and copy you provide across the catalog and pages',
   'Checkout, payments, shipping and tax configuration',
   'Setup and integration of the apps the store actually needs',
   'Basic SEO setup, redirects and analytics / tracking implementation',
@@ -45,9 +46,8 @@ const PARTNERSHIP = [
 
 const INVEST: [string, string, string][] = [
   ['Shopify custom ecommerce website', 'Discovery, design, build, launch and handover, per site', 'PHP 60,000–80,000'],
-  ['Product photography and content production', 'Quoted separately depending on requirements', 'Optional'],
   ['Future Shopify builds', 'Partner pricing can be agreed after the first project, once we have a clear sense of the typical scope and workflow', 'Partner rate'],
-  ['Ongoing Shopify support', 'Available on request and quoted based on the support needed', 'On request'],
+  ['Ongoing Shopify support', 'If you would like to move to a monthly retainer, we will send a ballpark figure to work from', 'Retainer'],
 ];
 
 const TIMELINE: [string, string][] = [
