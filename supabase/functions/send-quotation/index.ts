@@ -64,16 +64,48 @@ Deno.serve(async (req) => {
     const ccUnique = [...new Set(ccList.map((e: string) => e.toLowerCase()))].slice(0, 10);
 
     const q = quote as unknown as QuoteRecord;
+    const isProposal = (quote as { doc_type?: string }).doc_type === 'proposal';
     const accent = /^#[0-9a-f]{3,8}$/i.test(q.accent_color) ? q.accent_color : '#FF6B35';
     const currency = q.currency === 'USD' ? 'USD' : 'PHP';
     const totals = computeQuoteTotals(q.line_items, q.discount, q.tax_rate);
-    const title = q.project_title || `Quotation for ${q.client_name}`;
+    const title = q.project_title || `${isProposal ? 'Proposal' : 'Quotation'} for ${q.client_name}`;
     // A row can point at a hand-built page (e.g. /p/dobo) via custom_path.
     const customPath = String((quote as { custom_path?: string }).custom_path ?? '').trim();
     const quoteUrl = customPath
       ? `${SITE}${customPath.startsWith('/') ? '' : '/'}${customPath}`
       : `${SITE}/p/${q.slug}`;
     const acceptUrl = customPath ? `${quoteUrl}#approve` : `${quoteUrl}#accept`;
+
+    // A proposal is narrative: no pricing table, no "Accept" — the page it
+    // links to carries the detail and its own approve flow.
+    const bodyMain = isProposal
+      ? (intro
+          ? `<p style="margin:22px 0 0;font-size:14px;line-height:1.8;color:#4a4a4a;white-space:pre-wrap">${esc(intro)}</p>`
+          : `<p style="margin:22px 0 0;font-size:14px;line-height:1.8;color:#4a4a4a">We've put together a proposal for you. Have a read through — you can approve it right on the page when you're ready.</p>`)
+      : `${intro ? `<p style="margin:22px 0 0;font-size:14px;line-height:1.8;color:#4a4a4a;white-space:pre-wrap">${esc(intro)}</p>` : ''}
+         <div style="margin:32px 0 0">${renderQuoteSections(q)}</div>
+         <p style="margin:32px 0 12px;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a">Investment</p>
+         ${renderQuoteTable(q)}`;
+
+    const ctaBlock = isProposal
+      ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:34px 0 0"><tr><td>
+           <a href="${quoteUrl}" style="display:block;text-align:center;background:${accent};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:14px 18px;border-radius:3px">View the proposal &rarr;</a>
+         </td></tr></table>
+         <p style="margin:18px 0 0;font-size:12px;color:#8a8a8a;line-height:1.7;text-align:center">Questions? Just reply to this email.</p>`
+      : `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:34px 0 0">
+           <tr>
+             <td style="padding-right:8px" width="50%">
+               <a href="${acceptUrl}" style="display:block;text-align:center;background:${accent};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:14px 18px;border-radius:3px">Accept this quotation</a>
+             </td>
+             <td style="padding-left:8px" width="50%">
+               <a href="${CALENDLY}" style="display:block;text-align:center;background:#ffffff;color:#1a1a1a;font-size:14px;font-weight:600;text-decoration:none;padding:13px 18px;border:1px solid #d8d5d0;border-radius:3px">Schedule a call</a>
+             </td>
+           </tr>
+         </table>
+         <p style="margin:18px 0 0;font-size:12px;color:#8a8a8a;line-height:1.7;text-align:center">
+           Or view it online at <a href="${quoteUrl}" style="color:${accent};text-decoration:none">${esc(quoteUrl.replace('https://', ''))}</a><br>
+           Questions? Just reply to this email.
+         </p>`;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -104,7 +136,7 @@ Deno.serve(async (req) => {
               </td>
               <td align="right">
                 <span style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${accent};border:1px solid ${accent}59;padding:5px 10px">
-                  Quotation
+                  ${isProposal ? 'Proposal' : 'Quotation'}
                 </span>
               </td>
             </tr></table>
@@ -121,33 +153,9 @@ Deno.serve(async (req) => {
           </h1>
           ${q.tagline ? `<p style="margin:0;font-size:14px;color:#6b6b6b;line-height:1.6">${esc(q.tagline)}</p>` : ''}
 
-          ${intro ? `<p style="margin:22px 0 0;font-size:14px;line-height:1.8;color:#4a4a4a;white-space:pre-wrap">${esc(intro)}</p>` : ''}
+          ${bodyMain}
 
-          <div style="margin:32px 0 0">${renderQuoteSections(q)}</div>
-
-          <p style="margin:32px 0 12px;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a">Investment</p>
-          ${renderQuoteTable(q)}
-
-          <!-- Two CTAs, equal weight: decide now, or talk it through first. -->
-          <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:34px 0 0">
-            <tr>
-              <td style="padding-right:8px" width="50%">
-                <a href="${acceptUrl}" style="display:block;text-align:center;background:${accent};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:14px 18px;border-radius:3px">
-                  Accept this quotation
-                </a>
-              </td>
-              <td style="padding-left:8px" width="50%">
-                <a href="${CALENDLY}" style="display:block;text-align:center;background:#ffffff;color:#1a1a1a;font-size:14px;font-weight:600;text-decoration:none;padding:13px 18px;border:1px solid #d8d5d0;border-radius:3px">
-                  Schedule a call
-                </a>
-              </td>
-            </tr>
-          </table>
-
-          <p style="margin:18px 0 0;font-size:12px;color:#8a8a8a;line-height:1.7;text-align:center">
-            Or view it online at <a href="${quoteUrl}" style="color:${accent};text-decoration:none">${esc(quoteUrl.replace('https://', ''))}</a><br>
-            Questions? Just reply to this email.
-          </p>
+          ${ctaBlock}
 
         </td></tr>
 
@@ -169,7 +177,9 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-    const subject = `Quotation from Huna Creatives — ${title} · ${fmtMoney(totals.total, currency)}`;
+    const subject = isProposal
+      ? `A proposal from Huna Creatives — ${title}`
+      : `Quotation from Huna Creatives — ${title} · ${fmtMoney(totals.total, currency)}`;
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
