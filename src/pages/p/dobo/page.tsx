@@ -80,11 +80,14 @@ export default function DoboProposal() {
   // best-effort, mark it viewed. No slug bound → the approve button stays off.
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
+      // Take the newest if more than one row is (mistakenly) tagged with this path.
+      const { data: rows } = await supabase
         .from('hub_proposals')
         .select('slug, status')
         .eq('custom_path', PATH)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const data = rows?.[0];
       if (!data?.slug) return;
       setSlug(data.slug);
       if (data.status === 'accepted' || data.status === 'declined') { setSettled(true); return; }
