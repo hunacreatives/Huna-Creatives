@@ -203,8 +203,10 @@ export default function DoboProposal() {
         </h2>
         <ul className="grid sm:grid-cols-2 gap-x-10 gap-y-3.5">
           {INCLUDED.map((item) => (
-            <li key={item} className="flex gap-3 text-[14.5px] leading-[1.7] text-gray-700">
-              <span className="mt-[7px] h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: V }} />
+            <li key={item} className="flex gap-2.5 text-[14.5px] leading-[1.7] text-gray-700">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-[4px] flex-shrink-0" style={{ color: V }}>
+                <path d="M3 8.5l3.2 3.2L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               {item}
             </li>
           ))}
