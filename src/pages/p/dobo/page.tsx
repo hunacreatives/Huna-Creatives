@@ -47,7 +47,7 @@ const PARTNERSHIP = [
 const INVEST: [string, string, string][] = [
   ['Shopify custom ecommerce website', 'Discovery, design, build, launch and handover, per site', 'PHP 60,000–80,000'],
   ['Future Shopify builds', 'Partner pricing can be agreed after the first project, once we have a clear sense of the typical scope and workflow', 'Partner rate'],
-  ['Ongoing Shopify support', 'If you would like to move to a monthly retainer, we will send a ballpark figure to work from', 'Retainer'],
+  ['Ongoing Shopify support (optional)', 'A monthly retainer for stores you want us on standby for. Around PHP 12,000/month covers Shopify and theme updates, uptime and checkout monitoring, and a small block of hours for fixes and content edits. Nearer PHP 35,000–40,000/month adds a larger block of change hours plus campaign and seasonal support. Scoped per store once it is live, month to month.', 'From PHP 12,000 / mo'],
 ];
 
 const TIMELINE: [string, string][] = [
