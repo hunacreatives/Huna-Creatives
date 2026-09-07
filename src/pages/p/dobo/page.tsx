@@ -280,8 +280,8 @@ export default function DoboProposal() {
           ))}
         </div>
         <p className="mt-5 text-[13px] leading-relaxed text-gray-500 max-w-xl">
-          Final timing will depend mainly on the size of the product catalog and how ready the content is at
-          kickoff. We will confirm the project schedule during Discovery.
+          Final timing depends mainly on the size of the product catalog and how ready the content is at
+          kickoff. We will lock the schedule with you once the catalog and content are confirmed.
         </p>
       </section>
 
