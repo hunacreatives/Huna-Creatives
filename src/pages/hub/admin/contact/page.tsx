@@ -314,6 +314,8 @@ export default function ContactSubmissionsPage() {
   // Proposals
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [creatingProposal, setCreatingProposal] = useState(false);
+  const [confirmDeleteProposalId, setConfirmDeleteProposalId] = useState<number | null>(null);
+  const [deletingProposal, setDeletingProposal] = useState(false);
   const [sendingProposalId, setSendingProposalId] = useState<number | null>(null);
   const [proposalSendResult, setProposalSendResult] = useState<Record<number, 'success' | 'error'>>({});
 
@@ -474,6 +476,15 @@ export default function ContactSubmissionsPage() {
     if (!error && data) navigate(`/hub/admin/proposals/${data.id}`);
   };
 
+  const deleteProposal = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    setDeletingProposal(true);
+    await supabase.from('hub_proposals').delete().eq('id', id);
+    setDeletingProposal(false);
+    setConfirmDeleteProposalId(null);
+    setProposals(prev => prev.filter(x => x.id !== id));
+  };
+
   // Sent or opened but no answer yet — the ones worth chasing.
   const awaitingReply = proposals.filter(p => p.status === 'sent' || p.status === 'viewed').length;
 
@@ -576,20 +587,41 @@ export default function ContactSubmissionsPage() {
                         )}
                       </div>
                       <div className="px-4 pb-3 flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-1 text-[11px] text-gray-400 group-hover:text-[#FF6B35] transition-colors">
-                          <i className="ri-edit-line" /> Open
-                        </span>
-                        {/* A settled quotation is a record, not a draft — don't offer to resend it. */}
-                        {!settled && (
-                          <button
-                            onClick={e => openSendModal(e, p)}
-                            className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors text-[#FF6B35] hover:text-[#e55a27]">
-                            {proposalSendResult[p.id] === 'error'
-                              ? <><i className="ri-error-warning-line" /> Failed</>
-                              : p.status === 'sent' || p.status === 'viewed'
-                                ? <><i className="ri-refresh-line" /> Resend</>
-                                : <><i className="ri-send-plane-line" /> Send to client</>}
-                          </button>
+                        {confirmDeleteProposalId === p.id ? (
+                          <div className="flex items-center gap-3 w-full" onClick={e => e.stopPropagation()}>
+                            <span className="text-[11px] text-gray-500 flex-1">Delete this {p.doc_type}?</span>
+                            <button onClick={e => deleteProposal(e, p.id)} disabled={deletingProposal}
+                              className="text-[11px] font-semibold text-red-500 hover:text-red-600 cursor-pointer disabled:opacity-50">
+                              {deletingProposal ? 'Deleting…' : 'Delete'}
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); setConfirmDeleteProposalId(null); }}
+                              className="text-[11px] text-gray-400 hover:text-gray-600 cursor-pointer">Cancel</button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="flex items-center gap-1 text-[11px] text-gray-400 group-hover:text-[#FF6B35] transition-colors">
+                              <i className="ri-edit-line" /> Open
+                            </span>
+                            <div className="flex items-center gap-3">
+                              {/* A settled quotation is a record, not a draft — don't offer to resend it. */}
+                              {!settled && (
+                                <button
+                                  onClick={e => openSendModal(e, p)}
+                                  className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer transition-colors text-[#FF6B35] hover:text-[#e55a27]">
+                                  {proposalSendResult[p.id] === 'error'
+                                    ? <><i className="ri-error-warning-line" /> Failed</>
+                                    : p.status === 'sent' || p.status === 'viewed'
+                                      ? <><i className="ri-refresh-line" /> Resend</>
+                                      : <><i className="ri-send-plane-line" /> Send to client</>}
+                                </button>
+                              )}
+                              <button onClick={e => { e.stopPropagation(); setConfirmDeleteProposalId(p.id); }}
+                                title="Delete"
+                                className="text-[11px] text-gray-300 hover:text-red-500 transition-colors cursor-pointer">
+                                <i className="ri-delete-bin-line" />
+                              </button>
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
