@@ -243,7 +243,12 @@ Deno.serve(async (req) => {
           </td>
         </tr>`).join('');
       const ctaRow = intakeUrl
-        ? `<a href="${intakeUrl}" style="display:inline-block;background:#111111;color:#ffffff;font-family:${SANS};font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:15px 34px;border-radius:3px;text-decoration:none">Open the kickoff form &rarr;</a>`
+        ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#fff4ef;border:1px solid #ffd9c7;border-radius:6px;margin-top:4px">
+             <tr><td style="padding:20px 22px">
+               <p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#FF6B35;font-family:${SANS}">Start here</p>
+               <a href="${intakeUrl}" style="display:block;text-align:center;background:#FF6B35;color:#ffffff;font-family:${SANS};font-size:14px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:16px 24px;border-radius:4px;text-decoration:none">Open the kickoff form &rarr;</a>
+             </td></tr>
+           </table>`
         : `<p style="margin:0;font-size:13px;color:#5a5a5a;font-family:${SANS}">We'll send your kickoff form through shortly.</p>`;
 
       const res = await fetch('https://api.resend.com/emails', {
