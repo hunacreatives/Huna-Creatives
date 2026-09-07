@@ -16,6 +16,10 @@ const ADMIN_SLACK_IDS = ['U091BL9PQ77', 'U0838LWSY4E'];
 const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
 const TEAM_EMAIL = 'contact@hunacreatives.com';
 const HUB = 'https://hub.hunacreatives.com';
+// Project-brief form linked from the "proposal approved" client email.
+// Set to the live form URL (a hub questionnaire /q/<slug> or a Google Form).
+// Leave blank and the email tells the client the form is coming separately.
+const PROJECT_FORM_URL = '';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -238,7 +242,75 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, status: patch.status, pdf_sent: pdfSent }), { headers: cors });
+    // ── Proposal approved: send the client their next-steps email ───────
+    // No PDF — the firm quotation comes after they submit the project brief.
+    let clientEmailSent = false;
+    if (accepted && isProposal && quote.to_email) {
+      const firstName = esc(signer.split(' ')[0]);
+      const formBlock = PROJECT_FORM_URL
+        ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
+             First step is a short project brief, so we have everything we need for the first site:
+             the brand, the products, the pages you want, your timeline, and what you'll be supplying.
+           </p>
+           <p style="margin:0 0 22px">
+             <a href="${PROJECT_FORM_URL}" style="display:inline-block;background:#111111;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;padding:14px 28px;border-radius:3px;text-decoration:none">Fill out the project brief &rarr;</a>
+           </p>`
+        : `<p style="margin:0 0 22px;font-size:14px;line-height:1.8;color:#4a4a4a">
+             First step is a short project brief. We'll send you the form shortly, so we have everything we need
+             for the first site: the brand, the products, the pages you want, your timeline, and what you'll be supplying.
+           </p>`;
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: FROM_EMAIL,
+          to: [quote.to_email],
+          bcc: [TEAM_EMAIL],
+          reply_to: TEAM_EMAIL,
+          subject: 'Proposal approved — next steps',
+          html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0ede8">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#f0ede8">
+  <tr><td align="center" style="padding:40px 16px">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"
+      style="max-width:560px;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+      <tr><td style="background:#111;padding:26px 40px;border-bottom:3px solid #FF6B35">
+        <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png"
+             alt="Huna Creatives" height="28" style="display:block;height:28px;width:auto;border:0">
+      </td></tr>
+      <tr><td style="padding:36px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+        <h1 style="margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:25px;font-weight:400;color:#1a1a1a">
+          Thank you, ${firstName}.
+        </h1>
+        <p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
+          We've recorded your approval of <strong>${esc(title)}</strong>. Here's how we get moving.
+        </p>
+        ${formBlock}
+        <p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
+          Once we have your brief, we'll send two things: the <strong>final quotation</strong> with the confirmed
+          price for the first site, and the <strong>partnership agreement</strong> for signature.
+        </p>
+        <p style="margin:0 0 16px;font-size:14px;line-height:1.8;color:#4a4a4a">
+          On sign-off and the deposit, we start Discovery on the first build.
+        </p>
+        <p style="margin:0;font-size:14px;line-height:1.8;color:#4a4a4a">
+          Any questions in the meantime, just reply to this email.
+        </p>
+      </td></tr>
+      <tr><td style="background:#111;padding:22px 40px;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
+        <span style="font-size:11px;color:#888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</span>
+        <span style="font-size:11px;color:#555"> &middot; Cebu City, Philippines</span>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`,
+        }),
+      });
+      clientEmailSent = res.ok;
+      if (!res.ok) console.error('Proposal next-steps email failed:', await res.text());
+    }
+
+    return new Response(JSON.stringify({ ok: true, status: patch.status, pdf_sent: pdfSent, client_email_sent: clientEmailSent }), { headers: cors });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: cors });
   }
