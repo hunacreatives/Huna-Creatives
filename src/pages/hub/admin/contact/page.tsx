@@ -8,7 +8,7 @@ import {
 } from '@/lib/quotation';
 
 type SubmissionStatus = 'new' | 'read' | 'replied' | 'archived';
-type ActiveTab = 'inbox' | 'sent' | 'quotations';
+type ActiveTab = 'inbox' | 'sent' | 'quotations' | 'proposals';
 
 interface ContactSubmission {
   id: number;
@@ -345,7 +345,7 @@ export default function ContactSubmissionsPage() {
 
   useEffect(() => { fetchSubmissions(); }, [filter]);
   useEffect(() => { if (tab === 'sent') fetchReplies(); }, [tab]);
-  useEffect(() => { if (tab === 'quotations') fetchProposals(); }, [tab]);
+  useEffect(() => { if (tab === 'quotations' || tab === 'proposals') fetchProposals(); }, [tab]);
 
   const openSendModal = (e: React.MouseEvent, p: Proposal) => {
     e.stopPropagation();
@@ -454,13 +454,13 @@ export default function ContactSubmissionsPage() {
     }
   };
 
-  const createProposal = async (fromSubmission?: ContactSubmission) => {
+  const createProposal = async (fromSubmission?: ContactSubmission, docType: 'quotation' | 'proposal' = 'quotation') => {
     setCreatingProposal(true);
     const name = fromSubmission?.name || 'New Client';
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'quote'}-${Math.random().toString(36).slice(2, 6)}`;
     const { data, error } = await supabase.from('hub_proposals').insert({
       slug,
-      doc_type: 'quotation',
+      doc_type: docType,
       client_name: name,
       to_email: fromSubmission?.email ?? '',
       project_title: fromSubmission?.service ?? '',
@@ -485,8 +485,12 @@ export default function ContactSubmissionsPage() {
     setProposals(prev => prev.filter(x => x.id !== id));
   };
 
+  // The Quotations / Proposals tabs share one table, split by doc_type.
+  const docType: 'quotation' | 'proposal' = tab === 'proposals' ? 'proposal' : 'quotation';
+  const docList = proposals.filter(p => (p.doc_type ?? 'quotation') === docType);
+  const docNoun = docType === 'proposal' ? 'Proposal' : 'Quotation';
   // Sent or opened but no answer yet — the ones worth chasing.
-  const awaitingReply = proposals.filter(p => p.status === 'sent' || p.status === 'viewed').length;
+  const awaitingReply = docList.filter(p => p.status === 'sent' || p.status === 'viewed').length;
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -503,6 +507,7 @@ export default function ContactSubmissionsPage() {
           {([
             ['inbox', 'ri-inbox-line', 'Inbox'],
             ['sent', 'ri-send-plane-line', 'Sent'],
+            ['proposals', 'ri-file-list-3-line', 'Proposals'],
             ['quotations', 'ri-price-tag-3-line', 'Quotations'],
           ] as const).map(([t, icon, label]) => (
             <button key={t} onClick={() => setTab(t)}
@@ -517,13 +522,13 @@ export default function ContactSubmissionsPage() {
           ))}
         </div>
 
-        {/* ── Quotations tab ── */}
-        {tab === 'quotations' && (
+        {/* ── Proposals / Quotations tabs (one table, split by doc_type) ── */}
+        {(tab === 'quotations' || tab === 'proposals') && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <p className="text-xs text-gray-400">
-                  {proposals.length} document{proposals.length !== 1 ? 's' : ''}
+                  {docList.length} document{docList.length !== 1 ? 's' : ''}
                 </p>
                 {awaitingReply > 0 && (
                   <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full">
@@ -531,29 +536,29 @@ export default function ContactSubmissionsPage() {
                   </span>
                 )}
               </div>
-              <button onClick={() => createProposal()}
+              <button onClick={() => createProposal(undefined, docType)}
                 disabled={creatingProposal}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FF6B35] text-white text-xs font-semibold hover:bg-[#e55a27] transition-colors cursor-pointer disabled:opacity-40">
                 {creatingProposal
                   ? <><i className="ri-loader-4-line animate-spin text-sm" /> Creating…</>
-                  : <><i className="ri-add-line text-sm" /> New Quotation</>}
+                  : <><i className="ri-add-line text-sm" /> New {docNoun}</>}
               </button>
             </div>
-            {proposals.length === 0 ? (
+            {docList.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                <i className="ri-price-tag-3-line text-3xl text-gray-200 block mb-3" />
-                <p className="text-sm text-gray-400 mb-1">No quotations yet</p>
+                <i className={`${docType === 'proposal' ? 'ri-file-list-3-line' : 'ri-price-tag-3-line'} text-3xl text-gray-200 block mb-3`} />
+                <p className="text-sm text-gray-400 mb-1">No {docNoun.toLowerCase()}s yet</p>
                 <p className="text-xs text-gray-400 mb-4">
                   Open a message in the Inbox and hit Quotation to draft one from their enquiry.
                 </p>
-                <button onClick={() => createProposal()}
+                <button onClick={() => createProposal(undefined, docType)}
                   className="text-xs text-[#FF6B35] font-medium hover:underline cursor-pointer">
                   Or start one from scratch
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {proposals.map(p => {
+                {docList.map(p => {
                   const total = computeQuoteTotals(p.line_items ?? [], p.discount ?? 0, p.tax_rate ?? 0).total;
                   const settled = p.status === 'accepted' || p.status === 'declined';
                   return (

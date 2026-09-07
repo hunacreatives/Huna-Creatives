@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase';
 // (set in the Sentro proposal builder), and records approval + views
 // against that row via the shared accept-quotation flow.
 const PATH = '/p/dobo';
-const FALLBACK_SLUG = 'matthew-oyos-kh2y';
 const ASK_HREF = 'mailto:contact@hunacreatives.com?subject=' +
   encodeURIComponent('Questions about the DOBO partnership proposal');
 
@@ -74,10 +73,11 @@ export default function DoboProposal() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState(false);
-  const [slug, setSlug] = useState(FALLBACK_SLUG);
+  const [slug, setSlug] = useState('');
   const [settled, setSettled] = useState(false);
 
-  // Bind to the proposal row wired to this page and, best-effort, mark it viewed.
+  // Bind to the proposal row wired to this page (custom_path = '/p/dobo') and,
+  // best-effort, mark it viewed. No slug bound → the approve button stays off.
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -85,7 +85,7 @@ export default function DoboProposal() {
         .select('slug, status')
         .eq('custom_path', PATH)
         .maybeSingle();
-      if (!data) return;
+      if (!data?.slug) return;
       setSlug(data.slug);
       if (data.status === 'accepted' || data.status === 'declined') { setSettled(true); return; }
       if (data.status === 'sent') {
@@ -97,7 +97,7 @@ export default function DoboProposal() {
   }, []);
 
   const approve = async () => {
-    if (!name.trim() || !agreed) return;
+    if (!name.trim() || !agreed || !slug) return;
     setBusy(true); setErr('');
     try {
       const { data, error } = await supabase.functions.invoke('accept-quotation', {
@@ -339,10 +339,13 @@ export default function DoboProposal() {
                   {err && (
                     <p className="text-red-300 text-[13px] bg-red-500/10 border border-red-500/20 rounded px-4 py-2.5">{err}</p>
                   )}
+                  {!slug && !err && (
+                    <p className="text-white/40 text-[12px]">This proposal link isn't active yet. If you need to approve now, just reply to your email.</p>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-4 mt-5">
-                  <button onClick={approve} disabled={busy || !name.trim() || !agreed}
+                  <button onClick={approve} disabled={busy || !name.trim() || !agreed || !slug}
                     className="inline-flex items-center gap-2 px-7 py-3.5 text-white text-sm font-semibold rounded transition-opacity hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                     style={{ background: V }}>
                     {busy ? 'Recording…' : 'Approve proposal →'}
