@@ -40,14 +40,14 @@ const INCLUDED = [
 const PARTNERSHIP = [
   ['You own the client relationship', 'DOBO remains the lead partner and primary client contact. Huna works behind the scenes as your Shopify design and development team.'],
   ['White-label by default', 'We can work fully white-label, including NDAs and delivery under the DOBO name. When needed, we can also join client meetings as part of your wider team.'],
-  ['Start with one project', 'We will agree the scope and pricing for the first site. Once we have worked through a full project together, we can establish a repeatable process and partner rates for future builds.'],
+  ['Start with one project', 'We agree the scope and pricing for the first site. Once we have run a full project together, we can settle on a repeatable process, partner rates for future builds, and a single retainer to support everything we have built for you.'],
   ['Clear scope, no duplicated work', 'DOBO continues to own strategy, creative, paid media and retention. Huna takes responsibility for the Shopify website. Clear roles, no duplicated work.'],
 ];
 
 const INVEST: [string, string, string][] = [
   ['Shopify custom ecommerce website', 'Discovery, design, build, launch and handover, per site', 'PHP 60,000–80,000'],
   ['Future Shopify builds', 'Partner pricing can be agreed after the first project, once we have a clear sense of the typical scope and workflow', 'Partner rate'],
-  ['Ongoing Shopify support (optional)', 'A monthly retainer for stores you want us on standby for. Around PHP 12,000/month covers Shopify and theme updates, uptime and checkout monitoring, and a small block of hours for fixes and content edits. Nearer PHP 35,000–40,000/month adds a larger block of change hours plus campaign and seasonal support. Scoped per store once it is live, month to month.', 'From PHP 12,000 / mo'],
+  ['Support retainer (once there are a few sites)', 'We start with one site. Once you have several live with us, a single monthly retainer covers all of them together, updates, monitoring, bug fixes and small changes, instead of quoting each one separately. We size it once we know how many sites and how active they are. As a rough guide: around PHP 15,000/month for two or three low-maintenance sites, scaling toward PHP 40,000–60,000/month for a larger, more active portfolio. Month to month.', 'From ~PHP 15,000 / mo'],
 ];
 
 const TIMELINE: [string, string][] = [
