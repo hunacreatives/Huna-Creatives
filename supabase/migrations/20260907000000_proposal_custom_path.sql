@@ -12,3 +12,8 @@ alter table public.hub_proposals
 create index if not exists hub_proposals_custom_path_idx
   on public.hub_proposals (custom_path)
   where custom_path is not null;
+
+-- The public proposal page reads hub_proposals by an explicit column
+-- allow-list (see 20260824000002); a bespoke page also filters on this
+-- column, so anon needs SELECT on it.
+grant select (custom_path) on public.hub_proposals to anon;
