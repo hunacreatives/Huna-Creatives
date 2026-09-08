@@ -4,6 +4,7 @@ import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useDemo } from '@/contexts/DemoContext';
 import { DEMO_INVOICES } from '@/lib/demoData';
+import { getDriveThumbnailUrl } from '@/pages/hub/utils/drive';
 
 const fmt = (n: number | null) =>
   n == null ? '—' : '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -858,7 +859,7 @@ export default function InvoiceLogPage() {
                             </a>
                           ) : (
                             <a href={p.proof_url} target="_blank" rel="noreferrer" className="inline-block">
-                              <img src={p.proof_url} alt="Payment proof" className="max-h-40 rounded-lg border border-gray-200 object-contain bg-white" />
+                              <img src={getDriveThumbnailUrl(p.proof_url, 1000)} alt="Payment proof" className="max-h-40 rounded-lg border border-gray-200 object-contain bg-white" />
                             </a>
                           )}
                         </div>
@@ -942,7 +943,7 @@ export default function InvoiceLogPage() {
                         <div>
                           <p className="text-xs text-gray-400 uppercase tracking-wide mb-1.5">Proof of Receipt</p>
                           <a href={r.receipt_url} target="_blank" rel="noreferrer" className="inline-block">
-                            <img src={r.receipt_url} alt="Receipt" className="max-h-40 rounded-lg border border-gray-200 object-contain bg-white" />
+                            <img src={getDriveThumbnailUrl(r.receipt_url, 1000)} alt="Receipt" className="max-h-40 rounded-lg border border-gray-200 object-contain bg-white" />
                           </a>
                         </div>
                       )}
