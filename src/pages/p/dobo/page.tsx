@@ -83,8 +83,8 @@ export default function DoboProposal() {
   const [slug, setSlug] = useState('');
   const [settled, setSettled] = useState(false);
 
-  // Bind to the proposal row wired to this page (custom_path = '/p/dobo') and,
-  // best-effort, mark it viewed. No slug bound → the approve button stays off.
+  // Bind to the proposal row wired to this page (custom_path = '/p/dobo') and
+  // log the view (server-side, for the IP). No slug bound → approve stays off.
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -95,11 +95,7 @@ export default function DoboProposal() {
       if (!data?.slug) return;
       setSlug(data.slug);
       if (data.status === 'accepted' || data.status === 'declined') { setSettled(true); return; }
-      if (data.status === 'sent') {
-        supabase.from('hub_proposals')
-          .update({ status: 'viewed', viewed_at: new Date().toISOString() })
-          .eq('slug', data.slug).eq('status', 'sent').then(() => {}, () => {});
-      }
+      supabase.functions.invoke('log-proposal-view', { body: { slug: data.slug } }).then(() => {}, () => {});
     })();
   }, []);
 

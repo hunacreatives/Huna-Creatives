@@ -14,6 +14,14 @@ interface ProposalSection {
   body: string;
 }
 
+interface ProposalView {
+  id: number;
+  viewed_at: string;
+  ip: string | null;
+  city: string | null;
+  country: string | null;
+}
+
 interface Proposal {
   id: number;
   slug: string;
@@ -100,6 +108,8 @@ export default function ProposalBuilderPage() {
     payment_schedule: [],
     status: 'draft',
   });
+  const [views, setViews] = useState<ProposalView[]>([]);
+  const [showViews, setShowViews] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -131,6 +141,12 @@ export default function ProposalBuilderPage() {
       const { data } = await supabase.from('hub_proposals').select('*').eq('id', id).single();
       if (data) setProposal(data as Proposal);
       setLoading(false);
+      const { data: v } = await supabase
+        .from('hub_proposal_views')
+        .select('id, viewed_at, ip, city, country')
+        .eq('proposal_id', id)
+        .order('viewed_at', { ascending: false });
+      setViews((v as ProposalView[]) ?? []);
     })();
   }, [id, isNew]);
 
@@ -384,6 +400,9 @@ export default function ProposalBuilderPage() {
   const label = isQuote ? 'Quotation' : 'Proposal';
   const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 disabled:bg-gray-50 disabled:text-gray-400';
 
+  const fmtView = (d: string) =>
+    new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
   if (loading) {
     return (
       <AdminLayout title="Quotation Builder">
@@ -422,6 +441,15 @@ export default function ProposalBuilderPage() {
                   className="text-[11px] text-[#FF6B35] hover:underline mt-0.5 block truncate max-w-xs">
                   {publicUrl}
                 </a>
+              )}
+              {views.length > 0 && (
+                <button onClick={() => setShowViews(v => !v)}
+                  className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <i className="ri-eye-line" />
+                  Viewed {views.length}{views.length === 1 ? ' time' : ' times'}
+                  <span className="text-gray-300">· last {fmtView(views[0].viewed_at)}</span>
+                  <i className={`ri-arrow-${showViews ? 'up' : 'down'}-s-line`} />
+                </button>
               )}
             </div>
           </div>
@@ -462,6 +490,26 @@ export default function ProposalBuilderPage() {
             </button>
           </div>
         </div>
+
+        {/* ── View log ── */}
+        {showViews && views.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              {views.length} view{views.length === 1 ? '' : 's'}
+            </p>
+            <div className="divide-y divide-gray-50">
+              {views.map(v => (
+                <div key={v.id} className="flex items-center justify-between gap-3 py-2 text-xs">
+                  <span className="text-gray-700">{fmtView(v.viewed_at)}</span>
+                  <span className="text-gray-400 tabular-nums">{v.ip || '—'}</span>
+                  <span className="text-gray-400 flex-1 text-right truncate">
+                    {[v.city, v.country].filter(Boolean).join(', ') || '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Client decision banner ── */}
         {locked && (

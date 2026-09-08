@@ -313,6 +313,7 @@ export default function ContactSubmissionsPage() {
 
   // Proposals
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [viewCounts, setViewCounts] = useState<Record<number, number>>({});
   const [creatingProposal, setCreatingProposal] = useState(false);
   const [confirmDeleteProposalId, setConfirmDeleteProposalId] = useState<number | null>(null);
   const [deletingProposal, setDeletingProposal] = useState(false);
@@ -341,6 +342,10 @@ export default function ContactSubmissionsPage() {
   const fetchProposals = async () => {
     const { data } = await supabase.from('hub_proposals').select('*').order('created_at', { ascending: false });
     setProposals((data as Proposal[]) ?? []);
+    const { data: v } = await supabase.from('hub_proposal_views').select('proposal_id');
+    const counts: Record<number, number> = {};
+    (v ?? []).forEach((r: { proposal_id: number }) => { counts[r.proposal_id] = (counts[r.proposal_id] ?? 0) + 1; });
+    setViewCounts(counts);
   };
 
   useEffect(() => { fetchSubmissions(); }, [filter]);
@@ -570,7 +575,7 @@ export default function ContactSubmissionsPage() {
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <span className="font-medium text-sm text-gray-900 truncate">{p.client_name || 'Untitled'}</span>
                           <span className={`flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${proposalStatusColors[p.status]}`}>
-                            {p.status}
+                            {p.status === 'viewed' && viewCounts[p.id] > 1 ? `viewed ${viewCounts[p.id]}×` : p.status}
                           </span>
                         </div>
                         {p.project_title && (

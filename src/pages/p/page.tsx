@@ -157,20 +157,14 @@ export default function ProposalPage() {
     })();
   }, [slug]);
 
-  // Mark as viewed once, the first time the client opens the link. Best-effort
-  // signal for the inbox -- a failure here must never surface to the client.
-  const viewMarked = useRef(false);
+  // Log the view (server-side, for the IP) once per page load. Best-effort —
+  // a failure here must never surface to the client.
+  const viewLogged = useRef(false);
   useEffect(() => {
-    if (!proposal || viewMarked.current) return;
-    if (proposal.status !== 'sent') return;
-    viewMarked.current = true;
-    supabase
-      .from('hub_proposals')
-      .update({ status: 'viewed', viewed_at: new Date().toISOString() })
-      .eq('id', proposal.id)
-      .eq('status', 'sent')
-      .then(() => {}, () => {});
-  }, [proposal]);
+    if (!slug || viewLogged.current) return;
+    viewLogged.current = true;
+    supabase.functions.invoke('log-proposal-view', { body: { slug } }).then(() => {}, () => {});
+  }, [slug]);
 
   // Deep link from the email's Accept button.
   useEffect(() => {
