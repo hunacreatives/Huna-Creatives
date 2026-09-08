@@ -2,6 +2,20 @@ import { motion } from 'framer-motion';
 
 const websites = [
   {
+    id: 'asana-ormoc',
+    name: 'Asana Ormoc',
+    url: 'https://asanaormoc.com',
+    displayUrl: 'asanaormoc.com',
+    category: 'Web Design & Development',
+    description:
+      'A full website and booking system for a Pilates and yoga studio in Ormoc — class schedule, class pages, instructor profiles, and trial bookings, paired with a private admin hub the studio runs day to day.',
+    tags: ['Web Design', 'Booking System', 'Wellness', 'Admin Hub'],
+    year: '2026',
+    accentColor: '#a8765a',
+    accentBg: 'rgba(168,118,90,0.1)',
+    image: '/images/asana-ormoc-home.webp',
+  },
+  {
     id: 'hulma-cebu',
     name: 'Hulma Cebu',
     url: 'https://hulmacebu.com',

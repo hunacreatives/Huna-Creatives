@@ -28,6 +28,134 @@ export interface BlogArticle {
 
 export const blogArticles: BlogArticle[] = [
   {
+    slug: 'asana-ormoc-pilates-studio-website-booking-hub',
+    category: 'Case Study',
+    title: 'Asana Ormoc: A Studio Website and the Booking System Behind It',
+    excerpt:
+      'A Pilates and yoga studio needs a website that feels calm and a schedule that actually works. Asana Ormoc got both from one build — a public site, a trial-booking flow, and a private hub the studio runs the day from.',
+    readTime: '6 min read',
+    date: 'September 8, 2026',
+    isoDate: '2026-09-08',
+    heroImage: '/images/asana-ormoc-home.webp',
+    author: {
+      name: 'Francis Fiel Roble',
+      role: 'Founder & Creative Director',
+      avatar: '/images/team-francis-fiel-roble.webp',
+    },
+    seo: {
+      description:
+        'How we built Asana Ormoc a calm Pilates and yoga studio website plus a booking and admin hub — class schedule, trial bookings, instructor profiles, members and pricing. Web design and development, Philippines.',
+      keywords: [
+        'pilates studio website design Philippines',
+        'yoga studio website',
+        'class booking system Philippines',
+        'wellness website design',
+        'studio management hub',
+        'web development Philippines',
+        'Asana Ormoc',
+        'Huna Creatives',
+      ],
+    },
+    body: [
+      {
+        type: 'paragraph',
+        content:
+          'A movement studio sells two things at once. There is the feeling — a calm room, an unhurried hour, an instructor who knows your name — and there is the logistics — which class, what time, is there a spot, how do I pay. Most studios put the feeling on Instagram and the logistics in a third-party booking app that looks nothing like the brand.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          '<a href="https://asanaormoc.com" target="_blank" rel="noopener noreferrer">Asana Ormoc</a> wanted the two to be the same thing. What we built is the public site — home, class listing, class detail pages, instructor profiles, a schedule, and a trial-booking flow — plus a private hub where the studio manages classes, members, pricing and bookings without leaving its own system.',
+      },
+      { type: 'heading', content: 'The site: quiet enough that the room does the talking' },
+      {
+        type: 'paragraph',
+        content:
+          'Wellness sites tend to over-signal calm — pale gradients, floaty animation, a lot of the word "journey". We went plainer than that. A warm, earthy palette, generous whitespace, photography given room to breathe, and type that stays out of the way. The studio\'s line, "Movement, with intention," sets the tone; the interface just holds it.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The homepage answers the three questions a first-time visitor actually has — what is this, who teaches it, and how do I try it — and then gets out of the way. Everything else is one tap from the nav.',
+      },
+      {
+        type: 'quote',
+        content:
+          'For a studio, the website is the first class. If it feels rushed or noisy, that is what people expect from the room.',
+      },
+      { type: 'heading', content: 'The schedule and class pages' },
+      {
+        type: 'paragraph',
+        content:
+          'Each class — mat work, yoga, the fluid and align formats, private and duo sessions — has its own page: what it is, who it suits, what to bring, and the instructors who run it. The schedule pulls from the same data the studio edits in the hub, so the times on the site are the times, not a screenshot someone forgot to update.',
+      },
+      {
+        type: 'list',
+        content: 'What the public site covers:',
+        items: [
+          'A class library with a detail page per format and level',
+          'Instructor profiles, linked from the classes they teach',
+          'A live weekly schedule fed from the studio\'s own data',
+          'A trial-booking flow for first-timers, including duo trials',
+          'Pricing, location and contact, each a tap from anywhere',
+        ],
+      },
+      {
+        type: 'image',
+        content: '/images/asana-ormoc-schedule.webp',
+        alt: 'Asana Ormoc weekly class schedule',
+        caption: 'The schedule reads from the same records the studio edits in the hub — one source, no stale times.',
+      },
+      { type: 'heading', content: 'The hub: where the studio runs the day' },
+      {
+        type: 'paragraph',
+        content:
+          'Behind the site sits a private admin hub — the studio\'s own deployment of <a href="/blog/sentro-os-hr-operations-hub-creative-agencies-philippines">Sentro</a>, shaped to how a class-based business works rather than a generic booking SaaS.',
+      },
+      {
+        type: 'list',
+        content: 'What it handles:',
+        items: [
+          'The class catalogue, levels and descriptions the site renders',
+          'The weekly schedule and any changes to it',
+          'Members, pricing tiers and packages',
+          'Bookings and trial requests, including duo trials, in one queue',
+          'Instructor records and the FAQs shown on the site',
+        ],
+      },
+      {
+        type: 'paragraph',
+        content:
+          'The point of building it this way is that the person running the studio edits one thing and the public site reflects it. No plugin subscriptions stacking up, no export-and-reupload, no design drift between the booking widget and the brand.',
+      },
+      { type: 'heading', content: 'Why a trial booking is its own flow' },
+      {
+        type: 'paragraph',
+        content:
+          'A returning member booking a regular class and a stranger booking their first trial are not the same job. The trial visitor needs a little more hand-holding — what to expect, what to wear, when to arrive — and the studio needs their details captured cleanly so the follow-up is easy. So the trial flow is deliberately separate from the standard schedule, with its own duo-trial variant for people who want to come with a friend.',
+      },
+      { type: 'heading', content: 'One team, one system' },
+      {
+        type: 'paragraph',
+        content:
+          'The usual version of this is two vendors — an agency for the site and a booking platform bolted on afterward. Running it as one build means the site and the hub share a codebase lineage and a visual language, and there is one team that owns the parts in between. You can see the site in our <a href="/portfolio/web-design">web design portfolio</a>, alongside work like <a href="/portfolio/project/hulma-cebu">Hulma Cebu</a> and FS Architects.',
+      },
+      {
+        type: 'paragraph',
+        content:
+          'If you are running a studio on a template site and a booking app that fights your brand, the gap between them is doing more damage than it looks. <a href="/contact">Tell us how your studio runs</a>.',
+      },
+    ],
+    cta: {
+      heading: 'Need a site and the system behind it?',
+      body: 'We build the public site, the booking flow, and the hub your team runs the day from. Tell us what your studio needs.',
+    },
+    relatedSlugs: [
+      'fs-architects-website-sentro-hub-staff-app',
+      'hulma-cebu-architectural-fiberglass-website',
+    ],
+  },
+  {
     slug: 'fs-architects-website-sentro-hub-staff-app',
     category: 'Case Study',
     title: 'FS Architects: A Website, an Operations Hub, and a Staff App',
