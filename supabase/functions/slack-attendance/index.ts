@@ -1,6 +1,6 @@
 // v3 — overtime comes from hub_overtime_requests (approved), not Slack parsing
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getCaller, adminClient, authErrorResponse } from '../_shared/requireCaller.ts';
+import { getCaller, adminClient, authErrorResponse, requireServiceRole } from '../_shared/requireCaller.ts';
 
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
 const CHANNEL_ID = 'C0830PCGQK1';
@@ -24,9 +24,15 @@ async function slackGet(path: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
-  // Contractor-facing: any signed-in hub user, but never the bare anon key.
-  try { await getCaller(req, adminClient()); }
-  catch (e) { const r = authErrorResponse(e, cors); if (r) return r; throw e; }
+  // Two callers: pg_cron (service role, the nightly + hourly backfill) and a
+  // signed-in hub admin hitting "Sync Slack" from the attendance page. The
+  // bare anon key is still rejected either way.
+  try {
+    requireServiceRole(req);
+  } catch {
+    try { await getCaller(req, adminClient()); }
+    catch (e) { const r = authErrorResponse(e, cors); if (r) return r; throw e; }
+  }
   if (!SLACK_BOT_TOKEN) return new Response(JSON.stringify({ error: 'SLACK_BOT_TOKEN not configured' }), { status: 500, headers: cors });
 
   try {
