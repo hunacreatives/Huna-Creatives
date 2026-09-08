@@ -690,8 +690,26 @@ export default function ProposalBuilderPage() {
           {/* ── Right panel ── */}
           <div className="space-y-5">
 
+            {/* Custom-page live preview — the Sections editor doesn't drive a bespoke page */}
+            {customPath && publicUrl ? (
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Custom page preview</span>
+                  <a href={publicUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-[11px] text-[#FF6B35] hover:underline flex items-center gap-1">
+                    Open <i className="ri-external-link-line" />
+                  </a>
+                </div>
+                <iframe src={`${publicUrl}${publicUrl.includes('?') ? '&' : '?'}preview=1`} title="Proposal preview"
+                  className="w-full block bg-white" style={{ height: 760, border: 0 }} />
+                <p className="px-4 py-2.5 text-[11px] text-gray-400 border-t border-gray-100">
+                  Renders from a hand-built page ({customPath}). The Sections editor below doesn&apos;t apply.
+                </p>
+              </div>
+            ) : null}
+
             {/* Section editor */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className={`bg-white rounded-2xl border border-gray-100 overflow-hidden ${customPath ? 'opacity-60' : ''}`}>
               {(proposal.sections || []).length === 0 ? (
                 <div className="p-12 text-center">
                   <i className="ri-layout-line text-3xl text-gray-200 block mb-3" />

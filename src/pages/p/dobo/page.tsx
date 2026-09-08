@@ -95,7 +95,11 @@ export default function DoboProposal() {
       if (!data?.slug) return;
       setSlug(data.slug);
       if (data.status === 'accepted' || data.status === 'declined') { setSettled(true); return; }
-      supabase.functions.invoke('log-proposal-view', { body: { slug: data.slug } }).then(() => {}, () => {});
+      // Don't count builder previews (iframed, or ?preview=1).
+      const isPreview = window.self !== window.top || new URLSearchParams(window.location.search).has('preview');
+      if (!isPreview) {
+        supabase.functions.invoke('log-proposal-view', { body: { slug: data.slug } }).then(() => {}, () => {});
+      }
     })();
   }, []);
 

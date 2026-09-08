@@ -163,6 +163,9 @@ export default function ProposalPage() {
   useEffect(() => {
     if (!slug || viewLogged.current) return;
     viewLogged.current = true;
+    // Don't count builder previews (iframed, or ?preview=1).
+    const isPreview = window.self !== window.top || new URLSearchParams(window.location.search).has('preview');
+    if (isPreview) return;
     supabase.functions.invoke('log-proposal-view', { body: { slug } }).then(() => {}, () => {});
   }, [slug]);
 
