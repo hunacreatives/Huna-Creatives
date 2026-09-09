@@ -183,7 +183,7 @@ export default function AdminDashboardPage() {
   const daysElapsed = Math.min(Math.round((today.getTime() - periodStart.getTime()) / 86400000) + 1, totalDays);
   const daysLeft = Math.max(totalDays - daysElapsed, 0);
   const periodProgress = Math.round((daysElapsed / totalDays) * 100);
-  const paydayLabel = currentPeriod.label;
+  const paydayLabel = periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   useEffect(() => {
     if (isDemo) {
