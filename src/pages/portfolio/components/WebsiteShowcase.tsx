@@ -2,6 +2,34 @@ import { motion } from 'framer-motion';
 
 const websites = [
   {
+    id: 'blue-collar-nutrition',
+    name: 'Blue Collar Nutrition',
+    url: 'https://blue-collarnutrition.com',
+    displayUrl: 'blue-collarnutrition.com',
+    category: 'Web Design & Branding',
+    description:
+      'A full brand identity and Shopify store for a sports nutrition brand — product catalog, checkout, and a site built to carry the same weight as the packaging on shelf.',
+    tags: ['Web Design', 'Shopify', 'Branding', 'Ecommerce'],
+    year: '2025',
+    accentColor: '#2563eb',
+    accentBg: 'rgba(37,99,235,0.1)',
+    image: '/images/blue-collar-nutrition-home.jpg',
+  },
+  {
+    id: 'rsvp-studio',
+    name: 'The RSVP Studio',
+    url: 'https://thersvpstudio.com',
+    displayUrl: 'thersvpstudio.com',
+    category: 'Web Design & Development',
+    description:
+      "Huna's own evite studio — a portfolio site and a subdomain-per-event platform for milestone websites, digital save-the-dates, and RSVP management.",
+    tags: ['Web Design', 'Web App', 'Events', 'Sub-brand'],
+    year: '2026',
+    accentColor: '#7540ee',
+    accentBg: 'rgba(117,64,238,0.1)',
+    image: '/images/rsvp-studio-home.jpg',
+  },
+  {
     id: 'asana-ormoc',
     name: 'Asana Ormoc',
     url: 'https://asanaormoc.com',
