@@ -116,12 +116,12 @@ export function renderQuoteTable(quote: QuoteRecord): string {
       </td>
     </tr>`).join('');
 
-  const totalRow = (label: string, value: string, strong = false) => `
+  const totalRow = (label: string, value: string, strong = false, color?: string) => `
     <tr>
-      <td colspan="2" style="padding:${strong ? '14px' : '7px'} 0 ${strong ? '14px' : '7px'};text-align:right;font-size:${strong ? '14px' : '13px'};color:${strong ? '#1a1a1a' : '#6b6b6b'};font-weight:${strong ? '700' : '400'}${strong ? ';border-top:2px solid #1a1a1a' : ''}">
+      <td colspan="2" style="padding:${strong ? '14px' : '7px'} 0 ${strong ? '14px' : '7px'};text-align:right;font-size:${strong ? '14px' : '13px'};color:${color ?? (strong ? '#1a1a1a' : '#6b6b6b')};font-weight:${strong ? '700' : (color ? '600' : '400')}${strong ? ';border-top:2px solid #1a1a1a' : ''}">
         ${esc(label)}
       </td>
-      <td style="padding:${strong ? '14px' : '7px'} 0 ${strong ? '14px' : '7px'} 16px;text-align:right;font-size:${strong ? '18px' : '13px'};color:${strong ? accent : '#1a1a1a'};font-weight:${strong ? '700' : '500'};white-space:nowrap${strong ? ';border-top:2px solid #1a1a1a' : ''}">
+      <td style="padding:${strong ? '14px' : '7px'} 0 ${strong ? '14px' : '7px'} 16px;text-align:right;font-size:${strong ? '18px' : '13px'};color:${color ?? (strong ? accent : '#1a1a1a')};font-weight:${strong ? '700' : (color ? '600' : '500')};white-space:nowrap${strong ? ';border-top:2px solid #1a1a1a' : ''}">
         ${esc(value)}
       </td>
     </tr>`;
@@ -149,7 +149,7 @@ export function renderQuoteTable(quote: QuoteRecord): string {
       </tr>
       ${rows}
       ${totals.discount > 0 ? totalRow('Subtotal', fmtMoney(totals.subtotal, currency)) : ''}
-      ${totals.discount > 0 ? totalRow('Discount', `- ${fmtMoney(totals.discount, currency)}`) : ''}
+      ${totals.discount > 0 ? totalRow('You save', `- ${fmtMoney(totals.discount, currency)}`, false, '#059669') : ''}
       ${num(quote.tax_rate) > 0 ? totalRow(`Tax (${num(quote.tax_rate)}%)`, fmtMoney(totals.tax, currency)) : ''}
       ${totalRow('Total', fmtMoney(totals.total, currency), true)}
       ${totals.optionalTotal > 0 ? `

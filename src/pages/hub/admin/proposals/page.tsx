@@ -871,10 +871,11 @@ export default function ProposalBuilderPage() {
                     <span className="w-32 text-right text-gray-700">{money(totals.subtotal)}</span>
                   </div>
                   <div className="flex items-center justify-end gap-4 text-sm">
-                    <label className="text-gray-400">Discount ({currency})</label>
+                    <label className={Number(proposal.discount) > 0 ? 'text-emerald-600 font-medium' : 'text-gray-400'}>Discount ({currency})</label>
                     <input type="number" min="0" step="0.01" value={proposal.discount ?? 0} disabled={locked}
                       onChange={e => setProposal(p => ({ ...p, discount: e.target.value }))}
-                      className="w-32 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-orange-300 disabled:bg-gray-50" />
+                      className={`w-32 border rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:border-orange-300 disabled:bg-gray-50 ${
+                        Number(proposal.discount) > 0 ? 'border-emerald-200 text-emerald-600 font-medium bg-emerald-50/40' : 'border-gray-200'}`} />
                   </div>
                   <div className="flex items-center justify-end gap-4 text-sm">
                     <label className="text-gray-400">Tax (%)</label>

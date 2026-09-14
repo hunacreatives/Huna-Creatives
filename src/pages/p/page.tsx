@@ -361,8 +361,8 @@ export default function ProposalPage() {
                       <div className="flex justify-end gap-4 text-[14px] text-gray-500">
                         <span>Subtotal</span><span className="w-32 text-right tabular-nums">{money(totals.subtotal)}</span>
                       </div>
-                      <div className="flex justify-end gap-4 text-[14px] text-gray-500">
-                        <span>Discount</span><span className="w-32 text-right tabular-nums">− {money(totals.discount)}</span>
+                      <div className="flex justify-end items-center gap-4 text-[14px] text-emerald-600 font-medium">
+                        <span>You save</span><span className="w-32 text-right tabular-nums">− {money(totals.discount)}</span>
                       </div>
                     </>
                   )}
