@@ -12,6 +12,7 @@ export interface QuoteLineItem {
   qty: number | string;
   unit_price: number | string;
   notes?: string;
+  optional?: boolean;
 }
 
 export interface QuotePaymentMilestone {
@@ -57,11 +58,14 @@ export function computeQuoteTotals(
   discount: number | string = 0,
   taxRate: number | string = 0,
 ) {
-  const subtotal = (items ?? []).reduce((s, i) => s + lineTotal(i), 0);
+  const priced = (items ?? []).filter((i) => !i.optional);
+  const optionalItems = (items ?? []).filter((i) => i.optional);
+  const subtotal = priced.reduce((s, i) => s + lineTotal(i), 0);
+  const optionalTotal = optionalItems.reduce((s, i) => s + lineTotal(i), 0);
   const discountAmount = Math.min(Math.max(num(discount), 0), subtotal);
   const taxable = subtotal - discountAmount;
   const tax = taxable * (num(taxRate) / 100);
-  return { subtotal, discount: discountAmount, taxable, tax, total: taxable + tax };
+  return { subtotal, discount: discountAmount, taxable, tax, total: taxable + tax, optionalTotal };
 }
 
 export const fmtMoney = (amount: number, currency: QuoteCurrency) =>
@@ -96,16 +100,19 @@ export function renderQuoteTable(quote: QuoteRecord): string {
   const totals = computeQuoteTotals(quote.line_items, quote.discount, quote.tax_rate);
 
   const rows = (quote.line_items ?? []).map((item) => `
-    <tr>
+    <tr${item.optional ? ' style="background:#f8f5ff"' : ''}>
       <td style="padding:12px 0;border-bottom:1px solid #f0efed;vertical-align:top">
-        <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:500">${esc(item.description)}</p>
+        <p style="margin:0;font-size:14px;color:#1a1a1a;font-weight:500">
+          ${item.optional ? `<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#7c3aed;background:#ede9fe;padding:2px 6px;border-radius:4px;margin-right:6px">Optional</span>` : ''}
+          ${esc(item.description)}
+        </p>
         ${item.notes ? `<p style="margin:3px 0 0;font-size:12px;color:#8a8a8a;line-height:1.5">${esc(item.notes)}</p>` : ''}
       </td>
       <td style="padding:12px 0;border-bottom:1px solid #f0efed;text-align:center;font-size:13px;color:#6b6b6b;white-space:nowrap">
         ${esc(num(item.qty, 1))}
       </td>
-      <td style="padding:12px 0 12px 16px;border-bottom:1px solid #f0efed;text-align:right;font-size:14px;color:#1a1a1a;white-space:nowrap">
-        ${fmtMoney(lineTotal(item), currency)}
+      <td style="padding:12px 0 12px 16px;border-bottom:1px solid #f0efed;text-align:right;font-size:14px;color:${item.optional ? '#7c3aed' : '#1a1a1a'};font-weight:${item.optional ? '600' : '400'};white-space:nowrap">
+        ${item.optional ? '+ ' : ''}${fmtMoney(lineTotal(item), currency)}
       </td>
     </tr>`).join('');
 
@@ -145,6 +152,11 @@ export function renderQuoteTable(quote: QuoteRecord): string {
       ${totals.discount > 0 ? totalRow('Discount', `- ${fmtMoney(totals.discount, currency)}`) : ''}
       ${num(quote.tax_rate) > 0 ? totalRow(`Tax (${num(quote.tax_rate)}%)`, fmtMoney(totals.tax, currency)) : ''}
       ${totalRow('Total', fmtMoney(totals.total, currency), true)}
+      ${totals.optionalTotal > 0 ? `
+      <tr>
+        <td colspan="2" style="padding:7px 0;text-align:right;font-size:13px;color:#7c3aed">+ Optional add-ons above</td>
+        <td style="padding:7px 0 7px 16px;text-align:right;font-size:14px;color:#7c3aed;font-weight:600;white-space:nowrap">${fmtMoney(totals.optionalTotal, currency)}</td>
+      </tr>` : ''}
     </table>
     ${schedule}
     ${quote.valid_until ? `<p style="margin:20px 0 0;font-size:12px;color:#8a8a8a">Valid until <strong style="color:#1a1a1a">${esc(fmtDate(quote.valid_until))}</strong>.</p>` : ''}

@@ -18,6 +18,8 @@ export interface QuoteLineItem {
   qty: number | string;
   unit_price: number | string;
   notes?: string;
+  /** Priced as an add-on: shown to the client, but excluded from the quoted total. */
+  optional?: boolean;
 }
 
 export interface QuotePaymentMilestone {
@@ -32,6 +34,8 @@ export interface QuoteTotals {
   taxable: number;
   tax: number;
   total: number;
+  /** Sum of line items marked optional -- not part of subtotal/total above. */
+  optionalTotal: number;
 }
 
 const num = (v: number | string | null | undefined, fallback = 0): number => {
@@ -51,7 +55,10 @@ export function computeQuoteTotals(
   discount: number | string = 0,
   taxRate: number | string = 0,
 ): QuoteTotals {
-  const subtotal = (items ?? []).reduce((sum, item) => sum + lineTotal(item), 0);
+  const priced = (items ?? []).filter(item => !item.optional);
+  const optionalItems = (items ?? []).filter(item => item.optional);
+  const subtotal = priced.reduce((sum, item) => sum + lineTotal(item), 0);
+  const optionalTotal = optionalItems.reduce((sum, item) => sum + lineTotal(item), 0);
   // A discount larger than the subtotal would make the total negative and the
   // quote nonsensical; clamp instead of trusting the input.
   const discountAmount = Math.min(Math.max(num(discount), 0), subtotal);
@@ -63,6 +70,7 @@ export function computeQuoteTotals(
     taxable,
     tax,
     total: taxable + tax,
+    optionalTotal,
   };
 }
 

@@ -335,14 +335,21 @@ export default function ProposalPage() {
                 </div>
 
                 {(proposal.line_items ?? []).map((item, i) => (
-                  <div key={i} className="flex items-start gap-4 py-4 border-b border-gray-100">
+                  <div key={i} className={`flex items-start gap-4 py-4 border-b border-gray-100 ${item.optional ? 'bg-violet-50/40 -mx-4 px-4' : ''}`}>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] text-gray-900 leading-snug">{item.description}</p>
+                      <p className="text-[15px] text-gray-900 leading-snug">
+                        {item.optional && (
+                          <span className="inline-block align-middle mr-2 text-[9px] font-bold uppercase tracking-wide text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded">
+                            Optional
+                          </span>
+                        )}
+                        {item.description}
+                      </p>
                       {item.notes && <p className="text-[13px] text-gray-400 mt-1 leading-relaxed">{item.notes}</p>}
                     </div>
                     <span className="w-12 text-center text-[14px] text-gray-500 tabular-nums">{Number(item.qty ?? 1)}</span>
-                    <span className="w-32 text-right text-[15px] text-gray-900 tabular-nums">
-                      {item.unit_price == null || item.unit_price === '' ? <span className="text-gray-400">On request</span> : money(lineTotal(item))}
+                    <span className={`w-32 text-right text-[15px] tabular-nums ${item.optional ? 'text-violet-600 font-medium' : 'text-gray-900'}`}>
+                      {item.unit_price == null || item.unit_price === '' ? <span className="text-gray-400">On request</span> : `${item.optional ? '+ ' : ''}${money(lineTotal(item))}`}
                     </span>
                   </div>
                 ))}
@@ -371,6 +378,14 @@ export default function ProposalPage() {
                       {money(totals.total)}
                     </span>
                   </div>
+                  {totals.optionalTotal > 0 && (
+                    <div className="flex justify-end items-baseline gap-4">
+                      <span className="text-[13px] text-violet-600">+ Optional add-ons above</span>
+                      <span className="w-32 text-right text-[15px] font-semibold text-violet-600 tabular-nums">
+                        {money(totals.optionalTotal)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Payment schedule */}

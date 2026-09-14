@@ -26,6 +26,7 @@ PRICING (the "line_items" array)
 - CRITICAL: never invent a price. If the brief does not state or clearly imply an amount for a line, set unit_price to null. It is far better to hand the account manager a blank to fill than a number the client might hold you to.
 - qty defaults to 1. Use real quantities for per-unit work (e.g. 8 social creatives).
 - Default currency is PHP unless the brief indicates otherwise.
+- "optional" (boolean, default false): set true only if the brief explicitly calls the line an add-on, upsell, or something priced separately from the core scope. Optional lines are excluded from the quoted subtotal/total and shown to the client as a separate add-on price — do NOT also prefix the description with "Optional" text; the "optional" flag alone is what makes it show as optional.
 
 PAYMENT SCHEDULE
 Default to 50% to commence / 50% on delivery unless the brief says otherwise. Use null amounts if you had to leave prices blank. For retainers, use the monthly cadence instead.
@@ -38,7 +39,7 @@ Return ONLY a JSON object with exactly these fields:
   "title": string,           // e.g. "Brand Identity — Capu Coffee"
   "tagline": string,         // one line under the title, or ""
   "sections": [{ "heading": string, "body": string }],
-  "line_items": [{ "description": string, "qty": number, "unit_price": number|null, "notes": string }],
+  "line_items": [{ "description": string, "qty": number, "unit_price": number|null, "notes": string, "optional": boolean }],
   "payment_schedule": [{ "label": string, "amount": number|null, "due": string }],
   "terms": string,
   "validity_days": number,   // how long the quote should stand, default 30
@@ -175,6 +176,7 @@ Ground every section in what this client actually said. Leave unit_price null fo
         qty: i.qty ?? 1,
         unit_price: i.unit_price ?? null,
         notes: i.notes ?? '',
+        optional: i.optional === true,
       })),
       payment_schedule: Array.isArray(draft.payment_schedule) ? draft.payment_schedule : [],
       terms: draft.terms ?? '',

@@ -369,6 +369,11 @@ export default function ProposalBuilderPage() {
     items[i] = { ...items[i], [field]: value };
     setProposal(p => ({ ...p, line_items: items }));
   };
+  const updateItemOptional = (i: number, optional: boolean) => {
+    const items = [...(proposal.line_items || [])];
+    items[i] = { ...items[i], optional };
+    setProposal(p => ({ ...p, line_items: items }));
+  };
   const addItem = () =>
     setProposal(p => ({
       ...p,
@@ -804,22 +809,27 @@ export default function ProposalBuilderPage() {
 
                 {/* Line items */}
                 <div className="space-y-2">
-                  <div className="hidden sm:grid grid-cols-[1fr_70px_120px_110px_32px] gap-2 px-1">
-                    {['Description', 'Qty', 'Unit Price', 'Amount', ''].map((h, i) => (
-                      <span key={i} className={`text-[10px] font-semibold text-gray-400 uppercase tracking-wide ${i >= 1 && i <= 3 ? 'text-right' : ''}`}>{h}</span>
+                  <div className="hidden sm:grid grid-cols-[1fr_70px_120px_110px_60px_32px] gap-2 px-1">
+                    {['Description', 'Qty', 'Unit Price', 'Amount', 'Optional', ''].map((h, i) => (
+                      <span key={i} className={`text-[10px] font-semibold text-gray-400 uppercase tracking-wide ${i >= 1 && i <= 4 ? 'text-right' : ''}`}>{h}</span>
                     ))}
                   </div>
 
                   {(proposal.line_items || []).map((item, i) => (
-                    <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_70px_120px_110px_32px] gap-2 items-start">
+                    <div key={i} className={`grid grid-cols-1 sm:grid-cols-[1fr_70px_120px_110px_60px_32px] gap-2 items-start rounded-lg ${item.optional ? 'bg-violet-50/50 p-2 -mx-2' : ''}`}>
                       <div className="space-y-1">
-                        <input type="text" value={item.description || ''} disabled={locked}
-                          onChange={e => updateItem(i, 'description', e.target.value)}
-                          placeholder="What they're paying for"
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-300 disabled:bg-gray-50" />
+                        <div className="flex items-center gap-2">
+                          {item.optional && (
+                            <span className="text-[9px] font-bold uppercase tracking-wide text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded flex-shrink-0">Optional</span>
+                          )}
+                          <input type="text" value={item.description || ''} disabled={locked}
+                            onChange={e => updateItem(i, 'description', e.target.value)}
+                            placeholder="What they're paying for"
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-300 disabled:bg-gray-50" />
+                        </div>
                         <input type="text" value={item.notes || ''} disabled={locked}
                           onChange={e => updateItem(i, 'notes', e.target.value)}
-                          placeholder="Optional note — rounds, exclusions…"
+                          placeholder="Note — rounds, exclusions…"
                           className="w-full border border-gray-100 rounded-lg px-3 py-1.5 text-xs text-gray-500 focus:outline-none focus:border-orange-200 disabled:bg-gray-50" />
                       </div>
                       <input type="number" min="0" step="1" value={item.qty ?? 1} disabled={locked}
@@ -832,6 +842,12 @@ export default function ProposalBuilderPage() {
                           item.unit_price === null || item.unit_price === '' ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200'}`} />
                       <div className="flex items-center justify-end h-[38px] text-sm font-medium text-gray-700 px-1">
                         {money(lineTotal(item))}
+                      </div>
+                      <div className="flex items-center justify-end h-[38px]">
+                        <input type="checkbox" checked={!!item.optional} disabled={locked}
+                          onChange={e => updateItemOptional(i, e.target.checked)}
+                          title="Show as optional — excluded from the quoted total"
+                          className="w-4 h-4 accent-violet-600 cursor-pointer disabled:cursor-not-allowed" />
                       </div>
                       <button onClick={() => removeItem(i)} disabled={locked}
                         className="h-[38px] w-8 flex items-center justify-center text-red-300 hover:text-red-500 cursor-pointer disabled:opacity-30">
@@ -872,6 +888,12 @@ export default function ProposalBuilderPage() {
                       {money(totals.total)}
                     </span>
                   </div>
+                  {totals.optionalTotal > 0 && (
+                    <div className="flex items-center justify-end gap-4 text-sm">
+                      <span className="text-violet-600">+ Optional add-ons</span>
+                      <span className="w-32 text-right text-violet-600 font-medium">{money(totals.optionalTotal)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Validity */}
