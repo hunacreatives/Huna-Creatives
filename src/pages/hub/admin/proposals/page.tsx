@@ -336,24 +336,31 @@ export default function ProposalBuilderPage() {
   };
 
   const addSection = () => {
-    const sections = [...(proposal.sections || []), { heading: 'New Section', body: '' }];
-    setProposal(prev => ({ ...prev, sections }));
-    setActiveSection(sections.length - 1);
+    setProposal(prev => {
+      const sections = [...(prev.sections || []), { heading: 'New Section', body: '' }];
+      setActiveSection(sections.length - 1);
+      return { ...prev, sections };
+    });
   };
 
   const removeSection = (index: number) => {
-    const sections = (proposal.sections || []).filter((_, i) => i !== index);
-    setProposal(prev => ({ ...prev, sections }));
-    setActiveSection(Math.max(0, index - 1));
+    setProposal(prev => {
+      const sections = (prev.sections || []).filter((_, i) => i !== index);
+      setActiveSection(Math.max(0, index - 1));
+      return { ...prev, sections };
+    });
   };
 
   const moveSection = (from: number, to: number) => {
-    if (to < 0 || to >= (proposal.sections || []).length) return;
-    const sections = [...(proposal.sections || [])];
-    const [item] = sections.splice(from, 1);
-    sections.splice(to, 0, item);
-    setProposal(prev => ({ ...prev, sections }));
-    setActiveSection(to);
+    setProposal(prev => {
+      const current = prev.sections || [];
+      if (to < 0 || to >= current.length || from < 0 || from >= current.length) return prev;
+      const sections = [...current];
+      const [item] = sections.splice(from, 1);
+      sections.splice(to, 0, item);
+      setActiveSection(to);
+      return { ...prev, sections };
+    });
   };
 
   // ── Line items ──────────────────────────────────────────────────────
@@ -665,9 +672,9 @@ export default function ProposalBuilderPage() {
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sections</p>
                 {!locked && (
-                  <button onClick={addSection}
+                  <button type="button" onClick={addSection}
                     className="text-[11px] text-[#FF6B35] hover:text-[#e55a27] font-medium cursor-pointer flex items-center gap-1">
-                    <i className="ri-add-line" /> Add
+                    <i className="ri-add-line pointer-events-none" /> Add
                   </button>
                 )}
               </div>
@@ -715,7 +722,7 @@ export default function ProposalBuilderPage() {
                   <i className="ri-layout-line text-3xl text-gray-200 block mb-3" />
                   <p className="text-sm text-gray-400 mb-4">No sections yet</p>
                   {!locked && (
-                    <button onClick={addSection} className="text-xs text-[#FF6B35] font-medium cursor-pointer hover:underline">
+                    <button type="button" onClick={addSection} className="text-xs text-[#FF6B35] font-medium cursor-pointer hover:underline">
                       Add your first section
                     </button>
                   )}
@@ -732,18 +739,18 @@ export default function ProposalBuilderPage() {
                     </p>
                     {!locked && (
                       <div className="flex items-center gap-1 ml-auto">
-                        <button onClick={() => moveSection(activeSection, activeSection - 1)} disabled={activeSection === 0}
+                        <button type="button" onClick={() => moveSection(activeSection, activeSection - 1)} disabled={activeSection === 0}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 disabled:opacity-30 cursor-pointer transition-colors">
-                          <i className="ri-arrow-up-s-line" />
+                          <i className="ri-arrow-up-s-line pointer-events-none" />
                         </button>
-                        <button onClick={() => moveSection(activeSection, activeSection + 1)}
+                        <button type="button" onClick={() => moveSection(activeSection, activeSection + 1)}
                           disabled={activeSection === (proposal.sections || []).length - 1}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 disabled:opacity-30 cursor-pointer transition-colors">
-                          <i className="ri-arrow-down-s-line" />
+                          <i className="ri-arrow-down-s-line pointer-events-none" />
                         </button>
-                        <button onClick={() => removeSection(activeSection)}
+                        <button type="button" onClick={() => removeSection(activeSection)}
                           className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer transition-colors">
-                          <i className="ri-delete-bin-line" />
+                          <i className="ri-delete-bin-line pointer-events-none" />
                         </button>
                       </div>
                     )}
