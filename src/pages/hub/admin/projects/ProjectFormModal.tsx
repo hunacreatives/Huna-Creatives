@@ -26,8 +26,9 @@ export interface ImportedTask { title: string; description: string | null; prior
 
 // Create/edit project modal, including "Import from file" AI parsing.
 // Form state stays in the page (saveProject reads it); this owns only the UI.
-export default function ProjectFormModal({ isEditing, form, setForm, formError, setFormError, formSaving, importedTasks, setImportedTasks, usdRate, onSave, onClose, onCancel }: {
+export default function ProjectFormModal({ isEditing, isOwner, form, setForm, formError, setFormError, formSaving, importedTasks, setImportedTasks, usdRate, onSave, onClose, onCancel }: {
   isEditing: boolean;
+  isOwner: boolean;
   form: ProjectFormState;
   setForm: React.Dispatch<React.SetStateAction<ProjectFormState>>;
   formError: string;
@@ -142,16 +143,23 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] mt-1.5" />
                   )}
                 </div>
-                {form.project_type === 'client' && (
+                {form.project_type === 'client' && isOwner && (
                   <div className="space-y-1 min-w-0">
                     <label className="text-xs font-medium text-gray-700">Contract Price (PHP) *</label>
                     <input type="number" value={form.contract_price} onChange={e => setForm({ ...form, contract_price: e.target.value })} placeholder="0.00"
                       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
                   </div>
                 )}
+                {form.project_type === 'client' && !isOwner && (
+                  <div className="space-y-1 min-w-0">
+                    <label className="text-xs font-medium text-gray-700">Contract Price</label>
+                    <p className="w-full px-3 py-2 text-sm border border-dashed border-gray-200 rounded-lg text-gray-400">Set by owner</p>
+                  </div>
+                )}
               </div>
               {form.project_type === 'retainer' && (
                 <div className="space-y-3">
+                  {isOwner ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1 min-w-0">
                       <label className="text-xs font-medium text-gray-700">Setup Fee (PHP) <span className="text-gray-400 font-normal">(optional)</span></label>
@@ -174,6 +182,9 @@ export default function ProjectFormModal({ isEditing, form, setForm, formError, 
                       )}
                     </div>
                   </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg px-3 py-2">Setup fee and monthly rate are set by the owner.</p>
+                  )}
                   <div className="space-y-1 min-w-0">
                     <label className="text-xs font-medium text-gray-700">Deliverables per month <span className="text-gray-400 font-normal">(optional)</span></label>
                     <input type="number" min="1" value={(form as any).monthly_deliverables} onChange={e => setForm({ ...form, monthly_deliverables: e.target.value } as any)} placeholder="e.g. 8"

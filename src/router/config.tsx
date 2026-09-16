@@ -77,6 +77,10 @@ const withAdminGate = (element: ReactNode) => (
   <HubRouteGate allowedRoles={['owner', 'admin', 'hr']}>{element}</HubRouteGate>
 );
 
+const withOwnerGate = (element: ReactNode) => (
+  <HubRouteGate allowedRoles={['owner']}>{element}</HubRouteGate>
+);
+
 const withContractorGate = (element: ReactNode) => (
   <HubRouteGate allowedRoles={['contractor']}>{element}</HubRouteGate>
 );
@@ -161,12 +165,12 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/access', element: withAdminGate(<HubAdminAccess />) },
   { path: '/hub/admin/assets', element: <Navigate to="/hub/admin/access?tab=assets" replace /> },
   { path: '/hub/admin/auditlog', element: withAdminGate(<HubAdminAuditLog />) },
-  { path: '/hub/admin/performance', element: withAdminGate(<HubAdminPerformance />) },
+  { path: '/hub/admin/performance', element: withOwnerGate(<HubAdminPerformance />) },
   { path: '/hub/admin/settings', element: withAdminGate(<HubAdminSettings />) },
   { path: '/hub/admin/payroll', element: withAdminGate(<HubAdminPayroll />) },
   { path: '/hub/admin/payouts', element: withAdminGate(<HubAdminPayouts />) },
   { path: '/hub/admin/docrequests', element: withAdminGate(<HubAdminDocRequests />) },
-  { path: '/hub/admin/invoices/:projectId', element: withAdminGate(<HubAdminInvoiceBuilder />) },
+  { path: '/hub/admin/invoices/:projectId', element: withOwnerGate(<HubAdminInvoiceBuilder />) },
   { path: '/hub/admin/credentials', element: <Navigate to="/hub/admin/access" replace /> },
   { path: '/hub/contractor/dashboard', element: withContractorGate(<HubContractorDashboard />) },
   { path: '/hub/contractor/attendance', element: withContractorGate(<HubContractorAttendance />) },
@@ -184,12 +188,12 @@ const routes: RouteObject[] = [
   { path: '/hub/contractor/projects', element: withContractorGate(<HubContractorProjects />) },
   { path: '/hub/contractor/project/:slug', element: withContractorGate(<HubContractorProjectRedirect />) },
   { path: '/hub/admin/projects', element: withAdminGate(<HubAdminProjects />) },
-  { path: '/hub/admin/revenue', element: withAdminGate(<HubAdminRevenue />) },
+  { path: '/hub/admin/revenue', element: withOwnerGate(<HubAdminRevenue />) },
   { path: '/hub/admin/project/:slug', element: withAdminGate(<HubAdminProjectRedirect />) },
   { path: '/hub/admin/tasks', element: withAdminGate(<HubAdminTasks />) },
   { path: '/hub/admin/overtime', element: <Navigate to="/hub/admin/requests" replace /> },
-  { path: '/hub/admin/documents', element: withAdminGate(<HubAdminDocuments />) },
-  { path: '/hub/admin/invoice-log', element: withAdminGate(<HubAdminInvoiceLog />) },
+  { path: '/hub/admin/documents', element: withOwnerGate(<HubAdminDocuments />) },
+  { path: '/hub/admin/invoice-log', element: withOwnerGate(<HubAdminInvoiceLog />) },
   { path: '/hub/admin/questionnaires', element: withAdminGate(<HubAdminQuestionnaires />) },
   { path: '/hub/admin/applications', element: withAdminGate(<HubAdminApplications />) },
   { path: '/hub/admin/job-postings', element: withAdminGate(<HubAdminJobPostings />) },

@@ -60,6 +60,15 @@ export async function requireAdmin(req: Request, admin: SupabaseClient): Promise
   return caller;
 }
 
+/** Caller must be owner. Use for invoicing, revenue, and contract pricing. */
+export async function requireOwner(req: Request, admin: SupabaseClient): Promise<Caller> {
+  const caller = await getCaller(req, admin);
+  if (caller.role !== 'owner') {
+    throw new AuthError(403, 'Not authorized');
+  }
+  return caller;
+}
+
 /** Turns an AuthError into a Response; rethrows anything else. */
 export function authErrorResponse(e: unknown, cors: Record<string, string>): Response | null {
   if (e instanceof AuthError) {

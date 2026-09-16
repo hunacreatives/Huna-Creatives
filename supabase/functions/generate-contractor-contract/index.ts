@@ -1,4 +1,4 @@
-import { requireAdmin, authErrorResponse, adminClient } from '../_shared/requireCaller.ts';
+import { requireOwner, authErrorResponse, adminClient } from '../_shared/requireCaller.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
   try {
     // Calls the Anthropic API on our key. Ungated, this let anyone holding
     // the public anon key spend our credits without limit.
-    await requireAdmin(req, adminClient());
+    await requireOwner(req, adminClient());
 
     const {
       brief,

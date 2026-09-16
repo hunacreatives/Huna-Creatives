@@ -94,13 +94,13 @@ const ALL_WIDGETS: { key: WidgetKey; label: string; icon: string; ownerOnly?: bo
   { key: 'kpi',                label: 'KPI Stats',           icon: 'ri-bar-chart-2-line' },
   { key: 'teamStatus',         label: 'Team Status',         icon: 'ri-team-line' },
   { key: 'payroll',            label: 'Payroll Estimate',    icon: 'ri-money-dollar-circle-line' },
-  { key: 'netProfit',          label: 'Projects Net Profit', icon: 'ri-folder-chart-line' },
+  { key: 'netProfit',          label: 'Projects Net Profit', icon: 'ri-folder-chart-line', ownerOnly: true },
   { key: 'retainer',           label: 'Monthly Retainers',   icon: 'ri-calendar-check-line', ownerOnly: true },
   { key: 'requests',           label: 'Pending Requests',    icon: 'ri-inbox-line' },
   { key: 'timeOff',            label: 'Time-Off Queue',      icon: 'ri-calendar-todo-line' },
   { key: 'announcements',      label: 'Announcements',       icon: 'ri-megaphone-line' },
   { key: 'quickActions',       label: 'Quick Actions',       icon: 'ri-flashlight-line' },
-  { key: 'outstandingInvoices',label: 'Outstanding Invoices',icon: 'ri-file-list-3-line' },
+  { key: 'outstandingInvoices',label: 'Outstanding Invoices',icon: 'ri-file-list-3-line', ownerOnly: true },
   { key: 'birthdays',          label: 'Birthday Alerts',     icon: 'ri-cake-2-line' },
 ];
 
@@ -619,7 +619,7 @@ export default function AdminDashboardPage() {
         )}
 
         {/* Outstanding invoices */}
-        {show('outstandingInvoices') && isOwnerOrAdmin && outstandingInvoices.length > 0 && (() => {
+        {show('outstandingInvoices') && isOwner && outstandingInvoices.length > 0 && (() => {
           const todayMs = new Date().setHours(0, 0, 0, 0);
           const pastDue = outstandingInvoices.filter(inv => {
             if (!inv.due_date) return false;
@@ -801,7 +801,7 @@ export default function AdminDashboardPage() {
                   </div>
                 )}
 
-                {show('netProfit') && isOwnerOrAdmin && (() => {
+                {show('netProfit') && isOwner && (() => {
                   const collectionPct = totalContractValue > 0 ? Math.min((totalCollected / totalContractValue) * 100, 100) : 0;
                   return (
                     <div

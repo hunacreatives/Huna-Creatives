@@ -907,16 +907,16 @@ export default function AdminProjectsPage() {
     const isRetainer = form.project_type === 'retainer';
     if (!form.project_name.trim()) { setFormError('Project name is required.'); return; }
     if (!isInternal && !form.client_name.trim()) { setFormError('Client name is required.'); return; }
-    if (!isRetainer && !isInternal && !form.contract_price) { setFormError('Contract price is required.'); return; }
-    if (isRetainer && !form.monthly_rate) { setFormError('Monthly rate is required for retainer projects.'); return; }
+    if (isOwner && !isRetainer && !isInternal && !form.contract_price) { setFormError('Contract price is required.'); return; }
+    if (isOwner && isRetainer && !form.monthly_rate) { setFormError('Monthly rate is required for retainer projects.'); return; }
     setFormSaving(true); setFormError('');
     const payload = {
       project_type: form.project_type,
       client_name: isInternal ? (form.client_name.trim() || 'Internal') : form.client_name.trim(),
       project_name: form.project_name.trim(),
       service: form.service || null,
-      contract_price: isInternal ? 0 : (isRetainer ? (parseFloat(form.contract_price) || 0) : parseFloat(form.contract_price)),
-      monthly_rate: isRetainer ? parseFloat((form as any).monthly_rate) : null,
+      contract_price: isInternal ? 0 : (parseFloat(form.contract_price) || 0),
+      monthly_rate: isRetainer ? (parseFloat((form as any).monthly_rate) || null) : null,
       monthly_rate_currency: isRetainer ? (form as any).monthly_rate_currency : 'PHP',
       monthly_deliverables: isRetainer && (form as any).monthly_deliverables ? parseInt((form as any).monthly_deliverables, 10) : null,
       status: form.status,
@@ -2712,8 +2712,8 @@ export default function AdminProjectsPage() {
                     </div>
                   )}
 
-                  {/* Finance strip card — client + retainer projects */}
-                  {!internalProject && (
+                  {/* Finance strip card — client + retainer projects. Owner-only: contract pricing/revenue. */}
+                  {!internalProject && isOwner && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
                       <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Financials</p>
                       <div className="space-y-2">
@@ -3402,11 +3402,16 @@ export default function AdminProjectsPage() {
                         { label: 'Done', value: String(tasks.filter(t => t.status === 'done').length), cls: 'text-emerald-600' },
                         { label: 'Status', value: cfg.label, cls: 'text-gray-500' },
                       ]),
-                    ] : [
+                    ] : isOwner ? [
                       { label: 'Contract', value: fmt(activeProject.contract_price), cls: 'text-gray-800' },
                       { label: 'Paid', value: fmt(d.totalPaid), cls: 'text-emerald-600' },
                       { label: 'Balance', value: fmt(d.balance), cls: d.balance > 0 ? 'text-rose-600' : 'text-gray-400' },
                       { label: 'Costs', value: fmt(d.totalCosts), cls: 'text-orange-600' },
+                    ] : [
+                      { label: 'Team', value: String(activeProject.hub_project_contractors.length), cls: 'text-gray-800' },
+                      { label: 'Tasks', value: String(tasks.length), cls: 'text-indigo-600' },
+                      { label: 'Done', value: String(tasks.filter(t => t.status === 'done').length), cls: 'text-emerald-600' },
+                      { label: 'Status', value: cfg.label, cls: 'text-gray-500' },
                     ]).map(s => (
                       <div key={s.label} className="bg-gray-50 rounded-xl p-3">
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
@@ -3420,7 +3425,7 @@ export default function AdminProjectsPage() {
                     <i className="ri-layout-grid-line"></i> Open Workspace
                   </button>}
                   <div className="flex gap-2">
-                    {!internalProject && <button onClick={() => navigate(`/hub/admin/invoices/${activeProject.id}`)}
+                    {!internalProject && isOwner && <button onClick={() => navigate(`/hub/admin/invoices/${activeProject.id}`)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#111827] text-white text-sm rounded-xl cursor-pointer">
                       <i className="ri-mail-send-line"></i> Send Invoice
                     </button>}
@@ -3538,7 +3543,7 @@ export default function AdminProjectsPage() {
                     <div className="w-px h-5 bg-gray-200" />
 
                     {/* Primary actions */}
-                    {!internalProject && <button onClick={() => navigate(`/hub/admin/invoices/${activeProject.id}`)}
+                    {!internalProject && isOwner && <button onClick={() => navigate(`/hub/admin/invoices/${activeProject.id}`)}
                       className="text-xs px-3 py-2 bg-[#111827] hover:bg-gray-800 text-white rounded-xl cursor-pointer flex items-center gap-1.5 transition-colors font-medium">
                       <i className="ri-mail-send-line text-sm"></i> Send Invoice
                     </button>}
@@ -3584,9 +3589,9 @@ export default function AdminProjectsPage() {
                       </div>
                     </div></>}
                   </>
-                ) : (
+                ) : isOwner ? (
                   <>
-                    {/* Client finance strip */}
+                    {/* Client finance strip — owner only */}
                     <div className="mt-4 flex items-center gap-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex-wrap">
                       <span>Contract: <strong className="text-gray-700">{fmt(activeProject.contract_price)}</strong></span>
                       <span className="text-gray-200">|</span>
@@ -3607,7 +3612,7 @@ export default function AdminProjectsPage() {
                       </div>
                     </div>
                   </>
-                )}
+                ) : null}
                 {/* Inline client checklist */}
                 {!internalProject && (() => {
                   const overrides: Record<string, boolean> = (activeProject as any).client_checklist ?? {};
@@ -3669,8 +3674,8 @@ export default function AdminProjectsPage() {
                 {activeProject.notes && <p className="text-xs text-gray-400 italic mt-2">{activeProject.notes}</p>}
               </div>
 
-              {!internalProject && <div className="space-y-3">
-                {/* Financials — merged payments + schedule + costs */}
+              {!internalProject && isOwner && <div className="space-y-3">
+                {/* Financials — merged payments + schedule + costs. Owner-only. */}
                 <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                   <button onClick={() => toggleSection('financials')} className="w-full flex items-center justify-between cursor-pointer group">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Financials</p>
@@ -4142,8 +4147,8 @@ export default function AdminProjectsPage() {
                 )}
               </div>}
 
-              {/* Client Contract */}
-              {!internalProject && (
+              {/* Client Contract — owner-only: embeds contract pricing */}
+              {!internalProject && isOwner && (
                 <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-3">
                   <button onClick={() => {
                     toggleSection('contracts');
@@ -4440,6 +4445,7 @@ export default function AdminProjectsPage() {
       {showForm && (
         <ProjectFormModal
           isEditing={!!editingProject}
+          isOwner={isOwner}
           form={form}
           setForm={setForm}
           formError={formError}

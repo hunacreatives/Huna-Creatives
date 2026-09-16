@@ -16,8 +16,8 @@ const navItems = [
   { divider: true, label: 'People' },
   { to: '/hub/admin/contractors', label: 'Employees', icon: 'ri-team-line' },
   { to: '/hub/admin/attendance', label: 'Attendance', icon: 'ri-time-line' },
-  { to: '/hub/admin/documents', label: 'Contracts', icon: 'ri-file-text-line' },
-  { to: '/hub/admin/performance', label: 'Performance', icon: 'ri-medal-line', devOnly: true },
+  { to: '/hub/admin/documents', label: 'Contracts', icon: 'ri-file-text-line', ownerOnly: true },
+  { to: '/hub/admin/performance', label: 'Performance', icon: 'ri-medal-line', ownerOnly: true },
   { divider: true, label: 'Approvals' },
   { to: '/hub/admin/requests', label: 'Request Center', icon: 'ri-inbox-line' },
   { to: '/hub/admin/docrequests', label: 'Doc Requests', icon: 'ri-file-list-3-line' },
@@ -28,8 +28,8 @@ const navItems = [
   { to: '/hub/admin/questionnaires', label: 'Questionnaires', icon: 'ri-questionnaire-line', devOnly: true },
   { divider: true, label: 'Finance' },
   { to: '/hub/admin/payroll', label: 'Payroll', icon: 'ri-bar-chart-2-line' },
-  { to: '/hub/admin/invoice-log', label: 'Invoice Log', icon: 'ri-bill-line' },
-  { to: '/hub/admin/revenue', label: 'Revenue', icon: 'ri-line-chart-line' },
+  { to: '/hub/admin/invoice-log', label: 'Invoice Log', icon: 'ri-bill-line', ownerOnly: true },
+  { to: '/hub/admin/revenue', label: 'Revenue', icon: 'ri-line-chart-line', ownerOnly: true },
   { divider: true, label: 'Resources' },
   { to: '/hub/admin/access', label: 'Access', icon: 'ri-lock-2-line' },
   { to: '/hub/admin/sop', label: 'SOP Library', icon: 'ri-book-open-line' },
@@ -57,7 +57,9 @@ export default function AdminSidebar({ collapsed, onToggle }: Props) {
   const visibleNavItems = navItems
     .filter((item) => !(item as { devOnly?: boolean }).devOnly || hubUser?.is_developer)
     // Hide demo-excluded items (e.g. Event RSVPs) when previewing the demo.
-    .filter((item) => !(isDemo && (item as { demoHidden?: boolean }).demoHidden));
+    .filter((item) => !(isDemo && (item as { demoHidden?: boolean }).demoHidden))
+    // Invoice Log / Revenue are financial data restricted to the owner role.
+    .filter((item) => !(item as { ownerOnly?: boolean }).ownerOnly || activeUser?.role === 'owner');
 
   const handleSignOut = async () => {
     if (isDemo) {

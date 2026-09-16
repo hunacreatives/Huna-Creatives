@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { requireAdmin, adminClient, authErrorResponse } from '../_shared/requireCaller.ts';
+import { requireOwner, adminClient, authErrorResponse } from '../_shared/requireCaller.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives Billing <billing@hunacreatives.com>';
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   // Admin-only workflow; ungated, any visitor could trigger it.
-  try { await requireAdmin(req, adminClient()); }
+  try { await requireOwner(req, adminClient()); }
   catch (e) { const r = authErrorResponse(e, cors); if (r) return r; throw e; }
 
   try {
