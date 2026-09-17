@@ -170,7 +170,7 @@ export default function PublicPaymentPage() {
         <div className="max-w-xl mx-auto px-4 py-10 space-y-5">
           <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center">
             <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto">
-              <i className="ri-check-double-line text-2xl text-emerald-600"></i>
+              <i className="ri-check-double-line text-2xl leading-none flex items-center justify-center text-emerald-600"></i>
             </div>
             <h1 className="text-2xl font-bold text-[#111827] mt-5">Payment confirmed!</h1>
             <p className="text-sm text-gray-500 mt-2 leading-relaxed">
