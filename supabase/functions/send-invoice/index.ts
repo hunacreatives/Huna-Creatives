@@ -340,8 +340,8 @@ Deno.serve(async (req) => {
           <tr>
             <td style="padding:0 40px 12px;">
               <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:18px 18px 16px;text-align:center;">
-                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#111827;">Choose your payment channel online</p>
-                <p style="margin:0 0 14px;font-size:12px;color:#6b7280;">Open your secure payment page to select GCash, BDO, or GoTyme, then upload proof of payment.</p>
+                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#111827;">Pay securely online</p>
+                <p style="margin:0 0 14px;font-size:12px;color:#6b7280;">Tap below and scan the QR code with GCash, Maya, or your bank's app. Your payment is confirmed automatically.</p>
                 <a href="${payUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#111827;color:#ffffff;font-size:14px;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none;">
                   Pay Now →
                 </a>
