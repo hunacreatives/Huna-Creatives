@@ -33,7 +33,7 @@ export interface InvoiceBuilderFormState {
   issue_date: string;
   due_date: string;
   payment_terms: string;
-  currency: 'PHP' | 'USD';
+  currency: 'PHP';
   customer_notes: string;
   payment_instructions: string;
   amount_requested: string;
@@ -124,8 +124,8 @@ export function computeInvoiceAmountDue(params: {
   return { amountDue, paymentsDeducted };
 }
 
-export function formatInvoiceCurrency(amount: number, currency: 'PHP' | 'USD') {
-  return new Intl.NumberFormat(currency === 'USD' ? 'en-US' : 'en-PH', {
+export function formatInvoiceCurrency(amount: number, currency: 'PHP' = 'PHP') {
+  return new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
