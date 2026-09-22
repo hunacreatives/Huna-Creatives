@@ -262,7 +262,7 @@ export default function ProposalPage() {
           <p className="text-white/40 text-xs tracking-[0.16em] uppercase mb-4">
             Prepared for {proposal.client_name}
           </p>
-          <h1 className="text-white font-serif text-5xl sm:text-6xl leading-[1.1] mb-4 max-w-2xl"
+          <h1 className="text-white font-serif text-5xl sm:text-6xl leading-[1.1] mb-4 max-w-2xl text-balance"
             style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
             {proposal.project_title || `A Proposal for ${proposal.client_name}`}
           </h1>

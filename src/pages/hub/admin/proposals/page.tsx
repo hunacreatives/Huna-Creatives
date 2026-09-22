@@ -561,7 +561,7 @@ export default function ProposalBuilderPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 items-start">
 
           {/* ── Left panel ── */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
 
             {/* Document type */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
