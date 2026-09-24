@@ -531,7 +531,7 @@ export default function CareersPage() {
 
             {/* Floating quote bubble */}
             <div
-              className="flex absolute top-3 right-3 sm:-top-4 sm:-right-6 max-w-[170px] sm:max-w-[190px] items-start gap-2 rounded-2xl rounded-bl-sm px-3.5 sm:px-4 py-2.5 sm:py-3"
+              className="flex absolute -top-2 right-3 sm:-top-4 sm:-right-6 max-w-[170px] sm:max-w-[190px] items-start gap-2 rounded-2xl rounded-bl-sm px-3.5 sm:px-4 py-2.5 sm:py-3"
               style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', boxShadow: '0 8px 24px rgba(36,48,55,0.15)', transform: 'rotate(4deg)', animation: 'float-gentle 9s ease-in-out infinite', zIndex: 6 }}
             >
               <i className="ri-double-quotes-l text-[#FF5B05] text-lg leading-none flex-shrink-0" />
@@ -692,7 +692,7 @@ export default function CareersPage() {
                                 setApplyingJobId(job.id);
                                 resetApplicationState();
                               }}
-                              className="w-full sm:w-auto px-5 py-3.5 sm:py-3 rounded-xl text-[13px] sm:text-xs font-semibold tracking-widest uppercase border border-[#FF5B05]/50 text-[#FF5B05] hover:bg-[#FF5B05]/10 transition-all hover:scale-[1.02] cursor-pointer whitespace-nowrap"
+                              className="w-full sm:w-auto max-w-full box-border px-5 py-3.5 sm:py-3 rounded-xl text-[13px] sm:text-xs font-semibold tracking-widest uppercase border border-[#FF5B05]/50 text-[#FF5B05] hover:bg-[#FF5B05]/10 transition-all hover:scale-[1.02] cursor-pointer whitespace-normal sm:whitespace-nowrap break-words text-center leading-snug"
                             >
                               Apply for {job.title}
                             </button>
