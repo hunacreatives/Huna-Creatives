@@ -61,6 +61,7 @@ export default function ApplicationsPage() {
   const [interviewTime, setInterviewTime] = useState('');
   const [interviewDuration, setInterviewDuration] = useState(30);
   const [interviewError, setInterviewError] = useState('');
+  const [interviewLink, setInterviewLink] = useState('');
 
   const fetchApplications = async () => {
     setLoading(true);
