@@ -328,6 +328,7 @@ export default function AdminProjectsPage() {
   const detailPanelRef = useRef<HTMLDivElement>(null);
   // Collapsible detail sections (all closed by default)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [focusedSection, setFocusedSection] = useState<string | null>(null);
   // Collapsed task groups in workspace
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const toggleSection = (key: string) => setOpenSections(s => ({ ...s, [key]: !s[key] }));
@@ -2024,24 +2025,38 @@ export default function AdminProjectsPage() {
               </div>
 
               {/* Lead Tracker (SmartGrid Western only) */}
-              {activeProject.project_name === 'SmartGrid Western' && (
+              {activeProject.project_name === 'SmartGrid Western' && focusedSection !== 'leads' && (
                 <div id="ws-leads" className="w-full">
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-                    <button onClick={() => toggleSection('leads')} className="w-full flex items-center justify-between cursor-pointer group">
+                    <button onClick={() => setFocusedSection('leads')} className="w-full flex items-center justify-between cursor-pointer group hover:bg-gray-50 -mx-5 -my-5 px-5 py-5 rounded-2xl transition-colors">
                       <div className="flex items-center gap-2">
                         <i className="ri-phone-line text-[#FF6B35] text-lg"></i>
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead Tracker</p>
                       </div>
-                      <i className={`ri-arrow-${openSections['leads'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
+                      <i className="ri-arrow-right-s-line text-gray-400 text-sm group-hover:text-gray-600"></i>
                     </button>
-                    {openSections['leads'] && (
-                      <LeadsDatabase projectId={activeProject.id} isAdmin={true} />
-                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Full-screen Lead Tracker view */}
+              {activeProject.project_name === 'SmartGrid Western' && focusedSection === 'leads' && (
+                <div id="ws-leads-focused" className="w-full space-y-3">
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+                    <button onClick={() => setFocusedSection(null)} className="w-full flex items-center justify-between cursor-pointer group hover:bg-gray-50 -mx-5 -my-5 px-5 py-5 rounded-2xl transition-colors">
+                      <div className="flex items-center gap-2">
+                        <i className="ri-arrow-left-s-line text-gray-400 text-lg"></i>
+                        <i className="ri-phone-line text-[#FF6B35] text-lg"></i>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead Tracker</p>
+                      </div>
+                    </button>
+                    <LeadsDatabase projectId={activeProject.id} isAdmin={true} />
                   </div>
                 </div>
               )}
 
               {/* ── Two-column: tasks + sidebar ── */}
+              {focusedSection !== 'leads' && (
               <div className="flex flex-col lg:flex-row gap-6">
                 {/* Task list */}
                 <div
@@ -2785,6 +2800,7 @@ export default function AdminProjectsPage() {
                   )}
                 </div>
               </div>
+              )}
             </div>
           </div>
         );
