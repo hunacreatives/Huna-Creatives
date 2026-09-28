@@ -1346,7 +1346,7 @@ export default function ContractorProjectsPage() {
           <div id="ws-scroll" className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
 
             {/* Lead Tracker button for SmartGrid Western cold callers */}
-            {wsProject?.project_name === 'SmartGrid Western' && wsRow?.project_role === 'Cold Caller' && (
+            {wsProject?.project_name === 'SmartGrid Western' && wsRow?.project_role === 'Cold Caller' ? (
               <button
                 onClick={() => navigate('/hub/contractor/smartgrid-leads')}
                 className="w-full flex items-center justify-between px-6 py-5 bg-gradient-to-r from-sky-500 to-blue-500 text-white border border-sky-600 rounded-xl hover:border-sky-700 hover:from-sky-600 hover:to-blue-600 transition-all group shadow-md hover:shadow-lg"
@@ -1362,21 +1362,21 @@ export default function ContractorProjectsPage() {
                 </div>
                 <i className="ri-arrow-right-line text-white text-xl flex-shrink-0"></i>
               </button>
-            )}
+            ) : (
+              <>
+                {/* Focus mode dismiss bar */}
+                {wsFocusSection && (
+                  <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-2.5">
+                    <i className="ri-fullscreen-line text-indigo-500 text-sm"></i>
+                    <span className="text-xs text-indigo-700 font-medium flex-1">Focused view — showing one section</span>
+                    <button onClick={() => setWsFocusSection(null)} className="text-[11px] text-indigo-500 hover:text-indigo-700 font-medium cursor-pointer flex items-center gap-1">
+                      <i className="ri-close-line text-xs"></i> Show all
+                    </button>
+                  </div>
+                )}
 
-            {/* Focus mode dismiss bar */}
-            {wsFocusSection && (
-              <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-2.5">
-                <i className="ri-fullscreen-line text-indigo-500 text-sm"></i>
-                <span className="text-xs text-indigo-700 font-medium flex-1">Focused view — showing one section</span>
-                <button onClick={() => setWsFocusSection(null)} className="text-[11px] text-indigo-500 hover:text-indigo-700 font-medium cursor-pointer flex items-center gap-1">
-                  <i className="ri-close-line text-xs"></i> Show all
-                </button>
-              </div>
-            )}
 
-
-            {/* Stats */}
+                {/* Stats */}
             <div id="ws-stats" className={`grid grid-cols-2 sm:grid-cols-4 gap-2 ${wsFocusSection && wsFocusSection !== 'ws-stats' ? 'hidden' : ''}`}>
               {[
                 { label: 'Total', value: wsTasks.length, icon: 'ri-task-line', iconBg: 'bg-gray-100', iconClr: 'text-gray-500', valClr: 'text-gray-800' },
@@ -1754,6 +1754,8 @@ export default function ContractorProjectsPage() {
                 )}
               </div>
             </div>
+              </>
+            )}
           </div>
         </div>
       )}
