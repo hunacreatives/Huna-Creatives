@@ -29,6 +29,8 @@ interface FormState {
   called: boolean;
   emailFound: boolean;
   phoneFound: boolean;
+  emailValue?: string;
+  phoneValue?: string;
   outcome: 'interested' | 'not_interested' | 'callback' | 'voicemail' | 'no_answer' | 'skip' | '';
   callNotes: string;
   callbackDate?: string;
@@ -155,6 +157,14 @@ export default function SmartGridLeadsPage() {
         call_notes: formState.callNotes,
         last_contact_at: new Date().toISOString(),
       };
+
+      // Update email/phone if found
+      if (formState.emailFound && formState.emailValue) {
+        updates.email = formState.emailValue;
+      }
+      if (formState.phoneFound && formState.phoneValue) {
+        updates.phone = formState.phoneValue;
+      }
 
       if (formState.outcome && formState.outcome !== 'skip') {
         updates.outcome = formState.outcome;
@@ -400,6 +410,34 @@ export default function SmartGridLeadsPage() {
                     <span className="text-sm text-gray-700 group-hover:text-gray-800">Phone Found</span>
                   </label>
                 </div>
+
+                {/* Email input (show if Email Found checked) */}
+                {formState.emailFound && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Email Address</label>
+                    <input
+                      type="email"
+                      value={formState.emailValue || ''}
+                      onChange={e => setFormState(s => ({ ...s, emailValue: e.target.value }))}
+                      placeholder="Enter email address found during call"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
+                )}
+
+                {/* Phone input (show if Phone Found checked) */}
+                {formState.phoneFound && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={formState.phoneValue || ''}
+                      onChange={e => setFormState(s => ({ ...s, phoneValue: e.target.value }))}
+                      placeholder="Enter phone number found during call"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
+                )}
 
                 {/* Outcome dropdown */}
                 <div>
