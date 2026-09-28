@@ -47,6 +47,7 @@ interface ProjectRow {
   payout_status: string;
   paid_at: string | null;
   exclude_from_payout: boolean;
+  project_role?: string | null;
   hub_project_contractor_payouts: ContractorPayout[];
   hub_projects: {
     id: number;
@@ -420,7 +421,7 @@ export default function ContractorProjectsPage() {
         // 1. contractor's assignments + project_ids in one query
         const { data: pcData, error: pcErr } = await supabase
           .from('hub_project_contractors')
-          .select('id, project_id, percentage, payout_type, fixed_amount, payout_status, paid_at, exclude_from_payout')
+          .select('id, project_id, percentage, payout_type, fixed_amount, payout_status, paid_at, exclude_from_payout, project_role')
           .eq('contractor_id', hubUser.id);
         if (pcErr) throw pcErr;
         if (!pcData?.length) { setLoading(false); return; }
@@ -460,6 +461,7 @@ export default function ContractorProjectsPage() {
             payout_status: pc.payout_status,
             paid_at: pc.paid_at,
             exclude_from_payout: !!pc.exclude_from_payout,
+            project_role: pc.project_role || null,
             hub_project_contractor_payouts: payoutsByPc[pc.id] ?? [],
             hub_projects: {
               ...project,
@@ -1344,7 +1346,7 @@ export default function ContractorProjectsPage() {
           <div id="ws-scroll" className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
 
             {/* Lead Tracker button for SmartGrid Western cold callers */}
-            {wsProject?.project_name === 'SmartGrid Western' && (
+            {wsProject?.project_name === 'SmartGrid Western' && wsRow?.project_role === 'Cold Caller' && (
               <button
                 onClick={() => navigate('/hub/contractor/smartgrid-leads')}
                 className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl hover:border-sky-300 hover:from-sky-100 hover:to-blue-100 transition-all group"
