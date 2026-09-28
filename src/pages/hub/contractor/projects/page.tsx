@@ -1349,18 +1349,18 @@ export default function ContractorProjectsPage() {
             {wsProject?.project_name === 'SmartGrid Western' && wsRow?.project_role === 'Cold Caller' && (
               <button
                 onClick={() => navigate('/hub/contractor/smartgrid-leads')}
-                className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl hover:border-sky-300 hover:from-sky-100 hover:to-blue-100 transition-all group"
+                className="w-full flex items-center justify-between px-6 py-5 bg-gradient-to-r from-sky-500 to-blue-500 text-white border border-sky-600 rounded-xl hover:border-sky-700 hover:from-sky-600 hover:to-blue-600 transition-all group shadow-md hover:shadow-lg"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0 group-hover:bg-sky-200 transition-colors">
-                    <i className="ri-phone-line text-sky-600 text-base"></i>
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0 group-hover:bg-white/30 transition-colors">
+                    <i className="ri-phone-line text-white text-lg"></i>
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-semibold text-gray-800">My Queue</p>
-                    <p className="text-xs text-gray-500">Start calling leads</p>
+                    <p className="text-base font-bold">My Queue</p>
+                    <p className="text-sm text-sky-100">Start calling leads</p>
                   </div>
                 </div>
-                <i className="ri-arrow-right-line text-sky-600 text-lg flex-shrink-0"></i>
+                <i className="ri-arrow-right-line text-white text-xl flex-shrink-0"></i>
               </button>
             )}
 
