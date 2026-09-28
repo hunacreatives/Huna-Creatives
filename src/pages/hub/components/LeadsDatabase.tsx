@@ -46,6 +46,8 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'lifetime'>('daily');
+  const [allTimePeriodStats, setAllTimePeriodStats] = useState<Record<string, { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[]> | null>(null);
 
   useEffect(() => {
     fetchLeads();
@@ -53,6 +55,13 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       fetchContractors();
     }
   }, [projectId, isAdmin]);
+
+  // Update stats when time period changes
+  useEffect(() => {
+    if (allTimePeriodStats) {
+      setStats(prev => prev ? { ...prev, todayStats: allTimePeriodStats[timePeriod] || [] } : null);
+    }
+  }, [timePeriod, allTimePeriodStats]);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -84,11 +93,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     const calling = leadsData.filter(l => l.status === 'calling').length;
     const attempted = leadsData.filter(l => l.status === 'attempted').length;
 
-    // Calculate today's per-caller stats from activity log
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let todayStats: { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[] = [];
+    let allStats: Record<string, { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[]> = {};
 
     if (isAdmin) {
       try {
@@ -96,46 +101,60 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
           .from('hub_project_activity')
           .select('user_id, hub_users(full_name), meta, created_at')
           .eq('project_id', projectId)
-          .eq('entity_type', 'lead')
-          .gte('created_at', today.toISOString());
+          .eq('entity_type', 'lead');
 
         if (!error && activities) {
-          const callerMap = new Map<string, { name: string; calls: Set<string>; successful: number; emailFound: number; phoneFound: number }>();
+          const now = new Date();
+          const periods: Record<string, Date> = {
+            daily: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+            weekly: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+            monthly: new Date(now.getFullYear(), now.getMonth(), 1),
+            lifetime: new Date(0),
+          };
 
-          activities.forEach((activity: any) => {
-            if (!activity.user_id) return;
-            const callerId = activity.user_id;
-            const callerName = activity.hub_users?.full_name || 'Unknown';
+          Object.entries(periods).forEach(([period, startDate]) => {
+            const callerMap = new Map<string, { name: string; calls: Set<string>; successful: number; emailFound: number; phoneFound: number }>();
 
-            if (!callerMap.has(callerId)) {
-              callerMap.set(callerId, { name: callerName, calls: new Set(), successful: 0, emailFound: 0, phoneFound: 0 });
-            }
+            activities.forEach((activity: any) => {
+              const actDate = new Date(activity.created_at);
+              if (actDate < startDate) return;
 
-            const caller = callerMap.get(callerId)!;
-            caller.calls.add(activity.meta?.lead_id || '');
+              if (!activity.user_id) return;
+              const callerId = activity.user_id;
+              const callerName = activity.hub_users?.full_name || 'Unknown';
 
-            if (activity.meta?.outcome === 'interested' || activity.meta?.outcome === 'callback') {
-              caller.successful++;
-            }
-            if (activity.meta?.email_found) {
-              caller.emailFound++;
-            }
-            if (activity.meta?.phone_found) {
-              caller.phoneFound++;
-            }
+              if (!callerMap.has(callerId)) {
+                callerMap.set(callerId, { name: callerName, calls: new Set(), successful: 0, emailFound: 0, phoneFound: 0 });
+              }
+
+              const caller = callerMap.get(callerId)!;
+              caller.calls.add(activity.meta?.lead_id || '');
+
+              if (activity.meta?.outcome === 'interested' || activity.meta?.outcome === 'callback') {
+                caller.successful++;
+              }
+              if (activity.meta?.email_found) {
+                caller.emailFound++;
+              }
+              if (activity.meta?.phone_found) {
+                caller.phoneFound++;
+              }
+            });
+
+            allStats[period] = Array.from(callerMap.entries()).map(([callerId, data]) => ({
+              callerId,
+              callerName: data.name,
+              callsToday: data.calls.size,
+              successfulToday: data.successful,
+              emailFoundToday: data.emailFound,
+              phoneFoundToday: data.phoneFound,
+            }));
           });
-
-          todayStats = Array.from(callerMap.entries()).map(([callerId, data]) => ({
-            callerId,
-            callerName: data.name,
-            callsToday: data.calls.size,
-            successfulToday: data.successful,
-            emailFoundToday: data.emailFound,
-            phoneFoundToday: data.phoneFound,
-          }));
         }
+
+        setAllTimePeriodStats(allStats);
       } catch (err) {
-        console.error('Error fetching today stats:', err);
+        console.error('Error fetching stats:', err);
       }
     }
 
@@ -144,7 +163,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       complete,
       calling,
       attempted,
-      todayStats,
+      todayStats: allStats[timePeriod] || [],
     });
   };
 
@@ -224,10 +243,29 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Today's caller performance */}
+      {/* Time period selector */}
+      {isAdmin && (
+        <div className="flex gap-2 flex-wrap">
+          {(['daily', 'weekly', 'monthly', 'lifetime'] as const).map(period => (
+            <button
+              key={period}
+              onClick={() => setTimePeriod(period)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors capitalize ${
+                timePeriod === period
+                  ? 'bg-sky-500 text-white'
+                  : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {period}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Caller performance stats */}
       {isAdmin && stats.todayStats && stats.todayStats.length > 0 && (
         <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl border border-sky-200 p-4">
-          <p className="text-xs font-semibold text-sky-700 mb-3">TODAY'S PERFORMANCE</p>
+          <p className="text-xs font-semibold text-sky-700 mb-3 capitalize">{timePeriod.toUpperCase()} PERFORMANCE</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {stats.todayStats.map(caller => (
               <div key={caller.callerId} className="bg-white rounded-lg px-3 py-2.5 border border-sky-100">
