@@ -2023,6 +2023,24 @@ export default function AdminProjectsPage() {
                 />
               </div>
 
+              {/* Lead Tracker (SmartGrid Western only) */}
+              {activeProject.project_name === 'SmartGrid Western' && (
+                <div id="ws-leads" className="w-full">
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+                    <button onClick={() => toggleSection('leads')} className="w-full flex items-center justify-between cursor-pointer group">
+                      <div className="flex items-center gap-2">
+                        <i className="ri-phone-line text-[#FF6B35] text-lg"></i>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead Tracker</p>
+                      </div>
+                      <i className={`ri-arrow-${openSections['leads'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
+                    </button>
+                    {openSections['leads'] && (
+                      <LeadsDatabase projectId={activeProject.id} isAdmin={true} />
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* ── Two-column: tasks + sidebar ── */}
               <div className="flex flex-col lg:flex-row gap-6">
                 {/* Task list */}
@@ -2611,24 +2629,6 @@ export default function AdminProjectsPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Leads Database section (SmartGrid Western projects) */}
-                {activeProject.project_name === 'SmartGrid Western' && (
-                  <div id="ws-leads" className="w-full">
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-                      <button onClick={() => toggleSection('leads')} className="w-full flex items-center justify-between cursor-pointer group">
-                        <div className="flex items-center gap-2">
-                          <i className="ri-phone-line text-[#FF6B35] text-lg"></i>
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lead Tracker</p>
-                        </div>
-                        <i className={`ri-arrow-${openSections['leads'] ? 'up' : 'down'}-s-line text-gray-400 text-sm group-hover:text-gray-600`}></i>
-                      </button>
-                      {openSections['leads'] && (
-                        <LeadsDatabase projectId={activeProject.id} isAdmin={true} />
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {/* Right sidebar */}
                 <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'flex'} flex-col gap-4 w-full lg:w-64 flex-shrink-0`}>
