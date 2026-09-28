@@ -4023,14 +4023,18 @@ export default function AdminProjectsPage() {
                                 <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
                                 {editingProjectRole === pc.id ? (
                                   <div className="flex items-center gap-1">
-                                    <input
-                                      type="text"
+                                    <select
                                       value={projectRoleInput}
                                       onChange={e => setProjectRoleInput(e.target.value)}
-                                      placeholder="e.g. Cold Caller"
                                       className="text-xs px-2 py-1 border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                                       autoFocus
-                                    />
+                                    >
+                                      <option value="">Select role...</option>
+                                      <option value="Cold Caller">Cold Caller</option>
+                                      <option value="Designer">Designer</option>
+                                      <option value="Developer">Developer</option>
+                                      <option value="Project Manager">Project Manager</option>
+                                    </select>
                                     <button
                                       onClick={() => saveProjectRole(pc.id)}
                                       className="text-xs px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded font-medium"
