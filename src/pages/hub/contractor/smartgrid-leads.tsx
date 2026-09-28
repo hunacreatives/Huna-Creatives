@@ -57,6 +57,15 @@ export default function SmartGridLeadsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
+  const [copiedPhone, setCopiedPhone] = useState(false);
+
+  const copyPhoneToClipboard = () => {
+    if (currentLead?.phone) {
+      navigator.clipboard.writeText(currentLead.phone);
+      setCopiedPhone(true);
+      setTimeout(() => setCopiedPhone(false), 2000);
+    }
+  };
 
   // Load SmartGrid project and fetch queue
   useEffect(() => {
@@ -392,7 +401,14 @@ export default function SmartGridLeadsPage() {
                   {currentLead.phone && (
                     <div>
                       <p className="text-xs text-gray-500 font-medium">Phone</p>
-                      <p className="text-sm text-gray-800 font-mono">{currentLead.phone}</p>
+                      <button
+                        onClick={copyPhoneToClipboard}
+                        className="flex items-center gap-2 text-sm text-gray-800 font-mono hover:text-sky-600 hover:bg-sky-50 px-2 py-1 rounded transition-colors cursor-pointer"
+                        title="Copy phone number"
+                      >
+                        {currentLead.phone}
+                        <i className={`text-xs transition-all ${copiedPhone ? 'ri-check-line text-emerald-500' : 'ri-file-copy-line text-gray-400'}`}></i>
+                      </button>
                     </div>
                   )}
                   {currentLead.email && (
