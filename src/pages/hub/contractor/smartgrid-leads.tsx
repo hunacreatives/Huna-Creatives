@@ -192,6 +192,7 @@ export default function SmartGridLeadsPage() {
         entity_id: currentLead.id,
         action: 'lead_outcome_logged',
         meta: {
+          lead_id: currentLead.id,
           outcome: formState.outcome,
           email_found: formState.emailFound,
           phone_found: formState.phoneFound,
@@ -391,24 +392,28 @@ export default function SmartGridLeadsPage() {
                     />
                     <span className="text-sm text-gray-700 group-hover:text-gray-800">Called</span>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={formState.emailFound}
-                      onChange={e => setFormState(s => ({ ...s, emailFound: e.target.checked }))}
-                      className="w-4 h-4 rounded border-gray-300 text-sky-500 focus:ring-0 cursor-pointer"
-                    />
-                    <span className="text-sm text-gray-700 group-hover:text-gray-800">Email Found</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={formState.phoneFound}
-                      onChange={e => setFormState(s => ({ ...s, phoneFound: e.target.checked }))}
-                      className="w-4 h-4 rounded border-gray-300 text-sky-500 focus:ring-0 cursor-pointer"
-                    />
-                    <span className="text-sm text-gray-700 group-hover:text-gray-800">Phone Found</span>
-                  </label>
+                  {!currentLead.email && (
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={formState.emailFound}
+                        onChange={e => setFormState(s => ({ ...s, emailFound: e.target.checked }))}
+                        className="w-4 h-4 rounded border-gray-300 text-sky-500 focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700 group-hover:text-gray-800">Email Found</span>
+                    </label>
+                  )}
+                  {!currentLead.phone && (
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={formState.phoneFound}
+                        onChange={e => setFormState(s => ({ ...s, phoneFound: e.target.checked }))}
+                        className="w-4 h-4 rounded border-gray-300 text-sky-500 focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700 group-hover:text-gray-800">Phone Found</span>
+                    </label>
+                  )}
                 </div>
 
                 {/* Email input (show if Email Found checked) */}

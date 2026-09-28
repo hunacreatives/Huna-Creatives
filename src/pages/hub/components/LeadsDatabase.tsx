@@ -28,7 +28,7 @@ interface LeadsStats {
   complete: number;
   calling: number;
   attempted: number;
-  todayActivity?: { caller: string; count: number }[];
+  todayStats?: { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[];
 }
 
 interface Props {
@@ -59,14 +59,18 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     try {
       const { data, error } = await supabase
         .from('hub_project_leads')
-        .select('*')
+        .select('*, hub_project_activity(action, created_at)')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       setLeads(data || []);
-      calculateStats(data || []);
+      if (isAdmin) {
+        await calculateStats(data || []);
+      } else {
+        calculateStats(data || []);
+      }
     } catch (err) {
       console.error('Error fetching leads:', err);
     } finally {
@@ -74,17 +78,73 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   };
 
-  const calculateStats = (leadsData: Lead[]) => {
+  const calculateStats = async (leadsData: Lead[]) => {
     const total = leadsData.length;
     const complete = leadsData.filter(l => l.status === 'complete').length;
     const calling = leadsData.filter(l => l.status === 'calling').length;
     const attempted = leadsData.filter(l => l.status === 'attempted').length;
+
+    // Calculate today's per-caller stats from activity log
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let todayStats: { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[] = [];
+
+    if (isAdmin) {
+      try {
+        const { data: activities, error } = await supabase
+          .from('hub_project_activity')
+          .select('user_id, hub_users(full_name), meta, created_at')
+          .eq('project_id', projectId)
+          .eq('entity_type', 'lead')
+          .gte('created_at', today.toISOString());
+
+        if (!error && activities) {
+          const callerMap = new Map<string, { name: string; calls: Set<string>; successful: number; emailFound: number; phoneFound: number }>();
+
+          activities.forEach((activity: any) => {
+            if (!activity.user_id) return;
+            const callerId = activity.user_id;
+            const callerName = activity.hub_users?.full_name || 'Unknown';
+
+            if (!callerMap.has(callerId)) {
+              callerMap.set(callerId, { name: callerName, calls: new Set(), successful: 0, emailFound: 0, phoneFound: 0 });
+            }
+
+            const caller = callerMap.get(callerId)!;
+            caller.calls.add(activity.meta?.lead_id || '');
+
+            if (activity.meta?.outcome === 'interested' || activity.meta?.outcome === 'callback') {
+              caller.successful++;
+            }
+            if (activity.meta?.email_found) {
+              caller.emailFound++;
+            }
+            if (activity.meta?.phone_found) {
+              caller.phoneFound++;
+            }
+          });
+
+          todayStats = Array.from(callerMap.entries()).map(([callerId, data]) => ({
+            callerId,
+            callerName: data.name,
+            callsToday: data.calls.size,
+            successfulToday: data.successful,
+            emailFoundToday: data.emailFound,
+            phoneFoundToday: data.phoneFound,
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching today stats:', err);
+      }
+    }
 
     setStats({
       total,
       complete,
       calling,
       attempted,
+      todayStats,
     });
   };
 
@@ -164,6 +224,38 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Today's caller performance */}
+      {isAdmin && stats.todayStats && stats.todayStats.length > 0 && (
+        <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl border border-sky-200 p-4">
+          <p className="text-xs font-semibold text-sky-700 mb-3">TODAY'S PERFORMANCE</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {stats.todayStats.map(caller => (
+              <div key={caller.callerId} className="bg-white rounded-lg px-3 py-2.5 border border-sky-100">
+                <p className="text-xs font-medium text-gray-700 truncate">{caller.callerName}</p>
+                <div className="mt-1.5 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-500">Calls</span>
+                    <span className="text-sm font-bold text-gray-800">{caller.callsToday}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-500">Successful</span>
+                    <span className="text-sm font-bold text-emerald-600">{caller.successfulToday}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-500">Email found</span>
+                    <span className="text-sm font-bold text-sky-600">{caller.emailFoundToday}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-500">Phone found</span>
+                    <span className="text-sm font-bold text-sky-600">{caller.phoneFoundToday}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Header stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="bg-white rounded-xl px-3 py-2.5 shadow-sm border border-gray-100/80">
