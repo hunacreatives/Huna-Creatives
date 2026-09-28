@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHubAuth } from '@/hooks/useHubAuth';
@@ -102,6 +102,7 @@ export default function ContractorProjectsPage() {
   const { isDemo } = useDemo();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const deepLinkDone = useRef<string | null>(null);
   const deepLinkTaskDone = useRef<string | null>(null);
   const [rows, setRows] = useState<ProjectRow[]>([]);
@@ -1341,6 +1342,25 @@ export default function ContractorProjectsPage() {
           })()}
 
           <div id="ws-scroll" className="flex-1 px-5 md:px-6 pb-6 space-y-5 overflow-y-auto">
+
+            {/* Lead Tracker button for SmartGrid Western cold callers */}
+            {wsProject?.project_name === 'SmartGrid Western' && (
+              <button
+                onClick={() => navigate('/hub/contractor/smartgrid-leads')}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-200 rounded-xl hover:border-sky-300 hover:from-sky-100 hover:to-blue-100 transition-all group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0 group-hover:bg-sky-200 transition-colors">
+                    <i className="ri-phone-line text-sky-600 text-base"></i>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-gray-800">My Queue</p>
+                    <p className="text-xs text-gray-500">Start calling leads</p>
+                  </div>
+                </div>
+                <i className="ri-arrow-right-line text-sky-600 text-lg flex-shrink-0"></i>
+              </button>
+            )}
 
             {/* Focus mode dismiss bar */}
             {wsFocusSection && (
