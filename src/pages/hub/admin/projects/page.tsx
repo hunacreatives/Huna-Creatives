@@ -12,6 +12,7 @@ import { getSetting } from '@/lib/settings';
 import { localToday, slugify, isTaskOverdue } from '@/lib/formatUtils';
 import { DEMO_PROJECTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 import TaskDetailPanel, { type TaskDetailTask } from '@/pages/hub/components/TaskDetailPanel';
+import LeadsDatabase from '@/pages/hub/components/LeadsDatabase';
 import { uploadFileToDrive } from '@/lib/driveUpload';
 import { createTaskAttachment } from '@/lib/taskAttachments';
 import { getTaskDescriptionPreview } from '@/pages/hub/utils/taskPreview';
@@ -2610,6 +2611,19 @@ export default function AdminProjectsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Leads Database section (SmartGrid Western projects) */}
+                {activeProject.client_name === 'SmartGrid Western' && (
+                  <div id="ws-leads" className="w-full">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <i className="ri-phone-line text-[#FF6B35] text-lg"></i>
+                        <h3 className="font-semibold text-gray-800">Lead Tracker</h3>
+                      </div>
+                      <LeadsDatabase projectId={activeProject.id} isAdmin={true} />
+                    </div>
+                  </div>
+                )}
 
                 {/* Right sidebar */}
                 <div id="ws-sidebar" className={`${taskView === 'board' ? 'hidden' : 'flex'} flex-col gap-4 w-full lg:w-64 flex-shrink-0`}>
