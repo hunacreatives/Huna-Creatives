@@ -79,6 +79,20 @@ export default function SmartGridLeadsPage() {
         const pId = projects[0].id;
         setProjectId(pId);
 
+        // Check if there's a saved batch in localStorage
+        try {
+          const saved = localStorage.getItem('smartgrid_batch');
+          if (saved) {
+            const { queue: savedQueue, currentIndex } = JSON.parse(saved);
+            setQueue(savedQueue);
+            setCurrentLeadIndex(currentIndex);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.log('No saved batch');
+        }
+
         // Fetch initial queue (30 unassigned leads)
         await loadQueue(pId, hubUser.id);
       } catch (err) {
@@ -89,6 +103,20 @@ export default function SmartGridLeadsPage() {
     };
     init();
   }, [hubUser?.id]);
+
+  // Save current position to localStorage whenever it changes
+  useEffect(() => {
+    if (queue.length > 0) {
+      try {
+        localStorage.setItem('smartgrid_batch', JSON.stringify({
+          queue,
+          currentIndex: currentLeadIndex,
+        }));
+      } catch (e) {
+        console.error('Failed to save batch to localStorage:', e);
+      }
+    }
+  }, [queue, currentLeadIndex]);
 
   const loadQueue = async (pId: number, userId: string) => {
     try {
@@ -219,7 +247,12 @@ export default function SmartGridLeadsPage() {
         setCurrentLeadIndex(c => c + 1);
         resetForm();
       } else {
-        // Queue empty, reload
+        // Queue empty, clear saved batch and reload
+        try {
+          localStorage.removeItem('smartgrid_batch');
+        } catch (e) {
+          console.error('Failed to clear batch from localStorage:', e);
+        }
         setQueue([]);
         if (projectId) {
           await loadQueue(projectId, hubUser.id);
