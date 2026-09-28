@@ -1,26 +1,40 @@
 #!/usr/bin/env node
-/**
- * Seed script: Import 1,942 CHLA Member List records into hub_project_leads for SmartGrid Western
- * Usage: node scripts/seed-smartgrid-leads.js
- *
- * Expects:
- * - ~/Downloads/CHLA Member List 9-2026.xlsx (row 6 = headers, rows 7-1948 = data)
- * - SUPABASE_URL and SUPABASE_SERVICE_KEY in .env or environment
- * - SmartGrid Western project to already exist in hub_projects (id will be found by name)
- */
+import fs from 'fs';
+import path from 'path';
+import XLSX from 'xlsx';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import readline from 'readline';
 
-const fs = require('fs');
-const path = require('path');
-const XLSX = require('xlsx');
-const { createClient } = require('@supabase/supabase-js');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const SUPABASE_URL = process.env.VITE_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+let SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+if (!SUPABASE_URL) {
+  console.error('ERROR: VITE_PUBLIC_SUPABASE_URL not found in .env');
+  process.exit(1);
+}
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error('ERROR: SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in .env');
+// If service key not in env, prompt for it
+if (!SUPABASE_SERVICE_KEY) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  SUPABASE_SERVICE_KEY = await new Promise(resolve => {
+    rl.question('Enter SUPABASE_SERVICE_KEY (Service Role Secret from Supabase): ', answer => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
+if (!SUPABASE_SERVICE_KEY) {
+  console.error('ERROR: SUPABASE_SERVICE_KEY is required');
   process.exit(1);
 }
 
@@ -36,7 +50,7 @@ async function run() {
   const { data: projects, error: projError } = await supabase
     .from('hub_projects')
     .select('id, client_name, project_name')
-    .eq('client_name', 'SmartGrid Western')
+    .eq('project_name', 'SmartGrid Western')
     .limit(1);
 
   if (projError || !projects || projects.length === 0) {
@@ -59,13 +73,6 @@ async function run() {
 
   const wb = XLSX.readFile(excelPath);
   const ws = wb.Sheets[wb.SheetNames[0]];
-
-  // Column mapping: B-U = columns 2-21 in openpyxl, A-T in XLSX
-  // Row 6 = headers (1-indexed becomes 5 in XLSX 0-indexed)
-  // Rows 7-1948 = data (1-indexed becomes 6-1947 in XLSX 0-indexed)
-
-  const headerRow = XLSX.utils.sheet_to_row_object_array(ws, { range: 'B6:U6', header: 1 })[0];
-  console.log(`Headers: ${Object.values(headerRow).join(', ')}\n`);
 
   // Read all data rows (A7:U1948 → 0-indexed A6:U1947)
   const dataRows = XLSX.utils.sheet_to_row_object_array(ws, {
