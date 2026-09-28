@@ -265,6 +265,10 @@ export default function AdminProjectsPage() {
   // (so far, the notification email) failed. Showing it as an error would read
   // as "the payment did not save", which is the opposite of what happened.
   const [ctxPayWarn, setCtxPayWarn] = useState<Record<number, string>>({});
+
+  // Project role editing
+  const [editingProjectRole, setEditingProjectRole] = useState<number | null>(null);
+  const [projectRoleInput, setProjectRoleInput] = useState('');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
 
@@ -1303,6 +1307,17 @@ export default function AdminProjectsPage() {
 
   const toggleExcludeFromPayout = async (pcId: number, current: boolean) => {
     await supabase.from('hub_project_contractors').update({ exclude_from_payout: !current }).eq('id', pcId);
+    fetchAll();
+  };
+
+  const saveProjectRole = async (pcId: number) => {
+    if (!projectRoleInput.trim()) {
+      await supabase.from('hub_project_contractors').update({ project_role: null }).eq('id', pcId);
+    } else {
+      await supabase.from('hub_project_contractors').update({ project_role: projectRoleInput.trim() }).eq('id', pcId);
+    }
+    setEditingProjectRole(null);
+    setProjectRoleInput('');
     fetchAll();
   };
 
@@ -3999,10 +4014,47 @@ export default function AdminProjectsPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
-                                {pc.project_role && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white border border-gray-200 text-gray-500 font-medium">
-                                    {pc.project_role}
-                                  </span>
+                                {editingProjectRole === pc.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="text"
+                                      value={projectRoleInput}
+                                      onChange={e => setProjectRoleInput(e.target.value)}
+                                      placeholder="e.g. Cold Caller"
+                                      className="text-xs px-2 py-1 border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                      autoFocus
+                                    />
+                                    <button
+                                      onClick={() => saveProjectRole(pc.id)}
+                                      className="text-xs px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded font-medium"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => { setEditingProjectRole(null); setProjectRoleInput(''); }}
+                                      className="text-xs px-2 py-1 border border-gray-200 text-gray-500 hover:text-gray-700 rounded"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {pc.project_role ? (
+                                      <button
+                                        onClick={() => { setEditingProjectRole(pc.id); setProjectRoleInput(pc.project_role || ''); }}
+                                        className="text-[10px] px-1.5 py-0.5 rounded-full bg-white border border-gray-200 text-gray-500 font-medium hover:bg-gray-50 hover:border-gray-300 cursor-pointer"
+                                      >
+                                        {pc.project_role}
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => { setEditingProjectRole(pc.id); setProjectRoleInput(''); }}
+                                        className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-50 border border-dashed border-gray-300 text-gray-400 font-medium hover:bg-gray-100 hover:border-gray-400 cursor-pointer"
+                                      >
+                                        + Add role
+                                      </button>
+                                    )}
+                                  </>
                                 )}
                                 {internalProject ? (
                                   <span className="text-xs text-gray-400">Internal assignment</span>
