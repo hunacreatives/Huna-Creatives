@@ -1311,14 +1311,21 @@ export default function AdminProjectsPage() {
   };
 
   const saveProjectRole = async (pcId: number) => {
-    if (!projectRoleInput.trim()) {
-      await supabase.from('hub_project_contractors').update({ project_role: null }).eq('id', pcId);
-    } else {
-      await supabase.from('hub_project_contractors').update({ project_role: projectRoleInput.trim() }).eq('id', pcId);
+    try {
+      const role = projectRoleInput.trim() || null;
+      const { error } = await supabase.from('hub_project_contractors').update({ project_role: role }).eq('id', pcId);
+      if (error) {
+        console.error('Save project role error:', error);
+        alert(`Failed to save role: ${error.message}`);
+        return;
+      }
+      setEditingProjectRole(null);
+      setProjectRoleInput('');
+      fetchAll();
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('An error occurred while saving');
     }
-    setEditingProjectRole(null);
-    setProjectRoleInput('');
-    fetchAll();
   };
 
   const logContractorPayout = async (pcId: number, cut: number, contractorName: string, contractorEmail: string | null, project: Project) => {
