@@ -18,6 +18,11 @@ interface Lead {
   hub_users?: { full_name: string } | null;
 }
 
+interface Contractor {
+  id: string;
+  full_name: string;
+}
+
 interface LeadsStats {
   total: number;
   complete: number;
@@ -37,10 +42,17 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'calling' | 'complete' | 'attempted'>('all');
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [assignedTo, setAssignedTo] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchLeads();
-  }, [projectId]);
+    if (isAdmin) {
+      fetchContractors();
+    }
+  }, [projectId, isAdmin]);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -74,6 +86,60 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       calling,
       attempted,
     });
+  };
+
+  const fetchContractors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('hub_project_contractors')
+        .select('hub_users(id, full_name)')
+        .eq('project_id', projectId);
+
+      if (error) throw error;
+
+      const contractorList: Contractor[] = (data || [])
+        .map((pc: any) => pc.hub_users)
+        .filter(Boolean)
+        .filter((u, i, arr) => arr.findIndex(x => x.id === u.id) === i); // dedupe
+
+      setContractors(contractorList);
+    } catch (err) {
+      console.error('Error fetching contractors:', err);
+    }
+  };
+
+  const handleLeadClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setAssignedTo(lead.assigned_to);
+  };
+
+  const handleSaveReassign = async () => {
+    if (!selectedLead) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('hub_project_leads')
+        .update({ assigned_to: assignedTo || null })
+        .eq('id', selectedLead.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setLeads(prev =>
+        prev.map(l =>
+          l.id === selectedLead.id
+            ? { ...l, assigned_to: assignedTo || null }
+            : l
+        )
+      );
+
+      setSelectedLead(null);
+    } catch (err) {
+      console.error('Error saving reassign:', err);
+      alert('Error saving reassignment');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filteredLeads = leads.filter(lead => {
@@ -161,7 +227,11 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
               </thead>
               <tbody>
                 {filteredLeads.slice(0, 50).map(lead => (
-                  <tr key={lead.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr
+                    key={lead.id}
+                    className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => isAdmin && handleLeadClick(lead)}
+                  >
                     <td className="px-4 py-2.5 font-medium text-gray-800">{lead.account_name}</td>
                     <td className="px-4 py-2.5 text-gray-600">{lead.primary_contact}</td>
                     <td className="px-4 py-2.5">{lead.email_found ? '✓' : '–'}</td>
@@ -193,6 +263,100 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       {!isAdmin && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
           My Queue view coming soon for cold callers.
+        </div>
+      )}
+
+      {/* Detail modal */}
+      {isAdmin && selectedLead && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-lg max-w-sm w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-800">Edit Lead</h3>
+              <button
+                onClick={() => setSelectedLead(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              {/* Lead info */}
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Account</p>
+                <p className="text-sm font-medium text-gray-800">{selectedLead.account_name}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Contact</p>
+                <p className="text-sm text-gray-700">{selectedLead.primary_contact || '–'}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Email</p>
+                <p className="text-sm text-gray-700 break-all">{selectedLead.email || '–'}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Phone</p>
+                <p className="text-sm text-gray-700">{selectedLead.phone || '–'}</p>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs font-medium text-gray-500 mb-1">Status</p>
+                <p className="text-sm text-gray-700">{selectedLead.status}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Attempts</p>
+                <p className="text-sm text-gray-700">{selectedLead.attempts_count}</p>
+              </div>
+
+              {/* Reassign dropdown */}
+              <div className="border-t border-gray-100 pt-4">
+                <label className="block text-xs font-medium text-gray-600 mb-2">Assign To</label>
+                <select
+                  value={assignedTo || ''}
+                  onChange={e => setAssignedTo(e.target.value || null)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                >
+                  <option value="">Unassigned</option>
+                  {contractors.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="border-t border-gray-100 px-6 py-4 flex gap-3">
+              <button
+                onClick={() => setSelectedLead(null)}
+                className="flex-1 px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-50 border border-gray-200 rounded-lg font-medium text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveReassign}
+                disabled={saving}
+                className="flex-1 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <i className="ri-loader-4-line animate-spin"></i>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <i className="ri-check-line"></i>
+                    Save
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
