@@ -1,0 +1,29 @@
+name: Process SmartGrid Queue
+
+# Run once per day at 6am Manila time (22:00 UTC previous day)
+on:
+  schedule:
+    - cron: '0 22 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  process-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger queue processing
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.SMARTGRID_CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.SUPABASE_QUEUE_FUNCTION_URL }}" \
+            -d '{"timestamp":"'$(date -u +'%Y-%m-%dT%H:%M:%SZ')'"}'
+
+      - name: Log result
+        if: success()
+        run: echo "SmartGrid queue processing triggered successfully"
+
+      - name: Log failure
+        if: failure()
+        run: echo "Failed to trigger queue processing"
