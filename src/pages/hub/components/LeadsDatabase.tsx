@@ -68,7 +68,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     try {
       const { data, error } = await supabase
         .from('hub_project_leads')
-        .select('*, hub_project_activity(action, created_at)')
+        .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
@@ -356,7 +356,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {filteredLeads.slice(0, 50).map(lead => (
+                {filteredLeads.map(lead => (
                   <tr
                     key={lead.id}
                     className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -382,9 +382,9 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
               </tbody>
             </table>
           </div>
-          {filteredLeads.length > 50 && (
+          {filteredLeads.length > 0 && (
             <div className="px-4 py-3 bg-gray-50 text-center text-xs text-gray-400">
-              Showing 50 of {filteredLeads.length} leads
+              Showing {filteredLeads.length} leads
             </div>
           )}
         </div>
