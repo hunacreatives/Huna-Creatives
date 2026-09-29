@@ -116,7 +116,8 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     const { data: counts } = await supabase
       .from('hub_project_leads')
       .select('status')
-      .eq('project_id', projectId);
+      .eq('project_id', projectId)
+      .limit(10000);
 
     const complete = (counts || []).filter(l => l.status === 'complete').length;
     const calling = (counts || []).filter(l => l.status === 'calling').length;
