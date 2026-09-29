@@ -392,7 +392,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
               </tbody>
             </table>
           </div>
-          {filteredLeads.length > 0 && (
+          {totalLeads > 0 && (
             <div className="px-4 py-3 bg-gray-50 flex items-center justify-between text-xs text-gray-400">
               <span>Page {currentPage + 1} of {Math.ceil(totalLeads / leadsPerPage)}</span>
               <div className="flex gap-2">
