@@ -147,6 +147,7 @@ export default function SmartGridLeadsPage() {
       }
 
       // Lock all 30 leads to this user
+      let queueData = data;
       if (data.length > 0) {
         const leadIds = data.map(l => l.id);
         const { error: lockErr } = await supabase
@@ -158,11 +159,11 @@ export default function SmartGridLeadsPage() {
           .in('id', leadIds);
 
         if (!lockErr) {
-          data = data.map(l => ({ ...l, locked_by: userId, status: 'calling' }));
+          queueData = data.map(l => ({ ...l, locked_by: userId, status: 'calling' }));
         }
       }
 
-      setQueue(data as Lead[]);
+      setQueue(queueData as Lead[]);
       setCurrentLeadIndex(0);
       resetForm();
     } catch (err) {
