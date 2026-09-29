@@ -94,14 +94,15 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
       if (error) throw error;
 
+      const totalCount = count || 0;
       setLeads(data || []);
-      setTotalLeads(count || 0);
+      setTotalLeads(totalCount);
       setCurrentPage(page);
 
       if (isAdmin) {
-        await calculateStats(data || []);
+        await calculateStats(data || [], totalCount);
       } else {
-        calculateStats(data || []);
+        calculateStats(data || [], totalCount);
       }
     } catch (err) {
       console.error('Error fetching leads:', err);
@@ -110,8 +111,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   };
 
-  const calculateStats = async (leadsData: Lead[]) => {
-    const total = totalLeads;
+  const calculateStats = async (leadsData: Lead[], total: number = totalLeads) => {
     const complete = leadsData.filter(l => l.status === 'complete').length;
     const calling = leadsData.filter(l => l.status === 'calling').length;
     const attempted = leadsData.filter(l => l.status === 'attempted').length;
