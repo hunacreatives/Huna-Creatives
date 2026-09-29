@@ -129,12 +129,24 @@ export default function CommissionsReport({ projectId }: Props) {
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Select Month</label>
-                <input
-                  type="month"
+                <select
                   value={selectedMonth}
                   onChange={e => setSelectedMonth(e.target.value)}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                />
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+                >
+                  <option value="2026-01">January 2026</option>
+                  <option value="2026-02">February 2026</option>
+                  <option value="2026-03">March 2026</option>
+                  <option value="2026-04">April 2026</option>
+                  <option value="2026-05">May 2026</option>
+                  <option value="2026-06">June 2026</option>
+                  <option value="2026-07">July 2026</option>
+                  <option value="2026-08">August 2026</option>
+                  <option value="2026-09" selected>September 2026</option>
+                  <option value="2026-10">October 2026</option>
+                  <option value="2026-11">November 2026</option>
+                  <option value="2026-12">December 2026</option>
+                </select>
               </div>
 
               <div className="flex gap-2">
