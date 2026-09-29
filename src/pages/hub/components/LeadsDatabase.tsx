@@ -143,13 +143,21 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
     if (isAdmin) {
       try {
-        const { data: activities, error } = await supabase
-          .from('hub_project_activity')
-          .select('user_id, hub_users(full_name), meta, created_at')
+        // Fetch all leads with caller info
+        const { data: leads, error: leadsErr } = await supabase
+          .from('hub_project_leads')
+          .select('id, last_caller_id, status, email_found, phone_found, created_at, updated_at, hub_users!last_caller_id(full_name)')
           .eq('project_id', projectId)
-          .eq('entity_type', 'lead');
+          .limit(10000);
 
-        if (!error && activities) {
+        // Fetch caller names separately
+        const { data: users } = await supabase
+          .from('hub_users')
+          .select('id, full_name');
+
+        const userMap = new Map((users || []).map(u => [u.id, u.full_name]));
+
+        if (!leadsErr && leads) {
           const now = new Date();
           const periods: Record<string, Date> = {
             daily: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
@@ -161,28 +169,29 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
           Object.entries(periods).forEach(([period, startDate]) => {
             const callerMap = new Map<string, { name: string; calls: Set<string>; successful: number; emailFound: number; phoneFound: number }>();
 
-            activities.forEach((activity: any) => {
-              const actDate = new Date(activity.created_at);
-              if (actDate < startDate) return;
+            leads.forEach((lead: any) => {
+              const updatedAt = new Date(lead.updated_at);
+              if (updatedAt < startDate) return;
 
-              if (!activity.user_id) return;
-              const callerId = activity.user_id;
-              const callerName = activity.hub_users?.full_name || 'Unknown';
+              if (!lead.last_caller_id) return;
+              const callerId = lead.last_caller_id;
+              const callerName = userMap.get(callerId) || 'Unknown';
 
               if (!callerMap.has(callerId)) {
                 callerMap.set(callerId, { name: callerName, calls: new Set(), successful: 0, emailFound: 0, phoneFound: 0 });
               }
 
               const caller = callerMap.get(callerId)!;
-              caller.calls.add(activity.meta?.lead_id || '');
+              caller.calls.add(lead.id);
 
-              if (activity.meta?.outcome === 'interested' || activity.meta?.outcome === 'callback') {
+              // Successful = status is complete
+              if (lead.status === 'complete') {
                 caller.successful++;
               }
-              if (activity.meta?.email_found) {
+              if (lead.email_found) {
                 caller.emailFound++;
               }
-              if (activity.meta?.phone_found) {
+              if (lead.phone_found) {
                 caller.phoneFound++;
               }
             });
