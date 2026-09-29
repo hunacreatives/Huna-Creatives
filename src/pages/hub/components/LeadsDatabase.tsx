@@ -71,7 +71,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   }, [timePeriod, allTimePeriodStats]);
 
-  const fetchLeads = async (page = 0, searchQuery = '') => {
+  const fetchLeads = async (page = 0, searchQuery = '', status = statusFilter, assigned = assignedFilter) => {
     setLoading(true);
     try {
       const start = page * leadsPerPage;
@@ -83,7 +83,17 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
-      // If searching, apply filters to search across all leads
+      // Apply status filter
+      if (status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      // Apply assigned filter
+      if (assigned) {
+        query = query.or(`assigned_to.eq.${assigned},locked_by.eq.${assigned}`);
+      }
+
+      // If searching, apply search filters
       if (searchQuery.trim()) {
         query = query.or(
           `account_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`
@@ -393,7 +403,10 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       {isAdmin && (
         <div className="flex gap-2 flex-wrap mb-4">
           <button
-            onClick={() => setAssignedFilter(null)}
+            onClick={() => {
+              setAssignedFilter(null);
+              fetchLeads(0, searchTerm, statusFilter, null);
+            }}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               assignedFilter === null
                 ? 'bg-sky-500 text-white'
@@ -407,7 +420,10 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             return (
               <button
                 key={c.id}
-                onClick={() => setAssignedFilter(c.id)}
+                onClick={() => {
+                  setAssignedFilter(c.id);
+                  fetchLeads(0, searchTerm, statusFilter, c.id);
+                }}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                   assignedFilter === c.id
                     ? 'bg-sky-500 text-white'
@@ -443,7 +459,10 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
           />
           <select
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as any)}
+            onChange={e => {
+              setStatusFilter(e.target.value as any);
+              fetchLeads(0, searchTerm, e.target.value as any, assignedFilter);
+            }}
             className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none cursor-pointer"
           >
             <option value="all">All statuses</option>
