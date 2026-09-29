@@ -616,24 +616,20 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                 <p className="text-sm text-gray-700">{selectedLead.follow_up_email_sent ? '✓ Sent' : '–'}</p>
               </div>
 
-              {selectedLead.call_notes && (
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-xs font-medium text-gray-500 mb-1">Notes</p>
-                  <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded whitespace-pre-wrap">{selectedLead.call_notes}</p>
-                </div>
-              )}
-
               {/* Call History */}
               {leadHistory.length > 0 && (
                 <div className="border-t border-gray-100 pt-4">
                   <p className="text-xs font-semibold text-gray-600 mb-2">Call History</p>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
                     {leadHistory.map(log => (
-                      <div key={log.id} className="text-xs bg-gray-50 p-2 rounded">
+                      <div key={log.id} className="text-xs bg-gray-50 p-3 rounded border border-gray-200">
                         <p className="font-medium text-gray-700">
-                          {new Date(log.created_at).toLocaleDateString()} · {log.hub_users?.full_name || 'Unknown'} · {log.meta?.outcome || 'N/A'}
+                          {new Date(log.created_at).toLocaleString()} · {log.hub_users?.full_name || 'Unknown'}
                         </p>
-                        {log.meta?.notes && <p className="text-gray-600 mt-1">{log.meta.notes}</p>}
+                        <p className="text-gray-600 mt-1 font-medium">Outcome: {log.meta?.outcome || 'N/A'}</p>
+                        {log.meta?.notes && (
+                          <p className="text-gray-700 mt-2 bg-white p-2 rounded whitespace-pre-wrap">{log.meta.notes}</p>
+                        )}
                       </div>
                     ))}
                   </div>
