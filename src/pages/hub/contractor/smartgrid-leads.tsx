@@ -486,14 +486,24 @@ export default function SmartGridLeadsPage() {
               <i className="ri-checkbox-circle-fill text-emerald-600 text-3xl"></i>
             </div>
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Queue Complete</h2>
-            <p className="text-sm text-gray-600 mb-6">You've called all available leads for today. Great work!</p>
-            <button
-              onClick={() => navigate('/hub/contractor/projects')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium text-sm transition-colors"
-            >
-              <i className="ri-arrow-left-line"></i>
-              Back to Projects
-            </button>
+            <p className="text-sm text-gray-600 mb-6">You've called all available leads in this batch. Great work!</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => loading ? null : loadQueue(projectId!, hubUser!.id)}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i className={`ri-reload-line ${loading ? 'animate-spin' : ''}`}></i>
+                {loading ? 'Loading...' : 'Request Next Batch'}
+              </button>
+              <button
+                onClick={() => navigate('/hub/contractor/projects')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium text-sm transition-colors"
+              >
+                <i className="ri-arrow-left-line"></i>
+                Back to Projects
+              </button>
+            </div>
           </div>
         </div>
       </ContractorLayout>
