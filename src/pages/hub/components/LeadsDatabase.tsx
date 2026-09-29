@@ -54,6 +54,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [followUpFilter, setFollowUpFilter] = useState<'all' | 'pending' | 'sent'>('all');
   const [leadHistory, setLeadHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [assignedFilter, setAssignedFilter] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLeads(0);
@@ -274,6 +275,8 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       if (!lead.follow_up_email_sent) return false;
     }
 
+    if (assignedFilter && lead.assigned_to !== assignedFilter) return false;
+
     if (!searchTerm) return true;
     return (
       lead.account_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -366,6 +369,38 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
           <p className="text-[10px] text-gray-400 mt-1">{completePct}% done</p>
         </div>
       </div>
+
+      {/* Caller workload tabs */}
+      {isAdmin && (
+        <div className="flex gap-2 flex-wrap mb-4">
+          <button
+            onClick={() => setAssignedFilter(null)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              assignedFilter === null
+                ? 'bg-sky-500 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All Callers ({leads.length})
+          </button>
+          {contractors.map(c => {
+            const count = leads.filter(l => l.assigned_to === c.id).length;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setAssignedFilter(c.id)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  assignedFilter === c.id
+                    ? 'bg-sky-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {c.full_name} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Search & filter */}
       {isAdmin && (
