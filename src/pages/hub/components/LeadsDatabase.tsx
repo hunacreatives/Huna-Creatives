@@ -413,6 +413,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                   <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Phone</th>
                   <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Status</th>
                   <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Attempts</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Assigned To</th>
                 </tr>
               </thead>
               <tbody>
@@ -437,6 +438,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-gray-600">{lead.attempts_count}</td>
+                    <td className="px-4 py-2.5 text-gray-600 text-xs">{lead.hub_users?.full_name || '–'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -508,14 +510,20 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                 <p className="text-sm text-gray-700">{selectedLead.phone || '–'}</p>
               </div>
 
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-xs font-medium text-gray-500 mb-1">Status</p>
-                <p className="text-sm text-gray-700">{selectedLead.status}</p>
+              <div className="border-t border-gray-100 pt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Status</p>
+                  <p className="text-sm text-gray-700">{selectedLead.status}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Attempts</p>
+                  <p className="text-sm text-gray-700">{selectedLead.attempts_count}</p>
+                </div>
               </div>
 
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-1">Attempts</p>
-                <p className="text-sm text-gray-700">{selectedLead.attempts_count}</p>
+                <p className="text-xs font-medium text-gray-500 mb-1">Assigned To</p>
+                <p className="text-sm text-gray-700">{selectedLead.hub_users?.full_name || '–'}</p>
               </div>
 
               <div>
