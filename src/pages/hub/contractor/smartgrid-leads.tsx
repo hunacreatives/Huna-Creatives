@@ -250,7 +250,8 @@ export default function SmartGridLeadsPage() {
     setSaving(true);
     try {
       const isFailedAttempt = ['voicemail', 'no_answer'].includes(formState.outcome);
-      const isRealContact = ['interested', 'not_interested', 'callback'].includes(formState.outcome);
+      const hasEmail = currentLead.email || formState.emailValue;
+      const isCompletedContact = formState.outcome === 'interested' ? hasEmail : formState.outcome === 'not_interested' || formState.outcome === 'callback';
 
       // Determine new status based on outcome
       let newStatus = 'calling';
@@ -258,8 +259,12 @@ export default function SmartGridLeadsPage() {
 
       if (formState.outcome === 'skip') {
         newStatus = 'calling';
-      } else if (isRealContact) {
+      } else if (isCompletedContact) {
         newStatus = 'complete';
+      } else if (formState.outcome === 'interested' && !hasEmail) {
+        // Interested but no email — recirculate for someone else to try
+        newCallerAttempts[hubUser.id] = (newCallerAttempts[hubUser.id] || 0) + 1;
+        newStatus = newCallerAttempts[hubUser.id] >= 3 ? 'new' : 'new';
       } else if (isFailedAttempt) {
         // Increment this caller's failed attempts
         newCallerAttempts[hubUser.id] = (newCallerAttempts[hubUser.id] || 0) + 1;
@@ -703,8 +708,9 @@ export default function SmartGridLeadsPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving || !formState.outcome}
+                  disabled={saving || !formState.outcome || (formState.outcome === 'interested' && !currentLead.email && !formState.emailValue)}
                   className="flex-1 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  title={formState.outcome === 'interested' && !currentLead.email && !formState.emailValue ? 'Email required for Interested outcome' : ''}
                 >
                   {saving ? (
                     <>
