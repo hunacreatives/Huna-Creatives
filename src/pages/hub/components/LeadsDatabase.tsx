@@ -529,7 +529,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                   >
                     <td className="px-4 py-2.5 font-medium text-gray-800">{lead.account_name}</td>
                     <td className="px-4 py-2.5 text-gray-600">{lead.primary_contact}</td>
-                    <td className="px-4 py-2.5">{lead.email_found ? '✓' : '–'}</td>
+                    <td className="px-4 py-2.5 text-blue-600 text-xs truncate">{lead.email || '–'}</td>
                     <td className="px-4 py-2.5">{lead.phone_found ? '✓' : '–'}</td>
                     <td className="px-4 py-2.5">
                       <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${
