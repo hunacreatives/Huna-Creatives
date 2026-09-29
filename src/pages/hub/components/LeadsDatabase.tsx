@@ -57,7 +57,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [assignedFilter, setAssignedFilter] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchLeads(0);
+    fetchLeads(0, '');
     if (isAdmin) {
       fetchContractors();
     }
@@ -70,18 +70,26 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   }, [timePeriod, allTimePeriodStats]);
 
-  const fetchLeads = async (page = 0) => {
+  const fetchLeads = async (page = 0, searchQuery = '') => {
     setLoading(true);
     try {
       const start = page * leadsPerPage;
       const end = start + leadsPerPage - 1;
 
-      const { data, error, count } = await supabase
+      let query = supabase
         .from('hub_project_leads')
         .select('*', { count: 'exact' })
         .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .range(start, end);
+        .order('created_at', { ascending: false });
+
+      // If searching, apply filters to search across all leads
+      if (searchQuery.trim()) {
+        query = query.or(
+          `account_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`
+        );
+      }
+
+      const { data, error, count } = await query.range(start, end);
 
       if (error) throw error;
 
@@ -413,7 +421,10 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             type="text"
             placeholder="Search by account, email, or phone..."
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={e => {
+              setSearchTerm(e.target.value);
+              fetchLeads(0, e.target.value);
+            }}
             className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 flex-1 min-w-48"
           />
           <select
@@ -488,14 +499,14 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
               <span>Page {currentPage + 1} of {Math.ceil(totalLeads / leadsPerPage)}</span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => fetchLeads(currentPage - 1)}
+                  onClick={() => fetchLeads(currentPage - 1, searchTerm)}
                   disabled={currentPage === 0}
                   className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   ← Prev
                 </button>
                 <button
-                  onClick={() => fetchLeads(currentPage + 1)}
+                  onClick={() => fetchLeads(currentPage + 1, searchTerm)}
                   disabled={currentPage >= Math.ceil(totalLeads / leadsPerPage) - 1}
                   className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 disabled:cursor-not-allowed"
                 >
