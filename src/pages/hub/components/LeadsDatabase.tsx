@@ -186,7 +186,8 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       const { data, error } = await supabase
         .from('hub_project_contractors')
         .select('hub_users(id, full_name)')
-        .eq('project_id', projectId);
+        .eq('project_id', projectId)
+        .eq('project_role', 'Cold Caller');
 
       if (error) throw error;
 
