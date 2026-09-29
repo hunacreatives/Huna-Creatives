@@ -154,13 +154,16 @@ export default function SmartGridLeadsPage() {
 
   const loadQueue = async (pId: number, userId: string) => {
     try {
-      // Build filter to exclude leads this caller has already tried 3+ times
+      // 24-hour cooldown to prevent same-day overlaps
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
       const { data, error } = await supabase
         .from('hub_project_leads')
         .select('*')
         .eq('project_id', pId)
         .in('status', ['new', 'calling'])
         .is('locked_by', null)
+        .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`)
         .order('attempts_count', { ascending: true })
         .limit(30);
 
@@ -295,6 +298,7 @@ export default function SmartGridLeadsPage() {
         phone_found: formState.phoneFound,
         call_notes: formState.callNotes,
         last_contact_at: new Date().toISOString(),
+        last_worked_at: new Date().toISOString(),
         caller_attempts: newCallerAttempts,
         last_caller_id: hubUser.id,
         follow_up_email_sent: formState.followUpEmailSent,
