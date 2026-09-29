@@ -164,6 +164,7 @@ export default function SmartGridLeadsPage() {
         .in('status', ['new', 'calling'])
         .is('locked_by', null)
         .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`)
+        .order('last_worked_at', { ascending: true, nullsFirst: true })
         .order('attempts_count', { ascending: true })
         .limit(30);
 
