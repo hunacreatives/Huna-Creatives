@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-interface CommissionSummary {
+interface Commission {
+  id: number;
+  lead_id: string;
   user_id: string;
-  full_name: string;
-  email_count: number;
-  meeting_count: number;
-  bill_count: number;
-  email_total: number;
-  meeting_total: number;
-  bill_total: number;
-  grand_total: number;
+  milestone: string;
+  amount: number;
+  created_at: string;
+  paid: boolean;
+  paid_at: string | null;
+  hub_project_leads?: { account_name: string; primary_contact: string } | null;
+  hub_users?: { full_name: string } | null;
 }
 
 interface Props {
@@ -18,70 +19,39 @@ interface Props {
 }
 
 export default function CommissionsReport({ projectId }: Props) {
-  const [summaries, setSummaries] = useState<CommissionSummary[]>([]);
+  const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [totalEarned, setTotalEarned] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [marking, setMarking] = useState(false);
 
   useEffect(() => {
     fetchCommissions();
-  }, [projectId]);
+  }, [projectId, selectedMonth]);
 
   const fetchCommissions = async () => {
     setLoading(true);
     try {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const startDate = new Date(year, month - 1, 1).toISOString();
+      const endDate = new Date(year, month, 1).toISOString();
+
       const { data, error } = await supabase
         .from('hub_project_commissions')
-        .select('user_id, milestone, amount')
-        .eq('project_id', projectId);
+        .select(
+          `id, lead_id, user_id, milestone, amount, created_at, paid, paid_at,
+           hub_project_leads(account_name, primary_contact),
+           hub_users(full_name)`
+        )
+        .eq('project_id', projectId)
+        .gte('created_at', startDate)
+        .lt('created_at', endDate)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-
-      // Group by user and milestone
-      const grouped = new Map<string, Map<string, { count: number; total: number }>>();
-
-      (data || []).forEach(row => {
-        if (!grouped.has(row.user_id)) {
-          grouped.set(row.user_id, new Map());
-        }
-        const userMap = grouped.get(row.user_id)!;
-        if (!userMap.has(row.milestone)) {
-          userMap.set(row.milestone, { count: 0, total: 0 });
-        }
-        const milestone = userMap.get(row.milestone)!;
-        milestone.count += 1;
-        milestone.total += Number(row.amount);
-      });
-
-      // Fetch user names and build summaries
-      const userIds = Array.from(grouped.keys());
-      const { data: users } = await supabase
-        .from('hub_users')
-        .select('id, full_name')
-        .in('id', userIds);
-
-      const summaries: CommissionSummary[] = (users || [])
-        .map(user => {
-          const userMilestones = grouped.get(user.id) || new Map();
-          const email = userMilestones.get('email') || { count: 0, total: 0 };
-          const meeting = userMilestones.get('meeting') || { count: 0, total: 0 };
-          const bill = userMilestones.get('bill') || { count: 0, total: 0 };
-
-          return {
-            user_id: user.id,
-            full_name: user.full_name,
-            email_count: email.count,
-            meeting_count: meeting.count,
-            bill_count: bill.count,
-            email_total: email.total,
-            meeting_total: meeting.total,
-            bill_total: bill.total,
-            grand_total: email.total + meeting.total + bill.total,
-          };
-        })
-        .sort((a, b) => b.grand_total - a.grand_total);
-
-      setSummaries(summaries);
-      setTotalEarned(summaries.reduce((sum, s) => sum + s.grand_total, 0));
+      setCommissions((data || []) as Commission[]);
     } catch (err) {
       console.error('Error fetching commissions:', err);
     } finally {
@@ -89,62 +59,179 @@ export default function CommissionsReport({ projectId }: Props) {
     }
   };
 
-  if (loading) {
-    return <div className="text-center text-gray-500 text-sm py-4">Loading payouts...</div>;
-  }
+  const handleMarkAllPaid = async () => {
+    if (!confirm(`Mark all ${selectedMonth} commissions as paid?`)) return;
 
-  if (summaries.length === 0) {
-    return <div className="text-center text-gray-500 text-sm py-4">No commissions earned yet</div>;
-  }
+    setMarking(true);
+    try {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const startDate = new Date(year, month - 1, 1).toISOString();
+      const endDate = new Date(year, month, 1).toISOString();
+      const now = new Date().toISOString();
+
+      const { error } = await supabase
+        .from('hub_project_commissions')
+        .update({ paid: true, paid_at: now })
+        .eq('project_id', projectId)
+        .eq('paid', false)
+        .gte('created_at', startDate)
+        .lt('created_at', endDate);
+
+      if (error) throw error;
+      await fetchCommissions();
+    } catch (err) {
+      console.error('Error marking as paid:', err);
+      alert('Error marking commissions as paid');
+    } finally {
+      setMarking(false);
+    }
+  };
+
+  const pendingCount = commissions.filter(c => !c.paid).length;
+  const totalEarned = commissions.reduce((sum, c) => sum + Number(c.amount), 0);
+  const totalPaid = commissions.filter(c => c.paid).reduce((sum, c) => sum + Number(c.amount), 0);
+  const totalPending = commissions.filter(c => !c.paid).reduce((sum, c) => sum + Number(c.amount), 0);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-        <h3 className="font-semibold text-gray-800 text-sm">Caller Payouts</h3>
+    <div className="space-y-4">
+      {/* Month selector and actions */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Select Month</label>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            {pendingCount > 0 && (
+              <button
+                onClick={handleMarkAllPaid}
+                disabled={marking}
+                className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+              >
+                {marking ? 'Marking...' : `Mark All Paid (${pendingCount})`}
+              </button>
+            )}
+            <button
+              onClick={() => window.print()}
+              className="px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium text-sm transition-colors"
+            >
+              Print/Export
+            </button>
+          </div>
+        </div>
+
+        {/* Summary stats */}
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-600 font-medium">Total Earned</p>
+            <p className="text-lg font-bold text-gray-800 mt-1">${totalEarned.toFixed(2)}</p>
+          </div>
+          <div className="bg-emerald-50 rounded-lg p-3">
+            <p className="text-xs text-emerald-600 font-medium">Paid</p>
+            <p className="text-lg font-bold text-emerald-700 mt-1">${totalPaid.toFixed(2)}</p>
+          </div>
+          <div className="bg-amber-50 rounded-lg p-3">
+            <p className="text-xs text-amber-600 font-medium">Pending</p>
+            <p className="text-lg font-bold text-amber-700 mt-1">${totalPending.toFixed(2)}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Caller</th>
-              <th className="text-right px-4 py-2.5 font-semibold text-gray-600">Emails</th>
-              <th className="text-right px-4 py-2.5 font-semibold text-gray-600">Meetings</th>
-              <th className="text-right px-4 py-2.5 font-semibold text-gray-600">Bills</th>
-              <th className="text-right px-4 py-2.5 font-semibold text-gray-600">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summaries.map(summary => (
-              <tr key={summary.user_id} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="px-4 py-2.5 font-medium text-gray-800">{summary.full_name}</td>
-                <td className="text-right px-4 py-2.5 text-gray-600">
-                  <span className="text-xs">{summary.email_count}×</span>
-                  <span className="ml-1 font-medium">${summary.email_total.toFixed(2)}</span>
-                </td>
-                <td className="text-right px-4 py-2.5 text-gray-600">
-                  <span className="text-xs">{summary.meeting_count}×</span>
-                  <span className="ml-1 font-medium">${summary.meeting_total.toFixed(2)}</span>
-                </td>
-                <td className="text-right px-4 py-2.5 text-gray-600">
-                  <span className="text-xs">{summary.bill_count}×</span>
-                  <span className="ml-1 font-medium">${summary.bill_total.toFixed(2)}</span>
-                </td>
-                <td className="text-right px-4 py-2.5 font-semibold text-gray-800">
-                  ${summary.grand_total.toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-gray-50 border-t border-gray-100 font-semibold">
-              <td className="px-4 py-3 text-gray-800">Total Payouts</td>
-              <td colSpan={3} className="text-right text-gray-600"></td>
-              <td className="text-right px-4 py-3 text-gray-800">${totalEarned.toFixed(2)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      {/* Commissions table */}
+      {loading ? (
+        <div className="text-center text-gray-500 text-sm py-8">Loading...</div>
+      ) : commissions.length === 0 ? (
+        <div className="text-center text-gray-500 text-sm py-8">No commissions for this month</div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Lead</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Contact</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Caller</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Milestone</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Amount</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Earned</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {commissions.map(commission => (
+                  <tr key={commission.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-800">
+                      {commission.hub_project_leads?.account_name || 'Unknown'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {commission.hub_project_leads?.primary_contact || '–'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {commission.hub_users?.full_name || 'Unknown'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <span className={`inline-block px-2 py-1 rounded text-[10px] font-medium ${
+                        commission.milestone === 'email' ? 'bg-blue-100 text-blue-700' :
+                        commission.milestone === 'meeting' ? 'bg-purple-100 text-purple-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {commission.milestone === 'email' ? '📧 Email' :
+                         commission.milestone === 'meeting' ? '📅 Meeting' :
+                         '📄 Bill'}
+                      </span>
+                    </td>
+                    <td className="text-right px-4 py-3 font-bold text-gray-800">
+                      ${Number(commission.amount).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 text-[11px]">
+                      {new Date(commission.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      {commission.paid ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-medium">
+                          <i className="ri-check-line"></i>
+                          {new Date(commission.paid_at!).toLocaleDateString()}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
+                          <i className="ri-time-line"></i>
+                          Pending
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer summary */}
+          <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-600">{commissions.length} commission{commissions.length !== 1 ? 's' : ''}</span>
+            <div className="flex gap-4 text-xs">
+              <span className="text-gray-600">Total: <span className="font-bold text-gray-800">${totalEarned.toFixed(2)}</span></span>
+              <span className="text-emerald-600">Paid: <span className="font-bold text-emerald-700">${totalPaid.toFixed(2)}</span></span>
+              <span className="text-amber-600">Pending: <span className="font-bold text-amber-700">${totalPending.toFixed(2)}</span></span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body { background: white; }
+          .space-y-4 > * { page-break-inside: avoid; }
+          button { display: none; }
+          input[type="month"] { display: none; }
+        }
+      `}</style>
     </div>
   );
 }
