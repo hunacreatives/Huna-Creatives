@@ -68,6 +68,7 @@ const ProposalDobo = lazy(() => import('../pages/p/dobo/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const ClientStatusPage = lazy(() => import('../pages/status/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
+const SmartGridDashboard = lazy(() => import('../pages/smartgrid-dashboard'));
 const ForAgenciesPage = lazy(() => import('../pages/for-agencies/page'));
 const HubDemoPage = lazy(() => import('../pages/hub/demo/page'));
 const HubInstallPage = lazy(() => import('../pages/hub/install/page'));
@@ -214,6 +215,7 @@ const routes: RouteObject[] = [
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },
   { path: '/status/:token', element: <ClientStatusPage /> },
+  { path: '/smartgrid-dashboard', element: <SmartGridDashboard /> },
   { path: '/c/:slug', element: <ClientContractPage /> },
   { path: '/c/:slug/sign', element: <ClientContractSignPage /> },
   {
