@@ -157,16 +157,41 @@ export default function SmartGridLeadsPage() {
       // 24-hour cooldown to prevent same-day overlaps
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await supabase
+      // First try to load leads assigned to this user
+      let query = supabase
         .from('hub_project_leads')
         .select('*')
         .eq('project_id', pId)
+        .in('status', ['new', 'calling'])
+        .is('locked_by', null)
+        .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`);
+
+      // If user has pre-assigned leads, load those first
+      const { data: assignedLeads } = await supabase
+        .from('hub_project_leads')
+        .select('*')
+        .eq('project_id', pId)
+        .eq('assigned_to', userId)
         .in('status', ['new', 'calling'])
         .is('locked_by', null)
         .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`)
         .order('last_worked_at', { ascending: true, nullsFirst: true })
         .order('attempts_count', { ascending: true })
         .limit(30);
+
+      let data = assignedLeads && assignedLeads.length > 0 ? assignedLeads : null;
+      let error = null;
+
+      // If no assigned leads, grab from unassigned pool
+      if (!data || data.length === 0) {
+        const result = await query
+          .is('assigned_to', null)
+          .order('last_worked_at', { ascending: true, nullsFirst: true })
+          .order('attempts_count', { ascending: true })
+          .limit(30);
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) throw error;
 
