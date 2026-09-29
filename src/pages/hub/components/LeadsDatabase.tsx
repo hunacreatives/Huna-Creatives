@@ -41,7 +41,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [stats, setStats] = useState<LeadsStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'calling' | 'complete' | 'attempted'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'calling' | 'complete' | 'callback_pending' | 'attempted'>('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
@@ -469,6 +469,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             <option value="new">New</option>
             <option value="calling">Calling</option>
             <option value="complete">Complete</option>
+            <option value="callback_pending">Callback Scheduled</option>
             <option value="attempted">Attempted</option>
           </select>
           <select
@@ -514,10 +515,11 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                       <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${
                         lead.status === 'complete' ? 'bg-emerald-100 text-emerald-700' :
                         lead.status === 'calling' ? 'bg-sky-100 text-sky-700' :
+                        lead.status === 'callback_pending' ? 'bg-amber-100 text-amber-700' :
                         lead.status === 'attempted' ? 'bg-gray-100 text-gray-600' :
                         'bg-gray-100 text-gray-600'
                       }`}>
-                        {lead.status}
+                        {lead.status === 'callback_pending' ? 'Callback Scheduled' : lead.status}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-gray-600">{lead.attempts_count}</td>

@@ -157,7 +157,36 @@ export default function SmartGridLeadsPage() {
       // 24-hour cooldown to prevent same-day overlaps
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      // First try to load leads assigned to this user
+      // Fetch callbacks due today for this user
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: dueCallbacks } = await supabase
+        .from('hub_project_leads')
+        .select('*')
+        .eq('project_id', pId)
+        .eq('status', 'callback_pending')
+        .eq('assigned_to', userId)
+        .eq('callback_date', today)
+        .order('callback_time', { ascending: true, nullsFirst: true });
+
+      // Lock due callbacks
+      let callbacksLocked: Lead[] = [];
+      if (dueCallbacks && dueCallbacks.length > 0) {
+        const callbackIds = dueCallbacks.map(l => l.id);
+        const { error: lockErr } = await supabase
+          .from('hub_project_leads')
+          .update({
+            locked_by: userId,
+            status: 'calling',
+            last_caller_id: userId,
+          })
+          .in('id', callbackIds);
+
+        if (!lockErr) {
+          callbacksLocked = dueCallbacks.map(l => ({ ...l, locked_by: userId, status: 'calling', last_caller_id: userId }));
+        }
+      }
+
+      // Fetch new leads for the rest of the batch (30 total new, not including callbacks)
       let query = supabase
         .from('hub_project_leads')
         .select('*')
@@ -196,8 +225,16 @@ export default function SmartGridLeadsPage() {
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        setQueue([]);
+        if (callbacksLocked.length === 0) {
+          setQueue([]);
+          setCurrentLeadIndex(0);
+          return;
+        }
+        // Only callbacks, no new leads
+        setQueue(callbacksLocked as Lead[]);
         setCurrentLeadIndex(0);
+        resetForm();
+        setCallHistory([]);
         return;
       }
 
@@ -207,8 +244,8 @@ export default function SmartGridLeadsPage() {
         return (callerAttempts[userId] || 0) < 3;
       });
 
-      // Lock all 30 leads to this user
-      let queueData = filtered;
+      // Lock all new leads to this user
+      let newLeads: Lead[] = [];
       if (filtered.length > 0) {
         const leadIds = filtered.map(l => l.id);
         const { error: lockErr } = await supabase
@@ -221,10 +258,12 @@ export default function SmartGridLeadsPage() {
           .in('id', leadIds);
 
         if (!lockErr) {
-          queueData = filtered.map(l => ({ ...l, locked_by: userId, status: 'calling', last_caller_id: userId }));
+          newLeads = filtered.map(l => ({ ...l, locked_by: userId, status: 'calling', last_caller_id: userId }));
         }
       }
 
+      // Callbacks appear first, then new leads
+      const queueData = [...callbacksLocked, ...newLeads];
       setQueue(queueData as Lead[]);
       setCurrentLeadIndex(0);
       resetForm();
@@ -280,7 +319,6 @@ export default function SmartGridLeadsPage() {
     try {
       const isFailedAttempt = ['voicemail', 'no_answer'].includes(formState.outcome);
       const hasEmail = currentLead.email || formState.emailValue;
-      const isCompletedContact = formState.outcome === 'interested' ? hasEmail : formState.outcome === 'not_interested' || formState.outcome === 'callback';
 
       // Determine new status based on outcome
       let newStatus = 'calling';
@@ -288,12 +326,20 @@ export default function SmartGridLeadsPage() {
 
       if (formState.outcome === 'skip') {
         newStatus = 'calling';
-      } else if (isCompletedContact) {
+      } else if (formState.outcome === 'callback') {
+        // Callback: complete if email, pending if not
+        newStatus = hasEmail ? 'complete' : 'callback_pending';
+      } else if (formState.outcome === 'not_interested') {
+        // Not interested = complete (no email coming)
         newStatus = 'complete';
-      } else if (formState.outcome === 'interested' && !hasEmail) {
-        // Interested but no email — recirculate for someone else to try
-        newCallerAttempts[hubUser.id] = (newCallerAttempts[hubUser.id] || 0) + 1;
-        newStatus = newCallerAttempts[hubUser.id] >= 3 ? 'new' : 'new';
+      } else if (formState.outcome === 'interested') {
+        // Interested: complete if email, recirculate if not
+        if (hasEmail) {
+          newStatus = 'complete';
+        } else {
+          newCallerAttempts[hubUser.id] = (newCallerAttempts[hubUser.id] || 0) + 1;
+          newStatus = newCallerAttempts[hubUser.id] >= 3 ? 'attempted' : 'new';
+        }
       } else if (isFailedAttempt) {
         // Increment this caller's failed attempts
         newCallerAttempts[hubUser.id] = (newCallerAttempts[hubUser.id] || 0) + 1;
@@ -319,7 +365,6 @@ export default function SmartGridLeadsPage() {
 
       const updates: any = {
         status: newStatus,
-        attempts_count: (currentLead.attempts_count || 0) + 1,
         email_found: formState.emailFound,
         phone_found: formState.phoneFound,
         call_notes: formState.callNotes,
@@ -330,12 +375,21 @@ export default function SmartGridLeadsPage() {
         follow_up_email_sent: formState.followUpEmailSent,
       };
 
+      // Only increment attempts_count on actual failed attempts and completed contacts
+      if (isFailedAttempt || formState.outcome === 'interested' || formState.outcome === 'not_interested' || formState.outcome === 'callback') {
+        updates.attempts_count = (currentLead.attempts_count || 0) + 1;
+      }
+
       if (formState.followUpEmailSent) {
         updates.follow_up_email_sent_at = new Date().toISOString();
       }
 
-      // Unlock if not 'calling' status
-      if (newStatus !== 'calling') {
+      // For callback_pending, keep the caller assigned but release the lock
+      if (newStatus === 'callback_pending') {
+        updates.assigned_to = hubUser.id;
+        updates.locked_by = null;
+      } else if (newStatus !== 'calling') {
+        // For other terminal statuses, unlock
         updates.locked_by = null;
       }
 
@@ -553,6 +607,17 @@ export default function SmartGridLeadsPage() {
         {currentLead && (
           <div className="max-w-2xl mx-auto">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 space-y-6">
+              {/* Callback badge */}
+              {currentLead.callback_date && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
+                  <i className="ri-phone-line text-amber-600 text-lg"></i>
+                  <div className="text-sm text-amber-900">
+                    <p className="font-semibold">Scheduled Callback</p>
+                    <p className="text-xs text-amber-800">You said you'd call them back</p>
+                  </div>
+                </div>
+              )}
+
               {/* Account info */}
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold text-gray-800">{currentLead.account_name}</h2>
