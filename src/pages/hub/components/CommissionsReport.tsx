@@ -26,6 +26,7 @@ export default function CommissionsReport({ projectId }: Props) {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [marking, setMarking] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     fetchCommissions();
@@ -94,132 +95,144 @@ export default function CommissionsReport({ projectId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Month selector and actions */}
+      {/* Collapsed summary view */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Select Month</label>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            {pendingCount > 0 && (
-              <button
-                onClick={handleMarkAllPaid}
-                disabled={marking}
-                className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
-              >
-                {marking ? 'Marking...' : `Mark All Paid (${pendingCount})`}
-              </button>
-            )}
-            <button
-              onClick={() => window.print()}
-              className="px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium text-sm transition-colors"
-            >
-              Print/Export
-            </button>
-          </div>
-        </div>
-
-        {/* Summary stats */}
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-xs text-gray-600 font-medium">Total Earned</p>
-            <p className="text-lg font-bold text-gray-800 mt-1">${totalEarned.toFixed(2)}</p>
-          </div>
-          <div className="bg-emerald-50 rounded-lg p-3">
-            <p className="text-xs text-emerald-600 font-medium">Paid</p>
-            <p className="text-lg font-bold text-emerald-700 mt-1">${totalPaid.toFixed(2)}</p>
-          </div>
-          <div className="bg-amber-50 rounded-lg p-3">
-            <p className="text-xs text-amber-600 font-medium">Pending</p>
-            <p className="text-lg font-bold text-amber-700 mt-1">${totalPending.toFixed(2)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Commissions table */}
-      {loading ? (
-        <div className="text-center text-gray-500 text-sm py-8">Loading...</div>
-      ) : commissions.length === 0 ? (
-        <div className="text-center text-gray-500 text-sm py-8">No commissions for this month</div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Lead</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Contact</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Caller</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Milestone</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-600">Amount</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Earned</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {commissions.map(commission => (
-                  <tr key={commission.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">
-                      {commission.hub_project_leads?.account_name || 'Unknown'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {commission.hub_project_leads?.primary_contact || '–'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {commission.hub_users?.full_name || 'Unknown'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      <span className={`inline-block px-2 py-1 rounded text-[10px] font-medium ${
-                        commission.milestone === 'email' ? 'bg-blue-100 text-blue-700' :
-                        commission.milestone === 'meeting' ? 'bg-purple-100 text-purple-700' :
-                        'bg-green-100 text-green-700'
-                      }`}>
-                        {commission.milestone === 'email' ? '📧 Email' :
-                         commission.milestone === 'meeting' ? '📅 Meeting' :
-                         '📄 Bill'}
-                      </span>
-                    </td>
-                    <td className="text-right px-4 py-3 font-bold text-gray-800">
-                      ${Number(commission.amount).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 text-[11px]">
-                      {new Date(commission.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      {commission.paid ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-medium">
-                          <i className="ri-check-line"></i>
-                          {new Date(commission.paid_at!).toLocaleDateString()}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
-                          <i className="ri-time-line"></i>
-                          Pending
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Footer summary */}
-          <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-600">{commissions.length} commission{commissions.length !== 1 ? 's' : ''}</span>
-            <div className="flex gap-4 text-xs">
-              <span className="text-gray-600">Total: <span className="font-bold text-gray-800">${totalEarned.toFixed(2)}</span></span>
-              <span className="text-emerald-600">Paid: <span className="font-bold text-emerald-700">${totalPaid.toFixed(2)}</span></span>
-              <span className="text-amber-600">Pending: <span className="font-bold text-amber-700">${totalPending.toFixed(2)}</span></span>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-between"
+        >
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-xs font-medium text-gray-600">September 2026</p>
+              <p className="text-2xl font-bold text-gray-800">${totalEarned.toFixed(2)}</p>
+            </div>
+            <div className="flex gap-6 text-sm">
+              <div>
+                <p className="text-xs text-emerald-600">Paid</p>
+                <p className="font-bold text-emerald-700">${totalPaid.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-amber-600">Pending</p>
+                <p className="font-bold text-amber-700">${totalPending.toFixed(2)}</p>
+              </div>
             </div>
           </div>
+          <i className={`ri-chevron-${expanded ? 'up' : 'down'}-line text-gray-400 text-xl transition-transform`}></i>
+        </button>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="space-y-4">
+          {/* Month selector and actions */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Select Month</label>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={e => setSelectedMonth(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                {pendingCount > 0 && (
+                  <button
+                    onClick={handleMarkAllPaid}
+                    disabled={marking}
+                    className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+                  >
+                    {marking ? 'Marking...' : `Mark All Paid (${pendingCount})`}
+                  </button>
+                )}
+                <button
+                  onClick={() => window.print()}
+                  className="px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium text-sm transition-colors"
+                >
+                  Print/Export
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Commissions table */}
+          {loading ? (
+            <div className="text-center text-gray-500 text-sm py-8">Loading...</div>
+          ) : commissions.length === 0 ? (
+            <div className="text-center text-gray-500 text-sm py-8">No commissions for this month</div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Lead</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Contact</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Caller</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Milestone</th>
+                      <th className="text-right px-4 py-3 font-semibold text-gray-600">Amount</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Earned</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commissions.map(commission => (
+                      <tr key={commission.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-800">
+                          {commission.hub_project_leads?.account_name || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {commission.hub_project_leads?.primary_contact || '–'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {commission.hub_users?.full_name || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          <span className={`inline-block px-2 py-1 rounded text-[10px] font-medium ${
+                            commission.milestone === 'email' ? 'bg-blue-100 text-blue-700' :
+                            commission.milestone === 'meeting' ? 'bg-purple-100 text-purple-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {commission.milestone === 'email' ? '📧 Email' :
+                             commission.milestone === 'meeting' ? '📅 Meeting' :
+                             '📄 Bill'}
+                          </span>
+                        </td>
+                        <td className="text-right px-4 py-3 font-bold text-gray-800">
+                          ${Number(commission.amount).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 text-[11px]">
+                          {new Date(commission.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          {commission.paid ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[10px] font-medium">
+                              <i className="ri-check-line"></i>
+                              {new Date(commission.paid_at!).toLocaleDateString()}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
+                              <i className="ri-time-line"></i>
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50 border-t border-gray-100 font-semibold">
+                      <td className="px-4 py-3 text-gray-800">{commissions.length} commissions</td>
+                      <td colSpan={4} className="text-right text-gray-600"></td>
+                      <td className="text-right px-4 py-3 text-gray-800">${totalEarned.toFixed(2)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
