@@ -48,9 +48,12 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [saving, setSaving] = useState(false);
   const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'lifetime'>('daily');
   const [allTimePeriodStats, setAllTimePeriodStats] = useState<Record<string, { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[]> | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalLeads, setTotalLeads] = useState(0);
+  const leadsPerPage = 50;
 
   useEffect(() => {
-    fetchLeads();
+    fetchLeads(0);
     if (isAdmin) {
       fetchContractors();
     }
@@ -63,19 +66,25 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   }, [timePeriod, allTimePeriodStats]);
 
-  const fetchLeads = async () => {
+  const fetchLeads = async (page = 0) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const start = page * leadsPerPage;
+      const end = start + leadsPerPage - 1;
+
+      const { data, error, count } = await supabase
         .from('hub_project_leads')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
-        .limit(5000);
+        .range(start, end);
 
       if (error) throw error;
 
       setLeads(data || []);
+      setTotalLeads(count || 0);
+      setCurrentPage(page);
+
       if (isAdmin) {
         await calculateStats(data || []);
       } else {
@@ -89,7 +98,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   };
 
   const calculateStats = async (leadsData: Lead[]) => {
-    const total = leadsData.length;
+    const total = totalLeads;
     const complete = leadsData.filter(l => l.status === 'complete').length;
     const calling = leadsData.filter(l => l.status === 'calling').length;
     const attempted = leadsData.filter(l => l.status === 'attempted').length;
@@ -384,8 +393,24 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             </table>
           </div>
           {filteredLeads.length > 0 && (
-            <div className="px-4 py-3 bg-gray-50 text-center text-xs text-gray-400">
-              Showing {filteredLeads.length} leads
+            <div className="px-4 py-3 bg-gray-50 flex items-center justify-between text-xs text-gray-400">
+              <span>Page {currentPage + 1} of {Math.ceil(totalLeads / leadsPerPage)}</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => fetchLeads(currentPage - 1)}
+                  disabled={currentPage === 0}
+                  className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
+                <button
+                  onClick={() => fetchLeads(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(totalLeads / leadsPerPage) - 1}
+                  className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50 hover:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
+              </div>
             </div>
           )}
         </div>
