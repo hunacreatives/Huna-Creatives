@@ -79,7 +79,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
       let query = supabase
         .from('hub_project_leads')
-        .select('*', { count: 'exact' })
+        .select('*, hub_users!assigned_to(id, full_name)', { count: 'exact' })
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
 
@@ -615,6 +615,13 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                 <p className="text-xs font-medium text-gray-500 mb-1">Follow-up Email</p>
                 <p className="text-sm text-gray-700">{selectedLead.follow_up_email_sent ? '✓ Sent' : '–'}</p>
               </div>
+
+              {selectedLead.call_notes && (
+                <div className="border-t border-gray-100 pt-4">
+                  <p className="text-xs font-medium text-gray-500 mb-1">Notes</p>
+                  <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded whitespace-pre-wrap">{selectedLead.call_notes}</p>
+                </div>
+              )}
 
               {/* Call History */}
               {leadHistory.length > 0 && (
