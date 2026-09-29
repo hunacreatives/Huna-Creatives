@@ -35,12 +35,30 @@ interface DashboardStats {
 
 const DASHBOARD_PASSWORD = 'smartgrid';
 
+interface Lead {
+  id: string;
+  account_name: string;
+  phone: string | null;
+  email: string | null;
+  primary_contact: string | null;
+  status: string;
+  outcome: string | null;
+  assigned_to: string | null;
+  attempts_count: number;
+  callback_date: string | null;
+  callback_time: string | null;
+  created_at: string;
+}
+
 export default function SmartGridDashboard() {
   const [authenticated, setAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'lifetime'>('daily');
+  const [tab, setTab] = useState<'stats' | 'contacts'>('stats');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,9 +66,25 @@ export default function SmartGridDashboard() {
       setAuthenticated(true);
       setPasswordInput('');
       fetchStats();
+      fetchLeads();
     } else {
       alert('Incorrect password');
       setPasswordInput('');
+    }
+  };
+
+  const fetchLeads = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_PUBLIC_SUPABASE_URL}/functions/v1/smartgrid-leads-list`
+      );
+
+      if (!response.ok) throw new Error('Failed to fetch leads');
+
+      const data = await response.json();
+      setLeads(data);
+    } catch (err) {
+      console.error('Error fetching leads:', err);
     }
   };
 
@@ -84,8 +118,12 @@ export default function SmartGridDashboard() {
   useEffect(() => {
     if (authenticated) {
       fetchStats();
+      fetchLeads();
       // Poll every 15 seconds for live updates
-      const interval = setInterval(fetchStats, 15000);
+      const interval = setInterval(() => {
+        fetchStats();
+        fetchLeads();
+      }, 15000);
       return () => clearInterval(interval);
     }
   }, [authenticated, timePeriod]);
@@ -127,9 +165,16 @@ export default function SmartGridDashboard() {
 
   const completePct = stats?.total ? Math.round((stats.complete / stats.total) * 100) : 0;
 
+  const filteredLeads = leads.filter(lead =>
+    lead.account_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    lead.phone?.includes(searchQuery) ||
+    lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    lead.primary_contact?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -144,22 +189,49 @@ export default function SmartGridDashboard() {
           </button>
         </div>
 
-        {/* Time period selector */}
-        <div className="flex gap-2 flex-wrap">
-          {(['daily', 'weekly', 'monthly', 'lifetime'] as const).map(period => (
-            <button
-              key={period}
-              onClick={() => setTimePeriod(period)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors capitalize ${
-                timePeriod === period
-                  ? 'bg-sky-500 text-white'
-                  : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {period}
-            </button>
-          ))}
+        {/* Tabs */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTab('stats')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              tab === 'stats'
+                ? 'bg-sky-500 text-white'
+                : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Stats
+          </button>
+          <button
+            onClick={() => setTab('contacts')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              tab === 'contacts'
+                ? 'bg-sky-500 text-white'
+                : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            All Contacts ({leads.length})
+          </button>
         </div>
+
+        {/* Stats Tab */}
+        {tab === 'stats' && (
+          <div className="space-y-6">
+            {/* Time period selector */}
+            <div className="flex gap-2 flex-wrap">
+              {(['daily', 'weekly', 'monthly', 'lifetime'] as const).map(period => (
+                <button
+                  key={period}
+                  onClick={() => setTimePeriod(period)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors capitalize ${
+                    timePeriod === period
+                      ? 'bg-sky-500 text-white'
+                      : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
 
         {/* Overall stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -264,6 +336,82 @@ export default function SmartGridDashboard() {
             <div className="h-full bg-emerald-400 transition-all" style={{ width: `${completePct}%` }} />
           </div>
         </div>
+          </div>
+        )}
+
+        {/* Contacts Tab */}
+        {tab === 'contacts' && (
+          <div className="space-y-4">
+            <div>
+              <input
+                type="text"
+                placeholder="Search by name, phone, email, or contact..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+              />
+              <p className="text-xs text-gray-500 mt-2">{filteredLeads.length} of {leads.length} leads</p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Account Name</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Contact</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Phone</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Outcome</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-600">Attempts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLeads.length > 0 ? (
+                      filteredLeads.map(lead => (
+                        <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-gray-800 font-medium">{lead.account_name}</td>
+                          <td className="px-4 py-3 text-gray-600">{lead.primary_contact || '—'}</td>
+                          <td className="px-4 py-3 text-gray-600">{lead.phone || '—'}</td>
+                          <td className="px-4 py-3 text-gray-600 text-xs">{lead.email || '—'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              lead.status === 'complete' ? 'bg-emerald-100 text-emerald-700' :
+                              lead.status === 'calling' ? 'bg-sky-100 text-sky-700' :
+                              lead.status === 'attempted' ? 'bg-amber-100 text-amber-700' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {lead.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 text-xs">
+                            {lead.outcome ? (
+                              <span className={`px-2 py-1 rounded font-medium ${
+                                lead.outcome === 'interested' || lead.outcome === 'callback' ? 'bg-emerald-50 text-emerald-700' :
+                                lead.outcome === 'not_interested' ? 'bg-red-50 text-red-700' :
+                                'bg-gray-50 text-gray-600'
+                              }`}>
+                                {lead.outcome.replace('_', ' ')}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 text-center">{lead.attempts_count}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
+                          No leads found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
