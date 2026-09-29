@@ -51,6 +51,9 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalLeads, setTotalLeads] = useState(0);
   const leadsPerPage = 50;
+  const [followUpFilter, setFollowUpFilter] = useState<'all' | 'pending' | 'sent'>('all');
+  const [leadHistory, setLeadHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     fetchLeads(0);
@@ -197,9 +200,40 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   };
 
+  const fetchLeadHistory = async (leadId: string) => {
+    setHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('hub_project_activity')
+        .select(`
+          id,
+          created_at,
+          action,
+          meta,
+          hub_users:user_id(full_name)
+        `)
+        .eq('project_id', projectId)
+        .eq('entity_type', 'lead')
+        .eq('entity_id', leadId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setLeadHistory((data as any) || []);
+    } catch (err) {
+      console.error('Error fetching lead history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const handleLeadClick = (lead: Lead) => {
     setSelectedLead(lead);
     setAssignedTo(lead.assigned_to);
+    if (lead.attempts_count > 0) {
+      fetchLeadHistory(lead.id);
+    } else {
+      setLeadHistory([]);
+    }
   };
 
   const handleSaveReassign = async () => {
@@ -233,6 +267,13 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
   const filteredLeads = leads.filter(lead => {
     if (statusFilter !== 'all' && lead.status !== statusFilter) return false;
+
+    if (followUpFilter === 'pending') {
+      if (!lead.email || lead.follow_up_email_sent) return false;
+    } else if (followUpFilter === 'sent') {
+      if (!lead.follow_up_email_sent) return false;
+    }
+
     if (!searchTerm) return true;
     return (
       lead.account_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -346,6 +387,15 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             <option value="calling">Calling</option>
             <option value="complete">Complete</option>
             <option value="attempted">Attempted</option>
+          </select>
+          <select
+            value={followUpFilter}
+            onChange={e => setFollowUpFilter(e.target.value as any)}
+            className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none cursor-pointer"
+          >
+            <option value="all">All follow-ups</option>
+            <option value="pending">Follow-up Pending</option>
+            <option value="sent">Follow-up Sent</option>
           </select>
         </div>
       )}
@@ -467,6 +517,28 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                 <p className="text-xs font-medium text-gray-500 mb-1">Attempts</p>
                 <p className="text-sm text-gray-700">{selectedLead.attempts_count}</p>
               </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-1">Follow-up Email</p>
+                <p className="text-sm text-gray-700">{selectedLead.follow_up_email_sent ? '✓ Sent' : '–'}</p>
+              </div>
+
+              {/* Call History */}
+              {leadHistory.length > 0 && (
+                <div className="border-t border-gray-100 pt-4">
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Call History</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {leadHistory.map(log => (
+                      <div key={log.id} className="text-xs bg-gray-50 p-2 rounded">
+                        <p className="font-medium text-gray-700">
+                          {new Date(log.created_at).toLocaleDateString()} · {log.hub_users?.full_name || 'Unknown'} · {log.meta?.outcome || 'N/A'}
+                        </p>
+                        {log.meta?.notes && <p className="text-gray-600 mt-1">{log.meta.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Reassign dropdown */}
               <div className="border-t border-gray-100 pt-4">

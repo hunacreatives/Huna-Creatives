@@ -23,6 +23,18 @@ interface Lead {
   call_notes: string | null;
   callback_date: string | null;
   callback_time: string | null;
+  follow_up_email_sent: boolean;
+  follow_up_email_sent_at: string | null;
+  caller_attempts: Record<string, number>;
+  last_caller_id: string | null;
+}
+
+interface ActivityLog {
+  id: number;
+  created_at: string;
+  action: string;
+  meta: { outcome?: string; notes?: string };
+  hub_users?: { full_name: string } | null;
 }
 
 interface FormState {
@@ -35,6 +47,7 @@ interface FormState {
   callNotes: string;
   callbackDate?: string;
   callbackTime?: string;
+  followUpEmailSent: boolean;
 }
 
 export default function SmartGridLeadsPage() {
@@ -54,10 +67,13 @@ export default function SmartGridLeadsPage() {
     phoneFound: false,
     outcome: '',
     callNotes: '',
+    followUpEmailSent: false,
   });
   const [saving, setSaving] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [callHistory, setCallHistory] = useState<ActivityLog[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const copyPhoneToClipboard = () => {
     if (currentLead?.phone) {
@@ -127,8 +143,18 @@ export default function SmartGridLeadsPage() {
     }
   }, [queue, currentLeadIndex]);
 
+  // Fetch call history when current lead changes
+  useEffect(() => {
+    if (currentLead && currentLead.attempts_count > 0) {
+      fetchCallHistory(currentLead.id);
+    } else {
+      setCallHistory([]);
+    }
+  }, [currentLead?.id]);
+
   const loadQueue = async (pId: number, userId: string) => {
     try {
+      // Build filter to exclude leads this caller has already tried 3+ times
       const { data, error } = await supabase
         .from('hub_project_leads')
         .select('*')
@@ -146,26 +172,34 @@ export default function SmartGridLeadsPage() {
         return;
       }
 
+      // Filter out leads this caller has already tried 3+ times
+      const filtered = data.filter(lead => {
+        const callerAttempts = lead.caller_attempts || {};
+        return (callerAttempts[userId] || 0) < 3;
+      });
+
       // Lock all 30 leads to this user
-      let queueData = data;
-      if (data.length > 0) {
-        const leadIds = data.map(l => l.id);
+      let queueData = filtered;
+      if (filtered.length > 0) {
+        const leadIds = filtered.map(l => l.id);
         const { error: lockErr } = await supabase
           .from('hub_project_leads')
           .update({
             locked_by: userId,
             status: 'calling',
+            last_caller_id: userId,
           })
           .in('id', leadIds);
 
         if (!lockErr) {
-          queueData = data.map(l => ({ ...l, locked_by: userId, status: 'calling' }));
+          queueData = filtered.map(l => ({ ...l, locked_by: userId, status: 'calling', last_caller_id: userId }));
         }
       }
 
       setQueue(queueData as Lead[]);
       setCurrentLeadIndex(0);
       resetForm();
+      setCallHistory([]);
     } catch (err) {
       console.error('Load queue error:', err);
     }
@@ -178,7 +212,35 @@ export default function SmartGridLeadsPage() {
       phoneFound: false,
       outcome: '',
       callNotes: '',
+      followUpEmailSent: false,
     });
+  };
+
+  const fetchCallHistory = async (leadId: string) => {
+    if (!projectId) return;
+    setHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('hub_project_activity')
+        .select(`
+          id,
+          created_at,
+          action,
+          meta,
+          hub_users:user_id(full_name)
+        `)
+        .eq('project_id', projectId)
+        .eq('entity_type', 'lead')
+        .eq('entity_id', leadId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCallHistory((data as any) || []);
+    } catch (err) {
+      console.error('Error fetching call history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   const currentLead = queue[currentLeadIndex];
@@ -187,7 +249,40 @@ export default function SmartGridLeadsPage() {
     if (!currentLead || !hubUser?.id || !projectId) return;
     setSaving(true);
     try {
-      const newStatus = formState.outcome === 'skip' ? 'calling' : 'complete';
+      const isFailedAttempt = ['voicemail', 'no_answer'].includes(formState.outcome);
+      const isRealContact = ['interested', 'not_interested', 'callback'].includes(formState.outcome);
+
+      // Determine new status based on outcome
+      let newStatus = 'calling';
+      let newCallerAttempts = { ...currentLead.caller_attempts } || {};
+
+      if (formState.outcome === 'skip') {
+        newStatus = 'calling';
+      } else if (isRealContact) {
+        newStatus = 'complete';
+      } else if (isFailedAttempt) {
+        // Increment this caller's failed attempts
+        newCallerAttempts[hubUser.id] = (newCallerAttempts[hubUser.id] || 0) + 1;
+
+        if (newCallerAttempts[hubUser.id] >= 3) {
+          // This caller has hit 3 attempts, check if all callers have
+          const { data: allCallers } = await supabase
+            .from('hub_project_contractors')
+            .select('user_id')
+            .eq('project_id', projectId)
+            .eq('project_role', 'Cold Caller');
+
+          const allHitLimit = (allCallers || []).every(c => {
+            const attemptsForCaller = newCallerAttempts[c.user_id as string] || 0;
+            return attemptsForCaller >= 3;
+          });
+
+          newStatus = allHitLimit ? 'attempted' : 'new';
+        } else {
+          newStatus = 'new';
+        }
+      }
+
       const updates: any = {
         status: newStatus,
         attempts_count: (currentLead.attempts_count || 0) + 1,
@@ -195,7 +290,19 @@ export default function SmartGridLeadsPage() {
         phone_found: formState.phoneFound,
         call_notes: formState.callNotes,
         last_contact_at: new Date().toISOString(),
+        caller_attempts: newCallerAttempts,
+        last_caller_id: hubUser.id,
+        follow_up_email_sent: formState.followUpEmailSent,
       };
+
+      if (formState.followUpEmailSent) {
+        updates.follow_up_email_sent_at = new Date().toISOString();
+      }
+
+      // Unlock if not 'calling' status
+      if (newStatus !== 'calling') {
+        updates.locked_by = null;
+      }
 
       // Update email/phone if found
       if (formState.emailFound && formState.emailValue) {
@@ -236,6 +343,7 @@ export default function SmartGridLeadsPage() {
           email_found: formState.emailFound,
           phone_found: formState.phoneFound,
           notes: formState.callNotes,
+          follow_up_email_sent: formState.followUpEmailSent,
         },
       });
 
@@ -252,11 +360,13 @@ export default function SmartGridLeadsPage() {
           .update({
             locked_by: hubUser.id,
             status: 'calling',
+            last_caller_id: hubUser.id,
           })
           .eq('id', nextLead.id);
 
         setCurrentLeadIndex(c => c + 1);
         resetForm();
+        setCallHistory([]);
       } else {
         // Queue empty, clear saved batch and reload
         try {
@@ -297,11 +407,13 @@ export default function SmartGridLeadsPage() {
           .update({
             locked_by: hubUser.id,
             status: 'calling',
+            last_caller_id: hubUser.id,
           })
           .eq('id', nextLead.id);
 
         setCurrentLeadIndex(c => c + 1);
         resetForm();
+        setCallHistory([]);
       } else {
         setQueue([]);
         if (projectId) {
@@ -430,6 +542,23 @@ export default function SmartGridLeadsPage() {
 
               <div className="border-t border-gray-100"></div>
 
+              {/* Call History */}
+              {callHistory.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-xs font-semibold text-amber-900 mb-3">Previous Call History</p>
+                  <div className="space-y-2">
+                    {callHistory.map(log => (
+                      <div key={log.id} className="text-xs text-amber-800">
+                        <p className="font-medium">
+                          {new Date(log.created_at).toLocaleDateString()} · {log.hub_users?.full_name || 'Unknown'} · {log.meta?.outcome || 'N/A'}
+                        </p>
+                        {log.meta?.notes && <p className="text-amber-700 mt-1">{log.meta.notes}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Form fields */}
               <div className="space-y-4">
                 {/* Checkboxes */}
@@ -466,6 +595,19 @@ export default function SmartGridLeadsPage() {
                     </label>
                   )}
                 </div>
+
+                {/* Follow-up Email Sent (show if email exists or was found) */}
+                {(currentLead.email || formState.emailFound) && (
+                  <label className="flex items-center gap-3 cursor-pointer group p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <input
+                      type="checkbox"
+                      checked={formState.followUpEmailSent}
+                      onChange={e => setFormState(s => ({ ...s, followUpEmailSent: e.target.checked }))}
+                      className="w-4 h-4 rounded border-emerald-300 text-emerald-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span className="text-sm text-emerald-700 group-hover:text-emerald-800 font-medium">Follow-up Email Sent</span>
+                  </label>
+                )}
 
                 {/* Email input (show if Email Found checked) */}
                 {formState.emailFound && (
