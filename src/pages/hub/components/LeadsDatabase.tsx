@@ -112,9 +112,15 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   };
 
   const calculateStats = async (leadsData: Lead[], total: number = totalLeads) => {
-    const complete = leadsData.filter(l => l.status === 'complete').length;
-    const calling = leadsData.filter(l => l.status === 'calling').length;
-    const attempted = leadsData.filter(l => l.status === 'attempted').length;
+    // Query database for actual counts across all leads, not just current page
+    const { data: counts } = await supabase
+      .from('hub_project_leads')
+      .select('status')
+      .eq('project_id', projectId);
+
+    const complete = (counts || []).filter(l => l.status === 'complete').length;
+    const calling = (counts || []).filter(l => l.status === 'calling').length;
+    const attempted = (counts || []).filter(l => l.status === 'attempted').length;
 
     let allStats: Record<string, { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[]> = {};
 
