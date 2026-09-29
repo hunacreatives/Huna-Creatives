@@ -55,6 +55,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [leadHistory, setLeadHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [assignedFilter, setAssignedFilter] = useState<string | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchLeads(0, '');
@@ -422,8 +423,15 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             placeholder="Search by account, email, or phone..."
             value={searchTerm}
             onChange={e => {
-              setSearchTerm(e.target.value);
-              fetchLeads(0, e.target.value);
+              const value = e.target.value;
+              setSearchTerm(value);
+
+              // Debounce search: clear previous timeout and set new one
+              if (searchTimeout) clearTimeout(searchTimeout);
+              const timeout = setTimeout(() => {
+                fetchLeads(0, value);
+              }, 300);
+              setSearchTimeout(timeout);
             }}
             className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 flex-1 min-w-48"
           />
