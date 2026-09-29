@@ -48,6 +48,8 @@ interface FormState {
   callbackDate?: string;
   callbackTime?: string;
   followUpEmailSent: boolean;
+  meetingScheduled: boolean;
+  nextCallGoal?: 'email' | 'meeting' | 'bill';
 }
 
 export default function SmartGridLeadsPage() {
@@ -281,6 +283,8 @@ export default function SmartGridLeadsPage() {
       outcome: '',
       callNotes: '',
       followUpEmailSent: false,
+      meetingScheduled: false,
+      nextCallGoal: undefined,
     });
   };
 
@@ -410,6 +414,15 @@ export default function SmartGridLeadsPage() {
       }
       if (formState.callbackTime) {
         updates.callback_time = formState.callbackTime;
+      }
+
+      if (formState.meetingScheduled) {
+        updates.meeting_scheduled = true;
+        updates.meeting_scheduled_at = new Date().toISOString();
+      }
+
+      if (formState.nextCallGoal) {
+        updates.next_call_goal = formState.nextCallGoal;
       }
 
       const { error } = await supabase
@@ -614,6 +627,11 @@ export default function SmartGridLeadsPage() {
                   <div className="text-sm text-amber-900">
                     <p className="font-semibold">Scheduled Callback</p>
                     <p className="text-xs text-amber-800">You said you'd call them back</p>
+                    {currentLead.next_call_goal && (
+                      <p className="text-xs font-medium text-amber-700 mt-1">
+                        🎯 Goal: {currentLead.next_call_goal === 'email' ? 'Get Email' : currentLead.next_call_goal === 'meeting' ? 'Schedule Meeting' : 'Get Electric Bill'}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -717,6 +735,36 @@ export default function SmartGridLeadsPage() {
                     />
                     <span className="text-sm text-emerald-700 group-hover:text-emerald-800 font-medium">Follow-up Email Sent</span>
                   </label>
+                )}
+
+                {/* Meeting Scheduled (show if interested or callback) */}
+                {(formState.outcome === 'interested' || formState.outcome === 'callback') && (
+                  <label className="flex items-center gap-3 cursor-pointer group p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <input
+                      type="checkbox"
+                      checked={formState.meetingScheduled}
+                      onChange={e => setFormState(s => ({ ...s, meetingScheduled: e.target.checked }))}
+                      className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-0 cursor-pointer"
+                    />
+                    <span className="text-sm text-blue-700 group-hover:text-blue-800 font-medium">Meeting Scheduled with Decision Maker</span>
+                  </label>
+                )}
+
+                {/* Next Call Goal (show only for callback outcome) */}
+                {formState.outcome === 'callback' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">What's the Goal for This Callback?</label>
+                    <select
+                      value={formState.nextCallGoal || ''}
+                      onChange={e => setFormState(s => ({ ...s, nextCallGoal: e.target.value as any }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    >
+                      <option value="">Select goal...</option>
+                      <option value="email">Get Their Email</option>
+                      <option value="meeting">Schedule Meeting with Dan/Chris</option>
+                      <option value="bill">Get Electric Bill</option>
+                    </select>
+                  </div>
                 )}
 
                 {/* Email input (show if Email Found checked) */}

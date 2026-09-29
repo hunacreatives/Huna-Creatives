@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { fmt, fmtDate } from '@/pages/hub/admin/projects/shared';
+import CommissionsReport from './CommissionsReport';
 
 interface Lead {
   id: string;
@@ -14,6 +15,11 @@ interface Lead {
   email_found: boolean;
   phone_found: boolean;
   contact_name_found: boolean;
+  meeting_scheduled?: boolean;
+  meeting_scheduled_at?: string | null;
+  bill_received?: boolean;
+  bill_received_at?: string | null;
+  next_call_goal?: string | null;
   created_at: string;
   hub_users?: { full_name: string } | null;
 }
@@ -437,6 +443,11 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
         </div>
       )}
 
+      {/* Payouts report */}
+      {isAdmin && (
+        <CommissionsReport projectId={projectId} />
+      )}
+
       {/* Search & filter */}
       {isAdmin && (
         <div className="flex gap-2 flex-wrap">
@@ -615,6 +626,47 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                 <p className="text-xs font-medium text-gray-500 mb-1">Follow-up Email</p>
                 <p className="text-sm text-gray-700">{selectedLead.follow_up_email_sent ? '✓ Sent' : '–'}</p>
               </div>
+
+              <div className="border-t border-gray-100 pt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Meeting Scheduled</p>
+                  <p className="text-sm text-gray-700">{selectedLead.meeting_scheduled ? '✓ Yes' : '–'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Bill Received</p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedLead.bill_received || false}
+                      onChange={async (e) => {
+                        try {
+                          await supabase
+                            .from('hub_project_leads')
+                            .update({ bill_received: e.target.checked, bill_received_at: e.target.checked ? new Date().toISOString() : null })
+                            .eq('id', selectedLead.id);
+                          // Refresh the lead
+                          if (selectedLead) {
+                            setSelectedLead({ ...selectedLead, bill_received: e.target.checked });
+                          }
+                        } catch (err) {
+                          console.error('Error updating bill received:', err);
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-sky-500 focus:ring-0 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-700">{selectedLead.bill_received ? '✓ Received' : 'Mark received'}</span>
+                  </label>
+                </div>
+              </div>
+
+              {selectedLead.next_call_goal && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Next Call Goal</p>
+                  <p className="text-sm text-gray-700 bg-amber-50 p-2 rounded">
+                    {selectedLead.next_call_goal === 'email' ? '📧 Get Email' : selectedLead.next_call_goal === 'meeting' ? '📅 Schedule Meeting' : '📄 Get Electric Bill'}
+                  </p>
+                </div>
+              )}
 
               {/* Call History */}
               {leadHistory.length > 0 && (
