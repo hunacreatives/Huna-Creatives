@@ -70,7 +70,8 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
         .from('hub_project_leads')
         .select('*')
         .eq('project_id', projectId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5000);
 
       if (error) throw error;
 
