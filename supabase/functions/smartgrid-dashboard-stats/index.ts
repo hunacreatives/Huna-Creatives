@@ -14,6 +14,20 @@ interface CallerStat {
   successfulToday: number;
   emailFoundToday: number;
   phoneFoundToday: number;
+  interestedToday: number;
+  callbackToday: number;
+  notInterestedToday: number;
+  voicemailToday: number;
+  noAnswerToday: number;
+}
+
+interface OutcomeBreakdown {
+  interested: number;
+  callback: number;
+  notInterested: number;
+  voicemail: number;
+  noAnswer: number;
+  skip: number;
 }
 
 interface StatsPayload {
@@ -21,6 +35,7 @@ interface StatsPayload {
   complete: number;
   calling: number;
   attempted: number;
+  outcomes: OutcomeBreakdown;
   daily: CallerStat[];
   weekly: CallerStat[];
   monthly: CallerStat[];
@@ -74,9 +89,28 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
     };
 
     const allCallerStats: Record<string, CallerStat[]> = {};
+    const outcomeBreakdown: OutcomeBreakdown = {
+      interested: 0,
+      callback: 0,
+      notInterested: 0,
+      voicemail: 0,
+      noAnswer: 0,
+      skip: 0,
+    };
 
     Object.entries(periods).forEach(([period, startDate]) => {
-      const callerMap = new Map<string, { name: string; calls: Set<string>; successful: number; emailFound: number; phoneFound: number }>();
+      const callerMap = new Map<string, {
+        name: string;
+        calls: Set<string>;
+        successful: number;
+        emailFound: number;
+        phoneFound: number;
+        interested: number;
+        callback: number;
+        notInterested: number;
+        voicemail: number;
+        noAnswer: number;
+      }>();
 
       (activities || []).forEach((activity: any) => {
         const actDate = new Date(activity.created_at);
@@ -87,13 +121,44 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
         const callerName = activity.hub_users?.full_name || "Unknown";
 
         if (!callerMap.has(callerId)) {
-          callerMap.set(callerId, { name: callerName, calls: new Set(), successful: 0, emailFound: 0, phoneFound: 0 });
+          callerMap.set(callerId, {
+            name: callerName,
+            calls: new Set(),
+            successful: 0,
+            emailFound: 0,
+            phoneFound: 0,
+            interested: 0,
+            callback: 0,
+            notInterested: 0,
+            voicemail: 0,
+            noAnswer: 0,
+          });
         }
 
         const caller = callerMap.get(callerId)!;
         caller.calls.add(activity.meta?.lead_id || "");
 
-        if (activity.meta?.outcome === "interested" || activity.meta?.outcome === "callback") {
+        const outcome = activity.meta?.outcome;
+        if (outcome === "interested") {
+          caller.interested++;
+          if (period === "daily") outcomeBreakdown.interested++;
+        } else if (outcome === "callback") {
+          caller.callback++;
+          if (period === "daily") outcomeBreakdown.callback++;
+        } else if (outcome === "not_interested") {
+          caller.notInterested++;
+          if (period === "daily") outcomeBreakdown.notInterested++;
+        } else if (outcome === "voicemail") {
+          caller.voicemail++;
+          if (period === "daily") outcomeBreakdown.voicemail++;
+        } else if (outcome === "no_answer") {
+          caller.noAnswer++;
+          if (period === "daily") outcomeBreakdown.noAnswer++;
+        } else if (outcome === "skip") {
+          if (period === "daily") outcomeBreakdown.skip++;
+        }
+
+        if (outcome === "interested" || outcome === "callback") {
           caller.successful++;
         }
         if (activity.meta?.email_found) {
@@ -111,6 +176,11 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
         successfulToday: data.successful,
         emailFoundToday: data.emailFound,
         phoneFoundToday: data.phoneFound,
+        interestedToday: data.interested,
+        callbackToday: data.callback,
+        notInterestedToday: data.notInterested,
+        voicemailToday: data.voicemail,
+        noAnswerToday: data.noAnswer,
       }));
     });
 
@@ -119,6 +189,7 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
       complete,
       calling,
       attempted,
+      outcomes: outcomeBreakdown,
       daily: allCallerStats.daily,
       weekly: allCallerStats.weekly,
       monthly: allCallerStats.monthly,

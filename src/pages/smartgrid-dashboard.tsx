@@ -1,12 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+interface OutcomeBreakdown {
+  interested: number;
+  callback: number;
+  notInterested: number;
+  voicemail: number;
+  noAnswer: number;
+  skip: number;
+}
+
+interface CallerStat {
+  callerId: string;
+  callerName: string;
+  callsToday: number;
+  successfulToday: number;
+  emailFoundToday: number;
+  phoneFoundToday: number;
+  interestedToday: number;
+  callbackToday: number;
+  notInterestedToday: number;
+  voicemailToday: number;
+  noAnswerToday: number;
+}
+
 interface DashboardStats {
   total: number;
   complete: number;
   calling: number;
   attempted: number;
-  callerStats: { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[];
+  outcomes: OutcomeBreakdown;
+  callerStats: CallerStat[];
 }
 
 const DASHBOARD_PASSWORD = 'smartgrid';
@@ -47,6 +71,7 @@ export default function SmartGridDashboard() {
         complete: data.complete,
         calling: data.calling,
         attempted: data.attempted,
+        outcomes: data.outcomes,
         callerStats,
       });
     } catch (err) {
@@ -158,34 +183,73 @@ export default function SmartGridDashboard() {
           </div>
         </div>
 
+        {/* Outcome breakdown */}
+        {stats?.outcomes && (
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 p-4">
+            <p className="text-xs font-semibold text-emerald-700 mb-3">CALL OUTCOMES (All Time)</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+                <p className="text-[10px] text-gray-500">Interested</p>
+                <p className="text-sm font-bold text-emerald-600">{stats.outcomes.interested}</p>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+                <p className="text-[10px] text-gray-500">Callback</p>
+                <p className="text-sm font-bold text-sky-600">{stats.outcomes.callback}</p>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+                <p className="text-[10px] text-gray-500">Not Interested</p>
+                <p className="text-sm font-bold text-gray-600">{stats.outcomes.notInterested}</p>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+                <p className="text-[10px] text-gray-500">Voicemail</p>
+                <p className="text-sm font-bold text-amber-600">{stats.outcomes.voicemail}</p>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+                <p className="text-[10px] text-gray-500">No Answer</p>
+                <p className="text-sm font-bold text-amber-600">{stats.outcomes.noAnswer}</p>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
+                <p className="text-[10px] text-gray-500">Skip</p>
+                <p className="text-sm font-bold text-gray-600">{stats.outcomes.skip}</p>
+              </div>
+            </div>
+            <div className="mt-2 text-[10px] text-emerald-600">
+              <p>Qualified: <span className="font-bold">{stats.outcomes.interested + stats.outcomes.callback}</span> prospects</p>
+            </div>
+          </div>
+        )}
+
         {/* Caller performance */}
         {stats?.callerStats && stats.callerStats.length > 0 && (
           <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl border border-sky-200 p-4">
             <p className="text-xs font-semibold text-sky-700 mb-3 capitalize">{timePeriod.toUpperCase()} PERFORMANCE</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {stats.callerStats.map(caller => (
-                <div key={caller.callerId} className="bg-white rounded-lg px-4 py-3 border border-sky-100">
-                  <p className="text-xs font-medium text-gray-700 mb-2">{caller.callerName}</p>
-                  <div className="space-y-1.5 text-[10px]">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Calls</span>
-                      <span className="font-bold text-gray-800">{caller.callsToday}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Successful</span>
-                      <span className="font-bold text-emerald-600">{caller.successfulToday}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Emails found</span>
-                      <span className="font-bold text-sky-600">{caller.emailFoundToday}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Phones found</span>
-                      <span className="font-bold text-sky-600">{caller.phoneFoundToday}</span>
+              {stats.callerStats.map(caller => {
+                const callbackRate = caller.callsToday > 0 ? ((caller.interestedToday + caller.callbackToday) / caller.callsToday * 100).toFixed(0) : 0;
+                return (
+                  <div key={caller.callerId} className="bg-white rounded-lg px-4 py-3 border border-sky-100">
+                    <p className="text-xs font-medium text-gray-700 mb-2">{caller.callerName}</p>
+                    <div className="space-y-1.5 text-[10px]">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Calls</span>
+                        <span className="font-bold text-gray-800">{caller.callsToday}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Qualified</span>
+                        <span className="font-bold text-emerald-600">{caller.interestedToday + caller.callbackToday} ({callbackRate}%)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Interested</span>
+                        <span className="font-bold text-sky-600">{caller.interestedToday}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Callback</span>
+                        <span className="font-bold text-sky-600">{caller.callbackToday}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
