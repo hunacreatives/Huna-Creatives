@@ -293,7 +293,6 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
 
     if (assignedFilter) {
-      // Show leads assigned to this person OR currently locked by them (in their queue)
       if (lead.assigned_to !== assignedFilter && lead.locked_by !== assignedFilter) return false;
     }
 
