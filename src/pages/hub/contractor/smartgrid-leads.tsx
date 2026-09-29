@@ -146,18 +146,19 @@ export default function SmartGridLeadsPage() {
         return;
       }
 
-      // Soft-claim first lead
+      // Lock all 30 leads to this user
       if (data.length > 0) {
-        const { error: claimErr } = await supabase
+        const leadIds = data.map(l => l.id);
+        const { error: lockErr } = await supabase
           .from('hub_project_leads')
           .update({
             locked_by: userId,
             status: 'calling',
           })
-          .eq('id', data[0].id);
+          .in('id', leadIds);
 
-        if (!claimErr) {
-          data[0] = { ...data[0], locked_by: userId, status: 'calling' };
+        if (!lockErr) {
+          data = data.map(l => ({ ...l, locked_by: userId, status: 'calling' }));
         }
       }
 
