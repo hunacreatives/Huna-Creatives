@@ -276,7 +276,10 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       if (!lead.follow_up_email_sent) return false;
     }
 
-    if (assignedFilter && lead.assigned_to !== assignedFilter) return false;
+    if (assignedFilter) {
+      // Show leads assigned to this person OR currently locked by them (in their queue)
+      if (lead.assigned_to !== assignedFilter && lead.locked_by !== assignedFilter) return false;
+    }
 
     if (!searchTerm) return true;
     return (
@@ -385,7 +388,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             All Callers ({leads.length})
           </button>
           {contractors.map(c => {
-            const count = leads.filter(l => l.assigned_to === c.id).length;
+            const count = leads.filter(l => l.assigned_to === c.id || l.locked_by === c.id).length;
             return (
               <button
                 key={c.id}
