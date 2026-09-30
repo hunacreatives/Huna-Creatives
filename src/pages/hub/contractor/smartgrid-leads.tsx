@@ -52,6 +52,11 @@ interface FormState {
   nextCallGoal?: 'email' | 'meeting' | 'bill';
 }
 
+// The night shift runs past midnight, so a shift belongs to the Manila date it
+// started on (noon cutoff, same rule slack-attendance uses).
+const currentShiftDay = () =>
+  new Date(Date.now() - 12 * 60 * 60 * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+
 export default function SmartGridLeadsPage() {
   const navigate = useNavigate();
   const { hubUser: realHubUser } = useAuth();
@@ -106,15 +111,31 @@ export default function SmartGridLeadsPage() {
         const pId = projects[0].id;
         setProjectId(pId);
 
-        // Check if there's a saved batch in localStorage
+        // Resume a saved batch only for leads still locked to this caller; the
+        // rest may have been released and handed to someone else since.
+        const batchKey = `smartgrid_batch_${hubUser.id}`;
         try {
-          const saved = localStorage.getItem('smartgrid_batch');
+          localStorage.removeItem('smartgrid_batch');
+          const saved = localStorage.getItem(batchKey);
           if (saved) {
             const { queue: savedQueue, currentIndex } = JSON.parse(saved);
-            setQueue(savedQueue);
-            setCurrentLeadIndex(currentIndex);
-            setLoading(false);
-            return;
+            const remaining: Lead[] = (savedQueue || []).slice(currentIndex || 0);
+            if (remaining.length > 0) {
+              const { data: stillMine } = await supabase
+                .from('hub_project_leads')
+                .select('*')
+                .in('id', remaining.map(l => l.id))
+                .eq('locked_by', hubUser.id);
+              const byId = new Map(((stillMine || []) as Lead[]).map(l => [l.id, l]));
+              const valid = remaining.filter(l => byId.has(l.id)).map(l => byId.get(l.id)!);
+              if (valid.length > 0) {
+                setQueue(valid);
+                setCurrentLeadIndex(0);
+                setLoading(false);
+                return;
+              }
+            }
+            localStorage.removeItem(batchKey);
           }
         } catch (e) {
           console.log('No saved batch');
@@ -133,9 +154,9 @@ export default function SmartGridLeadsPage() {
 
   // Save current position to localStorage whenever it changes
   useEffect(() => {
-    if (queue.length > 0) {
+    if (queue.length > 0 && hubUser?.id) {
       try {
-        localStorage.setItem('smartgrid_batch', JSON.stringify({
+        localStorage.setItem(`smartgrid_batch_${hubUser.id}`, JSON.stringify({
           queue,
           currentIndex: currentLeadIndex,
         }));
@@ -154,114 +175,76 @@ export default function SmartGridLeadsPage() {
     }
   }, [currentLead?.id]);
 
+  // Only rows still unlocked get claimed, so two callers can never lock the same lead.
+  const claimLeads = async (candidates: Lead[], userId: string): Promise<Lead[]> => {
+    if (candidates.length === 0) return [];
+    const { data: claimed, error } = await supabase
+      .from('hub_project_leads')
+      .update({
+        locked_by: userId,
+        locked_at: new Date().toISOString(),
+        status: 'calling',
+        last_caller_id: userId,
+      })
+      .in('id', candidates.map(l => l.id))
+      .is('locked_by', null)
+      .select('*');
+    if (error || !claimed) return [];
+    const byId = new Map((claimed as Lead[]).map(l => [l.id, l]));
+    return candidates.filter(l => byId.has(l.id)).map(l => byId.get(l.id)!);
+  };
+
   const loadQueue = async (pId: number, userId: string) => {
     try {
       // 24-hour cooldown to prevent same-day overlaps
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      // Fetch callbacks due today for this user
-      const today = new Date().toISOString().slice(0, 10);
+      // Callbacks due on or before this shift (a missed day must not drop them)
+      const today = currentShiftDay();
       const { data: dueCallbacks } = await supabase
         .from('hub_project_leads')
         .select('*')
         .eq('project_id', pId)
         .eq('status', 'callback_pending')
         .eq('assigned_to', userId)
-        .eq('callback_date', today)
+        .lte('callback_date', today)
+        .order('callback_date', { ascending: true })
         .order('callback_time', { ascending: true, nullsFirst: true });
 
-      // Lock due callbacks
-      let callbacksLocked: Lead[] = [];
-      if (dueCallbacks && dueCallbacks.length > 0) {
-        const callbackIds = dueCallbacks.map(l => l.id);
-        const { error: lockErr } = await supabase
+      const callbacksLocked = await claimLeads((dueCallbacks || []) as Lead[], userId);
+
+      const fetchCandidates = async (assignedOnly: boolean) => {
+        let q = supabase
           .from('hub_project_leads')
-          .update({
-            locked_by: userId,
-            status: 'calling',
-            last_caller_id: userId,
-          })
-          .in('id', callbackIds);
-
-        if (!lockErr) {
-          callbacksLocked = dueCallbacks.map(l => ({ ...l, locked_by: userId, status: 'calling', last_caller_id: userId }));
-        }
-      }
-
-      // Fetch new leads for the rest of the batch (30 total new, not including callbacks)
-      let query = supabase
-        .from('hub_project_leads')
-        .select('*')
-        .eq('project_id', pId)
-        .in('status', ['new', 'calling'])
-        .is('locked_by', null)
-        .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`);
-
-      // If user has pre-assigned leads, load those first
-      const { data: assignedLeads } = await supabase
-        .from('hub_project_leads')
-        .select('*')
-        .eq('project_id', pId)
-        .eq('assigned_to', userId)
-        .in('status', ['new', 'calling'])
-        .is('locked_by', null)
-        .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`)
-        .order('last_worked_at', { ascending: true, nullsFirst: true })
-        .order('attempts_count', { ascending: true })
-        .limit(30);
-
-      let data = assignedLeads && assignedLeads.length > 0 ? assignedLeads : null;
-      let error = null;
-
-      // If no assigned leads, grab from unassigned pool
-      if (!data || data.length === 0) {
-        const result = await query
-          .is('assigned_to', null)
+          .select('*')
+          .eq('project_id', pId)
+          .in('status', ['new', 'calling'])
+          .is('locked_by', null)
+          .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`);
+        q = assignedOnly ? q.eq('assigned_to', userId) : q.is('assigned_to', null);
+        const { data, error } = await q
           .order('last_worked_at', { ascending: true, nullsFirst: true })
           .order('attempts_count', { ascending: true })
+          .order('id', { ascending: true })
           .limit(30);
-        data = result.data;
-        error = result.error;
+        if (error) throw error;
+        // Skip leads this caller has already tried 3+ times
+        return ((data || []) as Lead[]).filter(lead => ((lead.caller_attempts || {})[userId] || 0) < 3);
+      };
+
+      // Pre-assigned leads first, otherwise the unassigned pool. If another caller
+      // claimed some of the same rows first, fetch again for the next ones.
+      let newLeads: Lead[] = await claimLeads(await fetchCandidates(true), userId);
+      for (let attempt = 0; newLeads.length === 0 && attempt < 3; attempt++) {
+        const candidates = await fetchCandidates(false);
+        if (candidates.length === 0) break;
+        newLeads = await claimLeads(candidates, userId);
       }
 
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        if (callbacksLocked.length === 0) {
-          setQueue([]);
-          setCurrentLeadIndex(0);
-          return;
-        }
-        // Only callbacks, no new leads
-        setQueue(callbacksLocked as Lead[]);
+      if (newLeads.length === 0 && callbacksLocked.length === 0) {
+        setQueue([]);
         setCurrentLeadIndex(0);
-        resetForm();
-        setCallHistory([]);
         return;
-      }
-
-      // Filter out leads this caller has already tried 3+ times
-      const filtered = data.filter(lead => {
-        const callerAttempts = lead.caller_attempts || {};
-        return (callerAttempts[userId] || 0) < 3;
-      });
-
-      // Lock all new leads to this user
-      let newLeads: Lead[] = [];
-      if (filtered.length > 0) {
-        const leadIds = filtered.map(l => l.id);
-        const { error: lockErr } = await supabase
-          .from('hub_project_leads')
-          .update({
-            locked_by: userId,
-            status: 'calling',
-            last_caller_id: userId,
-          })
-          .in('id', leadIds);
-
-        if (!lockErr) {
-          newLeads = filtered.map(l => ({ ...l, locked_by: userId, status: 'calling', last_caller_id: userId }));
-        }
       }
 
       // Callbacks appear first, then new leads
@@ -331,8 +314,9 @@ export default function SmartGridLeadsPage() {
       if (formState.outcome === 'skip') {
         newStatus = 'calling';
       } else if (formState.outcome === 'callback') {
-        // Callback: complete if email, pending if not
-        newStatus = hasEmail ? 'complete' : 'callback_pending';
+        // Callback stays with this caller even when the email was captured
+        // (the next call is for the meeting or the utility bill).
+        newStatus = 'callback_pending';
       } else if (formState.outcome === 'not_interested') {
         // Not interested = complete (no email coming)
         newStatus = 'complete';
@@ -432,8 +416,8 @@ export default function SmartGridLeadsPage() {
 
       if (error) throw error;
 
-      // Write activity log
-      await supabase.from('hub_project_activity').insert({
+      // Activity log is what the admin stats count, so a failed write must not be silent
+      const activityRow = {
         project_id: projectId,
         user_id: hubUser.id,
         entity_type: 'lead',
@@ -442,12 +426,20 @@ export default function SmartGridLeadsPage() {
         meta: {
           lead_id: currentLead.id,
           outcome: formState.outcome,
+          new_status: newStatus,
           email_found: formState.emailFound,
           phone_found: formState.phoneFound,
           notes: formState.callNotes,
           follow_up_email_sent: formState.followUpEmailSent,
+          callback_date: formState.callbackDate || null,
         },
-      });
+      };
+      let { error: logErr } = await supabase.from('hub_project_activity').insert(activityRow);
+      if (logErr) ({ error: logErr } = await supabase.from('hub_project_activity').insert(activityRow));
+      if (logErr) {
+        console.error('Activity log error:', logErr);
+        alert('Call saved, but it was not logged for tracking. Please tell your admin.');
+      }
 
       if (newStatus === 'complete') {
         setCompletedCount(c => c + 1);
@@ -472,7 +464,7 @@ export default function SmartGridLeadsPage() {
       } else {
         // Queue empty, clear saved batch and reload
         try {
-          localStorage.removeItem('smartgrid_batch');
+          localStorage.removeItem(`smartgrid_batch_${hubUser.id}`);
         } catch (e) {
           console.error('Failed to clear batch from localStorage:', e);
         }
@@ -861,9 +853,9 @@ export default function SmartGridLeadsPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving || !formState.outcome || (formState.outcome === 'interested' && !currentLead.email && !formState.emailValue)}
+                  disabled={saving || !formState.outcome || (formState.outcome === 'interested' && !currentLead.email && !formState.emailValue) || (formState.outcome === 'callback' && !formState.callbackDate)}
                   className="flex-1 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  title={formState.outcome === 'interested' && !currentLead.email && !formState.emailValue ? 'Email required for Interested outcome' : ''}
+                  title={formState.outcome === 'interested' && !currentLead.email && !formState.emailValue ? 'Email required for Interested outcome' : formState.outcome === 'callback' && !formState.callbackDate ? 'Pick a callback date' : ''}
                 >
                   {saving ? (
                     <>
