@@ -38,7 +38,6 @@ interface ActivityLog {
 }
 
 interface FormState {
-  called: boolean;
   emailFound: boolean;
   phoneFound: boolean;
   emailValue?: string;
@@ -69,7 +68,6 @@ export default function SmartGridLeadsPage() {
   const [queue, setQueue] = useState<Lead[]>([]);
   const [currentLeadIndex, setCurrentLeadIndex] = useState(0);
   const [formState, setFormState] = useState<FormState>({
-    called: false,
     emailFound: false,
     phoneFound: false,
     outcome: '',
@@ -260,8 +258,7 @@ export default function SmartGridLeadsPage() {
 
   const resetForm = () => {
     setFormState({
-      called: false,
-      emailFound: false,
+        emailFound: false,
       phoneFound: false,
       outcome: '',
       callNotes: '',
@@ -336,12 +333,12 @@ export default function SmartGridLeadsPage() {
           // This caller has hit 3 attempts, check if all callers have
           const { data: allCallers } = await supabase
             .from('hub_project_contractors')
-            .select('user_id')
+            .select('contractor_id')
             .eq('project_id', projectId)
             .eq('project_role', 'Cold Caller');
 
           const allHitLimit = (allCallers || []).every(c => {
-            const attemptsForCaller = newCallerAttempts[c.user_id as string] || 0;
+            const attemptsForCaller = newCallerAttempts[c.contractor_id as string] || 0;
             return attemptsForCaller >= 3;
           });
 
@@ -353,8 +350,8 @@ export default function SmartGridLeadsPage() {
 
       const updates: any = {
         status: newStatus,
-        email_found: formState.emailFound,
-        phone_found: formState.phoneFound,
+        email_found: formState.emailFound || !!currentLead.email_found,
+        phone_found: formState.phoneFound || !!currentLead.phone_found,
         call_notes: formState.callNotes,
         last_contact_at: new Date().toISOString(),
         last_worked_at: new Date().toISOString(),
@@ -383,7 +380,7 @@ export default function SmartGridLeadsPage() {
 
       // Update email/phone if found
       if (formState.emailFound && formState.emailValue) {
-        updates.email = formState.emailValue;
+        updates.email = formState.emailValue.trim();
       }
       if (formState.phoneFound && formState.phoneValue) {
         updates.phone = formState.phoneValue;
@@ -618,7 +615,9 @@ export default function SmartGridLeadsPage() {
                   <i className="ri-phone-line text-amber-600 text-lg"></i>
                   <div className="text-sm text-amber-900">
                     <p className="font-semibold">Scheduled Callback</p>
-                    <p className="text-xs text-amber-800">You said you'd call them back</p>
+                    <p className="text-xs text-amber-800">
+                      You said you'd call them back · {currentLead.callback_date}{currentLead.callback_time ? ` at ${currentLead.callback_time.slice(0, 5)}` : ''}
+                    </p>
                     {currentLead.next_call_goal && (
                       <p className="text-xs font-medium text-amber-700 mt-1">
                         🎯 Goal: {currentLead.next_call_goal === 'email' ? 'Get Email' : currentLead.next_call_goal === 'meeting' ? 'Schedule Meeting' : 'Get Electric Bill'}
@@ -683,15 +682,6 @@ export default function SmartGridLeadsPage() {
               <div className="space-y-4">
                 {/* Checkboxes */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={formState.called}
-                      onChange={e => setFormState(s => ({ ...s, called: e.target.checked }))}
-                      className="w-4 h-4 rounded border-gray-300 text-sky-500 focus:ring-0 cursor-pointer"
-                    />
-                    <span className="text-sm text-gray-700 group-hover:text-gray-800">Called</span>
-                  </label>
                   {!currentLead.email && (
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <input
@@ -801,7 +791,6 @@ export default function SmartGridLeadsPage() {
                     <option value="callback">Callback</option>
                     <option value="voicemail">Voicemail</option>
                     <option value="no_answer">No Answer</option>
-                    <option value="skip">Skip (save for later)</option>
                   </select>
                 </div>
 
@@ -812,6 +801,7 @@ export default function SmartGridLeadsPage() {
                       <label className="block text-xs font-medium text-gray-600 mb-1.5">Callback Date</label>
                       <input
                         type="date"
+                        min={currentShiftDay()}
                         value={formState.callbackDate || ''}
                         onChange={e => setFormState(s => ({ ...s, callbackDate: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
@@ -853,9 +843,9 @@ export default function SmartGridLeadsPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving || !formState.outcome || (formState.outcome === 'interested' && !currentLead.email && !formState.emailValue) || (formState.outcome === 'callback' && !formState.callbackDate)}
+                  disabled={saving || !formState.outcome || (formState.outcome === 'interested' && !currentLead.email && !formState.emailValue) || (formState.outcome === 'callback' && !formState.callbackDate) || (formState.emailFound && !formState.emailValue?.trim())}
                   className="flex-1 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  title={formState.outcome === 'interested' && !currentLead.email && !formState.emailValue ? 'Email required for Interested outcome' : formState.outcome === 'callback' && !formState.callbackDate ? 'Pick a callback date' : ''}
+                  title={formState.outcome === 'interested' && !currentLead.email && !formState.emailValue ? 'Email required for Interested outcome' : formState.outcome === 'callback' && !formState.callbackDate ? 'Pick a callback date' : formState.emailFound && !formState.emailValue?.trim() ? 'Enter the email you found' : ''}
                 >
                   {saving ? (
                     <>

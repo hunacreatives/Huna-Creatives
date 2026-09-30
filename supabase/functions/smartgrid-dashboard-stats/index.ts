@@ -57,35 +57,54 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
 
     const projectId = projects[0].id;
 
-    // Get all leads
-    const { data: leads, error: leadsErr } = await supabase
-      .from("hub_project_leads")
-      .select("status")
-      .eq("project_id", projectId);
+    const countStatus = async (status?: string) => {
+      let q = supabase
+        .from("hub_project_leads")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", projectId);
+      if (status) q = q.eq("status", status);
+      const { count, error } = await q;
+      if (error) throw error;
+      return count || 0;
+    };
+    const [total, complete, calling, attempted] = await Promise.all([
+      countStatus(),
+      countStatus("complete"),
+      countStatus("calling"),
+      countStatus("attempted"),
+    ]);
 
-    if (leadsErr) throw leadsErr;
+    // One row per saved call, paged past the 1,000-row API cap
+    const activities: any[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("hub_project_activity")
+        .select("id, entity_id, user_id, hub_users(full_name), meta, created_at")
+        .eq("project_id", projectId)
+        .eq("action", "lead_outcome_logged")
+        .order("id", { ascending: true })
+        .range(from, from + 999);
+      if (error) throw error;
+      activities.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
 
-    const total = leads?.length || 0;
-    const complete = leads?.filter(l => l.status === "complete").length || 0;
-    const calling = leads?.filter(l => l.status === "calling").length || 0;
-    const attempted = leads?.filter(l => l.status === "attempted").length || 0;
-
-    // Get activities for per-caller stats
-    const { data: activities, error: activitiesErr } = await supabase
-      .from("hub_project_activity")
-      .select("user_id, hub_users(full_name), meta, created_at")
-      .eq("project_id", projectId)
-      .eq("entity_type", "lead");
-
-    if (activitiesErr) throw activitiesErr;
-
-    // Calculate stats for each period
-    const now = new Date();
-    const periods: Record<string, Date> = {
-      daily: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-      weekly: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-      monthly: new Date(now.getFullYear(), now.getMonth(), 1),
-      lifetime: new Date(0),
+    // Same rules as the hub Lead Tracker: the night shift counts toward the
+    // Manila date it started on (noon cutoff).
+    const shiftDayOf = (ts: string | number) =>
+      new Date(new Date(ts).getTime() - 12 * 60 * 60 * 1000)
+        .toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+    const addDays = (day: string, n: number) => {
+      const d = new Date(`${day}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+    const today = shiftDayOf(Date.now());
+    const periods: Record<string, (day: string) => boolean> = {
+      daily: (day) => day === today,
+      weekly: (day) => day > addDays(today, -7) && day <= today,
+      monthly: (day) => day.slice(0, 7) === today.slice(0, 7),
+      lifetime: () => true,
     };
 
     const allCallerStats: Record<string, CallerStat[]> = {};
@@ -98,13 +117,13 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
       skip: 0,
     };
 
-    Object.entries(periods).forEach(([period, startDate]) => {
+    Object.entries(periods).forEach(([period, matches]) => {
       const callerMap = new Map<string, {
         name: string;
-        calls: Set<string>;
-        successful: number;
-        emailFound: number;
-        phoneFound: number;
+        calls: number;
+        successful: Set<string>;
+        emailFound: Set<string>;
+        phoneFound: Set<string>;
         interested: number;
         callback: number;
         notInterested: number;
@@ -112,21 +131,23 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
         noAnswer: number;
       }>();
 
-      (activities || []).forEach((activity: any) => {
-        const actDate = new Date(activity.created_at);
-        if (actDate < startDate) return;
+      activities.forEach((activity: any) => {
+        if (!activity.user_id || !matches(shiftDayOf(activity.created_at))) return;
+        if (activity.meta?.outcome === "skip") {
+          if (period === "daily") outcomeBreakdown.skip++;
+          return;
+        }
 
-        if (!activity.user_id) return;
         const callerId = activity.user_id;
         const callerName = activity.hub_users?.full_name || "Unknown";
 
         if (!callerMap.has(callerId)) {
           callerMap.set(callerId, {
             name: callerName,
-            calls: new Set(),
-            successful: 0,
-            emailFound: 0,
-            phoneFound: 0,
+            calls: 0,
+            successful: new Set(),
+            emailFound: new Set(),
+            phoneFound: new Set(),
             interested: 0,
             callback: 0,
             notInterested: 0,
@@ -136,7 +157,8 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
         }
 
         const caller = callerMap.get(callerId)!;
-        caller.calls.add(activity.meta?.lead_id || "");
+        const leadId = String(activity.entity_id);
+        caller.calls++;
 
         const outcome = activity.meta?.outcome;
         if (outcome === "interested") {
@@ -154,28 +176,25 @@ export async function getSmartGridStats(): Promise<StatsPayload> {
         } else if (outcome === "no_answer") {
           caller.noAnswer++;
           if (period === "daily") outcomeBreakdown.noAnswer++;
-        } else if (outcome === "skip") {
-          if (period === "daily") outcomeBreakdown.skip++;
         }
 
-        if (outcome === "interested" || outcome === "callback") {
-          caller.successful++;
-        }
+        // Successful = an email was captured on the call
         if (activity.meta?.email_found) {
-          caller.emailFound++;
+          caller.successful.add(leadId);
+          caller.emailFound.add(leadId);
         }
         if (activity.meta?.phone_found) {
-          caller.phoneFound++;
+          caller.phoneFound.add(leadId);
         }
       });
 
       allCallerStats[period] = Array.from(callerMap.entries()).map(([callerId, data]) => ({
         callerId,
         callerName: data.name,
-        callsToday: data.calls.size,
-        successfulToday: data.successful,
-        emailFoundToday: data.emailFound,
-        phoneFoundToday: data.phoneFound,
+        callsToday: data.calls,
+        successfulToday: data.successful.size,
+        emailFoundToday: data.emailFound.size,
+        phoneFoundToday: data.phoneFound.size,
         interestedToday: data.interested,
         callbackToday: data.callback,
         notInterestedToday: data.notInterested,

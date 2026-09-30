@@ -85,6 +85,9 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [selectedDate, setSelectedDate] = useState<string>(() => shiftDayOf(Date.now()));
   const selectedDateRef = useRef(selectedDate);
   selectedDateRef.current = selectedDate;
+  // Follow the current shift day until the admin picks a date themselves
+  const datePickedRef = useRef(false);
+  const [bucketCounts, setBucketCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchLeads(0, '');
@@ -97,6 +100,11 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   useEffect(() => {
     if (!isAdmin) return;
     const interval = setInterval(() => {
+      const today = shiftDayOf(Date.now());
+      if (!datePickedRef.current && selectedDateRef.current !== today) {
+        setSelectedDate(today);
+        return;
+      }
       calculateStats(leads, totalLeads, selectedDateRef.current);
     }, 60000);
     return () => clearInterval(interval);
@@ -209,7 +217,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
           supabase.from('hub_users').select('id, full_name'),
           supabase
             .from('hub_project_contractors')
-            .select('user_id')
+            .select('contractor_id')
             .eq('project_id', projectId)
             .eq('project_role', 'Cold Caller'),
         ]);
@@ -224,21 +232,21 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
         };
 
         for (const [period, matches] of Object.entries(inPeriod)) {
-          const callerMap = new Map<string, { calls: Set<string>; successful: Set<string>; callbacks: Set<string>; bills: Set<string> }>();
+          const callerMap = new Map<string, { calls: number; successful: Set<string>; callbacks: Set<string>; bills: Set<string> }>();
           const forCaller = (id: string) => {
             if (!callerMap.has(id)) {
-              callerMap.set(id, { calls: new Set(), successful: new Set(), callbacks: new Set(), bills: new Set() });
+              callerMap.set(id, { calls: 0, successful: new Set(), callbacks: new Set(), bills: new Set() });
             }
             return callerMap.get(id)!;
           };
           // Show every cold caller, even before their first call of the shift
-          for (const c of callers || []) if (c.user_id) forCaller(c.user_id);
+          for (const c of callers || []) if (c.contractor_id) forCaller(c.contractor_id);
 
           for (const a of activity) {
-            if (!a.user_id || !matches(shiftDayOf(a.created_at))) continue;
+            if (!a.user_id || a.meta?.outcome === 'skip' || !matches(shiftDayOf(a.created_at))) continue;
             const caller = forCaller(a.user_id);
             const leadId = String(a.entity_id);
-            caller.calls.add(leadId);
+            caller.calls++;
             if (a.meta?.email_found) caller.successful.add(leadId);
             if (a.meta?.outcome === 'callback') caller.callbacks.add(leadId);
           }
@@ -253,7 +261,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             .map(([callerId, c]) => ({
               callerId,
               callerName: userMap.get(callerId) || 'Unknown',
-              callsToday: c.calls.size,
+              callsToday: c.calls,
               successfulToday: c.successful.size,
               callbacksToday: c.callbacks.size,
               billReceivedToday: c.bills.size,
@@ -262,6 +270,16 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
         }
 
         setAllTimePeriodStats(allStats);
+
+        const counts = await Promise.all((callers || []).filter(c => c.contractor_id).map(async c => {
+          const { count } = await supabase
+            .from('hub_project_leads')
+            .select('id', { count: 'exact', head: true })
+            .eq('project_id', projectId)
+            .or(`assigned_to.eq.${c.contractor_id},locked_by.eq.${c.contractor_id}`);
+          return [c.contractor_id as string, count || 0] as const;
+        }));
+        setBucketCounts(Object.fromEntries(counts));
       } catch (err) {
         console.error('Error fetching stats:', err);
       }
@@ -416,7 +434,10 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => {
+                datePickedRef.current = true;
+                setSelectedDate(e.target.value);
+              }}
               className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
             />
           </div>
@@ -491,10 +512,10 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            All Callers ({leads.length})
+            All Callers
           </button>
           {contractors.map(c => {
-            const count = leads.filter(l => l.assigned_to === c.id || l.locked_by === c.id).length;
+            const count = bucketCounts[c.id] ?? 0;
             return (
               <button
                 key={c.id}

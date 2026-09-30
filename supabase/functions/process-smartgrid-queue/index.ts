@@ -45,7 +45,7 @@ export async function processSmartGridQueue() {
       .from("hub_project_contractors")
       .select("hub_users(id, full_name)")
       .eq("project_id", projectId)
-      .limit(10);
+      .eq("project_role", "Cold Caller");
 
     if (contractorErr) throw contractorErr;
 
