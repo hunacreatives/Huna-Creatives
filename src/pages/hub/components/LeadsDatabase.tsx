@@ -208,7 +208,15 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
             leads.forEach((lead: any) => {
               const updatedAt = new Date(lead.updated_at);
-              if (updatedAt < startDate) return;
+
+              // For daily period, match exact date only
+              if (period === 'daily') {
+                const leadDate = updatedAt.toISOString().split('T')[0];
+                const filterDate = startDate.toISOString().split('T')[0];
+                if (leadDate !== filterDate) return;
+              } else if (updatedAt < startDate) {
+                return;
+              }
 
               if (!lead.last_caller_id) return;
               const callerId = lead.last_caller_id;
