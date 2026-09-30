@@ -6,7 +6,6 @@ const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN');
 const CHANNEL_ID = 'C0830PCGQK1';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const MAX_HOURS_FIXED = 8; // billable cap for fixed-rate contractors
 
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
@@ -132,7 +131,7 @@ Deno.serve(async (req) => {
     // Get all active contractors
     const { data: contractors } = await supabase
       .from('hub_users')
-      .select('id, full_name, avatar_url, department, email, status, slack_id, slack_username, payment_type, shift_start')
+      .select('id, full_name, avatar_url, department, email, status, slack_id, slack_username, payment_type, shift_start, daily_hours_cap')
       .eq('status', 'active');
 
     const slackIdMap: Record<string, any> = {};
@@ -238,10 +237,10 @@ Deno.serve(async (req) => {
           hoursCapped = threadHours;
         } else if (shift.off && shift.off.ts > shift.on.ts) {
           hoursRaw = (shift.off.ts - shift.on.ts) / 3600;
-          hoursCapped = Math.min(hoursRaw, MAX_HOURS_FIXED);
+          hoursCapped = Math.min(hoursRaw, hubUser?.daily_hours_cap ?? 8);
         } else if (!isHourly && threadHours != null) {
           hoursRaw = threadHours;
-          hoursCapped = Math.min(threadHours, MAX_HOURS_FIXED);
+          hoursCapped = Math.min(threadHours, hubUser?.daily_hours_cap ?? 8);
         }
 
         if (!dateAgg[date]) {
@@ -256,8 +255,9 @@ Deno.serve(async (req) => {
 
       // Fixed-rate billable cap applies per day, not per shift.
       if (!isHourly) {
+        const dailyCap = hubUser?.daily_hours_cap ?? 8;
         for (const agg of Object.values(dateAgg)) {
-          agg.hoursCapped = Math.min(agg.hoursCapped, MAX_HOURS_FIXED);
+          agg.hoursCapped = Math.min(agg.hoursCapped, dailyCap);
         }
       }
 

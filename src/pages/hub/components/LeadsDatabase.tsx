@@ -139,14 +139,14 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     const calling = (counts || []).filter(l => l.status === 'calling').length;
     const attempted = (counts || []).filter(l => l.status === 'attempted').length;
 
-    let allStats: Record<string, { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[]> = {};
+    let allStats: Record<string, { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; billReceivedToday: number }[]> = {};
 
     if (isAdmin) {
       try {
         // Fetch all leads with caller info
         const { data: leads, error: leadsErr } = await supabase
           .from('hub_project_leads')
-          .select('id, last_caller_id, status, email_found, phone_found, created_at, updated_at, hub_users!last_caller_id(full_name)')
+          .select('id, last_caller_id, status, email_found, bill_received, created_at, updated_at, hub_users!last_caller_id(full_name)')
           .eq('project_id', projectId)
           .limit(10000);
 
@@ -167,7 +167,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
           };
 
           Object.entries(periods).forEach(([period, startDate]) => {
-            const callerMap = new Map<string, { name: string; calls: Set<string>; successful: number; emailFound: number; phoneFound: number }>();
+            const callerMap = new Map<string, { name: string; calls: Set<string>; successful: number; emailFound: number; billReceived: number }>();
 
             leads.forEach((lead: any) => {
               const updatedAt = new Date(lead.updated_at);
@@ -178,7 +178,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
               const callerName = userMap.get(callerId) || 'Unknown';
 
               if (!callerMap.has(callerId)) {
-                callerMap.set(callerId, { name: callerName, calls: new Set(), successful: 0, emailFound: 0, phoneFound: 0 });
+                callerMap.set(callerId, { name: callerName, calls: new Set(), successful: 0, emailFound: 0, billReceived: 0 });
               }
 
               const caller = callerMap.get(callerId)!;
@@ -191,8 +191,8 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
               if (lead.email_found) {
                 caller.emailFound++;
               }
-              if (lead.phone_found) {
-                caller.phoneFound++;
+              if (lead.bill_received) {
+                caller.billReceived++;
               }
             });
 
@@ -202,7 +202,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
               callsToday: data.calls.size,
               successfulToday: data.successful,
               emailFoundToday: data.emailFound,
-              phoneFoundToday: data.phoneFound,
+              billReceivedToday: data.billReceived,
             }));
           });
         }
@@ -382,8 +382,8 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                     <span className="text-sm font-bold text-sky-600">{caller.emailFoundToday}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-gray-500">Phone found</span>
-                    <span className="text-sm font-bold text-sky-600">{caller.phoneFoundToday}</span>
+                    <span className="text-[10px] text-gray-500">Bill received</span>
+                    <span className="text-sm font-bold text-sky-600">{caller.billReceivedToday}</span>
                   </div>
                 </div>
               </div>

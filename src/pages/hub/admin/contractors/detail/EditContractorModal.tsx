@@ -51,6 +51,7 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
     show_on_about: contractor.show_on_about || false,
     about_bio: contractor.about_bio || '',
     about_sort_order: contractor.about_sort_order?.toString() || '100',
+    daily_hours_cap: (contractor as any).daily_hours_cap?.toString() || '8',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -69,6 +70,7 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
       project_percentage: form.project_percentage ? parseFloat(form.project_percentage) : null,
       annual_pto_days: form.annual_pto_days ? parseInt(form.annual_pto_days) : null,
       annual_sick_days: form.annual_sick_days ? parseInt(form.annual_sick_days) : null,
+      daily_hours_cap: form.daily_hours_cap ? parseFloat(form.daily_hours_cap) : 8,
       manager_id: form.manager_id || null,
       secondary_manager_id: form.secondary_manager_id || null,
       org_sort_order: form.org_sort_order ? parseInt(form.org_sort_order) : 100,
@@ -139,6 +141,13 @@ export default function EditContractorModal({ contractor, onClose, onSuccess }: 
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="space-y-1 col-span-2 sm:col-span-1">
+                    <label className="text-xs font-medium text-gray-700">Daily Hours Cap</label>
+                    <input type="number" step="0.1" min="0.1" value={form.daily_hours_cap} onChange={(e) => set('daily_hours_cap', e.target.value)}
+                      placeholder="e.g. 8"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]" />
+                    <p className="text-[11px] text-gray-400">Max billable hours per day (default: 8). Use 4 for part-time.</p>
                   </div>
                 </div>
                 {form.payment_type === 'project_based' ? (
