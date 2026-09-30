@@ -253,11 +253,15 @@ Deno.serve(async (req) => {
         if (shift.off) agg.lastOff = agg.lastOff !== null ? Math.max(agg.lastOff, shift.off.ts) : shift.off.ts;
       }
 
-      // Fixed-rate billable cap applies per day, not per shift.
+      // Fixed-rate billable cap applies per day, not per shift. A day within
+      // 5 minutes of the full day counts as full: clock-in/out seconds and a
+      // minute or two late shouldn't dock pay (policy set Oct 2026).
       if (!isHourly) {
-        const dailyCap = hubUser?.daily_hours_cap ?? 8;
+        const dailyCap = Number(hubUser?.daily_hours_cap ?? 8);
+        const graceHours = 5 / 60;
         for (const agg of Object.values(dateAgg)) {
           agg.hoursCapped = Math.min(agg.hoursCapped, dailyCap);
+          if (agg.hoursCapped > 0 && dailyCap - agg.hoursCapped <= graceHours) agg.hoursCapped = dailyCap;
         }
       }
 
