@@ -70,13 +70,31 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   }, [projectId, isAdmin]);
 
-  // Auto-refresh stats every minute to catch day boundary and new lead updates
+  // Auto-refresh stats at midnight every day (start of night shift for Kirk & Venice)
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchLeads(currentPage, searchTerm, statusFilter, assignedFilter);
-    }, 60000); // 60 seconds
-    return () => clearInterval(interval);
-  }, [projectId, isAdmin, currentPage, searchTerm, statusFilter, assignedFilter]);
+    const scheduleNextRefresh = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(0, 0, 0, 0);
+
+      // If it's already past midnight today, schedule for tomorrow
+      if (now >= nextMidnight) {
+        nextMidnight.setDate(nextMidnight.getDate() + 1);
+      }
+
+      const timeUntilRefresh = nextMidnight.getTime() - now.getTime();
+
+      const timeout = setTimeout(() => {
+        fetchLeads(0, '', statusFilter, assignedFilter);
+        scheduleNextRefresh(); // Reschedule for next day
+      }, timeUntilRefresh);
+
+      return timeout;
+    };
+
+    const timeoutId = scheduleNextRefresh();
+    return () => clearTimeout(timeoutId);
+  }, [projectId, isAdmin, statusFilter, assignedFilter]);
 
   // Update stats when time period changes
   useEffect(() => {
