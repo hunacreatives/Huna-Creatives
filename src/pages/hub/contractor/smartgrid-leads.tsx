@@ -80,6 +80,8 @@ export default function SmartGridLeadsPage() {
   const [callHistory, setCallHistory] = useState<ActivityLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  const currentLead = queue[currentLeadIndex];
+
   const copyPhoneToClipboard = () => {
     if (currentLead?.phone) {
       navigator.clipboard.writeText(currentLead.phone);
@@ -294,8 +296,6 @@ export default function SmartGridLeadsPage() {
       setHistoryLoading(false);
     }
   };
-
-  const currentLead = queue[currentLeadIndex];
 
   const handleSave = async () => {
     if (!currentLead || !hubUser?.id || !projectId) return;
