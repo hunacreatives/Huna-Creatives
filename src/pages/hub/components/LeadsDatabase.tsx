@@ -70,6 +70,14 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   }, [projectId, isAdmin]);
 
+  // Auto-refresh stats every minute to catch day boundary and new lead updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchLeads(currentPage, searchTerm, statusFilter, assignedFilter);
+    }, 60000); // 60 seconds
+    return () => clearInterval(interval);
+  }, [projectId, isAdmin, currentPage, searchTerm, statusFilter, assignedFilter]);
+
   // Update stats when time period changes
   useEffect(() => {
     if (allTimePeriodStats) {
