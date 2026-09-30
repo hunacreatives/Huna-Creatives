@@ -81,7 +81,7 @@ export default function CommissionsReport({ projectId }: Props) {
   };
 
   const handleMarkAllPaid = async () => {
-    if (!confirm(`Mark all ${monthLabel(selectedMonth)} commissions as paid?`)) return;
+    if (!confirm(`Mark all ${monthLabel(selectedMonth)} incentives as paid by SmartGrid? Chris will see them as paid on his dashboard.`)) return;
 
     setMarking(true);
     try {
@@ -121,16 +121,16 @@ export default function CommissionsReport({ projectId }: Props) {
         >
           <div className="flex items-center gap-4">
             <div>
-              <p className="text-xs font-medium text-gray-600">{monthLabel(selectedMonth)}</p>
+              <p className="text-xs font-medium text-gray-600">SmartGrid incentives · {monthLabel(selectedMonth)}</p>
               <p className="text-2xl font-bold text-gray-800">${totalEarned.toFixed(2)}</p>
             </div>
             <div className="flex gap-6 text-sm">
               <div>
-                <p className="text-xs text-emerald-600">Paid</p>
+                <p className="text-xs text-emerald-600">Paid by SmartGrid</p>
                 <p className="font-bold text-emerald-700">${totalPaid.toFixed(2)}</p>
               </div>
               <div>
-                <p className="text-xs text-amber-600">Pending</p>
+                <p className="text-xs text-amber-600">Owed to Huna</p>
                 <p className="font-bold text-amber-700">${totalPending.toFixed(2)}</p>
               </div>
             </div>
@@ -165,7 +165,7 @@ export default function CommissionsReport({ projectId }: Props) {
                     disabled={marking}
                     className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
                   >
-                    {marking ? 'Marking...' : `Mark All Paid (${pendingCount})`}
+                    {marking ? 'Marking...' : `Mark paid by SmartGrid (${pendingCount})`}
                   </button>
                 )}
                 <button
@@ -236,7 +236,7 @@ export default function CommissionsReport({ projectId }: Props) {
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
                               <i className="ri-time-line"></i>
-                              Pending
+                              Owed
                             </span>
                           )}
                         </td>
@@ -245,7 +245,7 @@ export default function CommissionsReport({ projectId }: Props) {
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-50 border-t border-gray-100 font-semibold">
-                      <td className="px-4 py-3 text-gray-800">{commissions.length} commissions</td>
+                      <td className="px-4 py-3 text-gray-800">{commissions.length} incentives</td>
                       <td colSpan={4} className="text-right text-gray-600"></td>
                       <td className="text-right px-4 py-3 text-gray-800">${totalEarned.toFixed(2)}</td>
                     </tr>

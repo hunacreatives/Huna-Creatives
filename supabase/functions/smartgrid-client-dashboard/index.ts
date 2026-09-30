@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     if (projErr || !projects?.length) throw new Error("SmartGrid Western project not found");
     const projectId = projects[0].id;
 
-    const [leads, activity, callerRes] = await Promise.all([
+    const [leads, activity, callerRes, incentives] = await Promise.all([
       fetchAll((from, to) =>
         supabase.from("hub_project_leads")
           .select("id, account_name, primary_contact, phone, email, status, attempts_count, callback_date, callback_time, next_call_goal, meeting_scheduled, meeting_scheduled_at, bill_received, bill_received_at, last_worked_at, last_caller_id, call_notes")
@@ -80,6 +80,11 @@ Deno.serve(async (req) => {
           .eq("project_id", projectId).eq("action", "lead_outcome_logged").order("id").range(from, to)),
       supabase.from("hub_project_contractors")
         .select("hub_users(id, full_name)").eq("project_id", projectId).eq("project_role", "Cold Caller"),
+      // What SmartGrid owes Huna per result. Caller pay is separate and never sent here.
+      fetchAll((from, to) =>
+        supabase.from("hub_project_commissions")
+          .select("id, lead_id, milestone, amount, created_at, paid, paid_at")
+          .eq("project_id", projectId).order("id").range(from, to)),
     ]);
     if (callerRes.error) throw callerRes.error;
 
@@ -90,8 +95,19 @@ Deno.serve(async (req) => {
     const hasResult = (l: any) =>
       !!l.email || l.meeting_scheduled || l.bill_received || l.status === "callback_pending";
 
+    const accountById = new Map(leads.map((l) => [l.id, l.account_name]));
+
     return json({
       generatedAt: new Date().toISOString(),
+      incentives: incentives.map((c) => ({
+        id: c.id,
+        account: accountById.get(c.lead_id) || "(removed)",
+        milestone: c.milestone,
+        amount: Number(c.amount),
+        at: c.created_at,
+        paid: !!c.paid,
+        paidAt: c.paid_at,
+      })),
       callers,
       calls: activity
         .filter((a) => a.user_id && a.meta?.outcome && a.meta.outcome !== "skip")

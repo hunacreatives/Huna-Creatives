@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { currentShiftDay, formatShiftDay, latestShiftDay, periodRange, stepPeriod, type TrackerPeriod } from '@/lib/smartgridShift';
 import {
-  GOAL_TEXT, OUTCOME_TEXT, formatPacific, funnelFor, listProgress, trend, winsFor,
+  GOAL_TEXT, INCENTIVE_RATES, OUTCOME_TEXT, formatPacific, funnelFor, incentiveMonth, incentiveSummary, listProgress, money, trend, winsFor,
   type ClientPayload, type Funnel,
 } from './smartgridDashboard/clientData';
 
@@ -111,7 +111,7 @@ export default function SmartGridDashboard() {
   const [busy, setBusy] = useState(false);
   const [period, setPeriod] = useState<TrackerPeriod>('week');
   const [day, setDay] = useState(latestShiftDay);
-  const [tab, setTab] = useState<'wins' | 'callbacks' | 'emails' | 'contacts'>('wins');
+  const [tab, setTab] = useState<'wins' | 'callbacks' | 'emails' | 'contacts' | 'incentives'>('wins');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
 
@@ -166,6 +166,39 @@ export default function SmartGridDashboard() {
       .map(l => ({ lead: l, captured: captured.get(l.id) || null }))
       .sort((a, b) => (b.captured?.at || '').localeCompare(a.captured?.at || '') || a.lead.account.localeCompare(b.lead.account));
   }, [data]);
+
+  const [incMonth, setIncMonth] = useState(() => latestShiftDay().slice(0, 7));
+  const incentiveMonths = useMemo(() => {
+    const set = new Set((data?.incentives || []).map(incentiveMonth));
+    set.add(latestShiftDay().slice(0, 7));
+    return [...set].sort().reverse();
+  }, [data]);
+  const monthItems = useMemo(
+    () => (data?.incentives || []).filter(i => incentiveMonth(i) === incMonth).sort((a, b) => b.at.localeCompare(a.at)),
+    [data, incMonth],
+  );
+  const monthSummary = useMemo(() => incentiveSummary(monthItems), [monthItems]);
+  const allTime = useMemo(() => incentiveSummary(data?.incentives || []), [data]);
+  const monthName = (m: string) => new Date(`${m}-15T00:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' });
+
+  const downloadIncentives = () => {
+    const cell = (v: string | number | null | undefined) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Date (Pacific)', 'Business', 'For', 'Amount (USD)', 'Status'],
+      ...monthItems.map(i => [formatPacific(i.at), i.account, INCENTIVE_RATES[i.milestone].label, i.amount.toFixed(2), i.paid ? `Paid ${i.paidAt ? formatPacific(i.paidAt) : ''}` : 'Owed']),
+      [],
+      ['', '', 'Total', monthSummary.total.toFixed(2), ''],
+      ['', '', 'Paid', monthSummary.paid.toFixed(2), ''],
+      ['', '', 'Owed', monthSummary.owed.toFixed(2), ''],
+    ];
+    const blob = new Blob([rows.map(r => r.map(cell).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smartgrid-incentives-${incMonth}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const downloadEmails = () => {
     const cell = (v: string | null | undefined) => `"${(v ?? '').replace(/"/g, '""')}"`;
@@ -300,6 +333,7 @@ export default function SmartGridDashboard() {
               ['callbacks', `Scheduled callbacks (${callbacks.length})`],
               ['emails', `Emails (${emailContacts.length})`],
               ['contacts', `All contacts (${data.leads.length.toLocaleString()})`],
+              ['incentives', `Incentives`],
             ] as const).map(([value, label]) => (
               <button key={value} onClick={() => setTab(value)}
                 className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${tab === value ? 'border-sky-600 text-sky-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
@@ -387,6 +421,106 @@ export default function SmartGridDashboard() {
                 </div>
               </div>
             )
+          )}
+
+          {tab === 'incentives' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <p className="text-xs text-gray-500">Balance owed to Huna (all months)</p>
+                  <p className="text-2xl font-bold text-amber-700 mt-1">{money(allTime.owed)}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <p className="text-xs text-gray-500">Paid to date</p>
+                  <p className="text-2xl font-bold text-emerald-700 mt-1">{money(allTime.paid)}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <p className="text-xs text-gray-500">Rates</p>
+                  <p className="text-sm text-gray-700 mt-1">
+                    {Object.values(INCENTIVE_RATES).map(r => `${money(r.rate)} per ${r.label.toLowerCase()}`).join(' · ')}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <select value={incMonth} onChange={e => setIncMonth(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white">
+                  {incentiveMonths.map(m => <option key={m} value={m}>{monthName(m)}</option>)}
+                </select>
+                {monthItems.length > 0 && (
+                  <button onClick={downloadIncentives} className="px-3 py-1.5 text-sm font-medium rounded-lg bg-sky-600 hover:bg-sky-700 text-white">
+                    Download CSV
+                  </button>
+                )}
+              </div>
+
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-600 text-xs">
+                      <th className="text-left px-4 py-2 font-semibold">{monthName(incMonth)}</th>
+                      <th className="text-right px-3 py-2 font-semibold">Count</th>
+                      <th className="text-right px-3 py-2 font-semibold">Rate</th>
+                      <th className="text-right px-4 py-2 font-semibold">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthSummary.byType.map(t => (
+                      <tr key={t.milestone} className="border-t border-gray-50">
+                        <td className="px-4 py-2 text-gray-800">{INCENTIVE_RATES[t.milestone].label}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{t.count}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-500">{money(INCENTIVE_RATES[t.milestone].rate)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{money(t.total)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-gray-200 font-semibold">
+                      <td className="px-4 py-2" colSpan={3}>Total for {monthName(incMonth)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{money(monthSummary.total)}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-1.5 text-emerald-700" colSpan={3}>Paid</td>
+                      <td className="px-4 py-1.5 text-right tabular-nums text-emerald-700">{money(monthSummary.paid)}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 pt-1.5 pb-3 text-amber-700 font-semibold" colSpan={3}>Owed</td>
+                      <td className="px-4 pt-1.5 pb-3 text-right tabular-nums text-amber-700 font-semibold">{money(monthSummary.owed)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {monthItems.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">No incentives earned in {monthName(incMonth)} yet.</p>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-600 text-xs">
+                        <th className="text-left px-4 py-2 font-semibold">Date (Pacific)</th>
+                        <th className="text-left px-3 py-2 font-semibold">Business</th>
+                        <th className="text-left px-3 py-2 font-semibold">For</th>
+                        <th className="text-right px-3 py-2 font-semibold">Amount</th>
+                        <th className="text-left px-4 py-2 font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthItems.map(i => (
+                        <tr key={i.id} className="border-t border-gray-50">
+                          <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{formatPacific(i.at)}</td>
+                          <td className="px-3 py-2 font-medium text-gray-900">{i.account}</td>
+                          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{INCENTIVE_RATES[i.milestone].label}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{money(i.amount)}</td>
+                          <td className="px-4 py-2 whitespace-nowrap">
+                            {i.paid
+                              ? <span className="text-emerald-700">Paid{i.paidAt ? ` ${new Date(i.paidAt).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric' })}` : ''}</span>
+                              : <span className="text-amber-700 font-medium">Owed</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
 
           {tab === 'contacts' && (

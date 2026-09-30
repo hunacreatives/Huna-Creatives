@@ -30,8 +30,40 @@ export interface ClientLead {
   notes: string | null;
 }
 
+export interface ClientIncentive {
+  id: number;
+  account: string;
+  milestone: 'email' | 'meeting' | 'bill';
+  amount: number;
+  at: string;
+  paid: boolean;
+  paidAt: string | null;
+}
+
+export const INCENTIVE_RATES: Record<ClientIncentive['milestone'], { label: string; rate: number }> = {
+  email: { label: 'Email captured', rate: 5 },
+  meeting: { label: 'Meeting booked', rate: 10 },
+  bill: { label: 'Utility bill received', rate: 25 },
+};
+
+export const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
+// Months follow the calling-session day, same as every other number on the dashboard
+export const incentiveMonth = (i: ClientIncentive) => shiftDayOf(i.at).slice(0, 7);
+
+export function incentiveSummary(items: ClientIncentive[]) {
+  const byType = (Object.keys(INCENTIVE_RATES) as ClientIncentive['milestone'][]).map(m => {
+    const list = items.filter(i => i.milestone === m);
+    return { milestone: m, count: list.length, total: list.reduce((s, i) => s + i.amount, 0) };
+  });
+  const total = items.reduce((s, i) => s + i.amount, 0);
+  const paid = items.filter(i => i.paid).reduce((s, i) => s + i.amount, 0);
+  return { byType, total, paid, owed: total - paid };
+}
+
 export interface ClientPayload {
   generatedAt: string;
+  incentives: ClientIncentive[];
   callers: { id: string; name: string }[];
   calls: ClientCall[];
   leads: ClientLead[];
