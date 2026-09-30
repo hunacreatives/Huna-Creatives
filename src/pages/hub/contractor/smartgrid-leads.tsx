@@ -100,8 +100,47 @@ export default function SmartGridLeadsPage() {
     });
   };
 
+  const [owed, setOwed] = useState<{ id: string; account_name: string; email: string }[]>([]);
+  const [showAllOwed, setShowAllOwed] = useState(false);
+  // Emails this caller collected whose follow-up hasn't gone out yet
+  const refreshOwed = async (pId: number, userId: string) => {
+    const { data: mine } = await supabase
+      .from('hub_project_activity')
+      .select('entity_id')
+      .eq('project_id', pId)
+      .eq('user_id', userId)
+      .eq('action', 'lead_outcome_logged')
+      .eq('meta->>email_found', 'true');
+    const ids = [...new Set((mine || []).map((r: any) => String(r.entity_id)))];
+    const found: { id: string; account_name: string; email: string }[] = [];
+    for (let i = 0; i < ids.length; i += 150) {
+      const { data } = await supabase
+        .from('hub_project_leads')
+        .select('id, account_name, email')
+        .in('id', ids.slice(i, i + 150))
+        .eq('follow_up_email_sent', false)
+        .not('email', 'is', null);
+      found.push(...((data || []) as any[]).filter(l => l.email));
+    }
+    setOwed(found.sort((a, b) => a.account_name.localeCompare(b.account_name)));
+  };
+  const markFollowUpSent = async (id: string) => {
+    setOwed(prev => prev.filter(l => l.id !== id));
+    const { error } = await supabase
+      .from('hub_project_leads')
+      .update({ follow_up_email_sent: true, follow_up_email_sent_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error && projectId && hubUser?.id) {
+      alert(`Couldn't save: ${error.message}`);
+      refreshOwed(projectId, hubUser.id);
+    }
+  };
+
   useEffect(() => {
-    if (projectId && hubUser?.id) refreshTonight(projectId, hubUser.id);
+    if (projectId && hubUser?.id) {
+      refreshTonight(projectId, hubUser.id);
+      refreshOwed(projectId, hubUser.id);
+    }
   }, [projectId, hubUser?.id]);
 
   const copyPhoneToClipboard = () => {
@@ -355,7 +394,7 @@ export default function SmartGridLeadsPage() {
         last_worked_at: new Date().toISOString(),
         caller_attempts: newCallerAttempts,
         last_caller_id: hubUser.id,
-        follow_up_email_sent: formState.followUpEmailSent,
+        follow_up_email_sent: formState.followUpEmailSent || !!currentLead.follow_up_email_sent,
       };
 
       // Only increment attempts_count on actual failed attempts and completed contacts
@@ -363,7 +402,7 @@ export default function SmartGridLeadsPage() {
         updates.attempts_count = (currentLead.attempts_count || 0) + 1;
       }
 
-      if (formState.followUpEmailSent) {
+      if (formState.followUpEmailSent && !currentLead.follow_up_email_sent) {
         updates.follow_up_email_sent_at = new Date().toISOString();
       }
 
@@ -451,6 +490,7 @@ export default function SmartGridLeadsPage() {
       }
 
       refreshTonight(projectId, hubUser.id);
+      refreshOwed(projectId, hubUser.id);
 
       // Move to next lead or show completion
       if (currentLeadIndex < queue.length - 1) {
@@ -576,6 +616,33 @@ export default function SmartGridLeadsPage() {
             <span className="text-sm font-medium">Back</span>
           </button>
         </div>
+
+        {/* Follow-ups owed */}
+        {owed.length > 0 && (
+          <div className="max-w-2xl mx-auto mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <p className="text-sm font-semibold text-amber-900">
+              {owed.length} follow-up email{owed.length === 1 ? '' : 's'} to send from alex@smartgridwestern.com
+            </p>
+            <div className="mt-2 divide-y divide-amber-100">
+              {(showAllOwed ? owed : owed.slice(0, 3)).map(l => (
+                <div key={l.id} className="flex items-center gap-2 py-1.5">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800 truncate">{l.account_name}</p>
+                    <p className="text-xs text-gray-500 truncate">{l.email}</p>
+                  </div>
+                  <button onClick={() => markFollowUpSent(l.id)} className="px-2.5 py-1 text-xs font-medium rounded-md bg-white border border-amber-300 text-amber-800 hover:bg-amber-100">
+                    Mark sent
+                  </button>
+                </div>
+              ))}
+            </div>
+            {owed.length > 3 && (
+              <button onClick={() => setShowAllOwed(v => !v)} className="mt-1 text-xs font-medium text-amber-800 hover:underline">
+                {showAllOwed ? 'Show less' : `Show all ${owed.length}`}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Tonight */}
         <div className="max-w-2xl mx-auto mb-6 grid grid-cols-4 gap-2">

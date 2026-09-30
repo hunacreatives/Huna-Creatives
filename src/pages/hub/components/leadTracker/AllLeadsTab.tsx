@@ -15,6 +15,7 @@ export default function AllLeadsTab({ leads, callers, onOpenLead }: Props) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [callerId, setCallerId] = useState('all');
+  const [followUp, setFollowUp] = useState<'all' | 'not_sent' | 'sent'>('all');
   const [page, setPage] = useState(0);
   const names = useMemo(() => new Map(callers.map(c => [c.id, c.name])), [callers]);
 
@@ -23,10 +24,11 @@ export default function AllLeadsTab({ leads, callers, onOpenLead }: Props) {
     return leads
       .filter(l => status === 'all' || leadStatusLabel(l).label === status)
       .filter(l => callerId === 'all' || l.assigned_to === callerId || l.locked_by === callerId || l.last_caller_id === callerId)
+      .filter(l => followUp === 'all' || (!!l.email && (followUp === 'sent' ? l.follow_up_email_sent : !l.follow_up_email_sent)))
       .filter(l => !q || l.account_name?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q)
         || l.phone?.includes(q) || l.primary_contact?.toLowerCase().includes(q))
       .sort((a, b) => a.account_name.localeCompare(b.account_name));
-  }, [leads, search, status, callerId]);
+  }, [leads, search, status, callerId, followUp]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const current = Math.min(page, pages - 1);
@@ -46,6 +48,11 @@ export default function AllLeadsTab({ leads, callers, onOpenLead }: Props) {
         <select value={callerId} onChange={e => { setCallerId(e.target.value); setPage(0); }} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white">
           <option value="all">Any caller</option>
           {callers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={followUp} onChange={e => { setFollowUp(e.target.value as typeof followUp); setPage(0); }} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white">
+          <option value="all">All follow-ups</option>
+          <option value="not_sent">Follow-up not sent</option>
+          <option value="sent">Follow-up sent</option>
         </select>
       </div>
       <p className="text-xs text-gray-500">{filtered.length.toLocaleString()} leads</p>
