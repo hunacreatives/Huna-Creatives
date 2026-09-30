@@ -76,7 +76,15 @@ function formatDayLabel(dateStr: string): string {
 
 // Per-day hours breakdown shown when a payroll row is expanded — the days worked
 // this period and the hours logged on each (plus any overtime).
-function DailyBreakdownPanel({ days }: { days: DayHours[] }) {
+// 7.99 → "7h 59m": one decimal rounded short days up to "8.0h" and hid the missing minutes
+function formatHoursMinutes(hours: number) {
+  const total = Math.round(hours * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+function DailyBreakdownPanel({ days, fullDay }: { days: DayHours[]; fullDay: number }) {
   if (days.length === 0) {
     return <p className="text-xs text-gray-400 py-2">No daily hours logged this period.</p>;
   }
@@ -87,8 +95,10 @@ function DailyBreakdownPanel({ days }: { days: DayHours[] }) {
           <span className="font-medium text-gray-600">{formatDayLabel(d.date)}</span>
           <span className="flex items-center gap-2 tabular-nums">
             {d.leave && <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Paid leave</span>}
-            <span className="text-gray-700">{d.billed.toFixed(1)}h</span>
-            {d.overtime > 0 && <span className="text-violet-700 font-medium">+{d.overtime.toFixed(1)} OT</span>}
+            <span className={Math.round(d.billed * 60) < Math.round(fullDay * 60) && !d.leave ? 'text-amber-700 font-medium' : 'text-gray-700'}>
+              {formatHoursMinutes(d.billed)}
+            </span>
+            {d.overtime > 0 && <span className="text-violet-700 font-medium">+{formatHoursMinutes(d.overtime)} OT</span>}
           </span>
         </div>
       ))}
@@ -1826,7 +1836,7 @@ export default function AdminPayrollPage() {
 
                   {expandedRows.has(c.id) && (
                     <div className="mb-3 -mt-1">
-                      <DailyBreakdownPanel days={r.dailyBreakdown} />
+                      <DailyBreakdownPanel days={r.dailyBreakdown} fullDay={deriveHoursPerDay(r.contractor.shift_start, r.contractor.shift_end)} />
                     </div>
                   )}
 
@@ -2140,7 +2150,7 @@ export default function AdminPayrollPage() {
                           <td colSpan={5} className="px-5 pb-4 pt-1">
                             <div className="pl-11 pr-2">
                               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Daily hours · {selectedPeriod.label}</p>
-                              <DailyBreakdownPanel days={r.dailyBreakdown} />
+                              <DailyBreakdownPanel days={r.dailyBreakdown} fullDay={deriveHoursPerDay(r.contractor.shift_start, r.contractor.shift_end)} />
                             </div>
                           </td>
                         </tr>
