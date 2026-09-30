@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { currentShiftDay, formatShiftDay, latestShiftDay, periodRange, stepPeriod, type TrackerPeriod } from '@/lib/smartgridShift';
 import {
   GOAL_TEXT, INCENTIVE_RATES, OUTCOME_TEXT, formatPacific, funnelFor, incentiveMonth, incentiveSummary, listProgress, money, trend, winsFor,
@@ -164,8 +164,14 @@ export default function SmartGridDashboard() {
     return data.leads
       .filter(l => l.email)
       .map(l => ({ lead: l, captured: captured.get(l.id) || null }))
-      .sort((a, b) => (b.captured?.at || '').localeCompare(a.captured?.at || '') || a.lead.account.localeCompare(b.lead.account));
+      // Replies first (newest reply on top), then everyone else by when the email was captured
+      .sort((a, b) =>
+        Number(b.lead.replied) - Number(a.lead.replied)
+        || (b.lead.repliedAt || '').localeCompare(a.lead.repliedAt || '')
+        || (b.captured?.at || '').localeCompare(a.captured?.at || '')
+        || a.lead.account.localeCompare(b.lead.account));
   }, [data]);
+  const repliedCount = emailContacts.filter(e => e.lead.replied).length;
 
   const [incMonth, setIncMonth] = useState(() => latestShiftDay().slice(0, 7));
   const incentiveMonths = useMemo(() => {
@@ -203,9 +209,9 @@ export default function SmartGridDashboard() {
   const downloadEmails = () => {
     const cell = (v: string | null | undefined) => `"${(v ?? '').replace(/"/g, '""')}"`;
     const rows = [
-      ['Business', 'Contact', 'Email', 'Phone', 'Status', 'Email captured (Pacific)', 'Caller', 'Notes'],
+      ['Business', 'Contact', 'Email', 'Phone', 'Replied to our email (Pacific)', 'Status', 'Email captured (Pacific)', 'Caller', 'Notes'],
       ...emailContacts.map(({ lead, captured }) => [
-        lead.account, lead.contact, lead.email, lead.phone, lead.status,
+        lead.account, lead.contact, lead.email, lead.phone, lead.replied ? (lead.repliedAt ? formatPacific(lead.repliedAt) : 'Yes') : '', lead.status,
         captured ? formatPacific(captured.at) : '', captured ? names.get(captured.callerId) || '' : '', lead.notes,
       ]),
     ];
@@ -331,7 +337,7 @@ export default function SmartGridDashboard() {
             {([
               ['wins', `Wins to follow up (${wins.length})`],
               ['callbacks', `Scheduled callbacks (${callbacks.length})`],
-              ['emails', `Emails (${emailContacts.length})`],
+              ['emails', `Emails (${emailContacts.length}${repliedCount ? ` · ${repliedCount} replied` : ''})`],
               ['contacts', `All contacts (${data.leads.length.toLocaleString()})`],
               ['incentives', `Incentives`],
             ] as const).map(([value, label]) => (
@@ -383,7 +389,9 @@ export default function SmartGridDashboard() {
             emailContacts.length === 0 ? <p className="text-sm text-gray-400 py-6 text-center">No emails collected yet.</p> : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm text-gray-600">{emailContacts.length} contacts with an email address</p>
+                  <p className="text-sm text-gray-600">
+                    {emailContacts.length} contacts with an email address · <b className="text-emerald-700">{repliedCount} replied</b> to our email
+                  </p>
                   <button onClick={downloadEmails} className="px-3 py-1.5 text-sm font-medium rounded-lg bg-sky-600 hover:bg-sky-700 text-white">
                     Download CSV
                   </button>
@@ -401,8 +409,16 @@ export default function SmartGridDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {emailContacts.map(({ lead, captured }) => (
-                        <tr key={lead.id} className="border-t border-gray-50 align-top">
+                      {emailContacts.map(({ lead, captured }, i) => (
+                        <Fragment key={lead.id}>
+                        {(i === 0 || emailContacts[i - 1].lead.replied !== lead.replied) && (
+                          <tr className={lead.replied ? 'bg-emerald-50' : 'bg-gray-50'}>
+                            <td colSpan={6} className={`px-4 py-1.5 text-xs font-semibold ${lead.replied ? 'text-emerald-800' : 'text-gray-500'}`}>
+                              {lead.replied ? `Replied to our email (${repliedCount})` : `No reply yet (${emailContacts.length - repliedCount})`}
+                            </td>
+                          </tr>
+                        )}
+                        <tr className={`border-t border-gray-50 align-top ${lead.replied ? 'bg-emerald-50/40' : ''}`}>
                           <td className="px-4 py-2 font-medium text-gray-900 min-w-[14rem] max-w-sm">
                             {lead.account}
                             {lead.notes && <p className="text-xs font-normal text-gray-500 mt-0.5 line-clamp-2" title={lead.notes}>{lead.notes}</p>}
@@ -412,9 +428,11 @@ export default function SmartGridDashboard() {
                           <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{lead.phone || '–'}</td>
                           <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{lead.status}</td>
                           <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
+                            {lead.replied && <p className="text-xs font-semibold text-emerald-700">Replied{lead.repliedAt ? ` ${formatPacific(lead.repliedAt)}` : ''}</p>}
                             {captured ? <>{formatPacific(captured.at)}<br /><span className="text-xs">{names.get(captured.callerId) || 'Caller'}</span></> : 'On file'}
                           </td>
                         </tr>
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>

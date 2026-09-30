@@ -25,6 +25,8 @@ export interface ClientLead {
   meetingAt: string | null;
   billReceived: boolean;
   billAt: string | null;
+  replied: boolean;
+  repliedAt: string | null;
   lastCallerId: string | null;
   lastCalledAt: string | null;
   notes: string | null;
@@ -33,7 +35,7 @@ export interface ClientLead {
 export interface ClientIncentive {
   id: number;
   account: string;
-  milestone: 'email' | 'meeting' | 'bill';
+  milestone: 'reply' | 'meeting' | 'bill';
   amount: number;
   at: string;
   paid: boolean;
@@ -41,7 +43,7 @@ export interface ClientIncentive {
 }
 
 export const INCENTIVE_RATES: Record<ClientIncentive['milestone'], { label: string; rate: number }> = {
-  email: { label: 'Email captured', rate: 5 },
+  reply: { label: 'Email reply received', rate: 5 },
   meeting: { label: 'Meeting booked', rate: 10 },
   bill: { label: 'Utility bill received', rate: 25 },
 };

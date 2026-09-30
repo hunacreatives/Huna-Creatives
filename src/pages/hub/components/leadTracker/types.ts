@@ -20,6 +20,8 @@ export interface TrackerLead {
   bill_received: boolean;
   bill_received_at: string | null;
   follow_up_email_sent: boolean;
+  email_reply_received: boolean;
+  email_reply_received_at: string | null;
   call_notes: string | null;
 }
 
@@ -47,7 +49,7 @@ export interface Caller {
 export const LEAD_FIELDS =
   'id, account_name, primary_contact, phone, email, status, outcome, assigned_to, locked_by, locked_at, attempts_count, ' +
   'callback_date, callback_time, next_call_goal, last_worked_at, last_caller_id, meeting_scheduled, meeting_scheduled_at, ' +
-  'bill_received, bill_received_at, follow_up_email_sent, call_notes';
+  'bill_received, bill_received_at, follow_up_email_sent, email_reply_received, email_reply_received_at, call_notes';
 
 export const OUTCOME_LABEL: Record<string, string> = {
   interested: 'Interested',

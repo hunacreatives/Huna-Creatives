@@ -20,6 +20,8 @@ interface WorkedLead {
   assigned_to: string | null;
   meeting_scheduled: boolean;
   bill_received: boolean;
+  email_reply_received: boolean;
+  email_reply_received_at: string | null;
 }
 
 interface CallEntry {
@@ -40,11 +42,12 @@ const OUTCOME: Record<string, { label: string; tone: string }> = {
 };
 const GOAL: Record<string, string> = { email: 'Get email', meeting: 'Book meeting', bill: 'Get utility bill' };
 
-type Filter = 'all' | 'callbacks' | 'emails' | 'interested' | 'no_contact';
+type Filter = 'all' | 'callbacks' | 'emails' | 'replied' | 'interested' | 'no_contact';
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'callbacks', label: 'My callbacks' },
   { value: 'emails', label: 'Emails captured' },
+  { value: 'replied', label: 'Replied' },
   { value: 'interested', label: 'Interested' },
   { value: 'no_contact', label: 'Voicemail / no answer' },
 ];
@@ -98,7 +101,7 @@ export default function SmartGridMyLeadsPage() {
           const chunk = ids.slice(i, i + 150);
           const [leadRes, callRes] = await Promise.all([
             supabase.from('hub_project_leads')
-              .select('id, account_name, primary_contact, phone, email, status, callback_date, callback_time, next_call_goal, assigned_to, meeting_scheduled, bill_received')
+              .select('id, account_name, primary_contact, phone, email, status, callback_date, callback_time, next_call_goal, assigned_to, meeting_scheduled, bill_received, email_reply_received, email_reply_received_at')
               .in('id', chunk),
             supabase.from('hub_project_activity')
               .select('id, entity_id, user_id, created_at, meta, hub_users:user_id(full_name)')
@@ -124,6 +127,20 @@ export default function SmartGridMyLeadsPage() {
     load();
   }, [hubUser?.id]);
 
+  const [savingReply, setSavingReply] = useState<string | null>(null);
+  // A reply to the email sent from alex@smartgridwestern.com is what SmartGrid pays for
+  const setReply = async (lead: WorkedLead, replied: boolean) => {
+    const changes = { email_reply_received: replied, email_reply_received_at: replied ? new Date().toISOString() : null };
+    setSavingReply(lead.id);
+    setLeads(prev => new Map(prev).set(lead.id, { ...lead, ...changes }));
+    const { error: err } = await supabase.from('hub_project_leads').update(changes).eq('id', lead.id);
+    setSavingReply(null);
+    if (err) {
+      setLeads(prev => new Map(prev).set(lead.id, lead));
+      alert(`Couldn't save: ${err.message}`);
+    }
+  };
+
   const rows = useMemo(() => {
     if (!hubUser?.id) return [];
     const byLead = new Map<string, CallEntry[]>();
@@ -144,6 +161,7 @@ export default function SmartGridMyLeadsPage() {
         const o = r.myLast.meta?.outcome;
         if (filter === 'callbacks') return r.lead.status === 'callback_pending' && r.lead.assigned_to === hubUser.id;
         if (filter === 'emails') return r.myEmail;
+        if (filter === 'replied') return r.lead.email_reply_received;
         if (filter === 'interested') return o === 'interested';
         if (filter === 'no_contact') return o === 'voicemail' || o === 'no_answer';
         return true;
@@ -221,6 +239,25 @@ export default function SmartGridMyLeadsPage() {
                     </p>
                     {myLast.meta?.notes && !open && <p className="text-xs text-gray-600 truncate">{myLast.meta.notes}</p>}
                   </button>
+                  {lead.email && (
+                    <div className="px-4 pb-3 -mt-1">
+                      <button
+                        onClick={() => setReply(lead, !lead.email_reply_received)}
+                        disabled={savingReply === lead.id}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-60 ${
+                          lead.email_reply_received
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-300 hover:text-emerald-700'
+                        }`}
+                        title="Tap when they reply to the email from alex@smartgridwestern.com. Tap again to undo."
+                      >
+                        <i className={lead.email_reply_received ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'} />
+                        {lead.email_reply_received
+                          ? `Replied to our email${lead.email_reply_received_at ? ` · ${formatManilaDateTime(lead.email_reply_received_at)}` : ''}`
+                          : 'Mark: replied to our email'}
+                      </button>
+                    </div>
+                  )}
                   {open && (
                     <div className="border-t border-gray-100 px-4 py-3 space-y-2">
                       <p className="text-xs font-semibold text-gray-600">Call history</p>

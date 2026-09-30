@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const [leads, activity, callerRes, incentives] = await Promise.all([
       fetchAll((from, to) =>
         supabase.from("hub_project_leads")
-          .select("id, account_name, primary_contact, phone, email, status, attempts_count, callback_date, callback_time, next_call_goal, meeting_scheduled, meeting_scheduled_at, bill_received, bill_received_at, last_worked_at, last_caller_id, call_notes")
+          .select("id, account_name, primary_contact, phone, email, status, attempts_count, callback_date, callback_time, next_call_goal, meeting_scheduled, meeting_scheduled_at, bill_received, bill_received_at, email_reply_received, email_reply_received_at, last_worked_at, last_caller_id, call_notes")
           .eq("project_id", projectId).order("id").range(from, to)),
       fetchAll((from, to) =>
         supabase.from("hub_project_activity")
@@ -84,7 +84,8 @@ Deno.serve(async (req) => {
       fetchAll((from, to) =>
         supabase.from("hub_project_commissions")
           .select("id, lead_id, milestone, amount, created_at, paid, paid_at")
-          .eq("project_id", projectId).order("id").range(from, to)),
+          // Billable results only; old 'email' rows (address captured) were never billable
+          .eq("project_id", projectId).in("milestone", ["reply", "meeting", "bill"]).order("id").range(from, to)),
     ]);
     if (callerRes.error) throw callerRes.error;
 
@@ -135,6 +136,8 @@ Deno.serve(async (req) => {
         meetingAt: l.meeting_scheduled_at,
         billReceived: !!l.bill_received,
         billAt: l.bill_received_at,
+        replied: !!l.email_reply_received,
+        repliedAt: l.email_reply_received_at,
         lastCallerId: l.last_caller_id,
         lastCalledAt: l.last_worked_at,
         notes: hasResult(l) ? l.call_notes : null,

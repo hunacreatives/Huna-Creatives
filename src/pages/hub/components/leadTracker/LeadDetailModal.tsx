@@ -40,6 +40,9 @@ export default function LeadDetailModal({ lead, callLog, callers, onClose, onCha
     return true;
   };
 
+  const toggleReply = (checked: boolean) =>
+    update({ email_reply_received: checked, email_reply_received_at: checked ? new Date().toISOString() : null });
+
   const toggleBill = (checked: boolean) =>
     update({ bill_received: checked, bill_received_at: checked ? new Date().toISOString() : null });
 
@@ -74,6 +77,14 @@ export default function LeadDetailModal({ lead, callLog, callers, onClose, onCha
             <Field label="Follow-up email">{lead.follow_up_email_sent ? 'Sent' : '–'}</Field>
             <Field label="Meeting booked">{lead.meeting_scheduled ? 'Yes' : '–'}</Field>
           </div>
+
+          {lead.email && (
+            <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg bg-emerald-50 border border-emerald-100" title="Tick when they reply to the email sent from alex@smartgridwestern.com ($5 to SmartGrid)">
+              <input type="checkbox" checked={lead.email_reply_received} disabled={saving} onChange={e => toggleReply(e.target.checked)} className="w-4 h-4 rounded" />
+              <span className="text-sm text-emerald-800 font-medium">Replied to our email</span>
+              {lead.email_reply_received_at && <span className="text-[11px] text-emerald-700 ml-auto">{formatManilaDateTime(lead.email_reply_received_at)}</span>}
+            </label>
+          )}
 
           <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg bg-sky-50 border border-sky-100">
             <input type="checkbox" checked={lead.bill_received} disabled={saving} onChange={e => toggleBill(e.target.checked)} className="w-4 h-4 rounded" />

@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { currentShiftDay } from '@/lib/smartgridShift';
 
+// What SmartGrid pays for: a reply to our outreach email, a meeting, a utility bill.
+// Older 'email' rows (address captured) stay in the table but are not billable.
+const BILLABLE = ['reply', 'meeting', 'bill'];
+
 // A shift day starts at noon Manila (04:00 UTC), so a month runs from noon on the 1st
 function shiftMonthBounds(month: string) {
   const [y, m] = month.split('-').map(Number);
@@ -67,6 +71,7 @@ export default function CommissionsReport({ projectId }: Props) {
            hub_users(full_name)`
         )
         .eq('project_id', projectId)
+        .in('milestone', BILLABLE)
         .gte('created_at', startDate)
         .lt('created_at', endDate)
         .order('created_at', { ascending: false });
@@ -92,6 +97,7 @@ export default function CommissionsReport({ projectId }: Props) {
         .from('hub_project_commissions')
         .update({ paid: true, paid_at: now })
         .eq('project_id', projectId)
+        .in('milestone', BILLABLE)
         .eq('paid', false)
         .gte('created_at', startDate)
         .lt('created_at', endDate);
@@ -212,11 +218,11 @@ export default function CommissionsReport({ projectId }: Props) {
                         </td>
                         <td className="px-4 py-3 text-gray-600">
                           <span className={`inline-block px-2 py-1 rounded text-[10px] font-medium ${
-                            commission.milestone === 'email' ? 'bg-blue-100 text-blue-700' :
+                            commission.milestone === 'reply' ? 'bg-blue-100 text-blue-700' :
                             commission.milestone === 'meeting' ? 'bg-purple-100 text-purple-700' :
                             'bg-green-100 text-green-700'
                           }`}>
-                            {commission.milestone === 'email' ? '📧 Email' :
+                            {commission.milestone === 'reply' ? '📧 Email reply' :
                              commission.milestone === 'meeting' ? '📅 Meeting' :
                              '📄 Bill'}
                           </span>
