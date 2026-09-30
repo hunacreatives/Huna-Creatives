@@ -62,6 +62,10 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [assignedFilter, setAssignedFilter] = useState<string | null>(null);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
 
   useEffect(() => {
     fetchLeads(0, '');
@@ -102,6 +106,13 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       setStats(prev => prev ? { ...prev, todayStats: allTimePeriodStats[timePeriod] || [] } : null);
     }
   }, [timePeriod, allTimePeriodStats]);
+
+  // Recalculate stats when selected date changes
+  useEffect(() => {
+    if (leads.length > 0) {
+      calculateStats(leads, totalLeads, selectedDate);
+    }
+  }, [selectedDate]);
 
   const fetchLeads = async (page = 0, searchQuery = '', status = statusFilter, assigned = assignedFilter) => {
     setLoading(true);
@@ -153,7 +164,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   };
 
-  const calculateStats = async (leadsData: Lead[], total: number = totalLeads) => {
+  const calculateStats = async (leadsData: Lead[], total: number = totalLeads, dateStr?: string) => {
     // Query database for actual counts across all leads, not just current page
     const { data: counts } = await supabase
       .from('hub_project_leads')
@@ -184,11 +195,11 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
         const userMap = new Map((users || []).map(u => [u.id, u.full_name]));
 
         if (!leadsErr && leads) {
-          const now = new Date();
+          const referenceDate = dateStr ? new Date(dateStr) : new Date();
           const periods: Record<string, Date> = {
-            daily: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-            weekly: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-            monthly: new Date(now.getFullYear(), now.getMonth(), 1),
+            daily: new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()),
+            weekly: new Date(referenceDate.getTime() - 7 * 24 * 60 * 60 * 1000),
+            monthly: new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1),
             lifetime: new Date(0),
           };
 
@@ -367,9 +378,9 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Time period selector */}
+      {/* Time period selector + date picker */}
       {isAdmin && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {(['daily', 'weekly', 'monthly', 'lifetime'] as const).map(period => (
             <button
               key={period}
@@ -383,6 +394,15 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
               {period}
             </button>
           ))}
+          <div className="flex items-center gap-2 ml-auto">
+            <label className="text-xs font-medium text-gray-600">Date:</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500"
+            />
+          </div>
         </div>
       )}
 
