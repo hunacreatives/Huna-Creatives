@@ -1,5 +1,28 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { currentShiftDay } from '@/lib/smartgridShift';
+
+// A shift day starts at noon Manila (04:00 UTC), so a month runs from noon on the 1st
+function shiftMonthBounds(month: string) {
+  const [y, m] = month.split('-').map(Number);
+  const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  return { startDate: `${month}-01T04:00:00Z`, endDate: `${next}-01T04:00:00Z` };
+}
+
+const monthLabel = (month: string) =>
+  new Date(`${month}-15T00:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' });
+
+// Campaign start (Sep 2026) through the current month, newest first
+function monthOptions() {
+  const months: string[] = [];
+  let [y, m] = currentShiftDay().slice(0, 7).split('-').map(Number);
+  while (y > 2026 || (y === 2026 && m >= 9)) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`);
+    m -= 1;
+    if (m === 0) { m = 12; y -= 1; }
+  }
+  return months;
+}
 
 interface Commission {
   id: number;
@@ -21,10 +44,9 @@ interface Props {
 export default function CommissionsReport({ projectId }: Props) {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  // Months follow the shift day like the rest of the tracker, so a shift that
+  // crosses midnight on the 1st isn't split across two months.
+  const [selectedMonth, setSelectedMonth] = useState(() => currentShiftDay().slice(0, 7));
   const [marking, setMarking] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -35,9 +57,7 @@ export default function CommissionsReport({ projectId }: Props) {
   const fetchCommissions = async () => {
     setLoading(true);
     try {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const startDate = new Date(year, month - 1, 1).toISOString();
-      const endDate = new Date(year, month, 1).toISOString();
+      const { startDate, endDate } = shiftMonthBounds(selectedMonth);
 
       const { data, error } = await supabase
         .from('hub_project_commissions')
@@ -61,13 +81,11 @@ export default function CommissionsReport({ projectId }: Props) {
   };
 
   const handleMarkAllPaid = async () => {
-    if (!confirm(`Mark all ${selectedMonth} commissions as paid?`)) return;
+    if (!confirm(`Mark all ${monthLabel(selectedMonth)} commissions as paid?`)) return;
 
     setMarking(true);
     try {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const startDate = new Date(year, month - 1, 1).toISOString();
-      const endDate = new Date(year, month, 1).toISOString();
+      const { startDate, endDate } = shiftMonthBounds(selectedMonth);
       const now = new Date().toISOString();
 
       const { error } = await supabase
@@ -103,7 +121,7 @@ export default function CommissionsReport({ projectId }: Props) {
         >
           <div className="flex items-center gap-4">
             <div>
-              <p className="text-xs font-medium text-gray-600">September 2026</p>
+              <p className="text-xs font-medium text-gray-600">{monthLabel(selectedMonth)}</p>
               <p className="text-2xl font-bold text-gray-800">${totalEarned.toFixed(2)}</p>
             </div>
             <div className="flex gap-6 text-sm">
@@ -134,18 +152,9 @@ export default function CommissionsReport({ projectId }: Props) {
                   onChange={e => setSelectedMonth(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
                 >
-                  <option value="2026-01">January 2026</option>
-                  <option value="2026-02">February 2026</option>
-                  <option value="2026-03">March 2026</option>
-                  <option value="2026-04">April 2026</option>
-                  <option value="2026-05">May 2026</option>
-                  <option value="2026-06">June 2026</option>
-                  <option value="2026-07">July 2026</option>
-                  <option value="2026-08">August 2026</option>
-                  <option value="2026-09" selected>September 2026</option>
-                  <option value="2026-10">October 2026</option>
-                  <option value="2026-11">November 2026</option>
-                  <option value="2026-12">December 2026</option>
+                  {monthOptions().map(m => (
+                    <option key={m} value={m}>{monthLabel(m)}</option>
+                  ))}
                 </select>
               </div>
 

@@ -1,1 +1,9 @@
 project_id = "aaqpwobmfofztcbbsonw"
+
+# Checks its own password (SMARTGRID_DASHBOARD_PASSWORD secret); Chris has no hub login
+[functions.smartgrid-client-dashboard]
+verify_jwt = false
+
+# Called by the GitHub Actions cron with its own CRON_SECRET bearer token
+[functions.process-smartgrid-queue]
+verify_jwt = false

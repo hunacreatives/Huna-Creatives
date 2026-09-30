@@ -7,6 +7,7 @@ import ScrollToTop from "./components/feature/ScrollToTop";
 import CookieConsent from "./components/feature/CookieConsent";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DemoProvider } from "./contexts/DemoContext";
+import RouteErrorBoundary from "./components/feature/RouteErrorBoundary";
 
 // Pages that use a light/white background
 const LIGHT_BG_ROUTES = ['/about', '/hub', '/privacy', '/terms', '/q'];
@@ -56,6 +57,16 @@ function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Keyed by path so navigating away from a crashed page clears the error
+function RoutesWithBoundary() {
+  const location = useLocation();
+  return (
+    <RouteErrorBoundary key={location.pathname}>
+      <AppRoutes />
+    </RouteErrorBoundary>
+  );
+}
+
 function App() {
   return (
     <I18nextProvider i18n={i18n}>
@@ -69,7 +80,7 @@ function App() {
                   <style>{`@keyframes app-boot-spin{to{transform:rotate(360deg)}}`}</style>
                 </div>
               }>
-                <AppRoutes />
+                <RoutesWithBoundary />
               </Suspense>
             </PageTransitionWrapper>
             <ScrollToTop />

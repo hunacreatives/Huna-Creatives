@@ -5,6 +5,7 @@ import { useHubAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
+import { addDays, currentShiftDay } from '@/lib/smartgridShift';
 
 interface Lead {
   id: string;
@@ -27,6 +28,8 @@ interface Lead {
   follow_up_email_sent_at: string | null;
   caller_attempts: Record<string, number>;
   last_caller_id: string | null;
+  locked_at?: string | null;
+  next_call_goal?: 'email' | 'meeting' | 'bill' | null;
 }
 
 interface ActivityLog {
@@ -51,11 +54,6 @@ interface FormState {
   nextCallGoal?: 'email' | 'meeting' | 'bill';
 }
 
-// The night shift runs past midnight, so a shift belongs to the Manila date it
-// started on (noon cutoff, same rule slack-attendance uses).
-const currentShiftDay = () =>
-  new Date(Date.now() - 12 * 60 * 60 * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-
 export default function SmartGridLeadsPage() {
   const navigate = useNavigate();
   const { hubUser: realHubUser } = useAuth();
@@ -73,14 +71,38 @@ export default function SmartGridLeadsPage() {
     outcome: '',
     callNotes: '',
     followUpEmailSent: false,
+    meetingScheduled: false,
   });
   const [saving, setSaving] = useState(false);
-  const [completedCount, setCompletedCount] = useState(0);
+  const [tonight, setTonight] = useState({ calls: 0, emails: 0, callbacks: 0 });
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [callHistory, setCallHistory] = useState<ActivityLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const currentLead = queue[currentLeadIndex];
+
+  // This caller's own numbers for the current shift (a shift day starts at noon Manila = 04:00 UTC)
+  const refreshTonight = async (pId: number, userId: string) => {
+    const day = currentShiftDay();
+    const { data } = await supabase
+      .from('hub_project_activity')
+      .select('entity_id, meta')
+      .eq('project_id', pId)
+      .eq('user_id', userId)
+      .eq('action', 'lead_outcome_logged')
+      .gte('created_at', `${day}T04:00:00Z`)
+      .lt('created_at', `${addDays(day, 1)}T04:00:00Z`);
+    const calls = (data || []).filter((r: any) => r.meta?.outcome !== 'skip');
+    setTonight({
+      calls: calls.length,
+      emails: new Set(calls.filter((r: any) => r.meta?.email_found).map((r: any) => r.entity_id)).size,
+      callbacks: new Set(calls.filter((r: any) => r.meta?.outcome === 'callback').map((r: any) => r.entity_id)).size,
+    });
+  };
+
+  useEffect(() => {
+    if (projectId && hubUser?.id) refreshTonight(projectId, hubUser.id);
+  }, [projectId, hubUser?.id]);
 
   const copyPhoneToClipboard = () => {
     if (currentLead?.phone) {
@@ -111,34 +133,24 @@ export default function SmartGridLeadsPage() {
         const pId = projects[0].id;
         setProjectId(pId);
 
-        // Resume a saved batch only for leads still locked to this caller; the
-        // rest may have been released and handed to someone else since.
-        const batchKey = `smartgrid_batch_${hubUser.id}`;
+        // Resume from the database: saving an outcome releases a lead, so anything
+        // still locked to this caller is exactly what they haven't called yet.
         try {
           localStorage.removeItem('smartgrid_batch');
-          const saved = localStorage.getItem(batchKey);
-          if (saved) {
-            const { queue: savedQueue, currentIndex } = JSON.parse(saved);
-            const remaining: Lead[] = (savedQueue || []).slice(currentIndex || 0);
-            if (remaining.length > 0) {
-              const { data: stillMine } = await supabase
-                .from('hub_project_leads')
-                .select('*')
-                .in('id', remaining.map(l => l.id))
-                .eq('locked_by', hubUser.id);
-              const byId = new Map(((stillMine || []) as Lead[]).map(l => [l.id, l]));
-              const valid = remaining.filter(l => byId.has(l.id)).map(l => byId.get(l.id)!);
-              if (valid.length > 0) {
-                setQueue(valid);
-                setCurrentLeadIndex(0);
-                setLoading(false);
-                return;
-              }
-            }
-            localStorage.removeItem(batchKey);
-          }
-        } catch (e) {
-          console.log('No saved batch');
+          localStorage.removeItem(`smartgrid_batch_${hubUser.id}`);
+        } catch { /* storage unavailable */ }
+        const { data: mine, error: mineErr } = await supabase
+          .from('hub_project_leads')
+          .select('*')
+          .eq('project_id', pId)
+          .eq('locked_by', hubUser.id)
+          .order('locked_at', { ascending: true, nullsFirst: true })
+          .order('id', { ascending: true });
+        if (mineErr) throw mineErr;
+        if (mine && mine.length > 0) {
+          setQueue(mine as Lead[]);
+          setCurrentLeadIndex(0);
+          return;
         }
 
         // Fetch initial queue (30 unassigned leads)
@@ -151,20 +163,6 @@ export default function SmartGridLeadsPage() {
     };
     init();
   }, [hubUser?.id]);
-
-  // Save current position to localStorage whenever it changes
-  useEffect(() => {
-    if (queue.length > 0 && hubUser?.id) {
-      try {
-        localStorage.setItem(`smartgrid_batch_${hubUser.id}`, JSON.stringify({
-          queue,
-          currentIndex: currentLeadIndex,
-        }));
-      } catch (e) {
-        console.error('Failed to save batch to localStorage:', e);
-      }
-    }
-  }, [queue, currentLeadIndex]);
 
   // Fetch call history when current lead changes
   useEffect(() => {
@@ -306,7 +304,7 @@ export default function SmartGridLeadsPage() {
 
       // Determine new status based on outcome
       let newStatus = 'calling';
-      let newCallerAttempts = { ...currentLead.caller_attempts } || {};
+      const newCallerAttempts: Record<string, number> = { ...(currentLead.caller_attempts || {}) };
 
       if (formState.outcome === 'skip') {
         newStatus = 'calling';
@@ -406,12 +404,26 @@ export default function SmartGridLeadsPage() {
         updates.next_call_goal = formState.nextCallGoal;
       }
 
-      const { error } = await supabase
+      const { data: savedRows, error } = await supabase
         .from('hub_project_leads')
         .update(updates)
-        .eq('id', currentLead.id);
+        .eq('id', currentLead.id)
+        .eq('locked_by', hubUser.id)
+        .select('id');
 
       if (error) throw error;
+      if (!savedRows || savedRows.length === 0) {
+        alert(`${currentLead.account_name} was released from your queue by your admin, so this call wasn't saved. Moving to your next lead.`);
+        if (currentLeadIndex < queue.length - 1) {
+          setCurrentLeadIndex(c => c + 1);
+          resetForm();
+          setCallHistory([]);
+        } else {
+          setQueue([]);
+          await loadQueue(projectId, hubUser.id);
+        }
+        return;
+      }
 
       // Activity log is what the admin stats count, so a failed write must not be silent
       const activityRow = {
@@ -438,33 +450,15 @@ export default function SmartGridLeadsPage() {
         alert('Call saved, but it was not logged for tracking. Please tell your admin.');
       }
 
-      if (newStatus === 'complete') {
-        setCompletedCount(c => c + 1);
-      }
+      refreshTonight(projectId, hubUser.id);
 
       // Move to next lead or show completion
       if (currentLeadIndex < queue.length - 1) {
-        // Claim next lead
-        const nextLead = queue[currentLeadIndex + 1];
-        await supabase
-          .from('hub_project_leads')
-          .update({
-            locked_by: hubUser.id,
-            status: 'calling',
-            last_caller_id: hubUser.id,
-          })
-          .eq('id', nextLead.id);
-
         setCurrentLeadIndex(c => c + 1);
         resetForm();
         setCallHistory([]);
       } else {
-        // Queue empty, clear saved batch and reload
-        try {
-          localStorage.removeItem(`smartgrid_batch_${hubUser.id}`);
-        } catch (e) {
-          console.error('Failed to clear batch from localStorage:', e);
-        }
+        // Queue empty, claim the next batch
         setQueue([]);
         if (projectId) {
           await loadQueue(projectId, hubUser.id);
@@ -486,22 +480,13 @@ export default function SmartGridLeadsPage() {
       const { error } = await supabase
         .from('hub_project_leads')
         .update({ locked_by: null })
-        .eq('id', currentLead.id);
+        .eq('id', currentLead.id)
+        .eq('locked_by', hubUser.id);
 
       if (error) throw error;
 
       // Move to next
       if (currentLeadIndex < queue.length - 1) {
-        const nextLead = queue[currentLeadIndex + 1];
-        await supabase
-          .from('hub_project_leads')
-          .update({
-            locked_by: hubUser.id,
-            status: 'calling',
-            last_caller_id: hubUser.id,
-          })
-          .eq('id', nextLead.id);
-
         setCurrentLeadIndex(c => c + 1);
         resetForm();
         setCallHistory([]);
@@ -576,6 +561,13 @@ export default function SmartGridLeadsPage() {
             <p className="text-sm text-gray-500 mt-1">SmartGrid Western · {currentLeadIndex + 1} of {queue.length} leads</p>
           </div>
           <button
+            onClick={() => navigate('/hub/contractor/smartgrid-my-leads')}
+            className="ml-auto mr-2 inline-flex items-center gap-2 px-3 py-2 text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition-colors"
+          >
+            <i className="ri-history-line"></i>
+            <span className="text-sm font-medium">My Leads</span>
+          </button>
+          <button
             onClick={() => navigate('/hub/contractor/projects')}
             className="inline-flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-white transition-colors"
             title="Back to projects"
@@ -585,24 +577,19 @@ export default function SmartGridLeadsPage() {
           </button>
         </div>
 
-        {/* Progress bar */}
-        <div className="max-w-2xl mx-auto mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-600">
-              {completedCount} completed
-            </span>
-            <span className="text-xs text-gray-400">
-              {Math.round((completedCount / Math.max(completedCount + queue.length - currentLeadIndex, 1)) * 100)}%
-            </span>
-          </div>
-          <div className="w-full h-2 bg-white rounded-full overflow-hidden shadow-sm">
-            <div
-              className="h-full bg-emerald-400 transition-all duration-300"
-              style={{
-                width: `${(completedCount / Math.max(completedCount + queue.length, 1)) * 100}%`,
-              }}
-            />
-          </div>
+        {/* Tonight */}
+        <div className="max-w-2xl mx-auto mb-6 grid grid-cols-4 gap-2">
+          {[
+            { label: 'Calls tonight', value: tonight.calls, tone: 'text-gray-900' },
+            { label: 'Emails', value: tonight.emails, tone: 'text-emerald-600' },
+            { label: 'Callbacks set', value: tonight.callbacks, tone: 'text-amber-600' },
+            { label: 'Left in queue', value: Math.max(queue.length - currentLeadIndex, 0), tone: 'text-sky-600' },
+          ].map(t => (
+            <div key={t.label} className="bg-white rounded-xl shadow-sm px-3 py-2.5 text-center">
+              <p className={`text-xl font-bold ${t.tone}`}>{t.value}</p>
+              <p className="text-[11px] text-gray-500">{t.label}</p>
+            </div>
+          ))}
         </div>
 
         {/* Lead card */}

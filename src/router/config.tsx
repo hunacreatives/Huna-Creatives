@@ -46,6 +46,7 @@ const HubContractorCredentials = lazy(() => import('../pages/hub/contractor/cred
 const HubContractorOnboarding = lazy(() => import('../pages/hub/contractor/onboarding/page'));
 const HubContractorProjects = lazy(() => import('../pages/hub/contractor/projects/page'));
 const HubContractorSmartGridLeads = lazy(() => import('../pages/hub/contractor/smartgrid-leads'));
+const HubContractorSmartGridMyLeads = lazy(() => import('../pages/hub/contractor/smartgrid-my-leads'));
 const HubContractorProjectRedirect = lazy(() => import('../pages/hub/contractor/project-redirect/page'));
 const HubAdminProjects = lazy(() => import('../pages/hub/admin/projects/page'));
 const HubAdminProjectRedirect = lazy(() => import('../pages/hub/admin/project-redirect/page'));
@@ -189,6 +190,7 @@ const routes: RouteObject[] = [
   { path: '/hub/contractor/onboarding', element: withContractorGate(<HubContractorOnboarding />) },
   { path: '/hub/contractor/projects', element: withContractorGate(<HubContractorProjects />) },
   { path: '/hub/contractor/smartgrid-leads', element: withContractorGate(<HubContractorSmartGridLeads />) },
+  { path: '/hub/contractor/smartgrid-my-leads', element: withContractorGate(<HubContractorSmartGridMyLeads />) },
   { path: '/hub/contractor/project/:slug', element: withContractorGate(<HubContractorProjectRedirect />) },
   { path: '/hub/admin/projects', element: withAdminGate(<HubAdminProjects />) },
   { path: '/hub/admin/revenue', element: withOwnerGate(<HubAdminRevenue />) },

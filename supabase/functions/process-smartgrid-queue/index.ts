@@ -63,37 +63,33 @@ export async function processSmartGridQueue() {
     );
     const callerIds = contractorList.map((c) => c.id);
 
-    // 1. Release stale locks (locked > 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+    // 1. Release leads a caller has held for 2+ days without calling (missed
+    //    shifts). Their callbacks stay theirs; the rest go back to the shared pool.
+    const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: staleLocks, error: staleErr } = await supabase
+    const { data: staleCallbacks, error: staleCbErr } = await supabase
       .from("hub_project_leads")
-      .select("id")
+      .update({ locked_by: null, locked_at: null, status: "callback_pending" })
       .eq("project_id", projectId)
-      .eq("status", "calling")
       .not("locked_by", "is", null)
-      .lt("locked_at", sevenDaysAgoStr);
+      .lt("locked_at", cutoff)
+      .eq("outcome", "callback")
+      .not("callback_date", "is", null)
+      .select("id");
+    if (staleCbErr) throw staleCbErr;
 
+    const { data: staleOthers, error: staleErr } = await supabase
+      .from("hub_project_leads")
+      .update({ locked_by: null, locked_at: null, status: "new", assigned_to: null })
+      .eq("project_id", projectId)
+      .not("locked_by", "is", null)
+      .lt("locked_at", cutoff)
+      .select("id");
     if (staleErr) throw staleErr;
 
-    if (staleLocks && staleLocks.length > 0) {
-      console.log(`[SmartGrid Queue] Releasing ${staleLocks.length} stale locks`);
-      const { error: releaseErr } = await supabase
-        .from("hub_project_leads")
-        .update({ locked_by: null, status: "new" })
-        .eq("project_id", projectId)
-        .eq("status", "calling")
-        .not("locked_by", "is", null)
-        .lt("locked_at", sevenDaysAgoStr);
-
-      if (releaseErr) {
-        console.error(
-          "[SmartGrid Queue] Error releasing stale locks:",
-          releaseErr
-        );
-      }
+    const staleLocks = [...(staleCallbacks || []), ...(staleOthers || [])];
+    if (staleLocks.length > 0) {
+      console.log(`[SmartGrid Queue] Released ${staleLocks.length} leads held 2+ days`);
     }
 
     // 2. Reassign: if a lead has 3+ attempts and is assigned, move to other caller
@@ -185,9 +181,9 @@ Deno.serve(async (req) => {
 
   // Basic auth check (GitHub Actions will send a secret in header)
   const authHeader = req.headers.get("authorization");
-  const expectedSecret = Deno.env.get("CRON_SECRET") || "default-secret";
+  const expectedSecret = Deno.env.get("CRON_SECRET");
 
-  if (authHeader !== `Bearer ${expectedSecret}`) {
+  if (!expectedSecret || authHeader !== `Bearer ${expectedSecret}`) {
     return new Response("Unauthorized", { status: 401 });
   }
 

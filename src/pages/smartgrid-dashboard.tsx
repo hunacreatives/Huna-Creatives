@@ -1,417 +1,438 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { currentShiftDay, formatShiftDay, latestShiftDay, periodRange, stepPeriod, type TrackerPeriod } from '@/lib/smartgridShift';
+import {
+  GOAL_TEXT, OUTCOME_TEXT, formatPacific, funnelFor, listProgress, trend, winsFor,
+  type ClientPayload, type Funnel,
+} from './smartgridDashboard/clientData';
 
-interface OutcomeBreakdown {
-  interested: number;
-  callback: number;
-  notInterested: number;
-  voicemail: number;
-  noAnswer: number;
-  skip: number;
+const ENDPOINT = `${import.meta.env.VITE_PUBLIC_SUPABASE_URL}/functions/v1/smartgrid-client-dashboard`;
+const PW_KEY = 'smartgrid_dashboard_pw';
+const REFRESH_MS = 60000;
+
+const PERIODS: { value: TrackerPeriod; label: string }[] = [
+  { value: 'shift', label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+  { value: 'all', label: 'All time' },
+];
+
+const readPw = () => { try { return sessionStorage.getItem(PW_KEY) || ''; } catch { return ''; } };
+const savePw = (v: string) => { try { v ? sessionStorage.setItem(PW_KEY, v) : sessionStorage.removeItem(PW_KEY); } catch { /* private mode */ } };
+
+async function fetchDashboard(password: string): Promise<ClientPayload> {
+  const res = await fetch(ENDPOINT, { headers: { 'x-dashboard-password': password } });
+  if (res.status === 401) throw Object.assign(new Error('Incorrect password'), { unauthorized: true });
+  if (!res.ok) throw new Error('Could not load the dashboard. Please try again shortly.');
+  return res.json();
 }
 
-interface CallerStat {
-  callerId: string;
-  callerName: string;
-  callsToday: number;
-  successfulToday: number;
-  emailFoundToday: number;
-  phoneFoundToday: number;
-  interestedToday: number;
-  callbackToday: number;
-  notInterestedToday: number;
-  voicemailToday: number;
-  noAnswerToday: number;
+const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` : '–');
+
+function PasswordGate({ onUnlock, error, busy }: { onUnlock: (pw: string) => void; error: string | null; busy: boolean }) {
+  const [value, setValue] = useState('');
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <form
+        onSubmit={e => { e.preventDefault(); if (value) onUnlock(value); }}
+        className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4"
+      >
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">SmartGrid Western</h1>
+          <p className="text-sm text-gray-500 mt-1">Calling campaign dashboard</p>
+        </div>
+        <input
+          type="password"
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          placeholder="Password"
+          autoFocus
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+        />
+        {error && <p className="text-sm text-rose-600">{error}</p>}
+        <button disabled={busy || !value} className="w-full py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium disabled:opacity-50">
+          {busy ? 'Checking…' : 'View dashboard'}
+        </button>
+      </form>
+    </div>
+  );
 }
 
-interface DashboardStats {
-  total: number;
-  complete: number;
-  calling: number;
-  attempted: number;
-  outcomes: OutcomeBreakdown;
-  callerStats: CallerStat[];
+const STEPS: { key: keyof Funnel; label: string; hint: string }[] = [
+  { key: 'calls', label: 'Calls made', hint: 'Every call the team logged' },
+  { key: 'conversations', label: 'Conversations', hint: 'Reached a person (interested, not interested or asked for a callback)' },
+  { key: 'emails', label: 'Emails captured', hint: 'Decision-maker email collected' },
+  { key: 'meetings', label: 'Meetings booked', hint: 'Meeting set with Dan / Chris' },
+  { key: 'bills', label: 'Utility bills', hint: 'Utility bill received for a savings estimate' },
+];
+
+function FunnelRow({ f }: { f: Funnel }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      {STEPS.map((s, i) => (
+        <div key={s.key} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3" title={s.hint}>
+          <p className="text-2xl font-bold text-gray-900">{f[s.key].toLocaleString()}</p>
+          <p className="text-xs text-gray-600 mt-0.5">{s.label}</p>
+          {i > 0 && <p className="text-[11px] text-gray-400 mt-1">{pct(f[s.key], f[STEPS[i - 1].key])} of {STEPS[i - 1].label.toLowerCase()}</p>}
+        </div>
+      ))}
+    </div>
+  );
 }
 
-const DASHBOARD_PASSWORD = 'smartgrid';
-
-interface Lead {
-  id: string;
-  account_name: string;
-  phone: string | null;
-  email: string | null;
-  primary_contact: string | null;
-  status: string;
-  outcome: string | null;
-  assigned_to: string | null;
-  attempts_count: number;
-  callback_date: string | null;
-  callback_time: string | null;
-  created_at: string;
+function TrendChart({ points }: { points: ReturnType<typeof trend> }) {
+  const max = Math.max(1, ...points.map(p => p.calls));
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+      <div className="flex items-center gap-4 mb-3 text-[11px] text-gray-500">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-sky-300" />Calls</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />Emails captured</span>
+      </div>
+      <div className="flex items-end gap-1.5 h-36">
+        {points.map(p => (
+          <div key={p.key} className="flex-1 flex flex-col items-center gap-1 min-w-0" title={`${p.label}: ${p.calls} calls, ${p.emails} emails`}>
+            <div className="w-full flex items-end justify-center gap-0.5 h-28">
+              <div className="w-1/2 bg-sky-300 rounded-t" style={{ height: `${(p.calls / max) * 100}%` }} />
+              <div className="w-1/2 bg-emerald-500 rounded-t" style={{ height: `${(p.emails / max) * 100}%` }} />
+            </div>
+            <span className="text-[10px] text-gray-400 truncate w-full text-center">{p.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
+
+const CONTACT_PAGE = 50;
 
 export default function SmartGridDashboard() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'lifetime'>('daily');
-  const [tab, setTab] = useState<'stats' | 'contacts'>('stats');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [password, setPassword] = useState(readPw);
+  const [data, setData] = useState<ClientPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [period, setPeriod] = useState<TrackerPeriod>('week');
+  const [day, setDay] = useState(latestShiftDay);
+  const [tab, setTab] = useState<'wins' | 'callbacks' | 'emails' | 'contacts'>('wins');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordInput === DASHBOARD_PASSWORD) {
-      setAuthenticated(true);
-      setPasswordInput('');
-      fetchStats();
-      fetchLeads();
-    } else {
-      alert('Incorrect password');
-      setPasswordInput('');
-    }
-  };
-
-  const fetchLeads = async () => {
+  const load = useCallback(async (pw: string) => {
+    setBusy(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_PUBLIC_SUPABASE_URL}/functions/v1/smartgrid-leads-list`
-      );
-
-      if (!response.ok) throw new Error('Failed to fetch leads');
-
-      const data = await response.json();
-      setLeads(data);
-    } catch (err) {
-      console.error('Error fetching leads:', err);
-    }
-  };
-
-  const fetchStats = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_PUBLIC_SUPABASE_URL}/functions/v1/smartgrid-dashboard-stats`
-      );
-
-      if (!response.ok) throw new Error('Failed to fetch stats');
-
-      const data = await response.json();
-      const callerStats = data[timePeriod] || [];
-
-      setStats({
-        total: data.total,
-        complete: data.complete,
-        calling: data.calling,
-        attempted: data.attempted,
-        outcomes: data.outcomes,
-        callerStats,
-      });
-    } catch (err) {
-      console.error('Error fetching stats:', err);
+      const payload = await fetchDashboard(pw);
+      setData(payload);
+      setError(null);
+      savePw(pw);
+      setPassword(pw);
+    } catch (e: any) {
+      setError(e.message);
+      if (e.unauthorized) { savePw(''); setPassword(''); setData(null); }
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { if (password) load(password); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (authenticated) {
-      fetchStats();
-      fetchLeads();
-      // Poll every 15 seconds for live updates
-      const interval = setInterval(() => {
-        fetchStats();
-        fetchLeads();
-      }, 15000);
-      return () => clearInterval(interval);
+    if (!password || !data) return;
+    const t = setInterval(() => load(password), REFRESH_MS);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(password); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
+  }, [password, !!data, load]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const range = useMemo(() => periodRange(period, day), [period, day]);
+  const names = useMemo(() => new Map((data?.callers || []).map(c => [c.id, c.name])), [data]);
+  const funnel = useMemo(() => (data ? funnelFor(data, range) : null), [data, range]);
+  const points = useMemo(() => (data ? trend(data, period === 'month' || period === 'all', range.end || latestShiftDay()) : []), [data, period, range]);
+  const wins = useMemo(() => (data ? winsFor(data, range) : []), [data, range]);
+  const callbacks = useMemo(
+    () => (data?.leads || []).filter(l => l.status === 'Callback scheduled')
+      .sort((a, b) => (a.callbackDate || '9999').localeCompare(b.callbackDate || '9999')),
+    [data],
+  );
+  const progress = useMemo(() => (data ? listProgress(data) : null), [data]);
+  // Every contact with an email on file, with when/who captured it (if a caller did)
+  const emailContacts = useMemo(() => {
+    if (!data) return [];
+    const captured = new Map<string, { at: string; callerId: string }>();
+    for (const c of data.calls) {
+      if (!c.emailFound) continue;
+      const prev = captured.get(c.leadId);
+      if (!prev || c.at < prev.at) captured.set(c.leadId, { at: c.at, callerId: c.callerId });
     }
-  }, [authenticated, timePeriod]);
+    return data.leads
+      .filter(l => l.email)
+      .map(l => ({ lead: l, captured: captured.get(l.id) || null }))
+      .sort((a, b) => (b.captured?.at || '').localeCompare(a.captured?.at || '') || a.lead.account.localeCompare(b.lead.account));
+  }, [data]);
 
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-sky-50 to-blue-50 flex items-center justify-center px-4">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-800">SmartGrid Western</h1>
-              <p className="text-sm text-gray-500 mt-2">Lead Calling Dashboard</p>
-            </div>
+  const downloadEmails = () => {
+    const cell = (v: string | null | undefined) => `"${(v ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Business', 'Contact', 'Email', 'Phone', 'Status', 'Email captured (Pacific)', 'Caller', 'Notes'],
+      ...emailContacts.map(({ lead, captured }) => [
+        lead.account, lead.contact, lead.email, lead.phone, lead.status,
+        captured ? formatPacific(captured.at) : '', captured ? names.get(captured.callerId) || '' : '', lead.notes,
+      ]),
+    ];
+    const blob = new Blob([rows.map(r => r.map(cell).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smartgrid-contacts-with-email-${currentShiftDay()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-2">Password</label>
-                <input
-                  type="password"
-                  value={passwordInput}
-                  onChange={e => setPasswordInput(e.target.value)}
-                  placeholder="Enter password"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                  autoFocus
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full px-4 py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium transition-colors"
-              >
-                Access Dashboard
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-    );
+  const contacts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data?.leads || [])
+      .filter(l => !q || l.account.toLowerCase().includes(q) || l.contact?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q) || l.phone?.includes(q))
+      .sort((a, b) => a.account.localeCompare(b.account));
+  }, [data, search]);
+
+  if (!password || !data) {
+    return <PasswordGate onUnlock={load} error={password ? null : error} busy={busy} />;
   }
 
-  const completePct = stats?.total ? Math.round((stats.complete / stats.total) * 100) : 0;
-
-  const filteredLeads = leads.filter(lead =>
-    lead.account_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    lead.phone?.includes(searchQuery) ||
-    lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    lead.primary_contact?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const today = latestShiftDay();
+  const isCurrent = period === 'all' || (range.start !== null && range.end !== null && today >= range.start && today <= range.end);
+  const periodLabel = period === 'shift' ? `${formatShiftDay(day)} · morning calling session (Pacific)` : range.label.replace(/^Week · /, 'Week of ');
+  const pages = Math.max(1, Math.ceil(contacts.length / CONTACT_PAGE));
+  const current = Math.min(page, pages - 1);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">SmartGrid Western</h1>
-            <p className="text-sm text-gray-500 mt-1">Lead Calling Campaign Progress</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">SmartGrid Western</h1>
+            <p className="text-sm text-gray-500 mt-1">Calling campaign · updated {formatPacific(data.generatedAt)} Pacific</p>
           </div>
-          <button
-            onClick={() => setAuthenticated(false)}
-            className="px-4 py-2 text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            Logout
+          <button onClick={() => { savePw(''); setPassword(''); setData(null); }} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-white">
+            Log out
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setTab('stats')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              tab === 'stats'
-                ? 'bg-sky-500 text-white'
-                : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Stats
-          </button>
-          <button
-            onClick={() => setTab('contacts')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              tab === 'contacts'
-                ? 'bg-sky-500 text-white'
-                : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            All Contacts ({leads.length})
-          </button>
+        {error && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{error} Showing the last loaded numbers.</p>}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+            {PERIODS.map(p => (
+              <button key={p.value} onClick={() => setPeriod(p.value)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md ${period === p.value ? 'bg-sky-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {period !== 'all' && (
+            <div className="inline-flex items-center gap-1">
+              <button onClick={() => setDay(stepPeriod(period, day, -1))} className="w-8 h-8 rounded-md border border-gray-200 bg-white text-gray-600" aria-label="Previous">‹</button>
+              <button onClick={() => setDay(stepPeriod(period, day, 1))} disabled={isCurrent} className="w-8 h-8 rounded-md border border-gray-200 bg-white text-gray-600 disabled:opacity-40" aria-label="Next">›</button>
+              {!isCurrent && <button onClick={() => setDay(today)} className="ml-1 px-2.5 py-1.5 text-xs font-medium text-sky-700 bg-sky-50 rounded-md">Today</button>}
+            </div>
+          )}
+          <p className="text-sm font-semibold text-gray-800">{periodLabel}</p>
         </div>
 
-        {/* Stats Tab */}
-        {tab === 'stats' && (
-          <div className="space-y-6">
-            {/* Time period selector */}
-            <div className="flex gap-2 flex-wrap">
-              {(['daily', 'weekly', 'monthly', 'lifetime'] as const).map(period => (
-                <button
-                  key={period}
-                  onClick={() => setTimePeriod(period)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors capitalize ${
-                    timePeriod === period
-                      ? 'bg-sky-500 text-white'
-                      : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {period}
-                </button>
+        {funnel && <FunnelRow f={funnel} />}
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="lg:col-span-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{period === 'month' || period === 'all' ? 'Last 8 weeks' : 'Last 14 days'}</p>
+            <TrendChart points={points} />
+          </div>
+          <div className="lg:col-span-2 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">By caller</p>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-600 text-xs">
+                    <th className="text-left px-3 py-2 font-semibold">Caller</th>
+                    <th className="text-right px-2 py-2 font-semibold">Calls</th>
+                    <th className="text-right px-2 py-2 font-semibold">Convos</th>
+                    <th className="text-right px-2 py-2 font-semibold">Emails</th>
+                    <th className="text-right px-2 py-2 font-semibold">Mtgs</th>
+                    <th className="text-right px-3 py-2 font-semibold">Bills</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.callers.map(c => {
+                    const f = funnelFor(data, range, c.id);
+                    return (
+                      <tr key={c.id} className="border-t border-gray-50">
+                        <td className="px-3 py-2 font-medium text-gray-800">{c.name}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{f.calls}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{f.conversations}</td>
+                        <td className="px-2 py-2 text-right tabular-nums text-emerald-700 font-semibold">{f.emails}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{f.meetings}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{f.bills}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {progress && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contact list progress</p>
+              <p className="text-xs text-gray-500">
+                {(progress.total - (progress.counts['Not called yet'] || 0)).toLocaleString()} of {progress.total.toLocaleString()} contacted at least once
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+              {['Not called yet', 'Called – will retry', 'Callback scheduled', 'Complete', 'Out of attempts'].map(s => (
+                <span key={s} className="text-gray-600">{s}: <b className="text-gray-900">{(progress.counts[s] || 0).toLocaleString()}</b></span>
               ))}
             </div>
-
-        {/* Overall stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
-            <p className="text-lg font-bold text-gray-800">{stats?.complete}/{stats?.total}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">Complete ({completePct}%)</p>
-          </div>
-          <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
-            <p className="text-lg font-bold text-sky-600">{stats?.calling}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">In Progress</p>
-          </div>
-          <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
-            <p className="text-lg font-bold text-gray-600">{stats?.attempted}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">Attempted</p>
-          </div>
-          <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
-            <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-400" style={{ width: `${completePct}%` }} />
-            </div>
-            <p className="text-[10px] text-gray-400 mt-1">{completePct}% complete</p>
-          </div>
-        </div>
-
-        {/* Outcome breakdown */}
-        {stats?.outcomes && (
-          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 p-4">
-            <p className="text-xs font-semibold text-emerald-700 mb-3">CALL OUTCOMES (All Time)</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
-                <p className="text-[10px] text-gray-500">Interested</p>
-                <p className="text-sm font-bold text-emerald-600">{stats.outcomes.interested}</p>
-              </div>
-              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
-                <p className="text-[10px] text-gray-500">Callback</p>
-                <p className="text-sm font-bold text-sky-600">{stats.outcomes.callback}</p>
-              </div>
-              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
-                <p className="text-[10px] text-gray-500">Not Interested</p>
-                <p className="text-sm font-bold text-gray-600">{stats.outcomes.notInterested}</p>
-              </div>
-              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
-                <p className="text-[10px] text-gray-500">Voicemail</p>
-                <p className="text-sm font-bold text-amber-600">{stats.outcomes.voicemail}</p>
-              </div>
-              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
-                <p className="text-[10px] text-gray-500">No Answer</p>
-                <p className="text-sm font-bold text-amber-600">{stats.outcomes.noAnswer}</p>
-              </div>
-              <div className="bg-white rounded-lg px-3 py-2 border border-emerald-100">
-                <p className="text-[10px] text-gray-500">Skip</p>
-                <p className="text-sm font-bold text-gray-600">{stats.outcomes.skip}</p>
-              </div>
-            </div>
-            <div className="mt-2 text-[10px] text-emerald-600">
-              <p>Qualified: <span className="font-bold">{stats.outcomes.interested + stats.outcomes.callback}</span> prospects</p>
-            </div>
           </div>
         )}
 
-        {/* Caller performance */}
-        {stats?.callerStats && stats.callerStats.length > 0 && (
-          <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl border border-sky-200 p-4">
-            <p className="text-xs font-semibold text-sky-700 mb-3 capitalize">{timePeriod.toUpperCase()} PERFORMANCE</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {stats.callerStats.map(caller => {
-                const callbackRate = caller.callsToday > 0 ? ((caller.interestedToday + caller.callbackToday) / caller.callsToday * 100).toFixed(0) : 0;
-                return (
-                  <div key={caller.callerId} className="bg-white rounded-lg px-4 py-3 border border-sky-100">
-                    <p className="text-xs font-medium text-gray-700 mb-2">{caller.callerName}</p>
-                    <div className="space-y-1.5 text-[10px]">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Calls</span>
-                        <span className="font-bold text-gray-800">{caller.callsToday}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Qualified</span>
-                        <span className="font-bold text-emerald-600">{caller.interestedToday + caller.callbackToday} ({callbackRate}%)</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Interested</span>
-                        <span className="font-bold text-sky-600">{caller.interestedToday}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Callback</span>
-                        <span className="font-bold text-sky-600">{caller.callbackToday}</span>
+        <div className="space-y-3">
+          <div className="flex gap-1 border-b border-gray-200">
+            {([
+              ['wins', `Wins to follow up (${wins.length})`],
+              ['callbacks', `Scheduled callbacks (${callbacks.length})`],
+              ['emails', `Emails (${emailContacts.length})`],
+              ['contacts', `All contacts (${data.leads.length.toLocaleString()})`],
+            ] as const).map(([value, label]) => (
+              <button key={value} onClick={() => setTab(value)}
+                className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${tab === value ? 'border-sky-600 text-sky-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'wins' && (
+            wins.length === 0 ? <p className="text-sm text-gray-400 py-6 text-center">No emails, meetings or bills in this period yet.</p> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {wins.map(w => (
+                  <div key={w.lead.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-gray-900">{w.lead.account}</p>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {w.achieved.map(a => <span key={a} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700">{a}</span>)}
                       </div>
                     </div>
+                    <p className="text-sm text-gray-700">{w.lead.contact || '–'}{w.lead.phone ? ` · ${w.lead.phone}` : ''}</p>
+                    {w.lead.email && <a href={`mailto:${w.lead.email}`} className="text-sm text-sky-700 break-all">{w.lead.email}</a>}
+                    <p className="text-xs text-gray-400">{formatPacific(w.when)} Pacific · {names.get(w.callerId || '') || 'Caller'}</p>
+                    {w.lead.notes && <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2 whitespace-pre-wrap">{w.lead.notes}</p>}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                ))}
+              </div>
+            )
+          )}
 
-        {/* Progress bar */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-600">Overall Progress</span>
-            <span className="text-xs text-gray-400">{completePct}%</span>
-          </div>
-          <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-400 transition-all" style={{ width: `${completePct}%` }} />
-          </div>
-        </div>
-          </div>
-        )}
+          {tab === 'callbacks' && (
+            callbacks.length === 0 ? <p className="text-sm text-gray-400 py-6 text-center">No callbacks scheduled.</p> : (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+                {callbacks.map(l => (
+                  <div key={l.id} className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <p className="font-medium text-gray-900 flex-1 min-w-48">{l.account}</p>
+                    <p className="text-sm text-gray-700">{l.callbackDate ? formatShiftDay(l.callbackDate) : 'Date TBD'}{l.callbackTime ? ` · ${l.callbackTime.slice(0, 5)}` : ''}</p>
+                    {l.nextGoal && <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700">{GOAL_TEXT[l.nextGoal]}</span>}
+                    <p className="text-xs text-gray-500">{names.get(l.lastCallerId || '') || ''}</p>
+                    {l.notes && <p className="w-full text-sm text-gray-600">{l.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )
+          )}
 
-        {/* Contacts Tab */}
-        {tab === 'contacts' && (
-          <div className="space-y-4">
-            <div>
-              <input
-                type="text"
-                placeholder="Search by name, phone, email, or contact..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              />
-              <p className="text-xs text-gray-500 mt-2">{filteredLeads.length} of {leads.length} leads</p>
-            </div>
+          {tab === 'emails' && (
+            emailContacts.length === 0 ? <p className="text-sm text-gray-400 py-6 text-center">No emails collected yet.</p> : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-gray-600">{emailContacts.length} contacts with an email address</p>
+                  <button onClick={downloadEmails} className="px-3 py-1.5 text-sm font-medium rounded-lg bg-sky-600 hover:bg-sky-700 text-white">
+                    Download CSV
+                  </button>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-600 text-xs">
+                        <th className="text-left px-4 py-2 font-semibold">Business</th>
+                        <th className="text-left px-3 py-2 font-semibold">Contact</th>
+                        <th className="text-left px-3 py-2 font-semibold">Email</th>
+                        <th className="text-left px-3 py-2 font-semibold">Phone</th>
+                        <th className="text-left px-3 py-2 font-semibold">Status</th>
+                        <th className="text-left px-4 py-2 font-semibold">Captured</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {emailContacts.map(({ lead, captured }) => (
+                        <tr key={lead.id} className="border-t border-gray-50 align-top">
+                          <td className="px-4 py-2 font-medium text-gray-900 min-w-[14rem] max-w-sm">
+                            {lead.account}
+                            {lead.notes && <p className="text-xs font-normal text-gray-500 mt-0.5 line-clamp-2" title={lead.notes}>{lead.notes}</p>}
+                          </td>
+                          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{lead.contact || '–'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap"><a href={`mailto:${lead.email}`} className="text-sky-700 hover:underline">{lead.email}</a></td>
+                          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{lead.phone || '–'}</td>
+                          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{lead.status}</td>
+                          <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
+                            {captured ? <>{formatPacific(captured.at)}<br /><span className="text-xs">{names.get(captured.callerId) || 'Caller'}</span></> : 'On file'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          )}
 
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
+          {tab === 'contacts' && (
+            <div className="space-y-3">
+              <input value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} placeholder="Search business, contact, email or phone…"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/30" />
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Account Name</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Contact</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Phone</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Email</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Outcome</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Attempts</th>
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-600 text-xs">
+                      <th className="text-left px-4 py-2 font-semibold">Business</th>
+                      <th className="text-left px-3 py-2 font-semibold">Contact</th>
+                      <th className="text-left px-3 py-2 font-semibold">Phone</th>
+                      <th className="text-left px-3 py-2 font-semibold">Email</th>
+                      <th className="text-left px-3 py-2 font-semibold">Status</th>
+                      <th className="text-left px-4 py-2 font-semibold">Last called</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredLeads.length > 0 ? (
-                      filteredLeads.map(lead => (
-                        <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 text-gray-800 font-medium">{lead.account_name}</td>
-                          <td className="px-4 py-3 text-gray-600">{lead.primary_contact || '—'}</td>
-                          <td className="px-4 py-3 text-gray-600">{lead.phone || '—'}</td>
-                          <td className="px-4 py-3 text-gray-600 text-xs">{lead.email || '—'}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              lead.status === 'complete' ? 'bg-emerald-100 text-emerald-700' :
-                              lead.status === 'calling' ? 'bg-sky-100 text-sky-700' :
-                              lead.status === 'attempted' ? 'bg-amber-100 text-amber-700' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
-                              {lead.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600 text-xs">
-                            {lead.outcome ? (
-                              <span className={`px-2 py-1 rounded font-medium ${
-                                lead.outcome === 'interested' || lead.outcome === 'callback' ? 'bg-emerald-50 text-emerald-700' :
-                                lead.outcome === 'not_interested' ? 'bg-red-50 text-red-700' :
-                                'bg-gray-50 text-gray-600'
-                              }`}>
-                                {lead.outcome.replace('_', ' ')}
-                              </span>
-                            ) : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-gray-600 text-center">{lead.attempts_count}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={7} className="px-4 py-6 text-center text-gray-500">
-                          No leads found
-                        </td>
+                    {contacts.slice(current * CONTACT_PAGE, current * CONTACT_PAGE + CONTACT_PAGE).map(l => (
+                      <tr key={l.id} className="border-t border-gray-50">
+                        <td className="px-4 py-2 font-medium text-gray-900">{l.account}</td>
+                        <td className="px-3 py-2 text-gray-700">{l.contact || '–'}</td>
+                        <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{l.phone || '–'}</td>
+                        <td className="px-3 py-2 text-sky-700 whitespace-nowrap">{l.email || '–'}</td>
+                        <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{l.status}</td>
+                        <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{l.lastCalledAt ? formatPacific(l.lastCalledAt) : '–'}</td>
                       </tr>
-                    )}
+                    ))}
                   </tbody>
                 </table>
+                <div className="px-4 py-2.5 bg-gray-50 flex items-center justify-between text-xs text-gray-500">
+                  <span>{contacts.length.toLocaleString()} contacts · page {current + 1} of {pages}</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => setPage(current - 1)} disabled={current === 0} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">← Prev</button>
+                    <button onClick={() => setPage(current + 1)} disabled={current >= pages - 1} className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50">Next →</button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        <p className="text-xs text-gray-400">
+          A "day" is one morning calling session, Pacific time. Calls counts every logged call; conversations and emails count each business once per period. Outcome labels: {Object.values(OUTCOME_TEXT).join(', ')}.
+        </p>
       </div>
     </div>
   );

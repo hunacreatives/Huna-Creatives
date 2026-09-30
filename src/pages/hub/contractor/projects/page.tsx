@@ -1362,7 +1362,25 @@ export default function ContractorProjectsPage() {
                 </div>
                 <i className="ri-arrow-right-line text-white text-xl flex-shrink-0"></i>
               </button>
-            ) : (
+            ) : null}
+            {wsProject?.project_name === 'SmartGrid Western' && wsRow?.project_role === 'Cold Caller' && (
+              <button
+                onClick={() => navigate('/hub/contractor/smartgrid-my-leads')}
+                className="w-full flex items-center justify-between px-6 py-4 bg-white border border-gray-200 rounded-xl hover:border-sky-300 hover:bg-sky-50 transition-all group"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
+                    <i className="ri-history-line text-sky-600 text-lg"></i>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-base font-bold text-gray-800">My Leads</p>
+                    <p className="text-sm text-gray-500">Every hotel you've called, with notes and history</p>
+                  </div>
+                </div>
+                <i className="ri-arrow-right-line text-gray-400 text-xl flex-shrink-0"></i>
+              </button>
+            )}
+            {wsProject?.project_name === 'SmartGrid Western' && wsRow?.project_role === 'Cold Caller' ? null : (
               <>
                 {/* Focus mode dismiss bar */}
                 {wsFocusSection && (
