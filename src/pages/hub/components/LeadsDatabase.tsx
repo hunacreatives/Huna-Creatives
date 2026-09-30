@@ -195,7 +195,15 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
         const userMap = new Map((users || []).map(u => [u.id, u.full_name]));
 
         if (!leadsErr && leads) {
-          const referenceDate = dateStr ? new Date(dateStr) : new Date();
+          // Parse dateStr as local date, not UTC
+          let referenceDate: Date;
+          if (dateStr) {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            referenceDate = new Date(year, month - 1, day);
+          } else {
+            referenceDate = new Date();
+          }
+
           const periods: Record<string, Date> = {
             daily: new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()),
             weekly: new Date(referenceDate.getTime() - 7 * 24 * 60 * 60 * 1000),
@@ -209,10 +217,11 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
             leads.forEach((lead: any) => {
               const updatedAt = new Date(lead.updated_at);
 
-              // For daily period, match exact date only
+              // For daily period, match exact local date (Asia/Manila timezone)
               if (period === 'daily') {
-                const leadDate = updatedAt.toISOString().split('T')[0];
-                const filterDate = startDate.toISOString().split('T')[0];
+                const leadLocal = new Date(updatedAt.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+                const leadDate = leadLocal.toLocaleDateString('en-CA');
+                const filterDate = startDate.toLocaleDateString('en-CA');
                 if (leadDate !== filterDate) return;
               } else if (updatedAt < startDate) {
                 return;
