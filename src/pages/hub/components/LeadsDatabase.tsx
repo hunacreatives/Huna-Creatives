@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { fmt, fmtDate } from '@/pages/hub/admin/projects/shared';
 import CommissionsReport from './CommissionsReport';
@@ -29,13 +29,33 @@ interface Contractor {
   full_name: string;
 }
 
+interface CallerStats {
+  callerId: string;
+  callerName: string;
+  callsToday: number;
+  successfulToday: number;
+  callbacksToday: number;
+  billReceivedToday: number;
+}
+
 interface LeadsStats {
   total: number;
   complete: number;
   calling: number;
   attempted: number;
-  todayStats?: { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[];
+  todayStats?: CallerStats[];
 }
+
+// The night shift runs past midnight, so work counts toward the Manila date the
+// shift started on (noon cutoff, same rule slack-attendance uses).
+const shiftDayOf = (ts: string | number) =>
+  new Date(new Date(ts).getTime() - 12 * 60 * 60 * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+
+const addDays = (day: string, n: number) => {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 
 interface Props {
   projectId: number;
@@ -53,7 +73,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [timePeriod, setTimePeriod] = useState<'daily' | 'weekly' | 'monthly' | 'lifetime'>('daily');
-  const [allTimePeriodStats, setAllTimePeriodStats] = useState<Record<string, { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; phoneFoundToday: number }[]> | null>(null);
+  const [allTimePeriodStats, setAllTimePeriodStats] = useState<Record<string, CallerStats[]> | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalLeads, setTotalLeads] = useState(0);
   const leadsPerPage = 50;
@@ -62,10 +82,9 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [assignedFilter, setAssignedFilter] = useState<string | null>(null);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [selectedDate, setSelectedDate] = useState<string>(() => shiftDayOf(Date.now()));
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
 
   useEffect(() => {
     fetchLeads(0, '');
@@ -74,31 +93,14 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   }, [projectId, isAdmin]);
 
-  // Auto-refresh stats at 8 AM every day
+  // Refresh caller stats every minute while the page is open
   useEffect(() => {
-    const scheduleNextRefresh = () => {
-      const now = new Date();
-      const next8AM = new Date(now);
-      next8AM.setHours(8, 0, 0, 0);
-
-      // If it's already past 8 AM today, schedule for tomorrow
-      if (now >= next8AM) {
-        next8AM.setDate(next8AM.getDate() + 1);
-      }
-
-      const timeUntilRefresh = next8AM.getTime() - now.getTime();
-
-      const timeout = setTimeout(() => {
-        fetchLeads(0, '', statusFilter, assignedFilter);
-        scheduleNextRefresh(); // Reschedule for next day
-      }, timeUntilRefresh);
-
-      return timeout;
-    };
-
-    const timeoutId = scheduleNextRefresh();
-    return () => clearTimeout(timeoutId);
-  }, [projectId, isAdmin, statusFilter, assignedFilter]);
+    if (!isAdmin) return;
+    const interval = setInterval(() => {
+      calculateStats(leads, totalLeads, selectedDateRef.current);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [projectId, isAdmin, leads, totalLeads]);
 
   // Update stats when time period changes
   useEffect(() => {
@@ -109,7 +111,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
 
   // Recalculate stats when selected date changes
   useEffect(() => {
-    if (leads.length > 0) {
+    if (stats) {
       calculateStats(leads, totalLeads, selectedDate);
     }
   }, [selectedDate]);
@@ -164,101 +166,99 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
     }
   };
 
-  const calculateStats = async (leadsData: Lead[], total: number = totalLeads, dateStr?: string) => {
-    // Query database for actual counts across all leads, not just current page
-    const { data: counts } = await supabase
-      .from('hub_project_leads')
-      .select('status')
-      .eq('project_id', projectId)
-      .limit(10000);
+  const calculateStats = async (_leadsData: Lead[], total: number = totalLeads, dateStr: string = selectedDateRef.current) => {
+    const countStatus = async (status: string) => {
+      const { count } = await supabase
+        .from('hub_project_leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('project_id', projectId)
+        .eq('status', status);
+      return count || 0;
+    };
+    const [complete, calling, attempted] = await Promise.all([
+      countStatus('complete'),
+      countStatus('calling'),
+      countStatus('attempted'),
+    ]);
 
-    const complete = (counts || []).filter(l => l.status === 'complete').length;
-    const calling = (counts || []).filter(l => l.status === 'calling').length;
-    const attempted = (counts || []).filter(l => l.status === 'attempted').length;
-
-    let allStats: Record<string, { callerId: string; callerName: string; callsToday: number; successfulToday: number; emailFoundToday: number; billReceivedToday: number }[]> = {};
+    const allStats: Record<string, CallerStats[]> = {};
 
     if (isAdmin) {
       try {
-        // Fetch all leads with caller info
-        const { data: leads, error: leadsErr } = await supabase
-          .from('hub_project_leads')
-          .select('id, last_caller_id, status, email_found, bill_received, created_at, updated_at, hub_users!last_caller_id(full_name)')
-          .eq('project_id', projectId)
-          .limit(10000);
+        // The call log is the record of who called which lead and when
+        const activity: any[] = [];
+        for (let from = 0; ; from += 1000) {
+          const { data, error } = await supabase
+            .from('hub_project_activity')
+            .select('id, entity_id, user_id, created_at, meta')
+            .eq('project_id', projectId)
+            .eq('action', 'lead_outcome_logged')
+            .order('id', { ascending: true })
+            .range(from, from + 999);
+          if (error) throw error;
+          activity.push(...(data || []));
+          if (!data || data.length < 1000) break;
+        }
 
-        // Fetch caller names separately
-        const { data: users } = await supabase
-          .from('hub_users')
-          .select('id, full_name');
+        const [{ data: bills }, { data: users }, { data: callers }] = await Promise.all([
+          supabase
+            .from('hub_project_leads')
+            .select('id, last_caller_id, bill_received_at')
+            .eq('project_id', projectId)
+            .eq('bill_received', true),
+          supabase.from('hub_users').select('id, full_name'),
+          supabase
+            .from('hub_project_contractors')
+            .select('user_id')
+            .eq('project_id', projectId)
+            .eq('project_role', 'Cold Caller'),
+        ]);
 
         const userMap = new Map((users || []).map(u => [u.id, u.full_name]));
 
-        if (!leadsErr && leads) {
-          // Parse dateStr as local date, not UTC
-          let referenceDate: Date;
-          if (dateStr) {
-            const [year, month, day] = dateStr.split('-').map(Number);
-            referenceDate = new Date(year, month - 1, day);
-          } else {
-            referenceDate = new Date();
+        const inPeriod: Record<string, (day: string) => boolean> = {
+          daily: day => day === dateStr,
+          weekly: day => day > addDays(dateStr, -7) && day <= dateStr,
+          monthly: day => day.slice(0, 7) === dateStr.slice(0, 7) && day <= dateStr,
+          lifetime: day => day <= dateStr,
+        };
+
+        for (const [period, matches] of Object.entries(inPeriod)) {
+          const callerMap = new Map<string, { calls: Set<string>; successful: Set<string>; callbacks: Set<string>; bills: Set<string> }>();
+          const forCaller = (id: string) => {
+            if (!callerMap.has(id)) {
+              callerMap.set(id, { calls: new Set(), successful: new Set(), callbacks: new Set(), bills: new Set() });
+            }
+            return callerMap.get(id)!;
+          };
+          // Show every cold caller, even before their first call of the shift
+          for (const c of callers || []) if (c.user_id) forCaller(c.user_id);
+
+          for (const a of activity) {
+            if (!a.user_id || !matches(shiftDayOf(a.created_at))) continue;
+            const caller = forCaller(a.user_id);
+            const leadId = String(a.entity_id);
+            caller.calls.add(leadId);
+            if (a.meta?.email_found) caller.successful.add(leadId);
+            if (a.meta?.outcome === 'callback') caller.callbacks.add(leadId);
           }
 
-          const periods: Record<string, Date> = {
-            daily: new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate()),
-            weekly: new Date(referenceDate.getTime() - 7 * 24 * 60 * 60 * 1000),
-            monthly: new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1),
-            lifetime: new Date(0),
-          };
+          // Bills are marked by admin, credited to the caller who last worked the lead
+          for (const b of bills || []) {
+            if (!b.last_caller_id || !b.bill_received_at || !matches(shiftDayOf(b.bill_received_at))) continue;
+            forCaller(b.last_caller_id).bills.add(b.id);
+          }
 
-          Object.entries(periods).forEach(([period, startDate]) => {
-            const callerMap = new Map<string, { name: string; calls: Set<string>; successful: number; emailFound: number; billReceived: number }>();
-
-            leads.forEach((lead: any) => {
-              const updatedAt = new Date(lead.updated_at);
-
-              // For daily period, match exact local date (Asia/Manila timezone)
-              if (period === 'daily') {
-                const leadLocal = new Date(updatedAt.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
-                const leadDate = leadLocal.toLocaleDateString('en-CA');
-                const filterDate = startDate.toLocaleDateString('en-CA');
-                if (leadDate !== filterDate) return;
-              } else if (updatedAt < startDate) {
-                return;
-              }
-
-              if (!lead.last_caller_id) return;
-              const callerId = lead.last_caller_id;
-              const callerName = userMap.get(callerId) || 'Unknown';
-
-              if (!callerMap.has(callerId)) {
-                callerMap.set(callerId, { name: callerName, calls: new Set(), successful: 0, emailFound: 0, billReceived: 0 });
-              }
-
-              const caller = callerMap.get(callerId)!;
-              caller.calls.add(lead.id);
-
-              // Successful = status is complete
-              if (lead.status === 'complete') {
-                caller.successful++;
-              }
-              if (lead.email_found) {
-                caller.emailFound++;
-              }
-              if (lead.bill_received) {
-                caller.billReceived++;
-              }
-            });
-
-            allStats[period] = Array.from(callerMap.entries()).map(([callerId, data]) => ({
+          allStats[period] = Array.from(callerMap.entries())
+            .map(([callerId, c]) => ({
               callerId,
-              callerName: data.name,
-              callsToday: data.calls.size,
-              successfulToday: data.successful,
-              emailFoundToday: data.emailFound,
-              billReceivedToday: data.billReceived,
-            }));
-          });
+              callerName: userMap.get(callerId) || 'Unknown',
+              callsToday: c.calls.size,
+              successfulToday: c.successful.size,
+              callbacksToday: c.callbacks.size,
+              billReceivedToday: c.bills.size,
+            }))
+            .sort((x, y) => x.callerName.localeCompare(y.callerName));
         }
 
         setAllTimePeriodStats(allStats);
@@ -441,8 +441,8 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
                     <span className="text-sm font-bold text-emerald-600">{caller.successfulToday}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-gray-500">Email found</span>
-                    <span className="text-sm font-bold text-sky-600">{caller.emailFoundToday}</span>
+                    <span className="text-[10px] text-gray-500">Callbacks set</span>
+                    <span className="text-sm font-bold text-sky-600">{caller.callbacksToday}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-gray-500">Bill received</span>
