@@ -27,8 +27,10 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
-// Multiple-choice answers can come back with underscores for spaces
-// ("₱60,000_-_₱100,000"); map them back to the exact option text.
+// Real leads return multiple-choice answers as option keys ("o0", "o1"), which
+// are resolved against the form's questions (formOptions). API test leads can
+// return the text with underscores for spaces ("₱60,000_-_₱100,000"); pretty()
+// maps those back to the exact option text.
 const OPTIONS = [
   'Real estate / property', 'Architecture / interiors / construction', 'Clinic / health / wellness',
   'Hotel / resort / restaurant', 'Retail / e-commerce brand', 'Professional services', 'Other',
@@ -85,6 +87,38 @@ async function fetchLead(leadgenId: string, pageId: string | null) {
     if (!pageId) throw err;
     const page = await graph(`${pageId}?fields=access_token`, META_TOKEN);
     return await graph(path, page.access_token);
+  }
+}
+
+// question key → option key → option text, per form (cached per instance).
+type OptionMap = Record<string, Record<string, string>>;
+const formOptionCache = new Map<string, OptionMap>();
+// Fallback for the Oct 2026 quote-request form if the questions can't be fetched.
+const FALLBACK_OPTIONS: Record<string, OptionMap> = {
+  '1407340998172485': {
+    business_type: { o0: 'Real estate / property', o1: 'Architecture / interiors / construction', o2: 'Clinic / health / wellness', o3: 'Hotel / resort / restaurant', o4: 'Retail / e-commerce brand', o5: 'Professional services', o6: 'Other' },
+    budget: { o0: 'Below ₱60,000', o1: '₱60,000 - ₱100,000', o2: '₱100,000 - ₱200,000', o3: '₱200,000+' },
+    timeline: { o0: 'Within 1 month', o1: '1 - 3 months', o2: 'Just exploring' },
+    contact_channel: { o0: 'Messenger', o1: 'Viber', o2: 'Phone call', o3: 'Email' },
+  },
+};
+
+async function formOptions(formId: string | undefined): Promise<OptionMap> {
+  if (!formId) return {};
+  const cached = formOptionCache.get(formId);
+  if (cached) return cached;
+  try {
+    const form = await graph(`${formId}?fields=questions`, META_TOKEN);
+    const map: OptionMap = {};
+    for (const q of form.questions ?? []) {
+      if (!q.options?.length) continue;
+      map[q.key] = Object.fromEntries(q.options.map((o: { key: string; value: string }) => [o.key, o.value]));
+    }
+    formOptionCache.set(formId, map);
+    return map;
+  } catch (err) {
+    console.error('form questions fetch failed', formId, err);
+    return FALLBACK_OPTIONS[formId] ?? {};
   }
 }
 
@@ -210,9 +244,12 @@ interface Lead {
 }
 
 // deno-lint-ignore no-explicit-any
-function parseLead(leadgenId: string, raw: any): Lead {
+function parseLead(leadgenId: string, raw: any, options: OptionMap): Lead {
   const answers: Record<string, string> = {};
-  for (const f of raw.field_data ?? []) answers[f.name] = pretty(String(f.values?.[0] ?? ''));
+  for (const f of raw.field_data ?? []) {
+    const v = String(f.values?.[0] ?? '');
+    answers[f.name] = options[f.name]?.[v] ?? pretty(v);
+  }
   const all = Object.values(answers).join(' ').toLowerCase();
   return {
     leadgenId,
@@ -251,10 +288,14 @@ function inboxMessage(l: Lead): string {
 
 // ── Processing ──────────────────────────────────────────────────────────────
 
-async function processLead(leadgenId: string, pageId: string | null, sendAutoReply: boolean) {
+// Multiple-choice answers that are still raw option keys couldn't be decoded.
+const undecoded = (l: Lead) => [l.business, l.budget, l.timeline, l.channel].some((v) => /^o\d+$/.test(v));
+
+async function processLead(leadgenId: string, pageId: string | null, sendAutoReply: boolean, refresh = false) {
   let lead: Lead;
   try {
-    lead = parseLead(leadgenId, await fetchLead(leadgenId, pageId));
+    const raw = await fetchLead(leadgenId, pageId);
+    lead = parseLead(leadgenId, raw, await formOptions(raw.form_id));
   } catch (err) {
     // Never lose a lead silently: tell the team to pick it up in Leads Center.
     console.error('fetch lead failed', leadgenId, err);
@@ -290,7 +331,16 @@ async function processLead(leadgenId: string, pageId: string | null, sendAutoRep
     }).catch((e) => console.error('alert email failed', e));
     throw new Error(`DB: ${dbError.message}`);
   }
-  if (!inserted?.length) return { leadgenId, ok: true, duplicate: true };
+  if (!inserted?.length) {
+    if (!refresh) return { leadgenId, ok: true, duplicate: true };
+    const { error } = await supabase.from('contact_submissions').update({
+      subject: [lead.budget, lead.timeline].filter(Boolean).join(' · '),
+      message: inboxMessage(lead),
+      meta_payload: { answers: lead.answers, ad_name: lead.adName, campaign_name: lead.campaign, platform: lead.platform, created_time: lead.createdTime, is_test: lead.isTest },
+    }).eq('meta_lead_id', leadgenId);
+    if (error) throw new Error(`DB: ${error.message}`);
+    return { leadgenId, ok: true, refreshed: true, budget: lead.budget, timeline: lead.timeline, channel: lead.channel };
+  }
   const submissionId = inserted[0].id;
 
   // Auto-reply to the lead.
@@ -299,6 +349,7 @@ async function processLead(leadgenId: string, pageId: string | null, sendAutoRep
   if (lead.isTest) replyNote = 'Test lead — no auto-reply sent.';
   else if (!sendAutoReply) replyNote = 'Imported without an auto-reply.';
   else if (!validEmail) replyNote = 'No valid email — no auto-reply sent.';
+  else if (undecoded(lead)) replyNote = 'Form answers could not be decoded — no auto-reply sent. Check Leads Center.';
   else {
     try {
       const mail = autoReply(lead);
@@ -343,14 +394,15 @@ Deno.serve(async (req) => {
   const raw = await req.text();
 
   // Manual import of existing leads (e.g. ones that arrived before the webhook):
-  // POST {"leadgen_ids": [...], "send_auto_reply": false} with x-import-key = META_WEBHOOK_VERIFY_TOKEN.
+  // POST {"leadgen_ids": [...], "send_auto_reply": false, "refresh": false} with x-import-key = META_WEBHOOK_VERIFY_TOKEN.
   const importKey = req.headers.get('x-import-key');
   if (importKey) {
     if (!VERIFY_TOKEN || !timingSafeEqual(importKey, VERIFY_TOKEN)) return json({ error: 'Forbidden' }, 403);
-    const { leadgen_ids = [], send_auto_reply = false, page_id = null } = JSON.parse(raw || '{}');
+    // "refresh": true rewrites already-saved leads' inbox text (no emails).
+    const { leadgen_ids = [], send_auto_reply = false, page_id = null, refresh = false } = JSON.parse(raw || '{}');
     const results = [];
     for (const id of leadgen_ids) {
-      try { results.push(await processLead(String(id), page_id, !!send_auto_reply)); }
+      try { results.push(await processLead(String(id), page_id, !!send_auto_reply, !!refresh)); }
       catch (err) { results.push({ leadgenId: id, ok: false, error: String(err) }); }
     }
     return json({ results });
