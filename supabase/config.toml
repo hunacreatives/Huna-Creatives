@@ -7,3 +7,7 @@ verify_jwt = false
 # Called by the GitHub Actions cron with its own CRON_SECRET bearer token
 [functions.process-smartgrid-queue]
 verify_jwt = false
+
+# Meta Lead Ads webhook — Meta can't send a JWT; requests are verified with the app-secret signature
+[functions.meta-lead-webhook]
+verify_jwt = false
