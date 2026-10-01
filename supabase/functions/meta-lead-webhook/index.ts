@@ -199,7 +199,8 @@ function howWeReach(channel: string, phone: string): string {
   switch (channel) {
     case 'Phone call': return phone ? `call you at ${phone}` : 'call you';
     case 'Viber': return phone ? `message you on Viber at ${phone}` : 'message you on Viber';
-    case 'Messenger': return 'message you on Messenger';
+    // A Page can't start a Messenger chat with a lead, so text them and invite them to message first.
+    case 'Messenger': return phone ? `text you at ${phone}` : 'email you';
     case 'Email': return 'email you';
     default: return 'get in touch';
   }
@@ -215,7 +216,7 @@ function autoReply(l: Lead): { subject: string; html: string; text: string } {
     summaryTable([['Business', l.business], ['Budget', l.budget], ['Timeline', l.timeline]]),
     para(`What happens next: we will ${esc(reach)} within one working day to ask a few questions about your business. Your fixed quote follows within 24 hours of that conversation. No hidden fees.`),
     ...(l.channel === 'Messenger'
-      ? [para('If it is easier, you can also message us first at <a href="https://m.me/hunacreatives" style="color:#FF6B35">m.me/hunacreatives</a>.')]
+      ? [para('Facebook only lets businesses reply on Messenger after you message them first. If you prefer Messenger, send us a quick hello at <a href="https://m.me/hunacreatives" style="color:#FF6B35">m.me/hunacreatives</a> and we will continue there.')]
       : []),
     para('While you wait, here is some of our recent work: <a href="https://hunacreatives.com/portfolio" style="color:#FF6B35">hunacreatives.com/portfolio</a>'),
     para('If anything is urgent, just reply to this email.'),
@@ -226,7 +227,7 @@ function autoReply(l: Lead): { subject: string; html: string; text: string } {
     'Thanks for reaching out about a website. Here is what you sent us:',
     `Business: ${l.business} · Budget: ${l.budget} · Timeline: ${l.timeline}`, '',
     `What happens next: we will ${reach} within one working day to ask a few questions about your business. Your fixed quote follows within 24 hours of that conversation. No hidden fees.`, '',
-    ...(l.channel === 'Messenger' ? ['If it is easier, you can also message us first at m.me/hunacreatives.', ''] : []),
+    ...(l.channel === 'Messenger' ? ['Facebook only lets businesses reply on Messenger after you message them first. If you prefer Messenger, send us a quick hello at m.me/hunacreatives and we will continue there.', ''] : []),
     'While you wait, here is some of our recent work: hunacreatives.com/portfolio', '',
     'If anything is urgent, just reply to this email.', '',
     'Huna Creatives', 'Cebu, Philippines',
@@ -365,6 +366,9 @@ async function processLead(leadgenId: string, pageId: string | null, sendAutoRep
   const title = `${lead.isTest ? '[TEST] ' : ''}New Meta lead: ${lead.name}${lead.budget ? ` — ${lead.budget}` : ''}${lead.timeline ? `, ${lead.timeline}` : ''}`;
   const rows = [
     para(`<strong>${esc(lead.name)}</strong> wants to be reached by <strong>${esc(lead.channel || 'any channel')}</strong>. Reply within the hour if you can.`),
+    ...(lead.channel === 'Messenger'
+      ? [para('<span style="font-size:13px;color:#777777">You can\'t start a Messenger chat with a lead. Text or Viber their number (the auto-reply told them to expect a text, and invited them to message the Page first).</span>')]
+      : []),
     summaryTable([
       ['Business', lead.business], ['Current website', lead.website], ['Budget', lead.budget],
       ['Timeline', lead.timeline], ['Contact via', lead.channel], ['Phone', lead.phone], ['Email', lead.email],
