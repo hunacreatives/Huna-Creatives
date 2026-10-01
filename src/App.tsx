@@ -5,6 +5,7 @@ import i18n from "./i18n";
 import { useEffect, useLayoutEffect, useRef, Suspense } from "react";
 import ScrollToTop from "./components/feature/ScrollToTop";
 import CookieConsent from "./components/feature/CookieConsent";
+import MetaPixelPageViews from "./components/feature/MetaPixelPageViews";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DemoProvider } from "./contexts/DemoContext";
 import RouteErrorBoundary from "./components/feature/RouteErrorBoundary";
@@ -85,6 +86,7 @@ function App() {
             </PageTransitionWrapper>
             <ScrollToTop />
             <CookieConsent />
+            <MetaPixelPageViews />
           </AuthProvider>
         </DemoProvider>
       </BrowserRouter>

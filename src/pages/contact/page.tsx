@@ -4,6 +4,7 @@ import Navigation from '../../components/feature/Navigation';
 import { useSearchParams } from 'react-router-dom';
 import { useSEO } from '../../hooks/useSEO';
 import { supabase } from '@/lib/supabase';
+import { trackLead } from '@/lib/metaPixel';
 
 const SERVICE_OPTIONS = [
   'Brand Identity & Logo Design',
@@ -84,6 +85,7 @@ export default function ContactPage() {
       });
       if (!error) {
         setStatus('success');
+        trackLead(formData.service);
         setFormData({ name: '', email: '', service: '', budget: '', message: '' });
         if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
           (window as any).gtag('event', 'contact_form_submit', {

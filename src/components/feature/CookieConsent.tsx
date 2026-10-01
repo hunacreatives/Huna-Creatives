@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { CONSENT_EVENT, isPrivatePath } from '@/lib/metaPixel';
 
 const STORAGE_KEY = 'huna_cookie_consent';
 
@@ -26,6 +27,8 @@ export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
 
   const isHub = location.pathname.startsWith('/hub');
+  // Private client links (dashboards, proposals, payments) aren't the public site
+  const isPrivate = isPrivatePath(location.pathname);
 
   useEffect(() => {
     // The Hub is a logged-in internal tool, not an anonymous public visitor
@@ -41,12 +44,13 @@ export default function CookieConsent() {
     // 'denied' stays denied — index.html's consent default already covers it.
   }, [isHub]);
 
-  if (isHub) return null;
+  if (isHub || isPrivate) return null;
   if (!visible) return null;
 
   const decide = (granted: boolean) => {
     localStorage.setItem(STORAGE_KEY, granted ? 'granted' : 'denied');
     applyConsent(granted);
+    window.dispatchEvent(new Event(CONSENT_EVENT));
     setVisible(false);
   };
 
