@@ -21,6 +21,12 @@ const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
 const REPLY_TO = 'contact@hunacreatives.com';
 const NOTIFY_EMAIL = 'contact@hunacreatives.com';
 const SERVICE_LABEL = 'Website (Meta ad)';
+// Per-form wording: the booking-website form (Oct 2026) reuses the current_website
+// key for "How do clients book with you now?".
+const FORM_LABELS: Record<string, { service: string; website: string }> = {
+  '1141322145031619': { service: 'Booking website (Meta ad)', website: 'Books clients via' },
+};
+const labelsFor = (formId: string) => FORM_LABELS[formId] ?? { service: SERVICE_LABEL, website: 'Current website' };
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -199,6 +205,7 @@ function howWeReach(channel: string, phone: string): string {
   switch (channel) {
     case 'Phone call': return phone ? `call you at ${phone}` : 'call you';
     case 'Viber': return phone ? `message you on Viber at ${phone}` : 'message you on Viber';
+    case 'Text / SMS': return phone ? `text you at ${phone}` : 'email you';
     // A Page can't start a Messenger chat with a lead, so text them and invite them to message first.
     case 'Messenger': return phone ? `text you at ${phone}` : 'email you';
     case 'Email': return 'email you';
@@ -240,7 +247,7 @@ function autoReply(l: Lead): { subject: string; html: string; text: string } {
 interface Lead {
   leadgenId: string; name: string; email: string; phone: string;
   business: string; website: string; budget: string; timeline: string; channel: string;
-  adName: string; campaign: string; platform: string; createdTime: string; isTest: boolean;
+  adName: string; campaign: string; platform: string; createdTime: string; isTest: boolean; formId: string;
   answers: Record<string, string>;
 }
 
@@ -263,6 +270,7 @@ function parseLead(leadgenId: string, raw: any, options: OptionMap): Lead {
     timeline: answers.timeline ?? '',
     channel: answers.contact_channel ?? '',
     adName: raw.ad_name ?? '',
+    formId: String(raw.form_id ?? ''),
     campaign: raw.campaign_name ?? '',
     platform: raw.platform ?? '',
     createdTime: raw.created_time ?? new Date().toISOString(),
@@ -275,7 +283,7 @@ function parseLead(leadgenId: string, raw: any, options: OptionMap): Lead {
 function inboxMessage(l: Lead): string {
   return [
     `Business: ${l.business}`,
-    `Current website: ${l.website}`,
+    `${labelsFor(l.formId).website}: ${l.website}`,
     `Budget: ${l.budget}`,
     `Timeline: ${l.timeline}`,
     `Preferred contact: ${l.channel}`,
@@ -318,7 +326,7 @@ async function processLead(leadgenId: string, pageId: string | null, sendAutoRep
       email: lead.email,
       phone: lead.phone || null,
       subject: [lead.budget, lead.timeline].filter(Boolean).join(' · '),
-      service: SERVICE_LABEL,
+      service: labelsFor(lead.formId).service,
       message: inboxMessage(lead),
       meta_payload: { answers: lead.answers, ad_name: lead.adName, campaign_name: lead.campaign, platform: lead.platform, created_time: lead.createdTime, is_test: lead.isTest },
       created_at: lead.createdTime,
@@ -370,7 +378,7 @@ async function processLead(leadgenId: string, pageId: string | null, sendAutoRep
       ? [para('<span style="font-size:13px;color:#777777">You can\'t start a Messenger chat with a lead. Text or Viber their number (the auto-reply told them to expect a text, and invited them to message the Page first).</span>')]
       : []),
     summaryTable([
-      ['Business', lead.business], ['Current website', lead.website], ['Budget', lead.budget],
+      ['Business', lead.business], [labelsFor(lead.formId).website, lead.website], ['Budget', lead.budget],
       ['Timeline', lead.timeline], ['Contact via', lead.channel], ['Phone', lead.phone], ['Email', lead.email],
       ['Ad', lead.adName], ['Submitted', manilaTime(lead.createdTime)],
     ]),
