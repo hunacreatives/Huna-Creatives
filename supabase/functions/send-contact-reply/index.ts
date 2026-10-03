@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
                 <tr>
                   <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;color:#555555;padding-top:4px">
                     Cebu City, Philippines
-                  </td><td align="right" style="padding-top:4px"><a href="https://www.instagram.com/hunacreatives/" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;color:#FF6B35;text-decoration:none">Instagram</a> <span style="color:#555555">&middot;</span> <a href="https://www.facebook.com/hunacreatives/" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;color:#FF6B35;text-decoration:none">Facebook</a></td>
+                  </td><td align="right" style="padding-top:4px"><span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:10px;color:#888888;letter-spacing:0.08em;text-transform:uppercase;vertical-align:middle">Follow the work</span><a href="https://www.instagram.com/hunacreatives/" style="text-decoration:none;display:inline-block;vertical-align:middle;margin-left:8px"><img src="https://www.hunacreatives.com/images/email/instagram.png" width="18" height="18" alt="Instagram" style="display:block;border:0;outline:0;width:18px;height:18px"></a><a href="https://www.facebook.com/hunacreatives/" style="text-decoration:none;display:inline-block;vertical-align:middle;margin-left:8px"><img src="https://www.hunacreatives.com/images/email/facebook.png" width="18" height="18" alt="Facebook" style="display:block;border:0;outline:0;width:18px;height:18px"></a></td>
                 </tr>
               </table>
             </td>
