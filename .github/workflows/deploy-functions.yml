@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: supabase/setup-cli@v1
         with:
@@ -26,19 +26,32 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
-          changed=$(git diff --name-only HEAD~1 HEAD -- supabase/functions/ \
-            | grep '^supabase/functions/' \
-            | sed 's|supabase/functions/||' \
-            | cut -d'/' -f1 \
-            | sort -u)
+          # Compare against the commit before this push (not just HEAD~1), so a
+          # push with several commits deploys everything it changed.
+          base="${{ github.event.before }}"
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then base=HEAD~1; fi
+          files=$(git diff --name-only "$base" HEAD -- supabase/functions/)
 
+          # Changed function folders; _shared is a library, not a function.
+          changed=$(echo "$files" | grep '^supabase/functions/' | sed 's|supabase/functions/||' \
+            | cut -d'/' -f1 | grep -v '^_' || true)
+
+          # A changed shared file redeploys every function that imports it.
+          for shared in $(echo "$files" | grep '^supabase/functions/_shared/' | xargs -r -n1 basename); do
+            importers=$(grep -l "_shared/$shared" supabase/functions/*/index.ts 2>/dev/null \
+              | xargs -r -n1 dirname | xargs -r -n1 basename)
+            changed="$changed $importers"
+          done
+
+          changed=$(echo $changed | tr ' ' '\n' | grep -v '^$' | sort -u)
           if [ -z "$changed" ]; then
             echo "No function changes detected."
             exit 0
           fi
 
-          echo "Functions to deploy: $changed"
+          echo "Functions to deploy:" $changed
           for fn in $changed; do
+            [ -d "supabase/functions/$fn" ] || { echo "Skipping $fn (deleted)"; continue; }
             echo "Deploying $fn..."
             supabase functions deploy "$fn" --project-ref "$PROJECT_REF"
           done
