@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { followTheWork } from '../_shared/followFooter.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
@@ -121,6 +122,7 @@ Deno.serve(async (req) => {
                 Questions? Reply to this email or reach us at
                 <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af">contact@hunacreatives.com</a>
               </p>
+              <p style="margin:8px 0 4px;font-size:11px">${followTheWork('#9ca3af')}</p>
               <p style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:11px;color:#d1d5db;margin:0">
                 © ${new Date().getFullYear()} Huna Creatives · Cebu, Philippines
               </p>

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { followTheWork } from '../_shared/followFooter.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
@@ -161,7 +162,7 @@ Deno.serve(async (req) => {
                 <tr>
                   <td style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:11px;color:#555555;padding-top:4px">
                     Cebu City, Philippines
-                  </td><td align="right" style="padding-top:4px"><span style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:10px;color:#888888;letter-spacing:0.08em;text-transform:uppercase;vertical-align:middle">Follow the work</span><a href="https://www.instagram.com/hunacreatives/" style="text-decoration:none;display:inline-block;vertical-align:middle;margin-left:8px"><img src="https://www.hunacreatives.com/images/email/instagram.png" width="18" height="18" alt="Instagram" style="display:block;border:0;outline:0;width:18px;height:18px"></a><a href="https://www.facebook.com/hunacreatives/" style="text-decoration:none;display:inline-block;vertical-align:middle;margin-left:8px"><img src="https://www.hunacreatives.com/images/email/facebook.png" width="18" height="18" alt="Facebook" style="display:block;border:0;outline:0;width:18px;height:18px"></a></td>
+                  </td><td align="right" style="padding-top:4px">${followTheWork()}</td>
                 </tr>
               </table>
             </td>

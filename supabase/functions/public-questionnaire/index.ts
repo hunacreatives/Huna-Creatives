@@ -11,6 +11,7 @@
 // returns exactly one row -- so both anon policies can be dropped.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { followTheWork } from '../_shared/followFooter.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -60,6 +61,7 @@ async function sendReceipt(to: string, clientName: string) {
       <tr><td align="center" style="background:#111111;padding:22px 40px;font-family:${SANS}">
         <span style="font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</span>
         <span style="font-size:11px;color:#555555"> &middot; Cebu City, Philippines</span>
+        <div style="padding-top:10px">${followTheWork()}</div>
       </td></tr>
     </table>
   </td></tr>

@@ -9,6 +9,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { renderQuotePdf, computeQuoteTotals, fmtMoney, esc, QuoteRecord } from '../_shared/quotationTemplate.ts';
 import { QUESTIONNAIRE_TEMPLATES } from '../_shared/questionnaireTemplates.ts';
+import { followTheWork } from '../_shared/followFooter.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN') ?? '';
@@ -293,6 +294,7 @@ Deno.serve(async (req) => {
       <tr><td align="center" style="background:#111111;padding:22px 40px;font-family:${SANS}">
         <span style="font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</span>
         <span style="font-size:11px;color:#555555"> &middot; Cebu City, Philippines</span>
+        <div style="padding-top:10px">${followTheWork()}</div>
       </td></tr>
 
     </table>

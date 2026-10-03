@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { FRANCIS_SIG } from '../_shared/francisSig.ts';
+import { followTheWork } from '../_shared/followFooter.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -292,6 +293,7 @@ async function run(slug: string) {
   </div>
   <div style="padding:20px 40px;background:#fafafa;border-top:1px solid #f3f4f6">
     <p style="font-size:11px;color:#9ca3af;margin:0 0 4px">Questions? <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af">contact@hunacreatives.com</a></p>
+    <p style="margin:8px 0 4px;font-size:11px">${followTheWork('#9ca3af')}</p>
     <p style="font-size:11px;color:#d1d5db;margin:0">© ${new Date().getFullYear()} Huna Creatives · Cebu, Philippines</p>
   </div>
 </div></body></html>`;

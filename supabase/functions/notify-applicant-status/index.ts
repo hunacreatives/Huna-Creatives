@@ -1,3 +1,5 @@
+import { followTheWork } from '../_shared/followFooter.ts';
+
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
 const REPLY_TO = 'contact@hunacreatives.com';
@@ -160,9 +162,9 @@ Deno.serve(async (req) => {
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;color:#555555;padding-top:4px">
+                  <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:11px;color:#555555;padding-top:4px">
                     Cebu City, Philippines
-                  </td>
+                  </td><td align="right" style="padding-top:4px">${followTheWork()}</td>
                 </tr>
               </table>
             </td>

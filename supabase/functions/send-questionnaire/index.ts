@@ -1,3 +1,5 @@
+import { followTheWork } from '../_shared/followFooter.ts';
+
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives <hello@hunacreatives.com>';
 const BASE_URL = 'https://www.hunacreatives.com';
@@ -66,6 +68,7 @@ Deno.serve(async (req) => {
 
         <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 36px;text-align:center;">
           <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
+          <p style="margin:8px 0 4px;font-size:11px">${followTheWork('#9ca3af')}</p>
           <p style="margin:0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} Huna Creatives · hello@hunacreatives.com</p>
         </td></tr>
 

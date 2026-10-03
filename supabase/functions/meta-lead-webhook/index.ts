@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { followTheWork } from '../_shared/followFooter.ts';
 
 // Meta Lead Ads webhook (Page → "leadgen" field).
 // For every Instant Form lead: fetch the answers from the Graph API, save the
@@ -182,7 +183,7 @@ function shell(title: string, rows: string): string {
               <td style="font-family:${SANS};font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</td>
               <td align="right" style="font-family:${SANS};font-size:11px"><a href="mailto:contact@hunacreatives.com" style="color:#FF6B35;text-decoration:none">contact@hunacreatives.com</a></td>
             </tr>
-            <tr><td style="font-family:${SANS};font-size:11px;color:#555555;padding-top:4px">Cebu City, Philippines</td><td align="right" style="padding-top:4px"><span style="font-family:${SANS};font-size:10px;color:#888888;letter-spacing:0.08em;text-transform:uppercase;vertical-align:middle">Follow the work</span><a href="https://www.instagram.com/hunacreatives/" style="text-decoration:none;display:inline-block;vertical-align:middle;margin-left:8px"><img src="https://www.hunacreatives.com/images/email/instagram.png" width="18" height="18" alt="Instagram" style="display:block;border:0;outline:0;width:18px;height:18px"></a><a href="https://www.facebook.com/hunacreatives/" style="text-decoration:none;display:inline-block;vertical-align:middle;margin-left:8px"><img src="https://www.hunacreatives.com/images/email/facebook.png" width="18" height="18" alt="Facebook" style="display:block;border:0;outline:0;width:18px;height:18px"></a></td></tr>
+            <tr><td style="font-family:${SANS};font-size:11px;color:#555555;padding-top:4px">Cebu City, Philippines</td><td align="right" style="padding-top:4px">${followTheWork()}</td></tr>
           </table>
         </td></tr>
       </table>
