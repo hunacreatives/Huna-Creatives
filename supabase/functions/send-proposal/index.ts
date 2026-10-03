@@ -159,9 +159,9 @@ Deno.serve(async (req) => {
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="2" style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:11px;color:#555555;padding-top:4px">
+                  <td style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:11px;color:#555555;padding-top:4px">
                     Cebu City, Philippines
-                  </td>
+                  </td><td align="right" style="padding-top:4px"><a href="https://www.instagram.com/hunacreatives/" style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:11px;color:#FF6B35;text-decoration:none">Instagram</a> <span style="color:#555555">&middot;</span> <a href="https://www.facebook.com/hunacreatives/" style="font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:11px;color:#FF6B35;text-decoration:none">Facebook</a></td>
                 </tr>
               </table>
             </td>

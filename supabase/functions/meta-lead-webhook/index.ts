@@ -182,7 +182,7 @@ function shell(title: string, rows: string): string {
               <td style="font-family:${SANS};font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</td>
               <td align="right" style="font-family:${SANS};font-size:11px"><a href="mailto:contact@hunacreatives.com" style="color:#FF6B35;text-decoration:none">contact@hunacreatives.com</a></td>
             </tr>
-            <tr><td colspan="2" style="font-family:${SANS};font-size:11px;color:#555555;padding-top:4px">Cebu City, Philippines</td></tr>
+            <tr><td style="font-family:${SANS};font-size:11px;color:#555555;padding-top:4px">Cebu City, Philippines</td><td align="right" style="padding-top:4px"><a href="https://www.instagram.com/hunacreatives/" style="font-family:${SANS};font-size:11px;color:#FF6B35;text-decoration:none">Instagram</a> <span style="color:#555555">&middot;</span> <a href="https://www.facebook.com/hunacreatives/" style="font-family:${SANS};font-size:11px;color:#FF6B35;text-decoration:none">Facebook</a></td></tr>
           </table>
         </td></tr>
       </table>
@@ -226,6 +226,7 @@ function autoReply(l: Lead): { subject: string; html: string; text: string } {
       ? [para('Facebook only lets businesses reply on Messenger after you message them first. If you prefer Messenger, send us a quick hello at <a href="https://m.me/hunacreatives" style="color:#FF6B35">m.me/hunacreatives</a> and we will continue there.')]
       : []),
     para('While you wait, here is some of our recent work: <a href="https://hunacreatives.com/portfolio" style="color:#FF6B35">hunacreatives.com/portfolio</a>'),
+    para('We post new branding, social and web projects on <a href="https://www.instagram.com/hunacreatives/" style="color:#FF6B35">Instagram</a> and <a href="https://www.facebook.com/hunacreatives/" style="color:#FF6B35">Facebook</a> (@hunacreatives).'),
     para('If anything is urgent, just reply to this email.'),
     para('Huna Creatives<br><span style="color:#777777">Cebu, Philippines</span>'),
   ].join('');
@@ -236,6 +237,7 @@ function autoReply(l: Lead): { subject: string; html: string; text: string } {
     `What happens next: we will ${reach} within one working day to ask a few questions about your business. Your fixed quote follows within 24 hours of that conversation. No hidden fees.`, '',
     ...(l.channel === 'Messenger' ? ['Facebook only lets businesses reply on Messenger after you message them first. If you prefer Messenger, send us a quick hello at m.me/hunacreatives and we will continue there.', ''] : []),
     'While you wait, here is some of our recent work: hunacreatives.com/portfolio', '',
+    'We post new branding, social and web projects on Instagram and Facebook: instagram.com/hunacreatives and facebook.com/hunacreatives', '',
     'If anything is urgent, just reply to this email.', '',
     'Huna Creatives', 'Cebu, Philippines',
   ].join('\n');

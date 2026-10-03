@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
                 <td style="font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</td>
                 <td align="right"><a href="mailto:${REPLY_TO}" style="font-size:11px;color:${accent};text-decoration:none">${REPLY_TO}</a></td>
               </tr>
-              <tr><td colspan="2" style="font-size:11px;color:#555555;padding-top:4px">Cebu City, Philippines</td></tr>
+              <tr><td style="font-size:11px;color:#555555;padding-top:4px">Cebu City, Philippines</td><td align="right" style="padding-top:4px"><a href="https://www.instagram.com/hunacreatives/" style="font-size:11px;color:${accent};text-decoration:none">Instagram</a> <span style="color:#555555">&middot;</span> <a href="https://www.facebook.com/hunacreatives/" style="font-size:11px;color:${accent};text-decoration:none">Facebook</a></td></tr>
             </table>
           </td>
         </tr>
