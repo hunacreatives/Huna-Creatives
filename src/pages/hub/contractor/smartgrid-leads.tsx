@@ -192,7 +192,7 @@ export default function SmartGridLeadsPage() {
           return;
         }
 
-        // Fetch initial queue (30 unassigned leads)
+        // Fetch initial queue (40 unassigned leads)
         await loadQueue(pId, hubUser.id);
       } catch (err) {
         console.error('Init error:', err);
@@ -263,7 +263,7 @@ export default function SmartGridLeadsPage() {
           .order('last_worked_at', { ascending: true, nullsFirst: true })
           .order('attempts_count', { ascending: true })
           .order('id', { ascending: true })
-          .limit(30);
+          .limit(40);
         if (error) throw error;
         // Skip leads this caller has already tried 3+ times
         return ((data || []) as Lead[]).filter(lead => ((lead.caller_attempts || {})[userId] || 0) < 3);
