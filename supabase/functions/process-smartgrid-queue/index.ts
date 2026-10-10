@@ -98,6 +98,7 @@ export async function processSmartGridQueue() {
       .select("id, assigned_to, attempts_count")
       .eq("project_id", projectId)
       .in("status", ["calling", "new"])
+      .is("retired_at", null)
       .gte("attempts_count", 3)
       .lt("attempts_count", 6);
 

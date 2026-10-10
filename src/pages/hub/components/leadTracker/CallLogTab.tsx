@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { formatManilaDateTime, inRange, shiftDayOf, type PeriodRange } from '@/lib/smartgridShift';
 import { isCall } from './metrics';
 import { OUTCOME_LABEL, type CallLogEntry, type Caller, type TrackerLead } from './types';
+import RoomsBadge from './RoomsBadge';
 
 interface Props {
   callLog: CallLogEntry[];
@@ -67,7 +68,10 @@ export default function CallLogTab({ callLog, leads, callers, range, onOpenLead 
                     <td className="px-4 py-2 text-gray-500 whitespace-nowrap">{formatManilaDateTime(e.created_at)}</td>
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{names.get(e.user_id || '') || 'Former caller'}</td>
                     <td className="px-3 py-2 min-w-[12rem]">
-                      <p className="font-medium text-gray-800">{lead?.account_name || '(deleted lead)'}</p>
+                      <p className="font-medium text-gray-800 flex items-center gap-2">
+                        {lead?.account_name || '(deleted lead)'}
+                        {lead && <RoomsBadge rooms={lead.number_of_rooms} />}
+                      </p>
                       {e.meta?.notes && <p className="text-xs text-gray-400 truncate max-w-md" title={e.meta.notes}>{e.meta.notes}</p>}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">

@@ -2,7 +2,7 @@ import type { pipeline } from './metrics';
 
 type Pipeline = ReturnType<typeof pipeline>;
 
-const PARTS: { key: keyof Omit<Pipeline, 'total'>; label: string; bar: string }[] = [
+const PARTS: { key: keyof Omit<Pipeline, 'total' | 'retired'>; label: string; bar: string }[] = [
   { key: 'complete', label: 'Complete', bar: 'bg-emerald-500' },
   { key: 'callbacks', label: 'Callbacks scheduled', bar: 'bg-amber-400' },
   { key: 'retry', label: 'Called, retry later', bar: 'bg-sky-300' },
@@ -35,6 +35,9 @@ export default function PipelineCard({ p }: { p: Pipeline }) {
           </div>
         ))}
       </div>
+      {p.retired > 0 && (
+        <p className="text-[11px] text-gray-400">{p.retired.toLocaleString()} retired leads (under 30 rooms) aren't counted. Filter All leads by "Retired" to see them.</p>
+      )}
     </div>
   );
 }

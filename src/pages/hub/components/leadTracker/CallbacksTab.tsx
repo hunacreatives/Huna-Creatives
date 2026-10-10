@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { currentShiftDay, formatShiftDay } from '@/lib/smartgridShift';
 import { GOAL_LABEL, type Caller, type TrackerLead } from './types';
+import RoomsBadge from './RoomsBadge';
 
 interface Props {
   leads: TrackerLead[];
@@ -14,7 +15,7 @@ export default function CallbacksTab({ leads, callers, onOpenLead }: Props) {
 
   const groups = useMemo(() => {
     const cbs = leads
-      .filter(l => l.status === 'callback_pending')
+      .filter(l => l.status === 'callback_pending' && !l.retired_at)
       .sort((a, b) => (a.callback_date || '9999').localeCompare(b.callback_date || '9999') || (a.callback_time || '').localeCompare(b.callback_time || ''));
     return [
       { title: 'Overdue', tone: 'text-rose-600', items: cbs.filter(l => l.callback_date && l.callback_date < today) },
@@ -35,6 +36,7 @@ export default function CallbacksTab({ leads, callers, onOpenLead }: Props) {
             {g.items.map(l => (
               <button key={l.id} onClick={() => onOpenLead(l)} className="w-full text-left px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-gray-50">
                 <span className="text-xs font-medium text-gray-800 flex-1 min-w-40">{l.account_name}</span>
+                <RoomsBadge rooms={l.number_of_rooms} />
                 <span className="text-[11px] text-gray-500">{names.get(l.assigned_to || '') || 'Unassigned'}</span>
                 <span className="text-[11px] text-gray-700">
                   {l.callback_date ? formatShiftDay(l.callback_date) : '–'}{l.callback_time ? ` · ${l.callback_time.slice(0, 5)}` : ''}

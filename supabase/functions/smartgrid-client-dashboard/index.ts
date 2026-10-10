@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
       fetchAll((from, to) =>
         supabase.from("hub_project_leads")
           .select("id, account_name, primary_contact, phone, email, status, attempts_count, callback_date, callback_time, next_call_goal, meeting_scheduled, meeting_scheduled_at, bill_received, bill_received_at, email_reply_received, email_reply_received_at, last_worked_at, last_caller_id, call_notes")
-          .eq("project_id", projectId).order("id").range(from, to)),
+          .eq("project_id", projectId).is("retired_at", null).order("id").range(from, to)),
       fetchAll((from, to) =>
         supabase.from("hub_project_activity")
           .select("id, entity_id, user_id, created_at, meta")

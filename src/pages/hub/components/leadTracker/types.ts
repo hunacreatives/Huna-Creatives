@@ -23,6 +23,9 @@ export interface TrackerLead {
   email_reply_received: boolean;
   email_reply_received_at: string | null;
   call_notes: string | null;
+  number_of_rooms: number | null;
+  retired_at: string | null;
+  retired_reason: string | null;
 }
 
 export interface CallLogEntry {
@@ -49,7 +52,8 @@ export interface Caller {
 export const LEAD_FIELDS =
   'id, account_name, primary_contact, phone, email, status, outcome, assigned_to, locked_by, locked_at, attempts_count, ' +
   'callback_date, callback_time, next_call_goal, last_worked_at, last_caller_id, meeting_scheduled, meeting_scheduled_at, ' +
-  'bill_received, bill_received_at, follow_up_email_sent, email_reply_received, email_reply_received_at, call_notes';
+  'bill_received, bill_received_at, follow_up_email_sent, email_reply_received, email_reply_received_at, call_notes, ' +
+  'number_of_rooms, retired_at, retired_reason';
 
 export const OUTCOME_LABEL: Record<string, string> = {
   interested: 'Interested',
@@ -68,6 +72,7 @@ export const GOAL_LABEL: Record<string, string> = {
 
 // Plain-language status for admins; the database keeps its own values.
 export function leadStatusLabel(lead: TrackerLead): { label: string; tone: string } {
+  if (lead.retired_at) return { label: 'Retired', tone: 'bg-stone-200 text-stone-600' };
   switch (lead.status) {
     case 'new':
       return lead.last_worked_at
@@ -86,4 +91,19 @@ export function leadStatusLabel(lead: TrackerLead): { label: string; tone: strin
     default:
       return { label: lead.status, tone: 'bg-gray-100 text-gray-600' };
   }
+}
+
+// Property size from the CHLA room count (median ≈ 90 rooms)
+export type RoomSize = 'small' | 'medium' | 'large' | 'xl';
+
+export const ROOM_SIZES: { value: RoomSize; label: string; min: number; tone: string }[] = [
+  { value: 'small', label: 'Under 50 rooms', min: 0, tone: 'bg-gray-100 text-gray-600' },
+  { value: 'medium', label: '50–99 rooms', min: 50, tone: 'bg-teal-50 text-teal-700' },
+  { value: 'large', label: '100–199 rooms', min: 100, tone: 'bg-indigo-50 text-indigo-700' },
+  { value: 'xl', label: '200+ rooms', min: 200, tone: 'bg-violet-100 text-violet-700' },
+];
+
+export function roomSize(rooms: number | null) {
+  if (rooms == null) return null;
+  return [...ROOM_SIZES].reverse().find(s => rooms >= s.min)!;
 }

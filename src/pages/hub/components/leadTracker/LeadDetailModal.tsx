@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatManilaDateTime } from '@/lib/smartgridShift';
 import { GOAL_LABEL, OUTCOME_LABEL, leadStatusLabel, type CallLogEntry, type Caller, type TrackerLead } from './types';
+import RoomsBadge from './RoomsBadge';
 
 interface Props {
   lead: TrackerLead;
@@ -56,12 +57,29 @@ export default function LeadDetailModal({ lead, callLog, callers, onClose, onCha
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-3.5 flex items-center justify-between">
           <div className="min-w-0">
             <h3 className="font-semibold text-gray-800 truncate">{lead.account_name}</h3>
-            <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${status.tone}`}>{status.label}</span>
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${status.tone}`}>{status.label}</span>
+              <RoomsBadge rooms={lead.number_of_rooms} />
+            </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl" aria-label="Close">✕</button>
         </div>
 
         <div className="px-5 py-4 space-y-4">
+          {lead.retired_at && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-stone-50 border border-stone-200">
+              <p className="flex-1 text-xs text-stone-700">
+                Retired{lead.retired_reason ? ` (${lead.retired_reason.toLowerCase()})` : ''}. Callers won't get this lead.
+              </p>
+              <button
+                onClick={() => update({ retired_at: null, retired_reason: null })}
+                disabled={saving}
+                className="shrink-0 px-2.5 py-1 text-[11px] font-medium rounded-md bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-50"
+              >
+                Return to calling pool
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Contact">{lead.primary_contact || '–'}</Field>
             <Field label="Phone">{lead.phone || '–'}</Field>

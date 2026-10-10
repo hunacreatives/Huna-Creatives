@@ -113,7 +113,7 @@ export function shiftQueues(callLog: CallLogEntry[], leads: TrackerLead[], calle
           .map(lead => ({ lead, state: 'waiting' as const }))
       : [];
     const dueCallbacks: QueueLeadRow[] = isCurrent
-      ? leads.filter(l => l.status === 'callback_pending' && l.assigned_to === caller.id && !l.locked_by && !!l.callback_date && l.callback_date <= day)
+      ? leads.filter(l => l.status === 'callback_pending' && !l.retired_at && l.assigned_to === caller.id && !l.locked_by && !!l.callback_date && l.callback_date <= day)
           .map(lead => ({ lead, state: 'callback_due' as const }))
       : [];
 
@@ -129,8 +129,10 @@ export function shiftQueues(callLog: CallLogEntry[], leads: TrackerLead[], calle
 }
 
 export function pipeline(leads: TrackerLead[]) {
-  const p = { total: leads.length, neverCalled: 0, inQueue: 0, callbacks: 0, retry: 0, complete: 0, outOfAttempts: 0 };
+  const p = { total: 0, neverCalled: 0, inQueue: 0, callbacks: 0, retry: 0, complete: 0, outOfAttempts: 0, retired: 0 };
   for (const l of leads) {
+    if (l.retired_at) { p.retired++; continue; }
+    p.total++;
     if (l.locked_by) p.inQueue++;
     else if (l.status === 'callback_pending') p.callbacks++;
     else if (l.status === 'complete') p.complete++;

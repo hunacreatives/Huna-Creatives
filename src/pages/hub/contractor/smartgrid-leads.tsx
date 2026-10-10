@@ -183,6 +183,7 @@ export default function SmartGridLeadsPage() {
           .select('*')
           .eq('project_id', pId)
           .eq('locked_by', hubUser.id)
+          .is('retired_at', null)
           .order('locked_at', { ascending: true, nullsFirst: true })
           .order('id', { ascending: true });
         if (mineErr) throw mineErr;
@@ -244,6 +245,7 @@ export default function SmartGridLeadsPage() {
         .eq('project_id', pId)
         .eq('status', 'callback_pending')
         .eq('assigned_to', userId)
+        .is('retired_at', null)
         .lte('callback_date', today)
         .order('callback_date', { ascending: true })
         .order('callback_time', { ascending: true, nullsFirst: true });
@@ -257,6 +259,7 @@ export default function SmartGridLeadsPage() {
           .eq('project_id', pId)
           .in('status', ['new', 'calling'])
           .is('locked_by', null)
+          .is('retired_at', null)
           .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`);
         q = assignedOnly ? q.eq('assigned_to', userId) : q.is('assigned_to', null);
         const { data, error } = await q

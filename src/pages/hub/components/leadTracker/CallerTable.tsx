@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { formatManilaTime } from '@/lib/smartgridShift';
 import { pct, type CallerQueue, type CallerStats, type QueueLeadRow, type Totals } from './metrics';
 import { GOAL_LABEL, OUTCOME_LABEL, type TrackerLead } from './types';
+import RoomsBadge from './RoomsBadge';
 
 interface Props {
   rows: CallerStats[];
@@ -119,6 +120,7 @@ export default function CallerTable({ rows, totals, queues, isCurrentShift, onOp
                             <button key={`${row.state}-${row.lead.id}`} onClick={() => onOpenLead(row.lead)}
                               className="w-full flex items-center gap-3 py-1.5 text-left hover:text-sky-700">
                               <span className="flex-1 min-w-0 truncate text-xs text-gray-800">{row.lead.account_name}</span>
+                              <RoomsBadge rooms={row.lead.number_of_rooms} />
                               <StateChip row={row} />
                             </button>
                           ))}
