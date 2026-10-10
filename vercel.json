@@ -59,6 +59,11 @@
   ],
   "rewrites": [
     {
+      "source": "/hub/sop/:id",
+      "missing": [{ "type": "query", "key": "spa" }],
+      "destination": "/api/sop-preview?id=:id"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }

@@ -113,6 +113,7 @@ export interface HubSop {
   video_url?: string;
   file_url?: string;
   published: boolean;
+  visibility?: 'all' | 'admin_only';
   created_by?: string;
   created_at?: string;
   updated_at?: string;

@@ -1,72 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
+import { SopContent } from '@/pages/hub/components/SopEditor';
 import { supabase } from '@/lib/supabase';
 import { useDemo } from '@/contexts/DemoContext';
 import { DEMO_SOPS } from '@/lib/demoData';
 import { HubSop } from '@/lib/types';
-
-const CATEGORY_CFG: Record<string, { icon: string; color: string; bg: string; light: string }> = {
-  Attendance:    { icon: 'ri-time-line',              color: 'text-sky-600',     bg: 'bg-sky-500',     light: 'bg-sky-50 text-sky-700 border-sky-100' },
-  Payroll:       { icon: 'ri-money-dollar-circle-line',color: 'text-emerald-600', bg: 'bg-emerald-500', light: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-  HR:            { icon: 'ri-user-heart-line',         color: 'text-violet-600',  bg: 'bg-violet-500',  light: 'bg-violet-50 text-violet-700 border-violet-100' },
-  Projects:      { icon: 'ri-folder-line',             color: 'text-indigo-600',  bg: 'bg-indigo-500',  light: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
-  Operations:    { icon: 'ri-settings-3-line',         color: 'text-amber-600',   bg: 'bg-amber-500',   light: 'bg-amber-50 text-amber-700 border-amber-100' },
-  Communication: { icon: 'ri-chat-3-line',             color: 'text-rose-600',    bg: 'bg-rose-500',    light: 'bg-rose-50 text-rose-700 border-rose-100' },
-  Onboarding:    { icon: 'ri-rocket-line',             color: 'text-teal-600',    bg: 'bg-teal-500',    light: 'bg-teal-50 text-teal-700 border-teal-100' },
-};
-
-const getCfg = (cat: string) => CATEGORY_CFG[cat] ?? { icon: 'ri-book-2-line', color: 'text-gray-500', bg: 'bg-gray-400', light: 'bg-gray-50 text-gray-600 border-gray-200' };
-
-// Escape HTML entities, then apply only the **bold** markdown — prevents any
-// stored markup in SOP content from injecting tags/handlers.
-function boldMarkup(text: string): string {
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-}
-
-function formatContent(text: string) {
-  return text.split('\n').map((line, i) => {
-    if (!line.trim()) return <div key={i} className="h-3" />;
-    // All-caps line ending with : → section heading
-    if (/^[A-Z][A-Z\s\/&\-]+:/.test(line.trim())) {
-      return <p key={i} className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-5 mb-1">{line}</p>;
-    }
-    // Bullet points
-    if (line.startsWith('• ') || line.startsWith('- ')) {
-      return (
-        <div key={i} className="flex gap-2 text-sm text-gray-700 leading-relaxed">
-          <span className="text-gray-400 flex-shrink-0 mt-0.5">•</span>
-          <span dangerouslySetInnerHTML={{ __html: boldMarkup(line.slice(2)) }} />
-        </div>
-      );
-    }
-    // Numbered steps
-    if (/^\d+\.\s/.test(line.trim())) {
-      const [num, ...rest] = line.trim().split(/\.\s/);
-      return (
-        <div key={i} className="flex gap-3 text-sm text-gray-700 leading-relaxed">
-          <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{num}</span>
-          <span dangerouslySetInnerHTML={{ __html: boldMarkup(rest.join('. ')) }} />
-        </div>
-      );
-    }
-    // ❌ ✅ emoji lines
-    if (line.startsWith('❌') || line.startsWith('✅')) {
-      return <p key={i} className="text-sm text-gray-700 leading-relaxed">{line}</p>;
-    }
-    return <p key={i} className="text-sm text-gray-700 leading-relaxed">{line}</p>;
-  });
-}
+import { getSopCategory as getCfg, sopLink, sopPlainText } from '@/lib/sopContent';
 
 export default function ContractorSopPage() {
   const { isDemo } = useDemo();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [sops, setSops] = useState<HubSop[]>([]);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [loading, setLoading] = useState(true);
-  const [viewSop, setViewSop] = useState<HubSop | null>(null);
+  const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // The open SOP lives in the URL (?open=ID) so shared links land on it directly.
+  const openId = Number(searchParams.get('open')) || null;
+  const viewSop = openId ? sops.find(s => s.id === openId) ?? null : null;
+  const setViewSop = (s: HubSop | null) => {
+    setCopied(false);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (s) next.set('open', String(s.id)); else next.delete('open');
+      return next;
+    }, { replace: true });
+  };
+
+  const copyLink = async (s: HubSop) => {
+    try { await navigator.clipboard.writeText(sopLink(s.id)); } catch { window.prompt('Copy this link', sopLink(s.id)); }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
 
   useEffect(() => {
     if (isDemo) {
@@ -74,14 +42,17 @@ export default function ContractorSopPage() {
       setLoading(false);
       return;
     }
-    supabase.from('hub_sops').select('*').eq('published', true).order('category').order('title')
+    // RLS limits employees to published, non-admin-only SOPs; the filters keep
+    // admin-side previews of this page showing the same list.
+    supabase.from('hub_sops').select('*').eq('published', true).eq('visibility', 'all').order('category').order('title')
       .then(({ data }) => { setSops((data as HubSop[]) ?? []); setLoading(false); });
   }, [isDemo]);
 
+  const plain = useMemo(() => new Map(sops.map(s => [s.id, sopPlainText(s.content)])), [sops]);
   const categories = ['All', ...Array.from(new Set(sops.map(s => s.category))).sort()];
 
   const filtered = sops.filter(s => {
-    const matchSearch = !search || s.title.toLowerCase().includes(search.toLowerCase()) || s.content?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || s.title.toLowerCase().includes(search.toLowerCase()) || plain.get(s.id)?.toLowerCase().includes(search.toLowerCase());
     const matchCat = activeCategory === 'All' || s.category === activeCategory;
     return matchSearch && matchCat;
   });
@@ -156,6 +127,13 @@ export default function ContractorSopPage() {
             })}
           </div>
 
+          {!loading && openId && !viewSop && (
+            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-100 text-amber-800 text-sm rounded-2xl px-4 py-3">
+              <span>That SOP isn't available. It may have been removed or is for admins only.</span>
+              <button onClick={() => setViewSop(null)} className="text-xs font-medium underline cursor-pointer flex-shrink-0">Dismiss</button>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center py-20"><i className="ri-loader-4-line animate-spin text-2xl text-gray-300"></i></div>
           ) : Object.keys(grouped).length === 0 ? (
@@ -188,9 +166,9 @@ export default function ContractorSopPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="text-sm font-semibold text-gray-900 leading-snug group-hover:text-indigo-700 transition-colors">{s.title}</h3>
-                            {s.content && (
+                            {plain.get(s.id) && (
                               <p className="text-xs text-gray-400 mt-1 line-clamp-2 leading-relaxed">
-                                {s.content.replace(/\n/g, ' ').slice(0, 120)}…
+                                {plain.get(s.id)}
                               </p>
                             )}
                           </div>
@@ -219,9 +197,15 @@ export default function ContractorSopPage() {
                   <div className={`px-6 pt-6 pb-5 ${cfg.bg}`}>
                     <div className="flex items-start justify-between gap-3 mb-4">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">{viewSop.category}</span>
-                      <button onClick={() => setViewSop(null)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/20 text-white/70 hover:bg-white/30 cursor-pointer transition-colors">
-                        <i className="ri-close-line text-sm"></i>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => copyLink(viewSop)} title="Copy link to this SOP"
+                          className="flex items-center gap-1 h-6 px-2 rounded-full bg-white/20 text-white/80 hover:bg-white/30 text-[11px] font-medium cursor-pointer transition-colors">
+                          <i className={copied ? 'ri-check-line' : 'ri-link'}></i>{copied ? 'Copied' : 'Copy link'}
+                        </button>
+                        <button onClick={() => setViewSop(null)} className="w-6 h-6 flex items-center justify-center rounded-full bg-white/20 text-white/70 hover:bg-white/30 cursor-pointer transition-colors">
+                          <i className="ri-close-line text-sm"></i>
+                        </button>
+                      </div>
                     </div>
                     <h1 className="text-lg font-bold text-white leading-snug">{viewSop.title}</h1>
                   </div>
@@ -230,8 +214,13 @@ export default function ContractorSopPage() {
             })()}
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-1.5">
-              {viewSop.content ? formatContent(viewSop.content) : <p className="text-sm text-gray-400">No content yet.</p>}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              {viewSop.video_url && (
+                <div className="bg-gray-50 rounded-xl overflow-hidden">
+                  <iframe src={viewSop.video_url} className="w-full aspect-video rounded-xl" allowFullScreen title={viewSop.title}></iframe>
+                </div>
+              )}
+              <SopContent content={viewSop.content} />
             </div>
 
             {/* Footer nav */}

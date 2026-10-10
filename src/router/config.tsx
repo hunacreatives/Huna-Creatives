@@ -50,6 +50,7 @@ const HubContractorSmartGridMyLeads = lazy(() => import('../pages/hub/contractor
 const HubContractorProjectRedirect = lazy(() => import('../pages/hub/contractor/project-redirect/page'));
 const HubAdminProjects = lazy(() => import('../pages/hub/admin/projects/page'));
 const HubAdminProjectRedirect = lazy(() => import('../pages/hub/admin/project-redirect/page'));
+const HubSopLink = lazy(() => import('../pages/hub/sop-link/page'));
 const HubAdminTasks = lazy(() => import('../pages/hub/admin/tasks/page'));
 const HubAdminRevenue = lazy(() => import('../pages/hub/admin/revenue/page'));
 const HubAdminDocuments = lazy(() => import('../pages/hub/admin/documents/page'));
@@ -165,6 +166,7 @@ const routes: RouteObject[] = [
   { path: '/hub/admin/timeoff', element: <Navigate to="/hub/admin/requests?tab=timeoff" replace /> },
   { path: '/hub/admin/announcements', element: withAdminGate(<HubAdminAnnouncements />) },
   { path: '/hub/admin/sop', element: withAdminGate(<HubAdminSop />) },
+  { path: '/hub/sop/:id', element: <HubRouteGate allowedRoles={['owner', 'admin', 'hr', 'contractor']}><HubSopLink /></HubRouteGate> },
   { path: '/hub/admin/access', element: withAdminGate(<HubAdminAccess />) },
   { path: '/hub/admin/assets', element: <Navigate to="/hub/admin/access?tab=assets" replace /> },
   { path: '/hub/admin/auditlog', element: withAdminGate(<HubAdminAuditLog />) },
