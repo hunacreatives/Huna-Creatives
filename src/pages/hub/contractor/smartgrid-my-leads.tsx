@@ -6,6 +6,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { formatManilaDateTime, formatShiftDay } from '@/lib/smartgridShift';
+import CallNote from '@/pages/hub/components/leadTracker/CallNote';
 
 interface WorkedLead {
   id: string;
@@ -29,7 +30,7 @@ interface CallEntry {
   entity_id: string;
   user_id: string;
   created_at: string;
-  meta: { outcome?: string; notes?: string; email_found?: boolean; callback_date?: string | null } | null;
+  meta: { outcome?: string; notes?: string; notes_edited_at?: string; email_found?: boolean; callback_date?: string | null } | null;
   hub_users?: { full_name: string } | null;
 }
 
@@ -52,8 +53,9 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'no_contact', label: 'Voicemail / no answer' },
 ];
 
-// Read-only history of every hotel this caller has logged a call on. Unlike
-// My Queue, opening this page never claims leads.
+// History of every hotel this caller has logged a call on. Unlike My Queue,
+// opening this page never claims leads. Notes can be fixed here once the batch
+// the call came from is finished.
 export default function SmartGridMyLeadsPage() {
   const navigate = useNavigate();
   const { hubUser: realHubUser } = useAuth();
@@ -68,6 +70,9 @@ export default function SmartGridMyLeadsPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [openId, setOpenId] = useState<string | null>(null);
+  // Claim time of the oldest lead still in this caller's queue; calls logged
+  // before it belong to an unfinished batch and can't be edited yet
+  const [batchStartedAt, setBatchStartedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hubUser?.id) return;
@@ -92,6 +97,18 @@ export default function SmartGridMyLeadsPage() {
           mine.push(...((data || []) as CallEntry[]));
           if (!data || data.length < 1000) break;
         }
+
+        const { data: queued, error: queuedErr } = await supabase
+          .from('hub_project_leads')
+          .select('locked_at')
+          .eq('project_id', projectId)
+          .eq('locked_by', hubUser.id)
+          .is('retired_at', null)
+          .not('locked_at', 'is', null)
+          .order('locked_at', { ascending: true })
+          .limit(1);
+        if (queuedErr) throw queuedErr;
+        setBatchStartedAt(queued?.[0]?.locked_at ?? null);
 
         const ids = [...new Set(mine.filter(c => c.meta?.outcome !== 'skip').map(c => String(c.entity_id)))];
         const leadMap = new Map<string, WorkedLead>();
@@ -140,6 +157,9 @@ export default function SmartGridMyLeadsPage() {
       alert(`Couldn't save: ${err.message}`);
     }
   };
+
+  const noteSaved = (callId: number, meta: CallEntry['meta']) =>
+    setCalls(prev => prev.map(c => (c.id === callId ? { ...c, meta } : c)));
 
   const rows = useMemo(() => {
     if (!hubUser?.id) return [];
@@ -267,7 +287,15 @@ export default function SmartGridMyLeadsPage() {
                             <b>{OUTCOME[h.meta?.outcome || '']?.label || h.meta?.outcome}</b> · {h.hub_users?.full_name || 'Caller'} · {formatManilaDateTime(h.created_at)}
                             {h.meta?.email_found && <span className="text-emerald-700"> · email captured</span>}
                           </p>
-                          {h.meta?.notes && <p className="text-gray-600 mt-1 whitespace-pre-wrap">{h.meta.notes}</p>}
+                          {h.user_id === hubUser?.id ? (
+                            <CallNote
+                              activityId={h.id}
+                              meta={h.meta}
+                              canEdit={!batchStartedAt || Date.parse(h.created_at) < Date.parse(batchStartedAt)}
+                              lockedHint="Editable once you finish this batch"
+                              onSaved={meta => noteSaved(h.id, meta as CallEntry['meta'])}
+                            />
+                          ) : h.meta?.notes && <p className="text-gray-600 mt-1 whitespace-pre-wrap">{h.meta.notes}</p>}
                         </div>
                       ))}
                     </div>

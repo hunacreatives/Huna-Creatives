@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { formatManilaDateTime } from '@/lib/smartgridShift';
 import { GOAL_LABEL, OUTCOME_LABEL, leadStatusLabel, type CallLogEntry, type Caller, type TrackerLead } from './types';
 import RoomsBadge from './RoomsBadge';
+import CallNote from './CallNote';
 
 interface Props {
   lead: TrackerLead;
@@ -10,6 +11,7 @@ interface Props {
   callers: Caller[];
   onClose: () => void;
   onChanged: (id: string, changes: Partial<TrackerLead>) => void;
+  onCallChanged: (id: number, meta: CallLogEntry['meta']) => void;
 }
 
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -19,7 +21,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
   </div>
 );
 
-export default function LeadDetailModal({ lead, callLog, callers, onClose, onChanged }: Props) {
+export default function LeadDetailModal({ lead, callLog, callers, onClose, onChanged, onCallChanged }: Props) {
   const [assignedTo, setAssignedTo] = useState(lead.assigned_to || '');
   const [saving, setSaving] = useState(false);
   const names = useMemo(() => new Map(callers.map(c => [c.id, c.name])), [callers]);
@@ -122,7 +124,16 @@ export default function LeadDetailModal({ lead, callLog, callers, onClose, onCha
                       <b>{OUTCOME_LABEL[h.meta?.outcome || ''] || h.meta?.outcome || '–'}</b> · {names.get(h.user_id || '') || 'Former caller'} · {formatManilaDateTime(h.created_at)}
                     </p>
                     {h.meta?.email_found && <p className="text-emerald-700 mt-0.5">Email captured</p>}
-                    {h.meta?.notes && <p className="text-gray-600 mt-1 whitespace-pre-wrap">{h.meta.notes}</p>}
+                    <CallNote
+                      activityId={h.id}
+                      meta={h.meta}
+                      canEdit
+                      onSaved={meta => {
+                        onCallChanged(h.id, meta as CallLogEntry['meta']);
+                        // The lead's call_notes mirrors its latest call
+                        if (h.id === history[0]?.id) onChanged(lead.id, { call_notes: (meta.notes as string) ?? '' });
+                      }}
+                    />
                   </div>
                 ))}
               </div>

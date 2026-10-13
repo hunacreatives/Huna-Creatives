@@ -133,5 +133,9 @@ export function useLeadTrackerData(projectId: number) {
     setLeads(prev => prev.map(l => (l.id === id ? { ...l, ...changes } : l)));
   }, []);
 
-  return { leads, callLog, callers, loading, error, lastUpdated, live, reload: load, patchLead, releaseCaller };
+  const patchCall = useCallback((id: number, meta: CallLogEntry['meta']) => {
+    setCallLog(prev => prev.map(e => (e.id === id ? { ...e, meta } : e)));
+  }, []);
+
+  return { leads, callLog, callers, loading, error, lastUpdated, live, reload: load, patchLead, patchCall, releaseCaller };
 }

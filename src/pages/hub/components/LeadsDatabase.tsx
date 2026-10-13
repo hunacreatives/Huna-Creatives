@@ -21,7 +21,7 @@ interface Props {
 type Tab = 'log' | 'callbacks' | 'leads';
 
 export default function LeadsDatabase({ projectId, isAdmin }: Props) {
-  const { leads, callLog, callers, loading, error, lastUpdated, live, reload, patchLead, releaseCaller } = useLeadTrackerData(projectId);
+  const { leads, callLog, callers, loading, error, lastUpdated, live, reload, patchLead, patchCall, releaseCaller } = useLeadTrackerData(projectId);
   const [period, setPeriod] = useState<TrackerPeriod>('shift');
   const [day, setDay] = useState(latestShiftDay);
   const [tab, setTab] = useState<Tab>('log');
@@ -148,7 +148,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
       <CommissionsReport projectId={projectId} />
 
       {openLead && (
-        <LeadDetailModal lead={openLead} callLog={callLog} callers={callers} onClose={() => setOpenLeadId(null)} onChanged={patchLead} />
+        <LeadDetailModal lead={openLead} callLog={callLog} callers={callers} onClose={() => setOpenLeadId(null)} onChanged={patchLead} onCallChanged={patchCall} />
       )}
     </div>
   );

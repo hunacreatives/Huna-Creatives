@@ -39,6 +39,7 @@ export interface CallLogEntry {
     email_found?: boolean;
     phone_found?: boolean;
     notes?: string;
+    notes_edited_at?: string;
     follow_up_email_sent?: boolean;
     callback_date?: string | null;
   } | null;
