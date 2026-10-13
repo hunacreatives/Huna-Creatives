@@ -1952,7 +1952,11 @@ export default function AdminPayrollPage() {
                         ? `$${c.hourly_rate}/hr`
                         : `₱${(c.hourly_rate || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}/hr`;
                     const otRateLabel = isFixed
-                      ? isUSD ? `$${r.derivedHourlyRate} OT` : `₱${r.derivedHourlyRate} OT`
+                      // A fixed monthly rate ÷ standard hours rarely divides evenly
+                      // (₱28,000 ÷ 176 = 159.0909…), so round for display only.
+                      ? isUSD
+                        ? `$${r.derivedHourlyRate.toLocaleString('en-US', { maximumFractionDigits: 2 })} OT`
+                        : `₱${r.derivedHourlyRate.toLocaleString('en-PH', { maximumFractionDigits: 2 })} OT`
                       : null;
                     const hoursExceeded = r.hours > r.cappedHours;
                     const override = rowOverrides[c.id];
