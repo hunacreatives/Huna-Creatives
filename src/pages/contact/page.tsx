@@ -116,6 +116,10 @@ export default function ContactPage() {
         href="https://calendly.com/hunacreatives/30min"
         target="_blank"
         rel="nofollow noreferrer"
+        onClick={() => {
+          const gtag = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+          if (typeof gtag === 'function') gtag('event', 'schedule_call_click', { event_category: 'lead', page: 'contact' });
+        }}
         className="inline-flex items-center justify-center gap-2 w-auto px-6 sm:px-5 py-3 sm:py-2.5 rounded-full text-[13px] sm:text-xs font-semibold text-[#243037] border border-[#243037]/15 bg-white/60 hover:border-[#FF5B05]/50 hover:text-[#FF5B05] transition-all mb-5 sm:mb-6"
       >
         <i className="ri-calendar-line text-[#FF5B05]" />

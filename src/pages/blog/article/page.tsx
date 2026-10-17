@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import Navigation from '../../../components/feature/Navigation';
 import Footer from '../../home/components/Footer';
-import { getBlogArticle, blogArticles } from '../data';
+import { getBlogArticle, blogArticles, type BlogArticle } from '../data';
 import { useSEO } from '../../../hooks/useSEO';
 import { noteArticle } from '../../../lib/leadSource';
 
@@ -18,6 +18,41 @@ const CategoryBadge = ({ category }: { category: string }) => (
     {category}
   </span>
 );
+
+// Contact link for the post's call to action: a pre-selected service, or an
+// explicit href (e.g. the Sentro demo booking).
+const ctaTarget = (article: BlogArticle) =>
+  article.cta.href ?? (article.cta.service ? `/contact?service=${encodeURIComponent(article.cta.service)}` : '/contact');
+
+function trackCta(slug: string, position: string) {
+  const gtag = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+  if (typeof gtag === 'function') gtag('event', 'blog_cta_click', { article: slug, position });
+}
+
+function CtaLink({ article, position, className, style, children }: {
+  article: BlogArticle; position: string; className: string; style: React.CSSProperties; children: React.ReactNode;
+}) {
+  const href = ctaTarget(article);
+  const onClick = () => trackCta(article.slug, position);
+  return /^https?:/.test(href) ? (
+    <a href={href} target="_blank" rel="noopener" onClick={onClick} className={className} style={style}>{children}</a>
+  ) : (
+    <Link to={href} onClick={onClick} className={className} style={style}>{children}</Link>
+  );
+}
+
+const glassCard: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.65)',
+  backdropFilter: 'blur(20px) saturate(160%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+  border: '1px solid rgba(255,255,255,0.7)',
+  boxShadow: '0 10px 28px rgba(36,48,55,0.12)',
+};
+
+const ctaButtonStyle: React.CSSProperties = {
+  background: 'linear-gradient(135deg, #FF5B05, #FF8A47)',
+  boxShadow: '0 8px 24px rgba(255,91,5,0.3)',
+};
 
 const ArticlePage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -62,7 +97,15 @@ const ArticlePage = () => {
             '@type': 'WebPage',
             '@id': `https://www.hunacreatives.com/blog/${slug}`,
           },
-        }, {
+        }, ...(article.faqs?.length ? [{
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: article.faqs.map((f) => ({
+            '@type': 'Question',
+            name: f.q,
+            acceptedAnswer: { '@type': 'Answer', text: f.a },
+          })),
+        }] : []), {
           '@context': 'https://schema.org',
           '@type': 'BreadcrumbList',
           itemListElement: [
@@ -194,7 +237,23 @@ const ArticlePage = () => {
           <div className="max-w-4xl mx-auto">
             <div className="grid lg:grid-cols-[1fr_280px] gap-12 lg:gap-16 items-start">
               {/* Content */}
-              <article className="prose-custom">
+              <article className="prose-custom min-w-0">
+                {article.verdict && article.verdict.length > 0 && (
+                  <div className="rounded-xl p-5 sm:p-6 mb-8" style={glassCard}>
+                    <p className="text-[10px] font-semibold tracking-widest uppercase text-[#FF5B05] mb-3">
+                      The short answer
+                    </p>
+                    <dl className="space-y-3">
+                      {article.verdict.map((v) => (
+                        <div key={v.option} className="sm:grid sm:grid-cols-[180px_1fr] sm:gap-4">
+                          <dt className="text-sm font-semibold text-[#243037]">{v.option}</dt>
+                          <dd className="text-sm text-[#243037]/65 leading-relaxed">{v.bestFor}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
+
                 {article.body.map((block, i) => {
                   if (block.type === 'heading') {
                     return (
@@ -269,8 +328,109 @@ const ArticlePage = () => {
                       </div>
                     );
                   }
+                  if (block.type === 'table' && block.columns && block.rows) {
+                    return (
+                      <figure key={i} className="my-8">
+                        {block.columns.length > 3 && (
+                          <p className="sm:hidden text-[11px] text-[#243037]/45 mb-2 flex items-center gap-1">
+                            Swipe the table for more <i className="ri-arrow-right-line" />
+                          </p>
+                        )}
+                        {/* Scrolls sideways inside its box on phones; the page itself never does. */}
+                        <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid rgba(36,48,55,0.1)', background: 'rgba(255,255,255,0.7)' }}>
+                          <table className="w-full min-w-[560px] text-left text-[13px] leading-snug">
+                            <thead>
+                              <tr style={{ background: 'rgba(36,48,55,0.04)' }}>
+                                {block.columns.map((c, ci) => (
+                                  <th key={ci} scope="col" className={`px-3.5 py-3 font-semibold text-[#243037] align-bottom ${ci === 0 ? 'sticky left-0 bg-[#F3F4F4]' : ''}`}>
+                                    {c}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {block.rows.map((row, ri) => (
+                                <tr key={ri} style={{ borderTop: '1px solid rgba(36,48,55,0.08)' }}>
+                                  {row.map((cell, ci) =>
+                                    ci === 0 ? (
+                                      <th key={ci} scope="row" className="px-3.5 py-3 font-semibold text-[#243037] align-top sticky left-0 bg-[#FAFAFA]">{cell}</th>
+                                    ) : (
+                                      <td key={ci} className="px-3.5 py-3 text-[#243037]/70 align-top">{cell}</td>
+                                    ),
+                                  )}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {block.content && (
+                          <figcaption className="mt-2.5 text-xs text-[#243037]/45 leading-relaxed">{block.content}</figcaption>
+                        )}
+                      </figure>
+                    );
+                  }
+                  if (block.type === 'callout') {
+                    return (
+                      <div
+                        key={i}
+                        className="my-7 rounded-xl px-5 py-4 text-sm text-[#243037]/80 leading-relaxed [&_a]:text-[#FF5B05] [&_a]:underline [&_a]:underline-offset-2 [&_strong]:text-[#243037]"
+                        style={{ background: 'rgba(255,91,5,0.06)', border: '1px solid rgba(255,91,5,0.2)' }}
+                        dangerouslySetInnerHTML={{ __html: block.content }}
+                      />
+                    );
+                  }
+                  if (block.type === 'cta') {
+                    return (
+                      <div key={i} className="my-8 rounded-xl p-5 sm:p-6 sm:flex sm:items-center sm:justify-between sm:gap-6" style={{ ...glassCard, border: '1px solid rgba(255,91,5,0.25)' }}>
+                        <div className="mb-4 sm:mb-0">
+                          <p className="font-display text-base font-bold text-[#243037] leading-snug mb-1">{article.cta.heading}</p>
+                          <p className="text-[#243037]/55 text-xs leading-relaxed">{article.cta.body}</p>
+                        </div>
+                        <CtaLink
+                          article={article}
+                          position={`inline-${i}`}
+                          className="inline-flex items-center justify-center gap-2 w-full sm:w-auto flex-shrink-0 px-5 py-3 sm:py-2.5 rounded-full text-sm sm:text-xs font-semibold text-white whitespace-nowrap"
+                          style={ctaButtonStyle}
+                        >
+                          {article.cta.label ?? 'Get a Quote'}
+                          <i className="ri-arrow-right-line" />
+                        </CtaLink>
+                      </div>
+                    );
+                  }
                   return null;
                 })}
+
+                {article.faqs && article.faqs.length > 0 && (
+                  <section className="mt-12">
+                    <h2 className="font-display text-xl md:text-2xl font-bold text-[#243037] mb-5 leading-snug">
+                      Questions people ask
+                    </h2>
+                    <div className="space-y-5">
+                      {article.faqs.map((f) => (
+                        <div key={f.q}>
+                          <h3 className="text-sm md:text-base font-semibold text-[#243037] mb-1.5">{f.q}</h3>
+                          <p className="text-[#243037]/70 text-sm md:text-base leading-relaxed">{f.a}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {article.sources && article.sources.length > 0 && (
+                  <div className="mt-10">
+                    <p className="text-[10px] font-semibold tracking-widest uppercase text-[#243037]/40 mb-3">Sources</p>
+                    <ol className="space-y-1.5 list-decimal pl-4">
+                      {article.sources.map((src) => (
+                        <li key={src.url} className="text-xs text-[#243037]/55 leading-relaxed">
+                          <a href={src.url} target="_blank" rel="noopener nofollow" className="underline underline-offset-2 hover:text-[#FF5B05] break-words">
+                            {src.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
 
                 {/* Keywords footer */}
                 <div
@@ -353,17 +513,15 @@ const ArticlePage = () => {
                   <p className="text-[#243037]/55 text-xs leading-relaxed mb-4">
                     {article.cta.body}
                   </p>
-                  <Link
-                    to="/contact"
+                  <CtaLink
+                    article={article}
+                    position="sidebar"
                     className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-full text-xs font-semibold text-white whitespace-nowrap cursor-pointer hover:scale-105 transition-all duration-300"
-                    style={{
-                      background: 'linear-gradient(135deg, #FF5B05, #FF8A47)',
-                      boxShadow: '0 8px 24px rgba(255,91,5,0.3)',
-                    }}
+                    style={ctaButtonStyle}
                   >
-                    Work With Huna
+                    {article.cta.label ?? 'Work With Huna'}
                     <i className="ri-arrow-right-line text-xs" />
-                  </Link>
+                  </CtaLink>
                 </div>
 
                 {/* Related Articles */}
@@ -429,17 +587,15 @@ const ArticlePage = () => {
             <p className="text-[#243037]/55 text-xs leading-relaxed mb-4">
               {article.cta.body}
             </p>
-            <Link
-              to="/contact"
+            <CtaLink
+              article={article}
+              position="mobile-end"
               className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-full text-sm font-semibold text-white whitespace-nowrap cursor-pointer"
-              style={{
-                background: 'linear-gradient(135deg, #FF5B05, #FF8A47)',
-                boxShadow: '0 8px 24px rgba(255,91,5,0.3)',
-              }}
+              style={ctaButtonStyle}
             >
-              Work With Huna
+              {article.cta.label ?? 'Work With Huna'}
               <i className="ri-arrow-right-line text-sm" />
-            </Link>
+            </CtaLink>
           </div>
         </section>
 

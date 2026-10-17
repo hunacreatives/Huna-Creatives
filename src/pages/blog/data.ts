@@ -15,16 +15,38 @@ export interface BlogArticle {
     description: string;
     keywords: string[];
   };
+  /** Comparison posts: "The short answer" box above the body — who each option suits. */
+  verdict?: { option: string; bestFor: string }[];
   body: {
-    type: 'heading' | 'paragraph' | 'quote' | 'list' | 'image';
-    /** For 'image' blocks this is the src; for everything else, the text. */
+    /**
+     * 'table' — comparison grid (columns + rows; first column is the option name).
+     * 'callout' — highlighted note, e.g. a price anchor; content is HTML.
+     * 'cta' — the post's call to action, inline at this point (content unused).
+     */
+    type: 'heading' | 'paragraph' | 'quote' | 'list' | 'image' | 'table' | 'callout' | 'cta';
+    /** For 'image' blocks this is the src; for 'table' the caption; for everything else, the text. */
     content: string;
     items?: string[];
     /** 'image' only: caption shown beneath, and the alt text. */
     caption?: string;
     alt?: string;
+    /** 'table' only. Cells are plain text. */
+    columns?: string[];
+    rows?: string[][];
   }[];
-  cta: { heading: string; body: string };
+  /** Shown on the page and as FAQPage schema, so the two always match. */
+  faqs?: { q: string; a: string }[];
+  /** Outside figures the post relies on, listed at the end. */
+  sources?: { label: string; url: string }[];
+  cta: {
+    heading: string;
+    body: string;
+    /** A contact-form service option (SERVICE_OPTIONS in contact/page.tsx) to pre-select. */
+    service?: string;
+    /** Overrides the contact link entirely, e.g. a Sentro demo booking. */
+    href?: string;
+    label?: string;
+  };
   relatedSlugs: string[];
 }
 
@@ -149,6 +171,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Website Design',
       heading: 'Need a site and the system behind it?',
       body: 'We build the public site, the booking flow, and the hub your team runs the day from. Tell us what your studio needs.',
     },
@@ -297,6 +320,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Website Design',
       heading: 'Need more than a website?',
       body: 'We build the public site, the system behind it, and the app your team actually opens. Tell us what your practice runs on.',
     },
@@ -444,6 +468,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Website Design',
       heading: 'Selling something that has to be specified?',
       body: 'We build B2B sites that answer a specifier\u2019s questions before they have to ask. Tell us what you make.',
     },
@@ -589,6 +614,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Brand Identity & Logo Design',
       heading: 'Building a caf\u00e9 or beverage brand?',
       body: 'We build food and beverage identities made to survive a crowded shelf and a small cup. Tell us what you are opening.',
     },
@@ -763,6 +789,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Brand Identity & Logo Design',
       heading: 'Has your brand outgrown its logo?',
       body: 'Expanding to a new city is the moment it shows. We refine identities without throwing away the recognition you have already earned.',
     },
@@ -925,6 +952,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'E-Vites & Event RSVP Websites',
       heading: 'Planning a Cebu wedding or milestone?',
       body: 'We design digital invitations that handle the details so you do not have to. Tell us about your event.',
     },
@@ -1073,6 +1101,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'E-Vites & Event RSVP Websites',
       heading: 'Got a theme in mind?',
       body: 'The stranger the better. We design digital invitations that commit properly \u2014 tell us what you are planning.',
     },
@@ -1220,6 +1249,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Brand Identity & Logo Design',
       heading: 'Opening a café or restaurant in Cebu? Your brand is your most important first impression.',
       body: 'Huna Creatives builds complete brand identities for food and beverage businesses in Cebu City and across the Philippines — from IT Park concepts to regional chains. Let\'s build yours.',
     },
@@ -1389,6 +1419,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Brand Identity & Logo Design',
       heading: 'Launching a boutique, fashion label, or retail brand in Cebu?',
       body: 'Huna Creatives builds premium brand identities for fashion and retail businesses across the Philippines. From your first logo to your full packaging system — let\'s build something worth wearing.',
     },
@@ -1543,6 +1574,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Content Creation & Photography',
       heading: 'Get content that sounds like you — and performs better than you have time to create.',
       body: "Huna Creatives produces brand content for international clients that is on-voice, on-brand, and built to attract leads. Let's talk about your content needs.",
     },
@@ -1699,6 +1731,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Brand Identity & Logo Design',
       heading: 'Build your startup brand the right way from day one.',
       body: "Huna Creatives builds strategic brand identities for early-stage startups at rates that make sense for pre-revenue companies. Let's talk.",
     },
@@ -1849,6 +1882,7 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      service: 'Digital Design (Social Media, Ads)',
       heading: 'Build a social media presence that compounds over time.',
       body: "Huna Creatives creates social media strategies and content for businesses in Cebu and across the Philippines. Let's build yours.",
     },
@@ -2001,6 +2035,8 @@ export const blogArticles: BlogArticle[] = [
       },
     ],
     cta: {
+      href: '/sentro',
+      label: 'See Sentro OS',
       heading: 'Stop managing your agency with spreadsheets.',
       body: 'Sentro OS is the operations hub built for creative agencies in the Philippines. See how it works and get your team set up — starting at ₱2,500/month.',
     },
