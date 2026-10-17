@@ -1,3 +1,5 @@
+import { comparisonArticles } from './comparisons';
+
 export interface BlogArticle {
   slug: string;
   category: string;
@@ -50,7 +52,8 @@ export interface BlogArticle {
   relatedSlugs: string[];
 }
 
-export const blogArticles: BlogArticle[] = [
+// Comparison/pricing posts (comparisons.ts) are listed first.
+const caseStudiesAndGuides: BlogArticle[] = [
   {
     slug: 'asana-ormoc-pilates-studio-website-booking-hub',
     category: 'Case Study',
@@ -2044,6 +2047,8 @@ export const blogArticles: BlogArticle[] = [
     ],
   },
 ];
+
+export const blogArticles: BlogArticle[] = [...comparisonArticles, ...caseStudiesAndGuides];
 
 export const getBlogArticle = (slug: string): BlogArticle | undefined =>
   blogArticles.find((a) => a.slug === slug);
