@@ -880,7 +880,7 @@ const categoryDataMap = {
     description:
       "Your brand is more than just a logo — it's the story you tell, the emotions you spark, and the impression you leave behind. We build identities from the ground up with clarity, purpose, and strategy.",
     iconClass: 'ri-fingerprint-line',
-    stats: { projects: '25+', satisfaction: '100%', rating: '5.0★' },
+    stats: { projects: '25+' },
     projects: [
       {
         id: 'b2',
@@ -922,7 +922,7 @@ const categoryDataMap = {
     description:
       'Every great design starts with a spark — an idea, a story, a vision that deserves to be seen. At Huna Creatives, we transform those ideas into bold, intentional visuals that not only look polished but also work hard for your brand. From product mockups and packaging to flyers, posters, and promotional materials, our designs bring your vision to life in a way that captures attention, communicates clearly, and leaves a lasting impression.',
     iconClass: 'ri-pen-nib-line',
-    stats: { projects: '18+', satisfaction: '100%', rating: '5.0★' },
+    stats: { projects: '18+' },
     projects: [],
   },
   'social-media': {
@@ -931,7 +931,7 @@ const categoryDataMap = {
     description:
       "Whether you're selling luxury sport horses, guiding families through mortgage decisions, caring for little smiles, or fueling athletes with top-tier nutrition—your brand's voice matters. Social media is more than just posting; it's about creating a presence that connects, engages, and converts. At Huna Creatives, we turn your vision into a cohesive, scroll‑stopping narrative that works across platforms and speaks directly to your audience.",
     iconClass: 'ri-bar-chart-grouped-line',
-    stats: { projects: '24+', satisfaction: '100%', rating: '5.0★' },
+    stats: { projects: '24+' },
     projects: [],
     socialClients,
   },
@@ -941,7 +941,7 @@ const categoryDataMap = {
     description:
       'Beautifully designed email campaigns that convert. From newsletters to automated sequences, we craft emails that get opened, read, and clicked — every single time.',
     iconClass: 'ri-mail-send-line',
-    stats: { projects: '9+', satisfaction: '100%', rating: '5.0★' },
+    stats: { projects: '9+' },
     projects: [],
   },
   'web-design': {
@@ -950,7 +950,7 @@ const categoryDataMap = {
     description:
       'Full websites designed and built from scratch — strategy, UI/UX, development, and launch. Every site is crafted to look great, load fast, and convert.',
     iconClass: 'ri-global-line',
-    stats: { projects: '8+', satisfaction: '100%', rating: '5.0★' },
+    stats: { projects: '8+' },
     projects: [],
   },
 };
@@ -1192,8 +1192,8 @@ const PortfolioCategoryPage = () => {
                   <div className="grid grid-cols-3 gap-3 animate-fade-in-up opacity-0-init delay-300">
                     {[
                       { label: 'Projects', value: category.stats.projects, icon: 'ri-stack-line' },
-                      { label: 'Satisfaction', value: category.stats.satisfaction, icon: 'ri-heart-line' },
-                      { label: 'Rating', value: category.stats.rating, icon: 'ri-star-line' },
+                      { label: 'Custom quote', value: '24 hrs', icon: 'ri-time-line' },
+                      { label: 'Templates', value: '0', icon: 'ri-pencil-ruler-2-line' },
                     ].map((stat) => (
                       <div
                         key={stat.label}

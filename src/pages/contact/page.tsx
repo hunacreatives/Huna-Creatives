@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useSEO } from '../../hooks/useSEO';
 import { supabase } from '@/lib/supabase';
 import { trackLead } from '@/lib/metaPixel';
+import { getAttribution } from '@/lib/leadSource';
 
 const SERVICE_OPTIONS = [
   'Brand Identity & Logo Design',
@@ -81,6 +82,7 @@ export default function ContactPage() {
           service: formData.service,
           budget: formData.budget || 'Not specified',
           message: formData.message,
+          attribution: getAttribution(),
         },
       });
       if (!error) {

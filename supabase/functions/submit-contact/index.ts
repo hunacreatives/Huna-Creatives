@@ -20,6 +20,47 @@ function esc(s: unknown): string {
   ));
 }
 
+// Where the lead came from (see src/lib/leadSource.ts). Public input, so only
+// known keys survive, as short strings.
+type Attribution = {
+  referrer?: string; landing_page?: string; last_article?: string;
+  utm?: Record<string, string>;
+};
+
+function cleanAttribution(raw: unknown): Attribution | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const str = (v: unknown, max: number) => (typeof v === 'string' && v ? v.slice(0, max) : undefined);
+  const out: Attribution = {
+    referrer: str(r.referrer, 500),
+    landing_page: str(r.landing_page, 300),
+    last_article: str(r.last_article, 200),
+  };
+  if (r.utm && typeof r.utm === 'object') {
+    const utm: Record<string, string> = {};
+    for (const k of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content']) {
+      const v = str((r.utm as Record<string, unknown>)[k], 200);
+      if (v) utm[k] = v;
+    }
+    if (Object.keys(utm).length) out.utm = utm;
+  }
+  for (const k of Object.keys(out) as (keyof Attribution)[]) if (out[k] === undefined) delete out[k];
+  return Object.keys(out).length ? out : null;
+}
+
+// Mirrors describeAttribution() in src/lib/leadSource.ts.
+function describeAttribution(a: Attribution | null): string | null {
+  if (!a || !a.landing_page) return null;
+  let from = 'Direct';
+  if (a.utm?.utm_source) from = a.utm.utm_source;
+  else if (a.referrer) {
+    try { from = new URL(a.referrer).host.replace(/^www\./, ''); } catch { from = a.referrer; }
+  }
+  const parts = [`${from} → ${a.landing_page}`];
+  if (a.last_article && `/blog/${a.last_article}` !== a.landing_page) parts.push(`read /blog/${a.last_article}`);
+  return parts.join(' · ');
+}
+
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif";
 const SERIF = "Georgia,'Times New Roman',serif";
 const para = (html: string) =>
@@ -118,6 +159,11 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: cors });
     }
 
+    const budget = typeof body.budget === 'string' && body.budget !== 'Not specified'
+      ? body.budget.slice(0, 100) : null;
+    const attribution = cleanAttribution(body.attribution);
+    const sourceLine = describeAttribution(attribution);
+
     // The form is public, so it must not become a way to email any address
     // repeatedly: only the first submission from an address in 24 hours gets
     // an acknowledgement.
@@ -135,6 +181,8 @@ Deno.serve(async (req) => {
       subject: subject ?? '',
       service: service ?? null,
       message,
+      budget,
+      attribution,
     });
 
     if (dbError) {
@@ -150,6 +198,8 @@ Deno.serve(async (req) => {
           <tr><td style="padding:8px 0;color:#666;width:100px">From</td><td style="padding:8px 0">${esc(email)}</td></tr>
           ${service ? `<tr><td style="padding:8px 0;color:#666">Service</td><td style="padding:8px 0">${esc(service)}</td></tr>` : ''}
           ${subject ? `<tr><td style="padding:8px 0;color:#666">Subject</td><td style="padding:8px 0">${esc(subject)}</td></tr>` : ''}
+          ${budget ? `<tr><td style="padding:8px 0;color:#666">Budget</td><td style="padding:8px 0">${esc(budget)}</td></tr>` : ''}
+          ${sourceLine ? `<tr><td style="padding:8px 0;color:#666">Came from</td><td style="padding:8px 0">${esc(sourceLine)}</td></tr>` : ''}
         </table>
         <div style="background:#f5f5f5;border-radius:8px;padding:16px 20px;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(message)}</div>
         <p style="margin-top:32px;font-size:11px;color:#bbb">Submitted via hunacreatives.com — view all in the Hub</p>

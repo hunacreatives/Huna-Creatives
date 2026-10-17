@@ -182,16 +182,7 @@ export const projectDataMap: Record<string, ProjectData> = {
           label: 'Brand Assets Delivered',
           detail: 'Logos, templates, guidelines & more',
         },
-        {
-          value: '3x',
-          label: 'Social Engagement',
-          detail: 'Compared to pre-brand launch',
-        },
-        {
-          value: '100%',
-          label: 'Brand Satisfaction',
-          detail: 'Exceeded expectations on every deliverable',
-        },
+        { value: '8 wks', label: 'Start to Handoff', detail: 'Discovery through final files' },
       ],
     },
     testimonial: {
@@ -279,7 +270,7 @@ export const projectDataMap: Record<string, ProjectData> = {
       metrics: [
         { value: '20+', label: 'Brand Assets Delivered', detail: 'Logo suite, palette, guidelines' },
         { value: '5', label: 'Logo Variations', detail: 'Horizontal, stacked, mark — all colorways' },
-        { value: '100%', label: 'Brand Satisfaction', detail: 'Exceeded expectations on every deliverable' },
+        { value: '6 wks', label: 'Start to Handoff', detail: 'Discovery through final files' },
       ],
     },
   },
@@ -367,7 +358,7 @@ export const projectDataMap: Record<string, ProjectData> = {
       metrics: [
         { value: '3', label: 'Direction Proposals', detail: 'Refined, Lettermark & Unified' },
         { value: '10+', label: 'Logo Variations', detail: 'Color, scale, and background variants' },
-        { value: '100%', label: 'Brand Satisfaction', detail: 'Exceeded expectations on every deliverable' },
+        { value: '6 wks', label: 'Start to Handoff', detail: 'Discovery through final files' },
       ],
     },
   },
@@ -516,11 +507,7 @@ export const projectDataMap: Record<string, ProjectData> = {
           label: 'Packaging Applications',
           detail: 'Cups, bags, stickers, cards, signage',
         },
-        {
-          value: '100%',
-          label: 'Brand Satisfaction',
-          detail: 'Exceeded expectations on every deliverable',
-        },
+        { value: '10 wks', label: 'Start to Handoff', detail: 'Discovery through final files' },
       ],
     },
   },

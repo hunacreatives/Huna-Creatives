@@ -4,6 +4,7 @@ import Navigation from '../../../components/feature/Navigation';
 import Footer from '../../home/components/Footer';
 import { getBlogArticle, blogArticles } from '../data';
 import { useSEO } from '../../../hooks/useSEO';
+import { noteArticle } from '../../../lib/leadSource';
 
 const CategoryBadge = ({ category }: { category: string }) => (
   <span
@@ -66,7 +67,8 @@ const ArticlePage = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [slug]);
+    if (article && slug) noteArticle(slug);
+  }, [slug, article]);
 
   if (!article) {
     return (

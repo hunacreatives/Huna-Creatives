@@ -61,6 +61,9 @@ const services = [
   },
 ];
 
+// '₱35,000' / '$800/mo' → 35000 / 800
+const priceNumber = (label: string) => Number(label.replace(/\/.*$/, '').replace(/[^\d.]/g, ''));
+
 const testimonials = [
   {
     quote: "Huna Creatives didn't just design a logo — they gave The Second Haus a soul. Every detail, from the color palette to the hang tags, feels like it was made with so much care. I couldn't be happier.",
@@ -163,45 +166,23 @@ export default function ServicesPage() {
         hasOfferCatalog: {
           '@type': 'OfferCatalog',
           name: 'Huna Creatives Services',
-          itemListElement: [
-            { '@type': 'Offer', name: 'Brand Identity & Logo Design' },
-            { '@type': 'Offer', name: 'Social Media Content Creation' },
-            { '@type': 'Offer', name: 'Email Marketing Design' },
-            { '@type': 'Offer', name: 'Website Visual Design' },
-            { '@type': 'Offer', name: 'Content Creation & Photography' },
-            { '@type': 'Offer', name: 'Brand Strategy' },
-          ],
+          // Built from the cards below so the markup always matches the page.
+          // Starting prices only: final prices are quoted per project.
+          itemListElement: services.map(s => ({
+            '@type': 'Offer',
+            name: s.title,
+            description: s.description,
+            priceSpecification: [
+              { label: s.startingFromPH, currency: 'PHP' },
+              { label: s.startingFrom, currency: 'USD' },
+            ].map(({ label, currency }) => ({
+              '@type': label.includes('/mo') ? 'UnitPriceSpecification' : 'PriceSpecification',
+              minPrice: priceNumber(label),
+              priceCurrency: currency,
+              ...(label.includes('/mo') ? { unitText: 'month' } : {}),
+            })),
+          })),
         },
-      },
-      {
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
-        mainEntity: [
-          {
-            '@type': 'Question',
-            name: 'What services does Huna Creatives offer?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Huna Creatives offers brand identity design, social media content creation, email marketing design, website visual design, print and packaging design, and brand strategy consulting.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'Do you work with clients outside the Philippines?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Yes. Huna Creatives works with businesses across the US and globally. Our team operates Monday through Friday, 10 AM to 8 PM EST.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'What industries does Huna Creatives specialize in?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'We have proven work in equestrian, mortgage, pediatric dentistry, and sports nutrition. We take on select clients in other industries where we can produce genuine creative impact.',
-            },
-          },
-        ],
       },
       {
         '@context': 'https://schema.org',
@@ -384,8 +365,8 @@ export default function ServicesPage() {
                   <p className="text-[11px] sm:text-[10px] text-[#243037]/40 uppercase tracking-wide">Projects</p>
                 </div>
                 <div>
-                  <p className="font-display text-lg font-bold text-[#243037]">38+</p>
-                  <p className="text-[11px] sm:text-[10px] text-[#243037]/40 uppercase tracking-wide">Brands Built</p>
+                  <p className="font-display text-lg font-bold text-[#243037]">38</p>
+                  <p className="text-[11px] sm:text-[10px] text-[#243037]/40 uppercase tracking-wide">Brands, Team-Wide</p>
                 </div>
                 <div>
                   <p className="font-display text-lg font-bold text-[#243037]">3+</p>

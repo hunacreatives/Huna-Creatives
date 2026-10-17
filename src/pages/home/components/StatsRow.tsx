@@ -1,7 +1,7 @@
 const stats = [
   { value: '100+', label: 'Projects Delivered' },
   { value: '4.8★', label: 'Client Rating' },
-  { value: '38+', label: 'Brands Built' },
+  { value: '38', label: 'Brands Our Team Has Built' },
   { value: '3+', label: 'Years of Experience' },
 ];
 

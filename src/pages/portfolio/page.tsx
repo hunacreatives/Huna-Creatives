@@ -210,7 +210,7 @@ export default function PortfolioPage() {
   useSEO({
     title: 'Portfolio — Brand Identity, Social Media & Design Work',
     description:
-      'Explore Huna Creatives\' portfolio across branding, graphic design, social media content, email marketing, and web design. 38+ brands built across Cebu and beyond.',
+      'Explore Huna Creatives\' portfolio across branding, graphic design, social media content, email marketing, and web design. Custom work for brands in Cebu and beyond.',
     canonical: '/portfolio',
     schema: {
       '@context': 'https://schema.org',

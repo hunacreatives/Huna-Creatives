@@ -138,7 +138,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'The usual version of this is two vendors — an agency for the site and a booking platform bolted on afterward. Running it as one build means the site and the hub share a codebase lineage and a visual language, and there is one team that owns the parts in between. You can see the site in our <a href="/portfolio/web-design">web design portfolio</a>, alongside work like <a href="/portfolio/project/hulma-cebu">Hulma Cebu</a> and FS Architects.',
+          'The usual version of this is two vendors — an agency for the site and a booking platform bolted on afterward. Running it as one build means the site and the hub share a codebase lineage and a visual language, and there is one team that owns the parts in between. You can see the site in our <a href="/portfolio/web-design">web design portfolio</a>, alongside work like <a href="/blog/hulma-cebu-architectural-fiberglass-website">Hulma Cebu</a> and FS Architects.',
       },
       {
         type: 'paragraph',
@@ -258,7 +258,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Running it as one engagement meant the public site, the hub and the app share a visual language and a codebase lineage. You can see the site itself in our <a href="/portfolio/web-design">web design portfolio</a>, alongside work like <a href="/portfolio/project/hulma-cebu">Hulma Cebu</a> and SmartGrid Western.',
+          'Running it as one engagement meant the public site, the hub and the app share a visual language and a codebase lineage. You can see the site itself in our <a href="/portfolio/web-design">web design portfolio</a>, alongside work like <a href="/blog/hulma-cebu-architectural-fiberglass-website">Hulma Cebu</a> and SmartGrid Western.',
       },
       {
         type: 'paragraph',
@@ -830,7 +830,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'That last point is the one templates fail. A heavy invitation page on a slow connection is functionally a broken invitation. We treat mobile weight as a design constraint from the start \u2014 the same discipline we apply to client sites, which we wrote about in <a href="/portfolio/web-design">web design that converts, not just impresses</a>.',
+          'That last point is the one templates fail. A heavy invitation page on a slow connection is functionally a broken invitation. We treat mobile weight as a design constraint from the start \u2014 the same discipline we apply to the client sites in our <a href="/portfolio/web-design">web design portfolio</a>.',
       },
       { type: 'heading', content: 'Carlo & Trixia: an invitation that opens' },
       {
@@ -880,7 +880,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'We are based in Cebu, which matters more than it sounds. We know which venues are hard to find, how Philippine guest lists actually behave, and why a page has to survive a patchy signal in Balamban. You can see the full range of what we build on our <a href="/portfolio/web-design">web design portfolio</a>, alongside client work like <a href="/portfolio/project/hulma-cebu">Hulma Cebu</a>.',
+          'We are based in Cebu, which matters more than it sounds. We know which venues are hard to find, how Philippine guest lists actually behave, and why a page has to survive a patchy signal in Balamban. You can see the full range of what we build on our <a href="/portfolio/web-design">web design portfolio</a>, alongside client work like <a href="/blog/hulma-cebu-architectural-fiberglass-website">Hulma Cebu</a>.',
       },
       {
         type: 'paragraph',
@@ -990,7 +990,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'This is the same principle that governs a landing page for a business, and it is the one clients most often push back on. Every extra option you offer reduces the chance any single one gets taken. We have written about this in the commercial context in <a href="/portfolio/web-design">web design that converts, not just impresses</a> \u2014 an invitation is simply the purest version of it. There is exactly one thing you want a guest to do.',
+          'This is the same principle that governs a landing page for a business, and it is the one clients most often push back on. Every extra option you offer reduces the chance any single one gets taken. It is the same rule behind the business sites in our <a href="/portfolio/web-design">web design portfolio</a> \u2014 an invitation is simply the purest version of it. There is exactly one thing you want a guest to do.',
       },
       {
         type: 'list',
@@ -1011,7 +1011,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Carrying the design through the RSVP is unglamorous work and it is the part that matters. Same palette, same type, same voice in the confirmation message. The guest never leaves the world you built. It is the same argument for consistency we make about brands in <a href="/services">the power of consistent visual branding</a>, compressed into a single page.',
+          'Carrying the design through the RSVP is unglamorous work and it is the part that matters. Same palette, same type, same voice in the confirmation message. The guest never leaves the world you built. It is the same argument for consistency we make about brands in <a href="/services">our brand identity work</a>, compressed into a single page.',
       },
       { type: 'heading', content: 'Themes travel further than you expect' },
       {
@@ -1311,7 +1311,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Fashion retail in Cebu City has become more competitive at every price point. The growth of online shopping, the rise of Instagram boutiques, and the increasing sophistication of Cebuano consumers means that brand perception is no longer a nice-to-have — it is the difference between a buyer choosing you or choosing the next account. The Second Haus launched into this market with a brand that could hold its own against established regional boutiques. Three times the social engagement in the first month compared to pre-brand launch metrics. 100% satisfaction on every brand deliverable. The numbers followed the brand.',
+          'Fashion retail in Cebu City has become more competitive at every price point. The growth of online shopping, the rise of Instagram boutiques, and the increasing sophistication of Cebuano consumers means that brand perception is no longer a nice-to-have — it is the difference between a buyer choosing you or choosing the next account. The Second Haus launched into this market with a brand that could hold its own against established regional boutiques. Over 40 brand assets, eight weeks from first call to final files, and one identity carried from the logo to the hang tags.',
       },
       {
         type: 'heading',
@@ -1887,7 +1887,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Running a creative agency in the Philippines means juggling things that most HR software was never designed to handle — contractors on different rate structures, attendance tracked through Slack, payroll split between peso and dollar payments, client projects that need to connect to team costs, and a level of operational complexity that spreadsheets stopped being able to manage a long time ago. We know this because we lived it at <a href="/about">Huna Creatives</a>. <a href="/sentro">Sentro OS</a> is the system we built to solve it.',
+          'Running a creative agency in the Philippines means juggling things that most HR software was never designed to handle — employees on different rate structures, attendance tracked through Slack, payroll split between peso and dollar payments, client projects that need to connect to team costs, and a level of operational complexity that spreadsheets stopped being able to manage a long time ago. We know this because we lived it at <a href="/about">Huna Creatives</a>. <a href="/sentro">Sentro OS</a> is the system we built to solve it.',
       },
       {
         type: 'heading',
@@ -1907,10 +1907,10 @@ export const blogArticles: BlogArticle[] = [
         content: 'What Sentro OS manages out of the box:',
         items: [
           'Attendance via Slack — team members punch in and out from a Slack channel, timestamps captured automatically',
-          'Payroll automation — calculates pay per period for hourly, fixed-rate, and project-based contractors, including USD-to-PHP conversion',
+          'Payroll automation — calculates pay per period for hourly, fixed-rate, and project-based employees, including USD-to-PHP conversion',
           'Time-off and overtime management — requests, approvals, and balance tracking in one place',
           'Client project tracking — contract value, collections, costs, and team payouts per project',
-          'Digital contracts — generate, send, and track contractor agreements without leaving the system',
+          'Digital contracts — generate, send, and track employment agreements without leaving the system',
           'Team dashboard — see who is online, who is on leave, and where every project stands at a glance',
         ],
       },
@@ -1926,7 +1926,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Sentro OS is built for creative agencies, design studios, marketing firms, and any service-based team that manages a mix of remote contractors and staff. It is particularly suited to Philippine-based agencies operating on a combination of local and international clients — where payroll involves multiple currencies, payment types, and rate structures that generic HR tools simply cannot handle cleanly.',
+          'Sentro OS is built for creative agencies, design studios, marketing firms, and any service-based team that manages a mix of remote and in-office employees. It is particularly suited to Philippine-based agencies operating on a combination of local and international clients — where payroll involves multiple currencies, payment types, and rate structures that generic HR tools simply cannot handle cleanly.',
       },
       {
         type: 'heading',
@@ -1935,7 +1935,7 @@ export const blogArticles: BlogArticle[] = [
       {
         type: 'paragraph',
         content:
-          'Tools like BambooHR, Workday, and even local payroll apps are built for traditional employment structures — fixed salaries, office-based attendance, standard benefit calculations. Creative agencies rarely look like this. You have contractors on project rates, freelancers on hourly arrangements, team members in different time zones, and clients whose project budgets are directly tied to team costs. Sentro OS is built around this reality, not the corporate HR template.',
+          'Tools like BambooHR, Workday, and even local payroll apps are built for traditional employment structures — fixed salaries, office-based attendance, standard benefit calculations. Creative agencies rarely look like this. You have employees on project rates, others on hourly arrangements, team members in different time zones, and clients whose project budgets are directly tied to team costs. Sentro OS is built around this reality, not the corporate HR template.',
       },
       {
         type: 'heading',

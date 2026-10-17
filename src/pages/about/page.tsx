@@ -232,7 +232,7 @@ export default function AboutPage() {
             <div className="lg:col-span-7 lg:col-start-6">
               <div className="reveal-item scroll-reveal space-y-4 sm:space-y-5">
                 <p className="text-[15px] sm:text-base text-[#303236]/85 leading-relaxed text-justify hyphens-auto">
-                  Huna Creatives is a small studio in Cebu — ten designers, writers, and strategists. In three years we&apos;ve made work for 38 brands: a sport-horse dealership, a pediatric dental practice, a mortgage team, a supplement line, an architecture firm.
+                  Huna Creatives is a small studio in Cebu — ten designers, writers, and strategists. Between the studio and the team&apos;s earlier work, that&apos;s 38 brands: a sport-horse dealership, a pediatric dental practice, a mortgage team, a supplement line, an architecture firm.
                 </p>
                 <p className="text-sm sm:text-[15px] text-[#303236]/70 leading-relaxed text-justify hyphens-auto">
                   That spread is deliberate. A dental practice and a supplement brand need close to opposite things, so each project starts with learning the business rather than reaching for a layout that worked last time. It&apos;s slower at the front end. It&apos;s also the reason the work fits.
@@ -244,7 +244,7 @@ export default function AboutPage() {
                 {/* Concrete proof, in place of the pull-quote that used to sit here */}
                 <div className="grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-x-10 sm:gap-y-4 pt-4">
                   {[
-                    { value: '38', label: 'Brands built' },
+                    { value: '38', label: 'Brands our team has built' },
                     { value: '100+', label: 'Projects delivered' },
                     { value: '4.8★', label: 'Average client rating' },
                   ].map((stat) => (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '@/pages/hub/components/AdminLayout';
 import { supabase } from '@/lib/supabase';
+import { describeAttribution, type LeadAttribution } from '@/lib/leadSource';
 import {
   computeQuoteTotals, formatQuoteCurrency,
   type QuoteCurrency, type QuoteLineItem, type ProposalStatus,
@@ -17,6 +18,8 @@ interface ContactSubmission {
   subject: string | null;
   service: string | null;
   message: string;
+  budget?: string | null;
+  attribution?: LeadAttribution | null;
   status: SubmissionStatus;
   quote_requested_at: string | null;
   created_at: string;
@@ -792,6 +795,13 @@ export default function ContactSubmissionsPage() {
                       <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-4">
                         {selected.message}
                       </div>
+
+                      {(selected.budget || describeAttribution(selected.attribution)) && (
+                        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs mb-3">
+                          {selected.budget && (<><dt className="text-gray-400">Budget</dt><dd className="text-gray-700">{selected.budget}</dd></>)}
+                          {describeAttribution(selected.attribution) && (<><dt className="text-gray-400">Came from</dt><dd className="text-gray-700 break-all">{describeAttribution(selected.attribution)}</dd></>)}
+                        </dl>
+                      )}
 
                       <p className="text-[11px] text-gray-400 mb-4">{fmt(selected.created_at)}</p>
 

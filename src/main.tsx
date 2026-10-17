@@ -3,6 +3,7 @@ import './i18n'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { captureLanding } from './lib/leadSource'
 
 // Auto-reload when Vercel deploys a new build and old chunk files are gone.
 // Session flag guards against a reload loop if the failure is persistent.
@@ -97,6 +98,8 @@ if ('serviceWorker' in navigator) {
     }
   });
 }
+
+captureLanding();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

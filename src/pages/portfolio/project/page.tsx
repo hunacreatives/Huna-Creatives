@@ -284,7 +284,10 @@ const ProjectPage = () => {
                 {project.results.summary}
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-3 md:gap-5">
+            <div
+              className="grid gap-3 md:gap-5"
+              style={{ gridTemplateColumns: `repeat(${project.results.metrics.length}, minmax(0, 1fr))` }}
+            >
               {project.results.metrics.map((metric, i) => (
                 <div key={i} className="rounded-lg md:rounded-xl p-3 sm:p-5 md:p-8 text-center hover:-translate-y-1 transition-all duration-300 bg-white" style={{ border: '1px solid rgba(0,0,0,0.07)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' }}>
                   <div className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-display mb-1 md:mb-2" style={{ color: '#FF6B35', textShadow: '0 0 20px rgba(255,107,53,0.3)' }}>
