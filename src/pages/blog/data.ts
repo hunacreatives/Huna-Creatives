@@ -6,6 +6,8 @@ export interface BlogArticle {
   readTime: string;
   date: string;
   isoDate: string;
+  /** Set when a post is materially revised; feeds dateModified and the sitemap. */
+  updatedIsoDate?: string;
   heroImage: string;
   heroImagePosition?: string;
   author: { name: string; role: string; avatar: string };

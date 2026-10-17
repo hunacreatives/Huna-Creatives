@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import './i18n'
-import { createRoot } from 'react-dom/client'
+import { createRoot, hydrateRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { captureLanding } from './lib/leadSource'
@@ -101,8 +102,27 @@ if ('serviceWorker' in navigator) {
 
 captureLanding();
 
-createRoot(document.getElementById('root')!).render(
+const app = (
   <StrictMode>
-    <App />
-  </StrictMode>,
-)
+    <BrowserRouter basename={__BASE_PATH__}>
+      <App />
+    </BrowserRouter>
+  </StrictMode>
+);
+
+// Public pages are prerendered at build time (scripts/prerender.mjs) and the
+// HTML says which path it was rendered for. Hydrate only when that matches
+// this URL; anything else (hub, proposals, the service worker's app shell)
+// starts from an empty root as before.
+const root = document.getElementById('root')!;
+const normalize = (p: string) => p.replace(/\/+$/, '') || '/';
+if (root.dataset.prerendered && normalize(root.dataset.prerendered) === normalize(window.location.pathname)) {
+  hydrateRoot(root, app, {
+    onRecoverableError: (err) => {
+      if (import.meta.env.DEV || window.location.search.includes('debug-hydration')) console.warn('[hydration]', err);
+    },
+  });
+} else {
+  root.textContent = '';
+  createRoot(root).render(app);
+}

@@ -1,972 +1,97 @@
-import { useRef, useState, useEffect } from 'react';
+import { useState } from 'react';
+import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
 import { useSEO } from '../../hooks/useSEO';
+import { BOOKING_URL } from '../../lib/demoBooking';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
+// Screenshots are the real hub in demo mode (sample data), not a mockup — so
+// the page can't drift from the product. Re-shoot them when the hub's look
+// changes; files live in public/images/sentro/.
+const SCREENS = [
+  { key: 'dashboard', label: 'Dashboard', desc: 'Who is online, what is due, and what this pay period will cost — the first thing you see each morning.' },
+  { key: 'payroll', label: 'Payroll', desc: 'Hours come straight from attendance. Hourly, fixed, and overtime pay are worked out for you — review, approve, export.' },
+  { key: 'attendance', label: 'Attendance', desc: 'Your team punches in from Slack. You see who is in, who is off, and every hour logged, live.' },
+];
+
 const FEATURES = [
-  { icon: 'ri-time-line', title: 'Attendance & Time Tracking', desc: 'Your team punches in and out from any device. Real-time logs, late flags, and daily summaries — no spreadsheets, no guesswork.' },
-  { icon: 'ri-money-dollar-circle-line', title: 'Payroll & Payouts', desc: 'Auto-calculated pay per period for hourly, fixed, and project-based staff. Approve and log payouts in one click.' },
-  { icon: 'ri-file-list-3-line', title: 'Contracts & Documents', desc: 'Generate employment agreements, NDAs, and offer letters from templates. Sign and store — all in one place.' },
-  { icon: 'ri-inbox-line', title: 'Requests & Approvals', desc: 'Leave requests, overtime, and resource requests flow through a single approval queue. No more chasing people on chat.' },
-  { icon: 'ri-building-line', title: 'Client & Project Tracking', desc: 'Assign staff to clients and projects. See who is working on what, track progress, and log payouts per project.' },
-  { icon: 'ri-questionnaire-line', title: 'Intake Forms & Questionnaires', desc: 'Send branded intake forms to new clients or leads. Responses come straight into your dashboard — ready for action.' },
-  { icon: 'ri-user-search-line', title: 'Careers & Applications', desc: 'Post openings, collect applications, and review candidates without ever leaving your hub.' },
-  { icon: 'ri-shield-keyhole-line', title: 'Credentials & Asset Vault', desc: 'Securely store logins, software licenses, and shared assets your team needs — access controlled by role.' },
+  { icon: 'ri-time-line', title: 'Attendance', desc: 'Punch in and out from Slack. Daily hours, late flags, and overtime are tracked without anyone opening a spreadsheet.' },
+  { icon: 'ri-money-dollar-circle-line', title: 'Payroll', desc: 'Pay per cutoff for hourly and fixed-rate employees, in pesos or dollars. Approve each line, then export to PDF or CSV.' },
+  { icon: 'ri-file-list-3-line', title: 'Contracts & Documents', desc: 'Employment agreements, NDAs, and offer letters from your own templates — sent, signed, and stored in one place.' },
+  { icon: 'ri-inbox-line', title: 'Requests & Approvals', desc: 'Leave, overtime, and document requests land in one queue. No more chasing approvals in group chats.' },
+  { icon: 'ri-folder-line', title: 'Projects & Invoices', desc: 'Contract value, collections, costs, and overdue invoices for every client project, side by side.' },
+  { icon: 'ri-medal-line', title: 'Performance Reviews', desc: 'Rate each employee, note strengths and areas to improve, and keep every review on file for the next one.' },
+  { icon: 'ri-book-open-line', title: 'SOP Library', desc: 'Write your processes once in a proper editor. Share a link with anyone who needs it.' },
+  { icon: 'ri-user-search-line', title: 'Hiring', desc: 'Post openings, collect applications, and review candidates without leaving the hub.' },
+  { icon: 'ri-shield-keyhole-line', title: 'Credentials Vault', desc: 'Shared logins and licenses stored securely, with access controlled by role.' },
+];
+
+const STEPS = [
+  { num: '01', title: 'Discovery call', time: '~1 week', desc: 'We map your org — roles, schedules, pay types, departments. Every detail that shapes your hub.' },
+  { num: '02', title: 'We build your hub', time: '2–4 weeks', desc: 'Your own Sentro OS instance, configured around your structure — your rules, your roles, your modules.' },
+  { num: '03', title: 'Go live', time: 'Ongoing', desc: 'We onboard your team, walk everyone through it, and stay on to maintain it after launch.' },
 ];
 
 const PLANS = [
   {
-    name: 'Starter', setup: '₱15,000', price: '₱2,500', originalPrice: '₱4,999', off: '50% OFF', per: '/month',
-    perSeat: '+ per seat', seats: '5 seats included',
+    name: 'Starter', setup: '₱15,000', price: '₱2,500', originalPrice: '₱4,999', off: '50% off', per: '/month',
+    seats: '5 seats included',
     desc: 'For small teams ready to stop running on spreadsheets.',
     features: ['Custom hub built for your workflow', 'Attendance & time tracking', 'Payroll calculation', 'Document generation', 'Client & project management', 'Onboarding & setup included', 'Email support'],
     cta: 'Book a Demo', highlight: false,
   },
   {
-    name: 'Growth', setup: '₱25,000', price: '₱5,999', originalPrice: '₱9,999', off: '40% OFF', per: '/month',
-    perSeat: '+ per seat', seats: '10 seats included',
+    name: 'Growth', setup: '₱25,000', price: '₱5,999', originalPrice: '₱9,999', off: '40% off', per: '/month',
+    seats: '10 seats included',
     desc: 'For growing teams managing multiple departments, clients, and projects.',
     features: ['Everything in Starter', 'Project-based payouts', 'Client questionnaires', 'Overtime & time-off approvals', 'Audit log', '2 rounds of workflow revisions', 'Priority support'],
     cta: 'Book a Demo', highlight: true,
   },
   {
     name: 'Enterprise', setup: 'Custom', price: 'Custom', originalPrice: '', off: '', per: '',
-    perSeat: 'Negotiated per seat', seats: 'Unlimited seats',
-    desc: 'Fully custom build tailored to your organization from the ground up.',
+    seats: 'Unlimited seats',
+    desc: 'A fully custom build, shaped around your organization from the ground up.',
     features: ['Everything in Growth', 'Custom integrations & modules', 'Dedicated onboarding', 'Dedicated account manager', 'SLA & priority escalation'],
     cta: 'Talk to Us', highlight: false,
   },
 ];
 
-const SCREENS = [
-  { label: 'Dashboard', desc: 'Your team at a glance — attendance, approvals, and period summary all in one view.', url: 'sentro.app / dashboard', navItem: 'Dashboard' },
-  { label: 'Payroll', desc: 'One-click payroll for every payment type — hourly, fixed, project-based, and USD contractors.', url: 'sentro.app / payroll', navItem: 'Payroll' },
-  { label: 'Attendance', desc: 'Live punch-in logs with late detection, time-off status, and daily hour tracking.', url: 'sentro.app / attendance', navItem: 'Attendance' },
-  { label: 'Projects', desc: 'Track every client project — contract value, collections, costs, and team payouts in one view.', url: 'sentro.app / projects', navItem: 'Projects' },
+// Rendered on the page AND fed to the FAQPage schema, so the two stay in sync.
+const FAQS = [
+  { q: 'What is Sentro OS?', a: 'Sentro OS is a custom-built internal operations hub for agencies and firms. It brings HR, attendance, payroll, contracts, client projects, and internal workflows into one system, set up for your team and branded as your own.' },
+  { q: 'Who is it for?', a: 'Creative agencies, design firms, marketing studios, and any service business running a team of employees — particularly Philippine-based teams that want one place for HR and operations.' },
+  { q: 'How does attendance tracking work?', a: 'Sentro OS connects to Slack. Your team punches in and out from a Slack channel; the hub records the time, calculates daily hours, flags overtime, and feeds it into payroll.' },
+  { q: 'Does it handle payroll?', a: 'Yes. It calculates pay per cutoff for hourly and fixed-rate employees, supports USD-to-PHP conversion, and produces payout summaries you approve line by line.' },
+  { q: 'How much does it cost?', a: 'Starter is ₱2,500/month with a ₱15,000 one-time setup. Growth is ₱5,999/month with a ₱25,000 setup. Enterprise is priced per build. Per-seat pricing is set on the demo call based on team size.' },
+  { q: 'Is it a SaaS I sign up for?', a: 'No. You get your own instance, configured by us around how your team works, and we maintain it after launch. We run Huna Creatives on the same system.' },
 ];
 
-// ─── Hub preview shell ─────────────────────────────────────────────────────────
+// Same frosted-glass recipe as Services and the homepage HighlightTiles.
+const glassCardStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.45)',
+  backdropFilter: 'blur(20px) saturate(160%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+  border: '1px solid rgba(255,255,255,0.6)',
+  boxShadow: '0 8px 32px rgba(36,48,55,0.08), inset 0 1px 0 rgba(255,255,255,0.5)',
+};
 
-function HubPreview({ activeScreen, setActiveScreen }: { activeScreen: number; setActiveScreen: (i: number) => void }) {
-  const screen = SCREENS[activeScreen];
+const iconChipStyle: React.CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(7,80,86,0.72), rgba(15,106,112,0.55))',
+  backdropFilter: 'blur(12px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+  border: '1px solid rgba(255,255,255,0.35)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 4px 14px rgba(7,80,86,0.2)',
+};
 
-  const peopleNav = [
-    { icon: 'ri-layout-grid-line', label: 'Dashboard', screen: 0 },
-    { icon: 'ri-team-line', label: 'Contractors', screen: -1 },
-    { icon: 'ri-time-line', label: 'Attendance', screen: 2 },
-  ];
-  const financeNav = [
-    { icon: 'ri-bar-chart-2-line', label: 'Payroll', screen: 1 },
-    { icon: 'ri-folder-line', label: 'Projects', screen: 3 },
-    { icon: 'ri-bill-line', label: 'Invoice Log', screen: -1 },
-    { icon: 'ri-file-text-line', label: 'Documents', screen: -1 },
-  ];
-  const contentNav = [
-    { icon: 'ri-user-search-line', label: 'Applications', screen: -1 },
-    { icon: 'ri-book-open-line', label: 'SOP Library', screen: -1 },
-    { icon: 'ri-key-2-line', label: 'Asset Access', screen: -1 },
-    { icon: 'ri-lock-2-line', label: 'Credentials Vault', screen: -1 },
-    { icon: 'ri-shield-check-line', label: 'Audit Log', screen: -1 },
-  ];
+const primaryButtonStyle: React.CSSProperties = {
+  background: 'linear-gradient(135deg, #FF5B05, #FF8A47)',
+  boxShadow: '0 6px 24px rgba(255,91,5,0.35)',
+};
 
-  const NavItem = ({ icon, label, screenIdx }: { icon: string; label: string; screenIdx: number }) => {
-    const active = label === screen.navItem;
-    const clickable = screenIdx >= 0;
-    return (
-      <div
-        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg mb-0.5 transition-colors ${clickable ? 'cursor-pointer' : ''} ${!active && clickable ? 'hover:bg-white/50' : ''}`}
-        style={active ? { background: 'rgba(255,255,255,0.7)', boxShadow: '0 1px 4px rgba(255,107,53,0.15)' } : {}}
-        onClick={() => clickable && setActiveScreen(screenIdx)}
-      >
-        <i className={`${icon} ${active ? 'text-[#FF6B35]' : 'text-gray-400'}`} style={{ fontSize: 9 }}></i>
-        <span className={`text-[9px] font-medium ${active ? 'text-[#FF6B35]' : 'text-gray-500'}`}>{label}</span>
-      </div>
-    );
-  };
-
-  return (
-    <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-2xl shadow-black/20">
-      {/* Browser chrome */}
-      <div className="bg-gray-100 px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
-        <div className="w-2.5 h-2.5 rounded-full bg-red-400"></div>
-        <div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
-        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
-        <span className="ml-2 text-[11px] text-gray-400 font-mono">{screen.url}</span>
-      </div>
-      <div className="flex p-2 gap-2" style={{ height: 520, background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
-        {/* Sidebar */}
-        <div className="w-36 rounded-2xl flex flex-col flex-shrink-0 overflow-hidden"
-          style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.75)', boxShadow: '0 4px 16px rgba(99,120,200,0.10)' }}>
-          <div className="px-3 py-2.5 border-b border-white/60 flex items-center gap-1.5">
-            <div className="w-5 h-5 bg-[#FF6B35] rounded-md flex items-center justify-center flex-shrink-0">
-              <img src="/s-logo.png" alt="S" className="w-3 h-3 object-contain" style={{ filter: 'invert(1)' }} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[6px] uppercase tracking-widest text-gray-400 font-semibold truncate">Huna Ops</p>
-              <p className="text-[9px] font-semibold text-gray-800 leading-none">Sentro</p>
-            </div>
-          </div>
-          <nav className="flex-1 py-1.5 px-1.5 overflow-y-auto min-h-0">
-            {peopleNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
-            <p className="text-[7px] font-bold text-gray-400/80 uppercase tracking-wider px-2 pt-1.5 pb-1">Finance</p>
-            {financeNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
-            <p className="text-[7px] font-bold text-gray-400/80 uppercase tracking-wider px-2 pt-1.5 pb-1">Content</p>
-            {contentNav.map(n => <NavItem key={n.label} icon={n.icon} label={n.label} screenIdx={n.screen} />)}
-          </nav>
-          <div className="px-3 py-2 border-t border-white/60 flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
-              <span className="text-[7px] font-bold text-white">M</span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[9px] font-medium text-gray-800 truncate">Miguel Santos</p>
-              <p className="text-[7px] text-gray-400 truncate capitalize">owner</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Main */}
-        <div className="flex-1 flex flex-col min-w-0 rounded-2xl overflow-hidden"
-          style={{ background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.75)' }}>
-          <div className="border-b border-white/60 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
-            <span className="text-[12px] font-semibold text-gray-900">{screen.label}</span>
-            <div className="flex items-center gap-1.5">
-              <div className="w-5 h-5 rounded-md bg-white/70 border border-gray-200/60 flex items-center justify-center">
-                <i className="ri-search-line text-gray-400" style={{ fontSize: 8 }}></i>
-              </div>
-              <div className="w-5 h-5 rounded-md bg-white/70 border border-gray-200/60 flex items-center justify-center">
-                <i className="ri-notification-3-line text-gray-400" style={{ fontSize: 8 }}></i>
-              </div>
-            </div>
-          </div>
-          <div className="flex-1 overflow-auto min-h-0">
-            {activeScreen === 0 && <DashboardContent />}
-            {activeScreen === 1 && <PayrollContent />}
-            {activeScreen === 2 && <AttendanceContent />}
-            {activeScreen === 3 && <ProjectsContent />}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Screen content components ────────────────────────────────────────────────
-
-function DashboardContent() {
-  const [phTime, setPhTime] = useState(() => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })));
-  useEffect(() => {
-    const t = setInterval(() => setPhTime(new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))), 60000);
-    return () => clearInterval(t);
-  }, []);
-
-  const h = phTime.getHours();
-  const timeStr = phTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  const dateStr = phTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-  const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  const isDay = h >= 6 && h < 18;
-  const isDawn = h >= 5 && h < 7;
-  const isDusk = h >= 17 && h < 20;
-
-  const skyBg = (() => {
-    if (isDawn)               return 'linear-gradient(135deg, #7f1d1d 0%, #c2410c 35%, #fb923c 65%, #fde68a 100%)';
-    if (h >= 7 && h < 12)    return 'linear-gradient(160deg, #0369a1 0%, #0ea5e9 40%, #7dd3fc 80%, #e0f2fe 100%)';
-    if (h >= 12 && h < 16)   return 'linear-gradient(160deg, #1d4ed8 0%, #3b82f6 45%, #93c5fd 100%)';
-    if (isDusk)               return 'linear-gradient(135deg, #7c2d12 0%, #9333ea 45%, #1e1b4b 100%)';
-    return                           'linear-gradient(160deg, #020617 0%, #0f172a 50%, #1e1b4b 100%)';
-  })();
-
-  return (
-    <div className="p-3 space-y-2.5">
-      {/* Greeting banner */}
-      <div className="relative rounded-xl overflow-hidden flex items-center justify-between px-4 py-3" style={{ background: skyBg }}>
-        {/* Stars (night/dusk) */}
-        {(!isDay || isDusk) && (
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {[
-              [8,12],[18,6],[30,20],[45,8],[60,15],[72,5],[80,18],[88,10],[15,30],[55,25],[70,28],[40,35],
-            ].map(([x,y], i) => (
-              <div key={i} className="absolute w-0.5 h-0.5 bg-white rounded-full"
-                style={{ left: `${x}%`, top: `${y}%`, opacity: isDusk ? 0.4 : 0.7 }}></div>
-            ))}
-          </div>
-        )}
-        {/* Celestial body */}
-        <div className="absolute top-2.5 right-20 pointer-events-none">
-          {isDay && !isDusk ? (
-            <div className="w-8 h-8 rounded-full bg-yellow-200"
-              style={{ boxShadow: '0 0 0 3px rgba(253,224,71,0.3), 0 0 16px rgba(253,224,71,0.6), 0 0 32px rgba(251,191,36,0.3)' }}>
-            </div>
-          ) : (
-            <div className="w-6 h-6 rounded-full bg-slate-200"
-              style={{ boxShadow: '-4px -2px 0 3px #0f172a inset, 0 0 10px rgba(226,232,240,0.4)' }}>
-            </div>
-          )}
-        </div>
-        {/* Content */}
-        <div className="relative">
-          <p className="text-[9px] text-white/60 mb-1">{dateStr} · {timeStr} PH</p>
-          <p className="text-[13px] font-black text-white drop-shadow">{greeting}, team.</p>
-          <p className="text-[9px] text-white/60 mt-0.5">6 online right now.</p>
-        </div>
-        <div className="relative">
-          <div className="bg-black/20 backdrop-blur-sm rounded-lg px-3 py-2 text-right border border-white/10">
-            <p className="text-[8px] text-white/50 mb-0.5">Current Pay Period</p>
-            <p className="text-[11px] font-black text-white">May 16–31</p>
-            <div className="w-28 h-1 bg-white/20 rounded-full mt-1.5 mb-1">
-              <div className="h-full bg-white/70 rounded-full" style={{ width: '53%' }}></div>
-            </div>
-            <p className="text-[8px] text-white/40">8 days until May 31</p>
-          </div>
-        </div>
-      </div>
-      {/* KPI cards */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: 'Online Now', value: '6', icon: 'ri-user-heart-line', color: 'text-emerald-500', bg: 'bg-emerald-50' },
-          { label: 'Logged Off', value: '1', icon: 'ri-logout-box-line', color: 'text-gray-400', bg: 'bg-gray-100' },
-          { label: 'Not In Yet', value: '4', icon: 'ri-user-unfollow-line', color: 'text-amber-500', bg: 'bg-amber-50' },
-          { label: 'Cutoff Hours', value: '192h', icon: 'ri-timer-2-line', color: 'text-sky-500', bg: 'bg-sky-50' },
-        ].map(s => (
-          <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm">
-            <div className={`w-5 h-5 ${s.bg} rounded-md flex items-center justify-center mb-1.5`}>
-              <i className={`${s.icon} text-[9px] ${s.color}`}></i>
-            </div>
-            <p className="text-[15px] font-black text-gray-900 leading-none">{s.value}</p>
-            <p className="text-[8px] text-gray-400 mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
-      {/* Team status + financial cards */}
-      <div className="grid grid-cols-5 gap-2">
-        <div className="col-span-3 bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] font-bold text-gray-800">Team Status</p>
-            <span className="text-[9px] text-[#FF6B35]">Full view</span>
-          </div>
-          <p className="text-[8px] text-gray-400 flex items-center gap-1 mb-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> Online
-          </p>
-          {['Sofia Lim', 'Renzo Aquino', 'Mika Torres'].map(n => (
-            <div key={n} className="flex items-center gap-1.5 rounded-lg px-2 py-1 mb-0.5" style={{ background: 'rgba(16,185,129,0.06)' }}>
-              <div className="w-4 h-4 rounded-full bg-[#FF6B35]/15 flex items-center justify-center flex-shrink-0">
-                <span className="text-[7px] font-bold text-[#FF6B35]">{n[0]}</span>
-              </div>
-              <span className="text-[9px] font-medium text-gray-700 flex-1">{n}</span>
-              <span className="text-[8px] text-gray-400">1h logged</span>
-            </div>
-          ))}
-          <p className="text-[8px] text-gray-400 flex items-center gap-1 mt-2 mb-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span> Not In Yet
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {['Bianca R.', 'Carlo M.', 'Dani S.', 'Lea V.'].map(n => (
-              <div key={n} className="flex items-center gap-1 bg-amber-50 rounded-full px-1.5 py-0.5">
-                <div className="w-3.5 h-3.5 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[6px] font-bold text-amber-700">{n[0]}</span>
-                </div>
-                <span className="text-[8px] text-amber-700">{n}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="col-span-2 flex flex-col gap-2">
-          <div className="rounded-xl p-2.5 flex-1" style={{ background: '#FF6B35' }}>
-            <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider mb-0.5">Estimated Payroll</p>
-            <p className="text-[15px] font-black text-white leading-none">₱71,450.00</p>
-            <p className="text-[8px] text-white/60 mt-0.5 mb-2">May 16–31 cutoff</p>
-            <div className="bg-white/20 rounded-lg py-1 text-center">
-              <span className="text-[8px] font-bold text-white">View Payroll</span>
-            </div>
-          </div>
-          <div className="rounded-xl p-2.5 flex-1" style={{ background: '#0d9488' }}>
-            <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider mb-0.5">Projects Net Profit</p>
-            <p className="text-[15px] font-black text-white leading-none">₱204,130.00</p>
-            <p className="text-[8px] text-white/60 mt-0.5 mb-2">4 active projects</p>
-            <div className="bg-white/20 rounded-lg py-1 text-center">
-              <span className="text-[8px] font-bold text-white">View Projects</span>
-            </div>
-          </div>
-          <div className="rounded-xl p-2.5 flex-1" style={{ background: '#7c3aed' }}>
-            <p className="text-[8px] font-bold text-white/70 uppercase tracking-wider mb-0.5">Monthly Retainers</p>
-            <p className="text-[15px] font-black text-white leading-none">₱285,000.00</p>
-            <p className="text-[8px] text-white/60 mt-0.5 mb-2">active client contracts</p>
-            <div className="bg-white/20 rounded-lg py-1 text-center">
-              <span className="text-[8px] font-bold text-white">View Clients</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PayrollContent() {
-  const rows = [
-    { name: 'Sofia Lim',    dept: 'Creative', type: 'Fixed',  rate: '₱45,000/mo · ₱281.25/hr OT', days: 5, rawHrs: '22.40h', billed: '21.50h', ot: '—',     pay: '₱22,500.00' },
-    { name: 'Renzo Aquino', dept: 'Content',  type: 'Fixed',  rate: '₱38,000/mo · ₱237.50/hr OT', days: 4, rawHrs: '21.20h', billed: '20.10h', ot: '+3h OT', pay: '₱21,712.50', prorated: true },
-    { name: 'Mika Torres',  dept: 'Media',    type: 'Hourly', rate: '$5/hr USD',                   days: 5, rawHrs: '40.00h', billed: '40.00h', ot: '—',     pay: '₱12,400.00' },
-    { name: 'Bianca Reyes', dept: 'Creative', type: 'Fixed',  rate: '₱15,000/mo · ₱93.75/hr OT',  days: 4, rawHrs: '29.80h', billed: '24.00h', ot: '—',     pay: '₱7,500.00' },
-    { name: 'Carlo Mendez', dept: 'Admin',    type: 'Fixed',  rate: '₱9,000/mo · ₱56.25/hr OT',   days: 4, rawHrs: '26.30h', billed: '22.50h', ot: '—',     pay: '₱4,500.00' },
-  ];
-  const cols = '2fr 0.7fr 2fr 0.5fr 0.8fr 0.8fr 0.8fr 1fr 1.2fr';
-  return (
-    <div className="p-3 space-y-2">
-      {/* Period selector */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {['2026', 'May'].map(l => (
-          <div key={l} className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
-            <span className="text-[9px] font-medium text-gray-700">{l}</span>
-            <i className="ri-arrow-up-down-line text-gray-400" style={{ fontSize: 8 }}></i>
-          </div>
-        ))}
-        <div className="bg-white border border-gray-200 rounded-lg px-2 py-1">
-          <span className="text-[9px] text-gray-400">May 1–15, 2026</span>
-        </div>
-        <div className="rounded-lg px-2.5 py-1" style={{ background: '#111827' }}>
-          <span className="text-[9px] font-semibold text-white">May 16–31, 2026</span>
-        </div>
-        <div className="ml-auto flex gap-1.5">
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
-            <i className="ri-file-list-line text-gray-400" style={{ fontSize: 8 }}></i>
-            <span className="text-[8px] text-gray-500">CSV</span>
-          </div>
-          <div className="flex items-center gap-1 rounded-lg px-2 py-1" style={{ background: '#FF6B35' }}>
-            <i className="ri-file-pdf-line text-white" style={{ fontSize: 8 }}></i>
-            <span className="text-[8px] font-semibold text-white">PDF</span>
-          </div>
-        </div>
-      </div>
-      {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: 'Total Payroll', value: '₱68,612.50', icon: 'ri-coins-line', color: 'text-gray-700' },
-          { label: 'Total Hours',   value: '138.0h',      icon: 'ri-timer-2-line', color: 'text-sky-500' },
-          { label: 'Hourly',        value: '1',            icon: 'ri-user-line', color: 'text-violet-500' },
-          { label: 'Fixed Rate',    value: '4',            icon: 'ri-calendar-check-line', color: 'text-emerald-500' },
-        ].map(s => (
-          <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm">
-            <div className="flex items-center gap-1 mb-1">
-              <i className={`${s.icon} text-[9px] ${s.color}`}></i>
-              <span className="text-[8px] text-gray-400">{s.label}</span>
-            </div>
-            <p className="text-[13px] font-black text-gray-900 leading-none">{s.value}</p>
-          </div>
-        ))}
-      </div>
-      {/* Banners */}
-      <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 rounded-lg px-3 py-1.5">
-        <i className="ri-exchange-dollar-line text-sky-500" style={{ fontSize: 9 }}></i>
-        <span className="text-[8px] text-sky-700">PayPal rate: <strong>1 USD =</strong></span>
-        <span className="bg-white border border-sky-200 rounded px-1.5 py-0.5 text-[8px] font-bold text-sky-700">₱ 62</span>
-        <span className="text-[8px] text-sky-600">— check paypal.com before processing</span>
-      </div>
-      <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5">
-        <i className="ri-information-line text-amber-500 flex-shrink-0 mt-0.5" style={{ fontSize: 9 }}></i>
-        <span className="text-[8px] text-amber-700 leading-relaxed">Hours from Slack attendance. Daily cap 8h — raw hours beyond 8 not counted. Fixed-rate contractors paid <strong>monthly rate ÷ 2</strong> regardless of hours.</span>
-      </div>
-      {/* Table */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-        <div className="grid text-[7px] font-bold text-gray-400 uppercase tracking-wider px-3 py-1.5 border-b border-gray-50"
-          style={{ gridTemplateColumns: cols }}>
-          <span>Contractor</span><span>Type</span><span>Rate</span><span>Days</span>
-          <span>Raw Hrs</span><span>Billed</span><span>OT</span><span>Pay</span><span>Status</span>
-        </div>
-        {rows.map(r => (
-          <div key={r.name} className="grid items-center px-3 py-2 border-b border-gray-50 last:border-0"
-            style={{ gridTemplateColumns: cols }}>
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div className="w-5 h-5 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-[7px] font-bold text-[#FF6B35]">{r.name[0]}</span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[9px] font-semibold text-gray-800 truncate">{r.name}</p>
-                <p className="text-[7px] text-gray-400">{r.dept}</p>
-              </div>
-            </div>
-            <span className={`text-[7px] px-1.5 py-0.5 rounded font-bold w-fit ${r.type === 'Hourly' ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600'}`}>{r.type}</span>
-            <span className="text-[7px] text-gray-500 truncate pr-2">{r.rate}</span>
-            <span className="text-[8px] text-gray-600">{r.days}</span>
-            <span className="text-[8px] text-amber-500 font-medium">{r.rawHrs}</span>
-            <span className="text-[8px] text-gray-700 font-medium">{r.billed}</span>
-            <span className={`text-[7px] font-medium ${r.ot === '—' ? 'text-gray-300' : 'text-emerald-600'}`}>{r.ot}</span>
-            <div>
-              <p className="text-[8px] font-bold text-gray-900">{r.pay}</p>
-              {r.prorated && <span className="text-[6px] px-1 py-0.5 bg-violet-50 text-violet-500 rounded font-medium">prorated</span>}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-[7px] text-gray-400">Pending</span>
-              <div className="rounded px-1.5 py-0.5" style={{ background: '#111827' }}>
-                <span className="text-[7px] font-bold text-white">Approve</span>
-              </div>
-            </div>
-          </div>
-        ))}
-        <div className="grid items-center px-3 py-2 bg-gray-50" style={{ gridTemplateColumns: cols }}>
-          <span className="text-[8px] font-bold text-gray-700 col-span-7">Total</span>
-          <span className="text-[8px] font-bold text-gray-900">138.10h</span>
-          <span className="text-[8px] font-bold text-gray-900">₱68,612.50</span>
-        </div>
-      </div>
-      {/* Fund Transfer */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-3">
-        <p className="text-[9px] font-bold text-gray-800">Fund Transfer</p>
-        <p className="text-[8px] text-gray-400 mt-0.5">May 16–31, 2026</p>
-        <p className="text-[8px] text-gray-300 mt-1">Approve at least one contractor to request a fund transfer.</p>
-      </div>
-    </div>
-  );
-}
-
-function AttendanceContent() {
-  const people = [
-    { name: 'Angela Rivera',  dept: 'Account Mgmt', status: 'logged-off', detail: 'Last: 6:00 PM' },
-    { name: 'Claudette Tahil', dept: 'Account Mgmt', status: 'not-in',    detail: 'No punch today' },
-    { name: 'Reese Jumawan',  dept: 'Creative',      status: 'not-in',    detail: 'No punch today' },
-    { name: 'Bianca Reyes',   dept: 'Admin',         status: 'not-in',    detail: 'No punch today' },
-    { name: 'Sofia Lim',      dept: 'Design',        status: 'not-in',    detail: 'No punch today' },
-    { name: 'Carlo Mendez',   dept: 'Creative',      status: 'not-in',    detail: 'No punch today' },
-    { name: 'Mika Torres',    dept: 'Media',         status: 'not-in',    detail: 'No punch today' },
-  ];
-  return (
-    <div className="p-3 space-y-2.5">
-      {/* Date row */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
-          <span className="text-[9px] font-mono font-bold text-gray-700">05/23/2026</span>
-        </div>
-        <div>
-          <p className="text-[9px] font-semibold text-gray-800">Saturday, May 23</p>
-          <p className="text-[8px] text-gray-400">Last updated 9:12:05 AM</p>
-        </div>
-        <div className="ml-auto flex gap-1.5">
-          {['Week PDF', 'Month PDF', 'Year PDF'].map(l => (
-            <div key={l} className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
-              <i className="ri-file-pdf-line text-gray-400" style={{ fontSize: 8 }}></i>
-              <span className="text-[8px] text-gray-500">{l}</span>
-            </div>
-          ))}
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
-            <i className="ri-refresh-line text-gray-400" style={{ fontSize: 8 }}></i>
-            <span className="text-[8px] text-gray-500">Refresh</span>
-          </div>
-        </div>
-      </div>
-      {/* KPI */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: 'Online', value: '0', icon: 'ri-user-heart-line', color: 'text-emerald-500', bg: 'bg-emerald-50' },
-          { label: 'Logged Off', value: '1', icon: 'ri-logout-box-line', color: 'text-gray-400', bg: 'bg-gray-100' },
-          { label: 'Not In Yet', value: '6', icon: 'ri-user-unfollow-line', color: 'text-amber-400', bg: 'bg-amber-50' },
-        ].map(s => (
-          <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm text-center">
-            <div className={`w-6 h-6 ${s.bg} rounded-full flex items-center justify-center mx-auto mb-2`}>
-              <i className={`${s.icon} text-[9px] ${s.color}`}></i>
-            </div>
-            <p className="text-[22px] font-black text-gray-900 leading-none">{s.value}</p>
-            <p className="text-[9px] text-gray-400 mt-1">{s.label}</p>
-          </div>
-        ))}
-      </div>
-      {/* Slack banner */}
-      <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
-        <i className="ri-settings-3-line text-gray-400" style={{ fontSize: 9 }}></i>
-        <span className="text-[8px] text-gray-500">Live from Slack — contractors type <code className="bg-white border border-gray-200 rounded px-1 font-mono text-gray-600">On</code> or <code className="bg-white border border-gray-200 rounded px-1 font-mono text-gray-600">Off</code> in the attendance channel. Auto-refreshes every minute.</span>
-      </div>
-      {/* Filter tabs */}
-      <div className="flex items-center gap-1.5">
-        <div className="rounded-lg px-2.5 py-1" style={{ background: '#111827' }}>
-          <span className="text-[8px] font-bold text-white">All  7</span>
-        </div>
-        <div className="rounded-lg px-2.5 py-1 bg-white border border-gray-200">
-          <span className="text-[8px] text-gray-500">Online / Off  1</span>
-        </div>
-        <div className="rounded-lg px-2.5 py-1 bg-white border border-gray-200">
-          <span className="text-[8px] text-gray-500">Not In  6</span>
-        </div>
-      </div>
-      {/* List */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-        {people.map((p, i) => (
-          <div key={p.name} className={`flex items-center gap-3 px-3 py-2.5 ${i < people.length - 1 ? 'border-b border-gray-50' : ''}`}>
-            <div className="relative flex-shrink-0">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                <span className="text-[9px] font-bold text-gray-600">{p.name[0]}</span>
-              </div>
-              <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${p.status === 'logged-off' ? 'bg-gray-400' : 'bg-amber-400'}`}></span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-semibold text-gray-800">{p.name}</p>
-              <p className="text-[8px] text-gray-400">{p.dept}</p>
-            </div>
-            <div className="text-right">
-              {p.status === 'logged-off' ? (
-                <>
-                  <span className="text-[9px] text-gray-500 font-medium">Logged Off</span>
-                  <p className="text-[8px] text-gray-300">{p.detail}</p>
-                </>
-              ) : (
-                <>
-                  <span className="text-[8px] px-2 py-0.5 rounded font-bold bg-amber-50 text-amber-600">Not In</span>
-                  <p className="text-[8px] text-gray-300 mt-0.5">{p.detail}</p>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ProjectsContent() {
-  return (
-    <div className="flex overflow-hidden h-full">
-      {/* Left panel */}
-      <div className="w-56 border-r border-gray-100 flex flex-col bg-white flex-shrink-0">
-        <div className="grid grid-cols-2 gap-1.5 p-2.5 border-b border-gray-100">
-          {[
-            { icon: 'ri-file-list-line', color: 'text-gray-400',    val: '₱185,000', label: 'Total Contract Value', valColor: 'text-gray-900' },
-            { icon: 'ri-subtract-line', color: 'text-red-400',       val: '₱18,500',  label: 'Operational Costs',   valColor: 'text-red-500' },
-            { icon: 'ri-line-chart-line', color: 'text-emerald-500', val: '₱166,500', label: 'Net Profit',          valColor: 'text-emerald-600' },
-            { icon: 'ri-money-dollar-circle-line', color: 'text-emerald-500', val: '₱108,250', label: 'Collected (62%)', valColor: 'text-emerald-600' },
-          ].map(s => (
-            <div key={s.label} className="bg-gray-50 rounded-lg p-2">
-              <i className={`${s.icon} ${s.color} text-[9px]`}></i>
-              <p className={`text-[10px] font-black ${s.valColor} leading-none mt-1`}>{s.val}</p>
-              <p className="text-[7px] text-gray-400 mt-0.5 leading-tight">{s.label}</p>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-gray-100">
-          <div className="flex-1 flex items-center gap-1 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1">
-            <i className="ri-search-line text-gray-300" style={{ fontSize: 8 }}></i>
-            <span className="text-[8px] text-gray-300">Search...</span>
-          </div>
-          <div className="rounded-lg px-2 py-1 flex items-center" style={{ background: '#111827' }}>
-            <span className="text-[9px] font-bold text-white">+ New</span>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2">
-          <p className="text-[7px] font-bold text-gray-400 uppercase tracking-wider mb-1 px-1">Branding & Identity</p>
-          <div className="rounded-lg border border-[#FF6B35]/40 bg-orange-50/30 p-2 mb-2">
-            <div className="flex items-center justify-between mb-0.5">
-              <p className="text-[9px] font-bold text-gray-800">Nova Brew Co.</p>
-              <span className="text-[7px] px-1.5 py-0.5 bg-sky-50 text-sky-500 rounded font-bold">Ongoing</span>
-            </div>
-            <p className="text-[8px] text-gray-400 mb-1">Kristine Ang</p>
-            <div className="flex items-center justify-between text-[7px] text-gray-400 mb-1">
-              <span>₱55,000.00 collected</span><span>55.0%</span>
-            </div>
-            <div className="w-full h-1 bg-gray-100 rounded-full">
-              <div className="h-full bg-emerald-400 rounded-full" style={{ width: '55%' }}></div>
-            </div>
-          </div>
-          <p className="text-[7px] font-bold text-gray-400 uppercase tracking-wider mb-1 px-1">Website Design</p>
-          {[
-            { name: 'fernandodesigns.ph', client: 'David Sy',         pct: '54.9%', w: '55%', collected: '₱33,295.00' },
-            { name: 'greenstone.ph',      client: 'Marco Dela Cruz',  pct: '76.1%', w: '76%', collected: '₱37,198.00', urgent: true },
-          ].map(p => (
-            <div key={p.name} className="rounded-lg bg-gray-50 p-2 mb-1.5">
-              <div className="flex items-center justify-between mb-0.5">
-                <p className="text-[9px] font-semibold text-gray-700">{p.name}</p>
-                <div className="flex gap-0.5">
-                  {p.urgent && <span className="text-[7px] px-1 py-0.5 bg-amber-50 text-amber-500 rounded font-bold">2d left</span>}
-                  <span className="text-[7px] px-1.5 py-0.5 bg-sky-50 text-sky-500 rounded font-bold">Ongoing</span>
-                </div>
-              </div>
-              <p className="text-[8px] text-gray-400 mb-1">{p.client}</p>
-              <div className="flex items-center justify-between text-[7px] text-gray-400 mb-1">
-                <span>{p.collected} collected</span><span>{p.pct}</span>
-              </div>
-              <div className="w-full h-1 bg-gray-100 rounded-full">
-                <div className="h-full bg-emerald-400 rounded-full" style={{ width: p.w }}></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Right panel */}
-      <div className="flex-1 overflow-y-auto p-3 bg-gray-50">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="text-[13px] font-black text-gray-900">Nova Brew Co.</h3>
-              <span className="text-[7px] px-1.5 py-0.5 bg-sky-50 text-sky-500 rounded font-bold">Ongoing</span>
-            </div>
-            <p className="text-[8px] text-gray-400">Kristine Ang · Branding & Identity</p>
-            <p className="text-[8px] text-gray-400">Started Mar 3, 2026 · Due Jun 3, 2026</p>
-          </div>
-          <div className="flex gap-1.5">
-            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
-              <i className="ri-printer-line text-gray-400" style={{ fontSize: 8 }}></i>
-              <span className="text-[8px] text-gray-500">Print</span>
-            </div>
-            <div className="flex items-center gap-1 rounded-lg px-2 py-1" style={{ background: '#111827' }}>
-              <i className="ri-mail-send-line text-white" style={{ fontSize: 8 }}></i>
-              <span className="text-[8px] font-semibold text-white">Send Invoice</span>
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-2 mb-3">
-          {[
-            { label: 'CONTRACT PRICE',    value: '₱100,000.00', color: 'text-gray-900' },
-            { label: 'OPERATIONAL COSTS', value: '₱10,000.00',  color: 'text-red-500' },
-            { label: 'NET PROFIT',        value: '₱90,000.00',  color: 'text-gray-900', sub: 'after costs' },
-            { label: 'BALANCE DUE',       value: '₱45,000.00',  color: 'text-amber-500', sub: '55.0% collected' },
-          ].map(c => (
-            <div key={c.label} className="bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm">
-              <p className="text-[7px] font-bold text-gray-400 uppercase tracking-wider mb-1">{c.label}</p>
-              <p className={`text-[11px] font-black ${c.color} leading-none`}>{c.value}</p>
-              {c.sub && <p className="text-[7px] text-gray-300 mt-0.5">{c.sub}</p>}
-            </div>
-          ))}
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-2.5 mb-3 shadow-sm">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[8px] text-gray-500">Client payments</span>
-            <span className="text-[8px] text-gray-400">₱55,000.00 of ₱100,000.00</span>
-          </div>
-          <div className="w-full h-1.5 bg-gray-100 rounded-full">
-            <div className="h-full bg-emerald-400 rounded-full" style={{ width: '55%' }}></div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm">
-            <p className="text-[8px] font-bold text-gray-600 uppercase tracking-wider mb-2">Client Payments</p>
-            {[
-              { amount: '₱25,000.00', date: 'May 23, 2026', note: 'Downpayment' },
-              { amount: '₱30,000.00', date: 'Mar 27, 2026', note: 'Stage 2 - Payment' },
-            ].map(p => (
-              <div key={p.note} className="mb-2">
-                <p className="text-[10px] font-black text-emerald-600 leading-none">{p.amount}</p>
-                <p className="text-[7px] text-gray-400 mt-0.5">{p.date} · {p.note}</p>
-              </div>
-            ))}
-            <div className="flex items-center gap-1 mt-2">
-              <div className="flex-1 bg-gray-50 border border-gray-100 rounded px-1.5 py-1">
-                <span className="text-[7px] text-gray-300">Amount</span>
-              </div>
-              <div className="bg-gray-50 border border-gray-100 rounded px-1.5 py-1">
-                <span className="text-[7px] text-gray-400">05/23/2026</span>
-              </div>
-              <div className="rounded px-1.5 py-1" style={{ background: '#111827' }}>
-                <span className="text-[7px] font-bold text-white">+ Log</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm">
-            <p className="text-[8px] font-bold text-gray-600 uppercase tracking-wider mb-2">Operational Costs</p>
-            <div className="flex items-center gap-1 mb-2">
-              <p className="text-[8px] text-gray-600 flex-1">Admin</p>
-              <p className="text-[9px] font-black text-red-500">₱10,000.00</p>
-              <span className="text-[7px] text-gray-400">· May 23</span>
-            </div>
-            <div className="flex items-center gap-1 mb-1.5">
-              <div className="flex-1 bg-gray-50 border border-gray-100 rounded px-1.5 py-1">
-                <span className="text-[7px] text-gray-300">e.g. Hosting, Domain</span>
-              </div>
-              <div className="bg-gray-50 border border-gray-100 rounded px-1.5 py-1">
-                <span className="text-[7px] text-gray-300">Amount</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="bg-gray-50 border border-gray-100 rounded px-1.5 py-1">
-                <span className="text-[7px] text-gray-400">05/23/2026</span>
-              </div>
-              <div className="flex-1 rounded px-2 py-1 text-center" style={{ background: 'rgba(255,107,53,0.15)' }}>
-                <span className="text-[7px] font-bold text-[#FF6B35]">+ Log Cost</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm">
-          <p className="text-[8px] font-bold text-gray-600 uppercase tracking-wider mb-0.5">Team & Payouts</p>
-          <p className="text-[7px] text-gray-400 mb-2">Based on net profit of <span className="text-emerald-600 font-bold">₱90,000.00</span></p>
-          <div className="flex items-center gap-2 border-b border-gray-50 pb-2 mb-1.5">
-            <div className="w-6 h-6 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-[7px] font-bold text-[#FF6B35]">S</span>
-            </div>
-            <span className="text-[9px] font-semibold text-gray-700 flex-1">Sofia Lim</span>
-            <span className="text-[8px] text-gray-400">50%</span>
-            <span className="text-[8px] font-bold text-gray-800">→ ₱45,000.00</span>
-            <span className="text-[8px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded font-bold">₱20,000 paid</span>
-          </div>
-          <p className="text-[8px] text-emerald-600 font-bold pl-8">· ₱20,000.00  Mar 27, 2026 · First Payment</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Mobile mockup ────────────────────────────────────────────────────────────
-
-function MobileBottomNav({ active }: { active: number }) {
-  return (
-    <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around px-3 py-2 z-10">
-      {[
-        { icon: 'ri-layout-grid-line', idx: 0 },
-        { icon: 'ri-money-dollar-circle-line', idx: 1 },
-        { icon: 'ri-time-line', idx: 2 },
-        { icon: 'ri-folder-line', idx: 3 },
-      ].map(n => (
-        <i key={n.idx} className={`${n.icon} ${n.idx === active ? 'text-[#FF6B35]' : 'text-gray-300'}`} style={{ fontSize: 17 }}></i>
-      ))}
-    </div>
-  );
-}
-
-function MobileDashboard() {
-  const [phTime] = useState(() => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })));
-  const h = phTime.getHours();
-  const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  const isDay = h >= 6 && h < 18;
-  const skyBg = h >= 5 && h < 7
-    ? 'linear-gradient(160deg,#7f1d1d,#fb923c,#fde68a)'
-    : h >= 7 && h < 12
-    ? 'linear-gradient(160deg,#0369a1,#38bdf8,#bae6fd)'
-    : h >= 12 && h < 17
-    ? 'linear-gradient(160deg,#1d4ed8,#60a5fa)'
-    : h >= 17 && h < 20
-    ? 'linear-gradient(160deg,#7c2d12,#9333ea,#1e1b4b)'
-    : 'linear-gradient(160deg,#020617,#0f172a,#1e1b4b)';
-  return (
-    <div className="h-full flex flex-col pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
-      <div className="relative px-4 pt-2 pb-3 flex-shrink-0" style={{ background: skyBg }}>
-        <div className="absolute top-2 right-4">
-          {isDay
-            ? <div className="w-5 h-5 rounded-full bg-yellow-200" style={{ boxShadow: '0 0 8px rgba(253,224,71,0.9)' }}></div>
-            : <div className="w-4 h-4 rounded-full bg-slate-200" style={{ boxShadow: '-2px -1px 0 2px #0f172a inset' }}></div>}
-        </div>
-        <p className="text-[8px] text-white/60">May 23, 2026</p>
-        <p className="text-[11px] font-black text-white mt-0.5 drop-shadow">{greeting}, team.</p>
-        <p className="text-[8px] text-white/60 mt-0.5">6 online right now</p>
-      </div>
-      <div className="grid grid-cols-3 gap-1.5 px-3 py-2 flex-shrink-0">
-        {[
-          { label: 'Online', val: '6', c: 'text-emerald-500' },
-          { label: 'Not In', val: '4', c: 'text-amber-500' },
-          { label: 'Hrs', val: '192h', c: 'text-sky-500' },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl p-2 text-center shadow-sm border border-gray-100">
-            <p className={`text-[13px] font-black ${s.c} leading-none`}>{s.val}</p>
-            <p className="text-[7px] text-gray-400 mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
-      <div className="px-3 flex-1 min-h-0 overflow-y-auto space-y-1">
-        <p className="text-[8px] font-bold text-gray-400 mb-1">Team Status</p>
-        {['Sofia Lim|Design|online','Renzo Aquino|Content|online','Mika Torres|Media|online','Bianca R.|Creative|not-in','Carlo M.|Admin|not-in'].map(r => {
-          const [name, dept, st] = r.split('|');
-          return (
-            <div key={name} className="flex items-center gap-2 bg-white rounded-lg px-2.5 py-1.5 shadow-sm border border-gray-50">
-              <div className="w-5 h-5 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-[7px] font-bold text-[#FF6B35]">{name[0]}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-medium text-gray-800 truncate">{name}</p>
-                <p className="text-[7px] text-gray-400">{dept}</p>
-              </div>
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${st === 'online' ? 'bg-emerald-400' : 'bg-amber-300'}`}></span>
-            </div>
-          );
-        })}
-        <div className="rounded-xl p-2.5 mt-1" style={{ background: '#FF6B35' }}>
-          <p className="text-[7px] font-bold text-white/70 uppercase tracking-wider">Estimated Payroll</p>
-          <p className="text-[14px] font-black text-white leading-none mt-0.5">₱71,450.00</p>
-          <p className="text-[7px] text-white/60 mt-0.5">May 16–31 cutoff</p>
-        </div>
-      </div>
-      <MobileBottomNav active={0} />
-    </div>
-  );
-}
-
-function MobilePayroll() {
-  return (
-    <div className="h-full flex flex-col pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
-      <div className="px-4 py-2.5 border-b border-white/60 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)' }}>
-        <p className="text-[12px] font-black text-gray-900">Payroll</p>
-        <div className="flex gap-1.5 mt-1.5">
-          <div className="rounded-lg px-2 py-0.5 bg-gray-100"><span className="text-[7px] text-gray-400">May 1–15</span></div>
-          <div className="rounded-lg px-2 py-0.5" style={{ background: '#111827' }}><span className="text-[7px] font-bold text-white">May 16–31</span></div>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-1.5 px-3 py-2 flex-shrink-0">
-        {[{ label: 'Total', val: '₱68,612', c: 'text-gray-900' }, { label: 'Hours', val: '138h', c: 'text-sky-500' }].map(s => (
-          <div key={s.label} className="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100">
-            <p className={`text-[12px] font-black ${s.c} leading-none`}>{s.val}</p>
-            <p className="text-[7px] text-gray-400 mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 space-y-1.5">
-        {[
-          { name: 'Sofia Lim',    dept: 'Creative', type: 'Fixed',  pay: '₱22,500' },
-          { name: 'Renzo Aquino', dept: 'Content',  type: 'Fixed',  pay: '₱21,712' },
-          { name: 'Mika Torres',  dept: 'Media',    type: 'Hourly', pay: '₱12,400' },
-          { name: 'Bianca Reyes', dept: 'Creative', type: 'Fixed',  pay: '₱7,500' },
-          { name: 'Carlo Mendez', dept: 'Admin',    type: 'Fixed',  pay: '₱4,500' },
-        ].map(r => (
-          <div key={r.name} className="bg-white rounded-xl px-2.5 py-2 shadow-sm border border-gray-100 flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-[#FF6B35]/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-[7px] font-bold text-[#FF6B35]">{r.name[0]}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-semibold text-gray-800 truncate">{r.name}</p>
-              <span className={`text-[6px] px-1 py-0.5 rounded font-bold ${r.type === 'Hourly' ? 'bg-violet-50 text-violet-600' : 'bg-sky-50 text-sky-600'}`}>{r.type}</span>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-[9px] font-black text-gray-900">{r.pay}</p>
-              <div className="rounded px-1.5 py-0.5 mt-0.5 inline-block" style={{ background: '#111827' }}>
-                <span className="text-[6px] font-bold text-white">Approve</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <MobileBottomNav active={1} />
-    </div>
-  );
-}
-
-function MobileAttendance() {
-  return (
-    <div className="h-full flex flex-col pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
-      <div className="px-4 py-2.5 border-b border-white/60 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)' }}>
-        <p className="text-[12px] font-black text-gray-900">Attendance</p>
-        <p className="text-[7px] text-gray-400 mt-0.5">Saturday, May 23 · Last updated 9:12 AM</p>
-      </div>
-      <div className="grid grid-cols-3 gap-1.5 px-3 py-2 flex-shrink-0">
-        {[
-          { label: 'Online', val: '0', c: 'text-emerald-500' },
-          { label: 'Logged Off', val: '1', c: 'text-gray-400' },
-          { label: 'Not In', val: '6', c: 'text-amber-500' },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl p-2 text-center shadow-sm border border-gray-100">
-            <p className={`text-[15px] font-black ${s.c} leading-none`}>{s.val}</p>
-            <p className="text-[7px] text-gray-400 mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 space-y-1">
-        {[
-          ['Angela Rivera','Account Mgmt','logged-off'],
-          ['Claudette T.','Account Mgmt','not-in'],
-          ['Reese J.','Creative','not-in'],
-          ['Bianca Reyes','Admin','not-in'],
-          ['Sofia Lim','Design','not-in'],
-          ['Carlo Mendez','Creative','not-in'],
-        ].map(([name, dept, st]) => (
-          <div key={name} className="flex items-center gap-2 bg-white rounded-lg px-2.5 py-2 border border-gray-50">
-            <div className="relative flex-shrink-0">
-              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                <span className="text-[8px] font-bold text-gray-500">{name[0]}</span>
-              </div>
-              <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${st === 'logged-off' ? 'bg-gray-400' : 'bg-amber-400'}`}></span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-semibold text-gray-800 truncate">{name}</p>
-              <p className="text-[7px] text-gray-400">{dept}</p>
-            </div>
-            {st === 'logged-off'
-              ? <span className="text-[8px] text-gray-400 flex-shrink-0">Logged Off</span>
-              : <span className="text-[7px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded font-bold flex-shrink-0">Not In</span>}
-          </div>
-        ))}
-      </div>
-      <MobileBottomNav active={2} />
-    </div>
-  );
-}
-
-function MobileProjects() {
-  return (
-    <div className="h-full flex flex-col pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, #d6e0ee 0%, #e8edf8 45%, #f4f6fb 100%)' }}>
-      <div className="px-4 py-2.5 border-b border-white/60 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)' }}>
-        <p className="text-[12px] font-black text-gray-900">Projects</p>
-      </div>
-      <div className="grid grid-cols-2 gap-1.5 px-3 py-2 flex-shrink-0">
-        {[{ label: 'Net Profit', val: '₱166,500', c: 'text-emerald-600' }, { label: 'Collected', val: '62%', c: 'text-emerald-600' }].map(s => (
-          <div key={s.label} className="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100">
-            <p className={`text-[12px] font-black ${s.c} leading-none`}>{s.val}</p>
-            <p className="text-[7px] text-gray-400 mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 space-y-1.5">
-        <p className="text-[7px] font-bold text-gray-400 uppercase tracking-wider">Branding & Identity</p>
-        <div className="bg-white rounded-xl p-3 shadow-sm border border-[#FF6B35]/20">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[10px] font-bold text-gray-800">Nova Brew Co.</p>
-            <span className="text-[6px] px-1.5 py-0.5 bg-sky-50 text-sky-500 rounded font-bold">Ongoing</span>
-          </div>
-          <p className="text-[7px] text-gray-400 mb-1.5">Kristine Ang</p>
-          <div className="w-full h-1 bg-gray-100 rounded-full mb-1">
-            <div className="h-full bg-emerald-400 rounded-full" style={{ width: '55%' }}></div>
-          </div>
-          <div className="flex justify-between text-[7px] text-gray-400">
-            <span>₱55,000 collected</span><span>55.0%</span>
-          </div>
-        </div>
-        <p className="text-[7px] font-bold text-gray-400 uppercase tracking-wider">Website Design</p>
-        {[
-          { name: 'fernandodesigns.ph', client: 'David Sy', pct: '54.9%', w: '55%' },
-          { name: 'greenstone.ph', client: 'Marco D.', pct: '76.1%', w: '76%', urgent: true },
-        ].map(p => (
-          <div key={p.name} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[9px] font-semibold text-gray-700 truncate mr-1">{p.name}</p>
-              <div className="flex gap-0.5 flex-shrink-0">
-                {p.urgent && <span className="text-[6px] px-1 bg-amber-50 text-amber-500 rounded font-bold">2d</span>}
-                <span className="text-[6px] px-1.5 py-0.5 bg-sky-50 text-sky-500 rounded font-bold">Ongoing</span>
-              </div>
-            </div>
-            <p className="text-[7px] text-gray-400 mb-1.5">{p.client}</p>
-            <div className="w-full h-1 bg-gray-100 rounded-full">
-              <div className="h-full bg-emerald-400 rounded-full" style={{ width: p.w }}></div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <MobileBottomNav active={3} />
-    </div>
-  );
-}
-
-function PhoneMockup({ activeScreen }: { activeScreen: number }) {
-  return (
-    <div className="relative flex-shrink-0" style={{ width: 300 }}>
-      {/* Side buttons */}
-      <div className="absolute right-0 top-20 translate-x-[3px] w-[3px] h-10 bg-gray-700 rounded-r-sm"></div>
-      <div className="absolute left-0 top-16 -translate-x-[3px] w-[3px] h-7 bg-gray-700 rounded-l-sm"></div>
-      <div className="absolute left-0 top-28 -translate-x-[3px] w-[3px] h-7 bg-gray-700 rounded-l-sm"></div>
-      {/* Phone body */}
-      <div className="relative rounded-[32px] bg-gray-900 overflow-hidden shadow-2xl shadow-black/50"
-        style={{ height: 560, border: '6px solid #1f2937' }}>
-        {/* Dynamic island */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-14 h-3.5 bg-black rounded-full z-20"></div>
-        {/* Status bar */}
-        <div className="absolute top-0.5 left-0 right-0 flex items-center justify-between px-5 z-10">
-          <span className="text-white text-[7px] font-bold">9:12</span>
-          <div className="flex items-center gap-0.5">
-            <i className="ri-signal-wifi-fill text-white" style={{ fontSize: 6 }}></i>
-            <i className="ri-battery-fill text-white" style={{ fontSize: 6 }}></i>
-          </div>
-        </div>
-        {/* Screen */}
-        <div className="absolute inset-0 top-5 bg-gray-50 overflow-hidden">
-          {activeScreen === 0 && <MobileDashboard />}
-          {activeScreen === 1 && <MobilePayroll />}
-          {activeScreen === 2 && <MobileAttendance />}
-          {activeScreen === 3 && <MobileProjects />}
-        </div>
-        {/* Home indicator */}
-        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-16 h-0.5 bg-white/30 rounded-full z-20"></div>
-      </div>
-    </div>
-  );
-}
+const primaryButton = 'inline-flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3.5 sm:py-3 rounded-full text-[13px] sm:text-xs font-semibold tracking-widest uppercase text-white whitespace-nowrap cursor-pointer transition-transform duration-300 hover:scale-105';
+const secondaryButton = 'inline-flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3.5 sm:py-3 rounded-full text-[13px] sm:text-xs font-semibold tracking-widest uppercase text-[#243037]/60 border border-[#243037]/15 hover:text-[#243037] hover:bg-white/40 whitespace-nowrap transition-all';
+const eyebrow = 'text-[11px] font-medium tracking-[0.3em] uppercase text-[#075056]';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -1002,7 +127,7 @@ export default function ForAgenciesPage() {
           'Contract & Document Generation',
           'Leave & Overtime Approval Workflows',
           'Client & Project Tracking',
-          'Intake Forms & Client Questionnaires',
+          'Performance Reviews',
           'Careers & Applications Pipeline',
           'SOP Library',
           'Credentials & Shared Asset Vault',
@@ -1012,56 +137,11 @@ export default function ForAgenciesPage() {
       {
         '@context': 'https://schema.org',
         '@type': 'FAQPage',
-        mainEntity: [
-          {
-            '@type': 'Question',
-            name: 'What is Sentro OS?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Sentro OS is a custom-built internal operations hub for creative agencies and firms. It centralizes HR, attendance tracking, payroll, contracts, client projects, and internal workflows into one branded system built specifically for your team.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'Who is Sentro OS for?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Sentro OS is designed for creative agencies, design firms, marketing studios, and any service-based team that manages contractors or employees. It is particularly suited for Philippine-based agencies that need a centralized HR and operations platform.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'How does attendance tracking work in Sentro OS?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Sentro OS integrates with Slack for attendance tracking. Team members punch in and out directly from a Slack channel. The system captures timestamps, calculates daily hours, flags overtime, and generates reports automatically.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'Does Sentro OS handle payroll?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Yes. Sentro OS automatically calculates payroll per pay period for hourly, fixed-rate, and project-based contractors. It supports USD-to-PHP conversion and generates payout summaries you can approve in one click.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'How much does Sentro OS cost?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Sentro OS starts at ₱2,500/month (Starter plan, ₱15,000 one-time setup) for small teams. The Growth plan is ₱5,999/month (₱25,000 setup) for larger agencies. Enterprise pricing is available for custom builds.',
-            },
-          },
-          {
-            '@type': 'Question',
-            name: 'Is Sentro OS available in the Philippines?',
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: 'Yes. Sentro OS is built by Huna Creatives, a Philippine-based creative agency. It is designed specifically for Philippine teams, with peso-based payroll, local date formats, and support tailored to how agencies in the Philippines operate.',
-            },
-          },
-        ],
+        mainEntity: FAQS.map((f) => ({
+          '@type': 'Question',
+          name: f.q,
+          acceptedAnswer: { '@type': 'Answer', text: f.a },
+        })),
       },
       {
         '@context': 'https://schema.org',
@@ -1070,549 +150,352 @@ export default function ForAgenciesPage() {
         name: 'Sentro OS — HR & Operations Hub for Creative Agencies in the Philippines',
         description: 'Custom-built internal operations hub for creative agencies. Attendance, payroll, contracts, and project tracking — all in one system.',
         isPartOf: { '@id': 'https://www.hunacreatives.com/#website' },
-        about: {
-          '@type': 'SoftwareApplication',
-          name: 'Sentro OS',
-        },
+        about: { '@type': 'SoftwareApplication', name: 'Sentro OS' },
       },
     ],
   });
 
   const [activeScreen, setActiveScreen] = useState(0);
-  const [openFeature, setOpenFeature] = useState<number | null>(null);
-  const demoRef = useRef<HTMLDivElement>(null);
-  const scrollToDemo = () => demoRef.current?.scrollIntoView({ behavior: 'smooth' });
-
-  const [lit, setLit] = useState(false);
-  const [bylineVisible, setBylineVisible] = useState(false);
-  const [pageVisible, setPageVisible] = useState(false);
-  useEffect(() => {
-    const t1 = setTimeout(() => setLit(true),          600);
-    const t2 = setTimeout(() => setBylineVisible(true), 1500);
-    const t3 = setTimeout(() => setPageVisible(true),   3000);
-    return () => [t1, t2, t3].forEach(clearTimeout);
-  }, []);
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const sentroTextRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    type P = {
-      x: number; y: number; vx: number; vy: number;
-      trail: { x: number; y: number }[];
-      trailLen: number; alpha: number; color: string;
-    };
-
-    const COLORS = ['255,255,255', '255,180,100', '180,160,255'];
-
-    const spawn = (): P => {
-      const edge = Math.floor(Math.random() * 4);
-      let x = 0, y = 0;
-      if (edge === 0) { x = Math.random() * canvas.width; y = -10; }
-      else if (edge === 1) { x = canvas.width + 10; y = Math.random() * canvas.height; }
-      else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height + 10; }
-      else { x = -10; y = Math.random() * canvas.height; }
-      const speed = 0.5 + Math.random() * 1.4;
-      const angle = Math.random() * Math.PI * 2;
-      return {
-        x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        trail: [],
-        trailLen: 200 + Math.floor(Math.random() * 200),
-        alpha: 0.2 + Math.random() * 0.35,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      };
-    };
-
-    let particles: P[] = [];
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i < 8; i++) {
-      timers.push(setTimeout(() => { particles.push(spawn()); }, 3000 + i * 600));
-    }
-
-    let animId: number;
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const canvasRect = canvas.getBoundingClientRect();
-      const textEl = sentroTextRef.current;
-      let box: { l: number; r: number; t: number; b: number } | null = null;
-      if (textEl) {
-        const r = textEl.getBoundingClientRect();
-        const pad = 16;
-        box = {
-          l: r.left - canvasRect.left - pad,
-          r: r.right - canvasRect.left + pad,
-          t: r.top - canvasRect.top - pad,
-          b: r.bottom - canvasRect.top + pad,
-        };
-      }
-
-      particles = particles.map(p => {
-        if (box) {
-          const nx = p.x + p.vx;
-          const ny = p.y + p.vy;
-          if (nx > box.l && nx < box.r && ny > box.t && ny < box.b) {
-            const fromLeft = p.x <= box.l;
-            const fromRight = p.x >= box.r;
-            const fromTop = p.y <= box.t;
-            const fromBottom = p.y >= box.b;
-            if (fromLeft || fromRight) p.vx *= -1;
-            else if (fromTop || fromBottom) p.vy *= -1;
-            else { p.vx *= -1; p.vy *= -1; }
-          }
-        }
-
-        p.x += p.vx;
-        p.y += p.vy;
-        p.trail.push({ x: p.x, y: p.y });
-        if (p.trail.length > p.trailLen) p.trail.shift();
-
-        if (p.x < -200 || p.x > canvas.width + 200 || p.y < -200 || p.y > canvas.height + 200) {
-          return spawn();
-        }
-
-        for (let i = 1; i < p.trail.length; i++) {
-          const t = i / p.trail.length;
-          ctx.beginPath();
-          ctx.moveTo(p.trail[i - 1].x, p.trail[i - 1].y);
-          ctx.lineTo(p.trail[i].x, p.trail[i].y);
-          ctx.strokeStyle = `rgba(${p.color},${(t * p.alpha).toFixed(3)})`;
-          ctx.lineWidth = t * 1.4;
-          ctx.stroke();
-        }
-
-        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 4);
-        grd.addColorStop(0, `rgba(${p.color},${p.alpha})`);
-        grd.addColorStop(1, `rgba(${p.color},0)`);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = grd;
-        ctx.fill();
-
-        return p;
-      });
-
-      animId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', resize);
-      timers.forEach(clearTimeout);
-    };
-  }, []);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <div className="bg-[#080c14] text-white min-h-screen font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-[#F5F5F5] text-[#243037] font-body">
+      <Navigation invertOnScroll />
 
-      {/* Nav */}
-      <nav
-        className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#080c14]/80 backdrop-blur-xl"
-        style={{ opacity: pageVisible ? 1 : 0, transition: 'opacity 0.8s ease-out' }}
-      >
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
-              <img src="/s-logo.png" alt="Sentro" className="w-5 h-5 object-contain" style={{ filter: 'invert(1)' }} />
+      {/* Same continuous orb field as Services/About — one wrapper spanning the
+          page so every glass card picks up the color behind it. */}
+      <div className="relative overflow-hidden">
+        <div className="pointer-events-none absolute top-[-6%] -left-[15%] w-[900px] h-[900px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,91,5,0.16), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-a 22s ease-in-out infinite' }} />
+        <div className="pointer-events-none absolute top-[4%] -right-[15%] w-[820px] h-[820px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.4), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-b 26s ease-in-out infinite' }} />
+        <div className="pointer-events-none absolute top-[22%] left-[30%] w-[620px] h-[620px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(211,221,222,0.5), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-c 20s ease-in-out infinite' }} />
+        <div className="pointer-events-none absolute top-[38%] -left-[10%] w-[760px] h-[760px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.36), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-c 24s ease-in-out infinite' }} />
+        <div className="pointer-events-none absolute top-[56%] right-[0%] w-[900px] h-[900px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,138,71,0.18), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-d 28s ease-in-out infinite' }} />
+        <div className="pointer-events-none absolute top-[72%] left-[8%] w-[560px] h-[560px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.32), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-b 23s ease-in-out infinite' }} />
+        <div className="pointer-events-none absolute top-[88%] left-1/3 w-[850px] h-[850px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(7,80,86,0.3), transparent 72%)', filter: 'blur(70px)', animation: 'orb-float-a 25s ease-in-out infinite' }} />
+
+        {/* ═══ HERO ═══ */}
+        <section className="relative pt-24 sm:pt-28 pb-10 sm:pb-12">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center sm:text-left">
+            <p className={`${eyebrow} mb-4`}>Sentro OS · by Huna Creatives</p>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-tight text-[#243037]">
+              Your whole team,<br />run from one place.
+            </h1>
+            <p className="text-[15px] sm:text-base text-[#243037]/60 leading-relaxed max-w-xl mt-5 mx-auto sm:mx-0">
+              Attendance, payroll, contracts, approvals, and projects in one internal hub — built around how your team already works, branded as your own, and maintained by us.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 mt-8">
+              <a href={BOOKING_URL} target="_blank" rel="noopener noreferrer" className={primaryButton} style={primaryButtonStyle}>
+                Book a Demo
+              </a>
+              <a href="/hub/demo" className={secondaryButton}>
+                Try the Live Demo
+              </a>
             </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-xl font-black text-white tracking-tight">Sentro OS</span>
-              <span className="text-[10px] text-gray-600">by Huna Creatives</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <a href="#features" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">Features</a>
-            <a href="#pricing" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block">Pricing</a>
-            <button onClick={scrollToDemo}
-              className="text-sm bg-[#FF6B35] text-white px-4 py-2 rounded-lg hover:bg-[#e55a27] transition-colors cursor-pointer whitespace-nowrap font-medium">
-              Book a Demo
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Keyframes */}
-      <style>{`
-        @keyframes bulb-on {
-          0%   { opacity: 0; text-shadow: none; }
-          55%  { opacity: 1; text-shadow: 0 0 10px rgba(255,210,130,0.85), 0 0 28px rgba(255,150,60,0.6), 0 0 60px rgba(255,100,30,0.4), 0 0 100px rgba(255,80,20,0.18); }
-          72%  { opacity: 0.93; text-shadow: 0 0 5px rgba(255,190,90,0.6), 0 0 14px rgba(255,120,40,0.4), 0 0 28px rgba(255,80,20,0.18); }
-          88%  { opacity: 1; text-shadow: 0 0 8px rgba(255,200,100,0.85), 0 0 20px rgba(255,130,40,0.6), 0 0 40px rgba(255,80,20,0.28); }
-          100% { opacity: 1; text-shadow: 0 0 8px rgba(255,200,100,0.9), 0 0 20px rgba(255,130,40,0.6), 0 0 40px rgba(255,80,20,0.3); }
-        }
-        @keyframes text-breathe {
-          0%, 100% { text-shadow: 0 0 8px rgba(255,200,100,0.9), 0 0 20px rgba(255,130,40,0.6), 0 0 40px rgba(255,80,20,0.3); }
-          50%       { text-shadow: 0 0 12px rgba(255,220,120,1), 0 0 30px rgba(255,150,60,0.8), 0 0 60px rgba(255,100,30,0.45); }
-        }
-        .sentro-lit {
-          animation: bulb-on 1.1s ease-out forwards, text-breathe 3.8s ease-in-out 1.1s infinite;
-        }
-        @keyframes marquee {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .marquee-track { animation: marquee 28s linear infinite; }
-      `}</style>
-
-      {/* ── HERO ── */}
-      <section
-        className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6 pt-16"
-        style={{
-          background: lit
-            ? 'radial-gradient(ellipse 75% 55% at 50% 50%, rgba(255,140,50,0.2) 0%, rgba(255,80,20,0.07) 55%, transparent 75%)'
-            : 'transparent',
-          transition: 'background 2s ease-out',
-        }}
-      >
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }} />
-        <div className="relative flex flex-col items-center" style={{ zIndex: 1 }}>
-          <h1
-            ref={sentroTextRef}
-            className={`flex items-baseline select-none${lit ? ' sentro-lit' : ''}`}
-            style={{ gap: '0.18em', opacity: lit ? undefined : 0, margin: 0, padding: 0 }}
-          >
-            <span className="font-black text-white"
-              style={{ fontSize: 'clamp(4.5rem, 12vw, 12rem)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-              SENTRO
-            </span>
-            <span className="font-black text-white/70"
-              style={{ fontSize: 'clamp(2rem, 5vw, 5rem)', letterSpacing: '-0.02em', lineHeight: 1, marginBottom: '0.5vw', marginLeft: '0.3em' }}>
-              OS
-            </span>
-          </h1>
-          <div className="w-full flex justify-end mt-1.5"
-            style={{ opacity: bylineVisible ? 1 : 0, transform: bylineVisible ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity 1s ease-out, transform 1s ease-out' }}>
-            <p className="text-[10px] sm:text-xs text-gray-600 tracking-[0.2em] uppercase">by Huna Creatives</p>
-          </div>
-        </div>
-        <div className="mt-8 sm:mt-12 text-center max-w-3xl" style={{ zIndex: 1, position: 'relative', opacity: pageVisible ? 1 : 0, transform: pageVisible ? 'translateY(0)' : 'translateY(16px)', transition: 'opacity 1.2s ease-out, transform 1.2s ease-out' }}>
-          <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-2 sm:whitespace-nowrap">
-            A custom internal operations hub built around <em className="not-italic font-black text-[#FF6B35]" style={{ textShadow: '0 0 20px rgba(255,107,53,0.5)' }}>your</em> team's workflow.
-          </p>
-          <p className="text-sm text-gray-500 mb-8 sm:whitespace-nowrap">
-            Manage HR, attendance, payroll, documents, credentials, SOPs, and internal operations — all in one system.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button onClick={scrollToDemo}
-              className="w-full sm:w-auto px-7 py-3.5 font-semibold rounded-xl text-sm cursor-pointer transition-all text-white"
-              style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 24px rgba(255,107,53,0.4)' }}>
-              Book a Free Demo →
-            </button>
-            <a href="/hub/demo"
-              className="w-full sm:w-auto px-7 py-3.5 border border-white/10 text-gray-400 font-medium rounded-xl hover:bg-white/5 transition-colors text-sm text-center">
-              Try the Live Demo →
-            </a>
-            <a href="#features"
-              className="w-full sm:w-auto px-7 py-3.5 text-gray-500 font-medium rounded-xl hover:text-white transition-colors text-sm text-center">
-              See how it works
-            </a>
-          </div>
-          <p className="text-xs text-gray-700 mt-4">No credit card required · We set it up with you · Your own Sentro OS instance</p>
-        </div>
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-          style={{ opacity: pageVisible ? 1 : 0, transition: 'opacity 1s ease-out' }}>
-          <div className="w-px h-10 bg-gradient-to-b from-gray-700 to-transparent"></div>
-        </div>
-      </section>
-
-      {/* ── MARQUEE STRIP ── */}
-      <div className="relative z-10 border-y border-white/5 py-4 overflow-hidden">
-        <div className="marquee-track flex items-center whitespace-nowrap" style={{ gap: '3rem', width: 'max-content' }}>
-          {[...Array(2)].map((_, pass) =>
-            [
-              { icon: 'ri-time-line',                label: 'Attendance tracking' },
-              { icon: 'ri-money-dollar-circle-line', label: 'Payroll calculation' },
-              { icon: 'ri-file-text-line',           label: 'Contract generation' },
-              { icon: 'ri-building-line',            label: 'Client management' },
-              { icon: 'ri-funds-line',               label: 'Project payouts' },
-              { icon: 'ri-slack-line',               label: 'Slack notifications' },
-              { icon: 'ri-calendar-check-line',      label: 'Time-off approvals' },
-              { icon: 'ri-timer-flash-line',         label: 'Overtime tracking' },
-              { icon: 'ri-settings-3-line',          label: 'Custom workflow' },
-              { icon: 'ri-shield-keyhole-line',      label: 'Credentials vault' },
-              { icon: 'ri-user-search-line',         label: 'Careers & applications' },
-              { icon: 'ri-book-open-line',           label: 'SOP library' },
-              { icon: 'ri-megaphone-line',           label: 'Announcements' },
-            ].flatMap((item, i) => [
-              <span key={`${pass}-${i}`} className="flex items-center gap-2 flex-shrink-0 text-sm text-gray-500">
-                <i className={`${item.icon} text-[#FF6B35] text-base`}></i>
-                {item.label}
-              </span>,
-              <span key={`${pass}-d-${i}`} className="text-white/10 flex-shrink-0">·</span>,
-            ])
-          )}
-        </div>
-      </div>
-
-      {/* ── SCREENS ── */}
-      <section id="features" className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">The Platform</p>
-            <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight">
-              Attendance, payroll, HR — built to run<br /><span className="text-[#FF6B35]" style={{ textShadow: '0 0 30px rgba(255,107,53,0.4)' }}>your whole agency</span>
-            </h2>
-            <p className="text-gray-400 max-w-lg mx-auto text-base">Every screen designed around how creative agencies and firms actually operate — not how enterprise software thinks they do.</p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-8 sm:justify-center">
-            {SCREENS.map((s, i) => (
-              <button key={s.label} onClick={() => setActiveScreen(i)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeScreen === i ? 'text-white' : 'text-gray-400 hover:text-white border border-white/10 hover:bg-white/5'}`}
-                style={activeScreen === i ? { background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 20px rgba(255,107,53,0.3)' } : {}}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Mobile: phone only */}
-          <div className="lg:hidden flex flex-col items-center">
-            <PhoneMockup activeScreen={activeScreen} />
-            <p className="text-sm text-gray-500 text-center mt-4">{SCREENS[activeScreen].desc}</p>
-          </div>
-
-          {/* Desktop: side by side */}
-          <div className="hidden lg:flex gap-10 items-start">
-            <div className="flex-1 min-w-0">
-              <HubPreview activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
-              <p className="text-sm text-gray-500 mt-6">{SCREENS[activeScreen].desc}</p>
-            </div>
-            <div className="flex-shrink-0">
-              <PhoneMockup activeScreen={activeScreen} />
+            <div className="flex flex-col items-center sm:flex-row sm:flex-wrap gap-3 sm:gap-6 text-[13px] sm:text-xs text-[#243037]/50 mt-7">
+              <span className="flex items-center gap-2"><i className="ri-check-line text-[#FF5B05]" />We do the setup</span>
+              <span className="flex items-center gap-2"><i className="ri-check-line text-[#FF5B05]" />Your own instance, your branding</span>
+              <span className="flex items-center gap-2"><i className="ri-check-line text-[#FF5B05]" />Peso and dollar payroll</span>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── WHAT IS SENTRO OS ── */}
-      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5" style={{ background: '#0e1420' }}>
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 items-center">
-            <div className="flex-1 min-w-0 text-center lg:text-left">
-              <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">What is Sentro OS</p>
-              <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-5 leading-tight">
-                Not a SaaS.<br />Your own <span className="text-[#FF6B35]">Sentro OS</span> instance.
+        {/* ═══ PRODUCT — real hub screenshots, tabbed ═══ */}
+        <section id="features" className="relative px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24 scroll-mt-24">
+          <div className="max-w-6xl mx-auto">
+            <div
+              className="rounded-3xl p-3 sm:p-5 lg:p-6"
+              style={{
+                background: 'linear-gradient(135deg, rgba(160,180,205,0.5), rgba(205,215,225,0.28))',
+                backdropFilter: 'blur(30px) saturate(160%)',
+                WebkitBackdropFilter: 'blur(30px) saturate(160%)',
+                border: '1px solid rgba(255,255,255,0.5)',
+                boxShadow: '0 20px 60px rgba(36,48,55,0.12), inset 0 1px 0 rgba(255,255,255,0.5)',
+              }}
+            >
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 mb-4 sm:mb-5" role="tablist" aria-label="Hub screens">
+                {SCREENS.map((s, i) => (
+                  <button
+                    key={s.key}
+                    role="tab"
+                    aria-selected={activeScreen === i}
+                    onClick={() => setActiveScreen(i)}
+                    className={`px-4 sm:px-5 py-2 rounded-full text-[13px] sm:text-xs font-semibold transition-all cursor-pointer ${
+                      activeScreen === i ? 'bg-[#243037] text-white' : 'text-[#243037]/60 hover:text-[#243037] hover:bg-white/50'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Desktop view: all screens share one grid cell and cross-fade,
+                  so switching tabs never reflows or flashes while loading. */}
+              <div className="relative hidden md:block">
+                <div className="grid rounded-2xl overflow-hidden border border-white/70 shadow-[0_12px_40px_rgba(36,48,55,0.18)] bg-[#e8edf5]">
+                  {SCREENS.map((s, i) => (
+                    <img
+                      key={s.key}
+                      src={`/images/sentro/hub-${s.key}.webp`}
+                      alt={`Sentro OS ${s.label} screen`}
+                      width={2200}
+                      height={1375}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                      aria-hidden={i !== activeScreen}
+                      className={`col-start-1 row-start-1 w-full h-auto transition-opacity duration-500 ${i === activeScreen ? 'opacity-100' : 'opacity-0'}`}
+                    />
+                  ))}
+                </div>
+                {/* Phone view of the same screen, overlapping the corner */}
+                <div className="hidden lg:block absolute -right-10 -bottom-12 w-[200px]">
+                  <div className="grid rounded-[28px] overflow-hidden border-[6px] border-[#243037] shadow-[0_20px_50px_rgba(36,48,55,0.35)] bg-white">
+                    {SCREENS.map((s, i) => (
+                      <img
+                        key={s.key}
+                        src={`/images/sentro/hub-${s.key}-phone.webp`}
+                        alt=""
+                        width={780}
+                        height={1688}
+                        loading="lazy"
+                        className={`col-start-1 row-start-1 w-full h-auto transition-opacity duration-500 ${i === activeScreen ? 'opacity-100' : 'opacity-0'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Phone screens on phones — the desktop shot is unreadable at 360px */}
+              <div className="md:hidden flex justify-center">
+                <div className="grid w-[260px] rounded-[30px] overflow-hidden border-[6px] border-[#243037] shadow-[0_16px_40px_rgba(36,48,55,0.3)] bg-white">
+                  {SCREENS.map((s, i) => (
+                    <img
+                      key={s.key}
+                      src={`/images/sentro/hub-${s.key}-phone.webp`}
+                      alt={`Sentro OS ${s.label} screen on a phone`}
+                      width={780}
+                      height={1688}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                      aria-hidden={i !== activeScreen}
+                      className={`col-start-1 row-start-1 w-full h-auto transition-opacity duration-500 ${i === activeScreen ? 'opacity-100' : 'opacity-0'}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[15px] sm:text-sm text-[#243037]/60 leading-relaxed mt-6 max-w-xl text-center sm:text-left mx-auto sm:mx-0 min-h-[3em]">
+              {SCREENS[activeScreen].desc}
+            </p>
+          </div>
+        </section>
+
+        {/* ═══ WHY WE BUILT IT ═══ */}
+        <section className="relative px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+          <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-start">
+            <div className="text-center sm:text-left">
+              <p className={`${eyebrow} mb-3`}>Why it exists</p>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#243037] leading-tight">
+                We built it for<br />ourselves first.
               </h2>
-              <p className="text-gray-400 text-sm leading-relaxed mb-3">
-                Sentro OS is a custom internal operations platform built around how your organization actually runs. Not a generic tool you squeeze your team into — a system that fits your workflow from day one.
-              </p>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                You get your own instance: your people, payroll, documents, credentials, and projects — all managed in one place. Configured by us. Maintained by us.
-              </p>
             </div>
-            <div className="flex-shrink-0 w-full lg:w-72 grid grid-cols-1 gap-3">
-              {[
-                { label: 'Built from scratch', sub: 'No templates. Every hub is configured around your org structure.', icon: 'ri-hammer-line' },
-                { label: 'We use it ourselves', sub: 'We run Huna Creatives on Sentro OS. Every feature earned its place.', icon: 'ri-tools-line' },
-                { label: 'We maintain it', sub: 'Ongoing support, updates, and new modules as your team grows.', icon: 'ri-shield-check-line' },
-              ].map(p => (
-                <div key={p.label} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
-                  <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                    <i className={`${p.icon} text-[#FF6B35] text-sm`}></i>
+            <div className="space-y-4 text-[15px] sm:text-sm text-[#243037]/65 leading-relaxed">
+              <p>
+                Huna ran on spreadsheets, group chats, and payroll done by hand. It was slow and error-prone.
+              </p>
+              <p>
+                So we built one hub for our own team — attendance, payroll, contracts, approvals, credentials. It worked. Other firms had the same problem, so we started building it for them.
+              </p>
+              <p>
+                Sentro OS is that system, set up for them. Same foundation, configured around their roles, pay rules, and workflow — not a generic tool their team has to bend around.
+              </p>
+              <figure className="rounded-2xl p-5 sm:p-6 mt-6" style={{ ...glassCardStyle, background: 'rgba(255,255,255,0.6)' }}>
+                <blockquote className="text-[15px] sm:text-base text-[#243037]/80 leading-relaxed">
+                  &ldquo;We didn&rsquo;t build Sentro OS to sell software. We built it because we needed it — and it turned out everyone else needed it too.&rdquo;
+                </blockquote>
+                <figcaption className="flex items-center gap-3 mt-4">
+                  <img src="/images/francis-fiel-roble-headshot.png" alt="Francis Fiel Roble" className="w-9 h-9 rounded-full object-cover" />
+                  <span className="text-xs text-[#243037]/50">
+                    <span className="font-semibold text-[#243037]">Francis Fiel Roble</span> · Founder, Huna Creatives
+                  </span>
+                </figcaption>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══ WHAT'S INSIDE ═══ */}
+        <section className="relative px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#243037] mb-2 text-center sm:text-left">What&rsquo;s inside.</h2>
+            <p className="text-[15px] sm:text-sm text-[#243037]/50 mb-8 sm:mb-10 text-center sm:text-left">Pick the modules your team needs. We switch on the rest as you grow.</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {FEATURES.map((f) => (
+                <div key={f.title} className="rounded-2xl p-6 sm:p-7" style={glassCardStyle}>
+                  <div className="w-12 h-12 flex items-center justify-center rounded-xl mb-5" style={iconChipStyle}>
+                    <i className={`${f.icon} text-xl text-white`} />
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-white">{p.label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{p.sub}</p>
-                  </div>
+                  <h3 className="font-display text-base sm:text-lg font-bold text-[#243037] mb-2 leading-tight">{f.title}</h3>
+                  <p className="text-[13px] text-[#243037]/55 leading-relaxed">{f.desc}</p>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── WHY IT WAS MADE — orange break ── */}
-      <section className="relative z-10 py-16 sm:py-24 px-6 overflow-hidden" style={{ background: '#FF6B35' }}>
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,0,0,0.15) 0%, transparent 70%)' }} />
-        <div className="max-w-4xl mx-auto relative">
-          <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3 text-center">Why it was made</p>
-          <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-10 text-center leading-tight">
-            We built it for ourselves first.
-          </h2>
-          <div className="grid sm:grid-cols-3 gap-6 mb-8">
-            {[
-              { num: '01', heading: 'The problem', body: 'We were managing our own agency team — across spreadsheets, group chats, and manual payroll. It was slow and error-prone.' },
-              { num: '02', heading: 'What we built', body: 'We built one hub for our team. Attendance, payroll, contracts, credentials, requests — everything in one place. It worked.' },
-              { num: '03', heading: 'Why we\'re sharing it', body: 'Other firms have the same problem. So we started building Sentro OS instances for them — same foundation, configured around their workflow.' },
-            ].map(s => (
-              <div key={s.num} className="relative pl-4 border-l border-white/30">
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2">{s.num}</span>
-                <h3 className="font-bold text-white text-sm mb-2">{s.heading}</h3>
-                <p className="text-xs text-white/70 leading-relaxed">{s.body}</p>
-              </div>
-            ))}
+        {/* ═══ HOW WE SET IT UP ═══ */}
+        <section className="relative px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#243037] mb-2 text-center sm:text-left">How we set it up.</h2>
+            <p className="text-[15px] sm:text-sm text-[#243037]/50 mb-8 sm:mb-10 text-center sm:text-left">From the first call to your team logging in.</p>
+            <ol className="grid sm:grid-cols-3 gap-5">
+              {STEPS.map((s) => (
+                <li key={s.num} className="rounded-2xl p-6 sm:p-7" style={glassCardStyle}>
+                  <div className="flex items-baseline justify-between mb-4">
+                    <span className="font-display text-3xl font-bold text-[#243037]/15">{s.num}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-[#075056]">{s.time}</span>
+                  </div>
+                  <h3 className="font-display text-base sm:text-lg font-bold text-[#243037] mb-2">{s.title}</h3>
+                  <p className="text-[13px] text-[#243037]/55 leading-relaxed">{s.desc}</p>
+                </li>
+              ))}
+            </ol>
           </div>
-          <div className="rounded-xl p-5 bg-black/10 border border-white/20">
-            <p className="text-white/90 text-sm leading-relaxed italic text-center mb-4">
-              "We didn't build Sentro OS to sell software. We built it because we needed it — and it turned out everyone else needed it too."
+        </section>
+
+        {/* ═══ PRICING ═══ */}
+        <section id="pricing" className="relative px-4 sm:px-6 lg:px-8 py-10 sm:py-16 scroll-mt-24">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#243037] mb-2 text-center sm:text-left">Pricing.</h2>
+            <p className="text-[15px] sm:text-sm text-[#243037]/50 mb-8 sm:mb-10 text-center sm:text-left">One-time setup, then a flat monthly base plus seats. No surprises.</p>
+            <div className="grid md:grid-cols-3 gap-5 items-stretch">
+              {PLANS.map((p) => (
+                <div
+                  key={p.name}
+                  className="relative rounded-3xl p-6 sm:p-7 flex flex-col"
+                  style={p.highlight
+                    ? { ...glassCardStyle, background: 'rgba(255,255,255,0.78)', boxShadow: '0 16px 48px rgba(36,48,55,0.14), inset 0 1px 0 rgba(255,255,255,0.6)' }
+                    : glassCardStyle}
+                >
+                  {p.highlight && (
+                    <span className="absolute top-6 right-6 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[9px] font-bold tracking-wider uppercase text-[#FF5B05] bg-[#FF5B05]/10 border border-[#FF5B05]/20">
+                      Most Popular
+                    </span>
+                  )}
+                  <h3 className="font-display text-lg font-bold text-[#243037]">{p.name}</h3>
+                  <p className="text-[13px] text-[#243037]/55 leading-relaxed mt-1 mb-5">{p.desc}</p>
+
+                  <div className="flex items-end gap-2 flex-wrap">
+                    {p.originalPrice && <span className="text-base text-[#243037]/35 line-through mb-1">{p.originalPrice}</span>}
+                    <span className="font-display text-3xl font-bold text-[#243037]">{p.price}</span>
+                    {p.per && <span className="text-sm text-[#243037]/50 mb-1">{p.per}</span>}
+                  </div>
+                  <p className="text-[11px] text-[#243037]/45 mt-1">
+                    {p.off ? <><span className="text-[#FF5B05] font-semibold">Introductory · {p.off}</span> · </> : null}
+                    {p.setup === 'Custom' ? 'Custom setup fee' : `${p.setup} one-time setup`}
+                  </p>
+                  <p className="text-[11px] text-[#243037]/45 mt-0.5">{p.seats} · then per seat</p>
+
+                  <ul className="space-y-2 mt-6 mb-7 flex-1 pt-6 border-t border-[#243037]/8">
+                    {p.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-[13px] text-[#243037]/70">
+                        <i className="ri-check-line text-[#075056] mt-0.5 flex-shrink-0" />{f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <a
+                    href={BOOKING_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={p.highlight ? `${primaryButton} sm:w-full` : `${secondaryButton} sm:w-full`}
+                    style={p.highlight ? primaryButtonStyle : undefined}
+                  >
+                    {p.cta}
+                  </a>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-[#243037]/45 mt-5 text-center sm:text-left">Per-seat pricing is set on the demo call, based on team size.</p>
+          </div>
+        </section>
+
+        {/* ═══ CTA — Gradient Cloud panel, same as Services ═══ */}
+        <section className="relative px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+          <div
+            className="max-w-4xl mx-auto rounded-3xl p-8 sm:p-14 text-center relative overflow-hidden"
+            style={{
+              background: [
+                'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 40%)',
+                'linear-gradient(120deg, rgba(255,217,138,0.7), rgba(255,138,71,0.7), rgba(255,91,5,0.7), rgba(255,198,112,0.7))',
+              ].join(', '),
+              backgroundSize: '100% 100%, 300% 300%',
+              animation: 'gradient-shift 8s ease infinite',
+              backdropFilter: 'blur(24px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              boxShadow: '0 20px 60px rgba(255,91,5,0.25), inset 0 1px 0 rgba(255,255,255,0.4)',
+            }}
+          >
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-white mb-3 leading-tight">
+              See it with your own team in mind.
+            </h2>
+            <p className="text-white/80 text-[15px] sm:text-sm mb-7 max-w-md mx-auto leading-relaxed">
+              Thirty minutes. We walk through the hub, learn how your team runs, and show you what we&rsquo;d build.
             </p>
-            <div className="flex items-center justify-center gap-3">
-              <img src="/images/francis-fiel-roble-headshot.png" alt="Francis Fiel Roble" className="w-8 h-8 rounded-full object-cover border-2 border-white/30" />
-              <p className="text-xs text-white/60">Francis Fiel Roble · Founder, Huna Creatives</p>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+              <a
+                href={BOOKING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-full text-[13px] sm:text-xs font-semibold tracking-widest uppercase text-[#243037] bg-white whitespace-nowrap cursor-pointer transition-transform duration-300 hover:scale-105"
+              >
+                Book a Demo
+              </a>
+              <a
+                href="/hub/demo"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-full text-[13px] sm:text-xs font-semibold tracking-widest uppercase text-white border border-white/60 hover:bg-white/15 whitespace-nowrap transition-colors"
+              >
+                Try the Live Demo
+              </a>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── FEATURES + PROCESS ── */}
-      <section className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5" style={{ background: '#080c14' }}>
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Everything you need, ready to go</p>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">Your agency operations hub — built complete, launched fast.</h2>
-            <p className="text-gray-500 text-sm">Here's what's inside your hub — and how we get it into your hands.</p>
-          </div>
-
-          {/* Features grid */}
-          <div className="grid sm:grid-cols-2 gap-3 mb-12">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="flex items-start gap-3 bg-white/3 border border-white/8 rounded-xl p-4">
-                <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)' }}>
-                  <i className={`${f.icon} text-[#FF6B35] text-sm`}></i>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-white">{f.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Divider with label */}
-          <div className="flex items-center gap-4 mb-12">
-            <div className="flex-1 h-px bg-white/8" />
-            <span className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest whitespace-nowrap">How we get you there</span>
-            <div className="flex-1 h-px bg-white/8" />
-          </div>
-
-          {/* Process steps */}
-          <div className="relative grid sm:grid-cols-3 gap-8">
-            <div className="hidden sm:block absolute top-7 left-[calc(16.67%+28px)] right-[calc(16.67%+28px)] h-px" style={{ background: 'linear-gradient(90deg, rgba(255,107,53,0.3), rgba(255,107,53,0.1) 50%, rgba(255,107,53,0.3))' }} />
-            {[
-              { step: '01', icon: 'ri-chat-3-line', title: 'Discovery call', tag: '~1 week', desc: 'We map your org — roles, schedules, payment types, departments. Every detail that shapes your hub.' },
-              { step: '02', icon: 'ri-tools-line', title: 'We build your hub', tag: '2–4 weeks', desc: 'Your Sentro OS instance, configured around your exact structure — your rules, your roles, your modules.' },
-              { step: '03', icon: 'ri-rocket-line', title: 'Go live', tag: 'Ongoing', desc: 'We onboard your team, walk everyone through the platform, and stay hands-on beyond launch.' },
-            ].map(s => (
-              <div key={s.step} className="flex flex-col items-center text-center relative">
-                <div className="relative mb-5 z-10">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,107,53,0.1)', border: '1px solid rgba(255,107,53,0.2)' }}>
-                    <i className={`${s.icon} text-[#FF6B35] text-xl`}></i>
+        {/* ═══ FAQ ═══ */}
+        <section className="relative px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 pb-16 sm:pb-24">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#243037] mb-8 text-center">Questions.</h2>
+            <div className="space-y-3">
+              {FAQS.map((f, i) => {
+                const open = openFaq === i;
+                return (
+                  <div key={f.q} className="rounded-2xl" style={glassCardStyle}>
+                    <button
+                      onClick={() => setOpenFaq(open ? null : i)}
+                      aria-expanded={open}
+                      className="w-full flex items-center justify-between gap-4 text-left px-5 sm:px-6 py-4 cursor-pointer"
+                    >
+                      <span className="font-display text-[15px] sm:text-sm font-bold text-[#243037]">{f.q}</span>
+                      <i className={`ri-add-line text-lg text-[#243037]/50 flex-shrink-0 transition-transform duration-300 ${open ? 'rotate-45' : ''}`} />
+                    </button>
+                    {/* Always in the HTML (hidden when closed) so crawlers read
+                        every answer the FAQPage schema claims is on the page. */}
+                    <p hidden={!open} className="px-5 sm:px-6 pb-5 -mt-1 text-[15px] sm:text-sm text-[#243037]/60 leading-relaxed">{f.a}</p>
                   </div>
-                  <span className="absolute -top-2 -right-2 text-[9px] font-black text-[#FF6B35] bg-[#080c14] border border-[#FF6B35]/40 rounded-full w-5 h-5 flex items-center justify-center">{s.step}</span>
-                </div>
-                <span className="text-[10px] font-semibold text-[#FF6B35]/60 uppercase tracking-widest mb-1">{s.tag}</span>
-                <h3 className="font-bold text-white mb-2 text-sm">{s.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── PRICING ── */}
-      <section id="pricing" className="relative z-10 py-16 sm:py-24 px-6 border-t border-white/5" style={{ background: '#0d1829' }}>
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-3">Pricing</p>
-            <h2 className="text-3xl sm:text-4xl font-black mb-3 tracking-tight">One-time setup. Monthly base. Per seat.</h2>
-            <p className="text-gray-500 text-sm">You pay to have it built right, then a flat base + per seat. No surprises.</p>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {PLANS.map(p => (
-              <div key={p.name} className={`rounded-2xl p-6 border flex flex-col relative overflow-hidden ${p.highlight ? 'border-[#FF6B35]/50' : 'bg-white/3 border-white/10'}`}
-                style={p.highlight ? { background: 'linear-gradient(135deg, rgba(255,107,53,0.12) 0%, rgba(255,107,53,0.04) 100%)', boxShadow: '0 0 40px rgba(255,107,53,0.12)' } : {}}>
-                {p.highlight && (
-                  <>
-                    <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, #FF6B35, transparent)' }} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B35] mb-3">Most Popular</span>
-                  </>
-                )}
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="font-black text-lg text-white">{p.name}</h3>
-                  {p.off && (
-                    <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#FF6B35]/15 text-[#FF6B35]">{p.off}</span>
-                  )}
-                </div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-medium mb-4 px-2.5 py-1 rounded-lg w-fit bg-white/5 text-gray-500">
-                  <i className="ri-tools-line text-xs"></i>
-                  {p.setup === 'Custom' ? 'Custom setup fee' : `${p.setup} one-time setup`}
-                </div>
-                <div className="flex items-end gap-2 mb-1">
-                  {p.originalPrice && <span className="text-lg text-gray-600 line-through mb-0.5">{p.originalPrice}</span>}
-                  <span className="text-3xl font-black text-white">{p.price}</span>
-                  <span className="text-sm mb-1 text-gray-400">{p.per}</span>
-                </div>
-                {p.off && <p className="text-[11px] text-[#FF6B35]/80 font-medium mb-1">Introductory pricing</p>}
-                <p className="text-xs text-gray-600 mb-1">{p.seats} · <span className="italic">{p.perSeat}</span></p>
-                <p className="text-xs mt-3 mb-5 text-gray-500">{p.desc}</p>
-                <ul className="space-y-2 mb-6 flex-1">
-                  {p.features.map(f => (
-                    <li key={f} className="flex items-center gap-2 text-xs text-gray-400">
-                      <i className="ri-check-line flex-shrink-0 text-[#FF6B35]"></i>{f}
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={scrollToDemo}
-                  className="w-full py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer text-white"
-                  style={p.highlight
-                    ? { background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 24px rgba(255,107,53,0.3)' }
-                    : { background: 'rgba(255,107,53,0.12)', border: '1px solid rgba(255,107,53,0.25)' }}>
-                  {p.cta} →
-                </button>
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-xs text-gray-600 mt-5">Per-seat pricing discussed during your demo call based on team size.</p>
-        </div>
-      </section>
-
-      {/* ── CTA ── */}
-      <section ref={demoRef} className="relative z-10 py-16 sm:py-24 px-6 text-center border-t border-white/5">
-        <div style={{ background: 'radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255,107,53,0.1) 0%, transparent 70%)' }} className="absolute inset-0 pointer-events-none" />
-        <div className="relative max-w-xl mx-auto">
-          <p className="text-xs font-semibold text-[#FF6B35] uppercase tracking-widest mb-4">Get started</p>
-          <h2 className="text-3xl sm:text-4xl font-black mb-4 tracking-tight leading-tight">
-            Ready to give<br />your team its hub?
-          </h2>
-          <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-            Book a 30-minute demo. We walk through the platform, understand your workflow, and show you exactly what we'd build for your org.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="https://calendly.com/hunacreatives/30min" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 font-bold rounded-xl text-base text-white transition-all"
-              style={{ background: 'linear-gradient(135deg, #FF6B35, #e55a27)', boxShadow: '0 0 40px rgba(255,107,53,0.35)' }}>
-              <i className="ri-calendar-check-line"></i>
-              Book a Free Demo
-            </a>
-            <a href="/hub/demo"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-white/10 text-gray-400 font-medium rounded-xl hover:bg-white/5 transition-colors text-base">
-              <i className="ri-play-circle-line"></i>
-              Try the Live Demo
-            </a>
-          </div>
-          <p className="text-xs text-gray-600 mt-4">30 minutes · No commitment · We do the setup</p>
-          <p className="text-xs text-gray-700 mt-2">
-            A product by <a href="https://www.hunacreatives.com" className="text-gray-500 hover:text-white transition-colors">Huna Creatives</a>
-          </p>
-        </div>
-      </section>
-
-      <div className="relative z-10 border-t border-white/5">
-        <Footer isDark />
+        </section>
       </div>
+
+      <Footer isDark />
     </div>
   );
 }

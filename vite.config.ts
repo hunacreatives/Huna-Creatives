@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { resolve } from "node:path";
 import AutoImport from "unplugin-auto-import/vite";
@@ -6,8 +6,24 @@ import { VitePWA } from "vite-plugin-pwa";
 
 const base = process.env.BASE_PATH || "/";
 const isPreview = process.env.IS_PREVIEW ? true : false;
+// The plain SPA shell, emitted next to index.html. scripts/prerender.mjs
+// overwrites index.html with the prerendered home page, so everything that
+// needs the empty shell (hub/proposal routes via vercel.json, the service
+// worker's navigation fallback) points at app.html instead.
+const appShell = (): Plugin => ({
+  name: "huna-app-shell",
+  apply: "build",
+  enforce: "post",
+  generateBundle(_, bundle) {
+    const index = bundle["index.html"];
+    if (index && index.type === "asset") {
+      this.emitFile({ type: "asset", fileName: "app.html", source: index.source });
+    }
+  },
+});
+
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
   define: {
     __BASE_PATH__: JSON.stringify(base),
     __IS_PREVIEW__: JSON.stringify(isPreview),
@@ -66,7 +82,8 @@ export default defineConfig({
       ],
       dts: true,
     }),
-    VitePWA({
+    !isSsrBuild && appShell(),
+    !isSsrBuild && VitePWA({
       registerType: 'autoUpdate',
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -92,14 +109,19 @@ export default defineConfig({
       injectManifest: {
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        // index.html is rewritten after this manifest is built (prerender);
+        // the worker serves app.html for navigations instead.
+        globIgnores: ['index.html'],
       },
       devOptions: { enabled: false },
     }),
   ],
   base,
   build: {
-    sourcemap: true,
-    outDir: "out",
+    sourcemap: !isSsrBuild,
+    outDir: isSsrBuild ? "out-ssr" : "out",
+    // The SSR bundle only feeds scripts/prerender.mjs; public/ belongs in out/.
+    copyPublicDir: !isSsrBuild,
   },
   resolve: {
     alias: {
@@ -110,4 +132,4 @@ export default defineConfig({
     port: 3001,
     host: "0.0.0.0",
   },
-});
+}));

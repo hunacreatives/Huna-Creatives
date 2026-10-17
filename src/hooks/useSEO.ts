@@ -44,18 +44,46 @@ function upsertSchema(schema: object | object[]) {
   document.head.appendChild(script);
 }
 
-export function useSEO({
-  title,
-  description,
-  canonical,
-  ogImage = DEFAULT_OG_IMAGE,
-  ogType = 'website',
-  noIndex = false,
-  schema,
-}: SEOProps) {
+// Link previews need an absolute image URL; pages pass site paths.
+const absoluteUrl = (src: string) => (/^https?:\/\//.test(src) ? src : `${BASE_URL}${src.startsWith('/') ? '' : '/'}${src}`);
+
+export interface ResolvedSEO {
+  title: string;
+  description: string;
+  canonical: string;
+  ogImage: string;
+  ogType: string;
+  noIndex: boolean;
+  schema?: object | object[];
+}
+
+function resolveSEO({ title, description, canonical, ogImage = DEFAULT_OG_IMAGE, ogType = 'website', noIndex = false, schema }: SEOProps): ResolvedSEO {
+  return {
+    title: title.includes('Huna Creatives') ? title : `${title} | Huna Creatives`,
+    description,
+    canonical: canonical ? `${BASE_URL}${canonical}` : BASE_URL,
+    ogImage: absoluteUrl(ogImage),
+    ogType,
+    noIndex,
+    schema,
+  };
+}
+
+/**
+ * Build-time prerender (src/entry-server.tsx) reads the tags of the page it
+ * just rendered from here — effects don't run on the server, so the hook
+ * records them during render instead. Unused in the browser.
+ */
+export const prerenderSEO: { current: ResolvedSEO | null } = { current: null };
+
+export function useSEO(props: SEOProps) {
+  if (typeof window === 'undefined') prerenderSEO.current = resolveSEO(props);
+
+  const { title, description, canonical, ogImage, ogType, noIndex, schema } = props;
   useEffect(() => {
-    const fullTitle = title.includes('Huna Creatives') ? title : `${title} | Huna Creatives`;
-    const canonicalHref = canonical ? `${BASE_URL}${canonical}` : BASE_URL;
+    const seo = resolveSEO({ title, description, canonical, ogImage, ogType, noIndex, schema });
+    const fullTitle = seo.title;
+    const canonicalHref = seo.canonical;
 
     // Title
     document.title = fullTitle;
@@ -67,19 +95,19 @@ export function useSEO({
     upsertLink('canonical', canonicalHref);
 
     // Robots
-    upsertMeta('meta[name="robots"]', 'name', 'robots', noIndex ? 'noindex, nofollow' : 'index, follow');
+    upsertMeta('meta[name="robots"]', 'name', 'robots', seo.noIndex ? 'noindex, nofollow' : 'index, follow');
 
     // Open Graph
     upsertMeta('meta[property="og:title"]', 'property', 'og:title', fullTitle);
     upsertMeta('meta[property="og:description"]', 'property', 'og:description', description);
     upsertMeta('meta[property="og:url"]', 'property', 'og:url', canonicalHref);
-    upsertMeta('meta[property="og:type"]', 'property', 'og:type', ogType);
-    upsertMeta('meta[property="og:image"]', 'property', 'og:image', ogImage);
+    upsertMeta('meta[property="og:type"]', 'property', 'og:type', seo.ogType);
+    upsertMeta('meta[property="og:image"]', 'property', 'og:image', seo.ogImage);
 
     // Twitter
     upsertMeta('meta[name="twitter:title"]', 'name', 'twitter:title', fullTitle);
     upsertMeta('meta[name="twitter:description"]', 'name', 'twitter:description', description);
-    upsertMeta('meta[name="twitter:image"]', 'name', 'twitter:image', ogImage);
+    upsertMeta('meta[name="twitter:image"]', 'name', 'twitter:image', seo.ogImage);
 
     // Schema
     if (schema) upsertSchema(schema);

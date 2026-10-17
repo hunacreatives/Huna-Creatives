@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const [sop, shell] = await Promise.all([
     lookup(id),
-    fetch(`${origin}/index.html`).then(r => (r.ok ? r.text() : null)).catch(() => null),
+    fetch(`${origin}/app.html`).then(r => (r.ok ? r.text() : null)).catch(() => null),
   ]);
   if (!shell) return fallback();
 

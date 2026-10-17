@@ -4,7 +4,7 @@ import Navigation from '../../components/feature/Navigation';
 import Footer from '../home/components/Footer';
 import { useSEO } from '../../hooks/useSEO';
 
-const services = [
+export const services = [
   {
     icon: 'ri-palette-line',
     title: 'Brand Identity Design',
@@ -149,7 +149,7 @@ export default function ServicesPage() {
   useSEO({
     title: 'Creative Services — Branding, Social Media & Web Design',
     description:
-      'Brand identity design, social media content creation, email marketing design, and website visuals for premium brands. Strategy-led creative from Huna Creatives.',
+      'Brand identity, websites, social media, content, print and brand strategy, custom-built in Cebu. Starting prices on the page; custom quote in 24 hours.',
     canonical: '/services',
     schema: [
       {
@@ -344,7 +344,11 @@ export default function ServicesPage() {
                 <div>
                   <p className="text-2xl sm:text-3xl font-display font-bold text-[#243037]">
                     {market === null ? (
-                      <span className="inline-block w-24 h-6 rounded bg-[#243037]/10 animate-pulse" />
+                      <>
+                        <span className="inline-block w-24 h-6 rounded bg-[#243037]/10 animate-pulse" aria-hidden="true" />
+                        {/* Until the visitor's currency is known (and for crawlers, which never find out): both prices, unseen. */}
+                        <span className="sr-only">{featured.startingFromPH} in the Philippines, {featured.startingFrom} international</span>
+                      </>
                     ) : priceFor(featured)}
                   </p>
                   <p className="text-[11px] text-[#243037]/40">Starting price</p>
@@ -413,7 +417,10 @@ export default function ServicesPage() {
                   <div className="mt-6 flex items-center justify-between">
                     <span className="text-xs sm:text-[11px] font-semibold text-[#243037]/50">
                       {market === null ? (
-                        <span className="inline-block w-16 h-3 rounded bg-[#243037]/10 animate-pulse" />
+                        <>
+                          <span className="inline-block w-16 h-3 rounded bg-[#243037]/10 animate-pulse" aria-hidden="true" />
+                          <span className="sr-only">From {service.startingFromPH} in the Philippines, {service.startingFrom} international</span>
+                        </>
                       ) : (
                         <>From <span className="text-[#075056]">{priceFor(service)}</span></>
                       )}

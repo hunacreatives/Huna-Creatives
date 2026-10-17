@@ -22,10 +22,13 @@ const DemoContext = createContext<DemoContextValue>({
   setDemoRole: () => {},
 });
 
+// No localStorage during the build-time prerender (Node).
+const stored = (key: string) => (typeof window === 'undefined' ? null : localStorage.getItem(key));
+
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [isDemo, setIsDemo] = useState(() => localStorage.getItem('hub_demo') === '1');
+  const [isDemo, setIsDemo] = useState(() => stored('hub_demo') === '1');
   const [demoRole, setDemoRoleState] = useState<DemoRole>(
-    () => (localStorage.getItem('hub_demo_role') as DemoRole) || 'owner'
+    () => (stored('hub_demo_role') as DemoRole) || 'owner'
   );
 
   const demoSignIn = (passcode: string) => {

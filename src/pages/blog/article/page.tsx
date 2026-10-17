@@ -29,8 +29,9 @@ const ArticlePage = () => {
     canonical: `/blog/${slug}`,
     ogImage: article?.heroImage,
     ogType: 'article',
+    noIndex: !article,
     schema: article
-      ? {
+      ? [{
           '@context': 'https://schema.org',
           '@type': 'BlogPosting',
           '@id': `https://www.hunacreatives.com/blog/${slug}/#article`,
@@ -39,7 +40,7 @@ const ArticlePage = () => {
           image: `https://www.hunacreatives.com${article.heroImage}`,
           url: `https://www.hunacreatives.com/blog/${slug}`,
           datePublished: article.isoDate,
-          dateModified: article.isoDate,
+          dateModified: article.updatedIsoDate ?? article.isoDate,
           // Person, not Organization: posts carry real bylines, and a named
           // author with a stated role is what E-E-A-T actually rewards.
           author: {
@@ -61,7 +62,15 @@ const ArticlePage = () => {
             '@type': 'WebPage',
             '@id': `https://www.hunacreatives.com/blog/${slug}`,
           },
-        }
+        }, {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.hunacreatives.com' },
+            { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://www.hunacreatives.com/blog' },
+            { '@type': 'ListItem', position: 3, name: article.title, item: `https://www.hunacreatives.com/blog/${slug}` },
+          ],
+        }]
       : undefined,
   });
 
@@ -104,7 +113,7 @@ const ArticlePage = () => {
         {/* Hero */}
         <section className="relative pt-24 sm:pt-28 pb-0 px-4 sm:px-6">
           <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px]"
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[min(900px,100%)] h-[1px]"
             style={{
               background:
                 'linear-gradient(90deg, transparent, rgba(249,115,22,0.4), transparent)',

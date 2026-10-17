@@ -1039,7 +1039,9 @@ const SEO_MAP: Record<string, { title: string; description: string }> = {
 
 const PortfolioCategoryPage = () => {
   const { categoryId } = useParams();
-  const [category, setCategory] = useState(null);
+  // Derived during render (not in an effect) so the prerendered HTML and the
+  // first client frame show the category, not "Category not found".
+  const category = categoryDataMap[categoryId ?? ''] ?? null;
 
   const seoData = SEO_MAP[categoryId ?? ''] ?? {
     title: 'Portfolio',
@@ -1069,17 +1071,6 @@ const PortfolioCategoryPage = () => {
   /* ── Scroll to top when category changes ── */
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [categoryId]);
-
-  /* ── Load category safely with error handling ── */
-  useEffect(() => {
-    try {
-      const found = categoryDataMap[categoryId ?? ''];
-      setCategory(found || null);
-    } catch (err) {
-      console.error('Error loading category:', err);
-      setCategory(null);
-    }
   }, [categoryId]);
 
   if (!category) {

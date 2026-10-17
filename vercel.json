@@ -55,17 +55,124 @@
       "source": "/blog/print-design-still-matters",
       "destination": "/blog/peak-coffee-roasters-branding-cebu-it-park",
       "permanent": true
+    },
+    {
+      "source": "/for-agencies",
+      "destination": "/sentro",
+      "permanent": true
+    },
+    {
+      "source": "/crewly",
+      "destination": "/sentro",
+      "permanent": true
     }
   ],
   "rewrites": [
     {
       "source": "/hub/sop/:id",
-      "missing": [{ "type": "query", "key": "spa" }],
+      "missing": [
+        {
+          "type": "query",
+          "key": "spa"
+        }
+      ],
       "destination": "/api/sop-preview?id=:id"
     },
     {
       "source": "/(.*)",
-      "destination": "/"
+      "destination": "/app.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/hub",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/hub/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/p/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/q/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/c/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/pay/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/status/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/smartgrid-dashboard",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/quote-requested",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/app.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ]
 }

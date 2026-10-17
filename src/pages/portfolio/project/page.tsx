@@ -4,6 +4,9 @@ import { useEffect } from 'react';
 import Navigation from '../../../components/feature/Navigation';
 import Footer from '../../home/components/Footer';
 import { projectDataMap } from './data';
+import { useSEO } from '../../../hooks/useSEO';
+
+const SITE = 'https://www.hunacreatives.com';
 
 const ProjectPage = () => {
   const { projectSlug } = useParams<{ projectSlug: string }>();
@@ -13,6 +16,55 @@ const ProjectPage = () => {
   }, [projectSlug]);
 
   const project = projectDataMap[projectSlug ?? ''];
+
+  // Subtitles run long; descriptions are cut at a word near 155 characters.
+  const description = project
+    ? (project.subtitle.length > 158 ? `${project.subtitle.slice(0, 155).replace(/\s+\S*$/, '')}…` : project.subtitle)
+    : 'Explore branding and design work by Huna Creatives.';
+
+  useSEO({
+    title: project ? `${project.title}: ${project.scope}` : 'Project Not Found',
+    description,
+    canonical: `/portfolio/project/${projectSlug}`,
+    ogImage: project?.heroImage,
+    noIndex: !project,
+    schema: project
+      ? [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'CreativeWork',
+            '@id': `${SITE}/portfolio/project/${project.slug}/#work`,
+            name: project.title,
+            headline: `${project.title}: ${project.scope}`,
+            description: project.subtitle,
+            image: `${SITE}${project.heroImage}`,
+            url: `${SITE}/portfolio/project/${project.slug}`,
+            genre: project.categoryLabel,
+            keywords: project.tags.join(', '),
+            creator: { '@id': `${SITE}/#organization` },
+            ...(project.testimonial
+              ? {
+                  review: {
+                    '@type': 'Review',
+                    reviewBody: project.testimonial.quote,
+                    author: { '@type': 'Person', name: project.testimonial.author },
+                  },
+                }
+              : {}),
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: SITE },
+              { '@type': 'ListItem', position: 2, name: 'Portfolio', item: `${SITE}/portfolio` },
+              { '@type': 'ListItem', position: 3, name: project.categoryLabel, item: `${SITE}/portfolio/${project.category}` },
+              { '@type': 'ListItem', position: 4, name: project.title, item: `${SITE}/portfolio/project/${project.slug}` },
+            ],
+          },
+        ]
+      : undefined,
+  });
 
   if (!project) {
     return (
