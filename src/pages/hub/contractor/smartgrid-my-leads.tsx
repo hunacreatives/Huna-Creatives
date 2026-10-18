@@ -20,6 +20,7 @@ interface WorkedLead {
   next_call_goal: 'email' | 'meeting' | 'bill' | null;
   assigned_to: string | null;
   meeting_scheduled: boolean;
+  meeting_scheduled_at: string | null;
   bill_received: boolean;
   email_reply_received: boolean;
   email_reply_received_at: string | null;
@@ -118,7 +119,7 @@ export default function SmartGridMyLeadsPage() {
           const chunk = ids.slice(i, i + 150);
           const [leadRes, callRes] = await Promise.all([
             supabase.from('hub_project_leads')
-              .select('id, account_name, primary_contact, phone, email, status, callback_date, callback_time, next_call_goal, assigned_to, meeting_scheduled, bill_received, email_reply_received, email_reply_received_at')
+              .select('id, account_name, primary_contact, phone, email, status, callback_date, callback_time, next_call_goal, assigned_to, meeting_scheduled, meeting_scheduled_at, bill_received, email_reply_received, email_reply_received_at')
               .in('id', chunk),
             supabase.from('hub_project_activity')
               .select('id, entity_id, user_id, created_at, meta, hub_users:user_id(full_name)')
@@ -144,19 +145,24 @@ export default function SmartGridMyLeadsPage() {
     load();
   }, [hubUser?.id]);
 
-  const [savingReply, setSavingReply] = useState<string | null>(null);
-  // A reply to the email sent from alex@smartgridwestern.com is what SmartGrid pays for
-  const setReply = async (lead: WorkedLead, replied: boolean) => {
-    const changes = { email_reply_received: replied, email_reply_received_at: replied ? new Date().toISOString() : null };
-    setSavingReply(lead.id);
+  const [savingTag, setSavingTag] = useState<string | null>(null);
+  const saveTag = async (lead: WorkedLead, changes: Partial<WorkedLead>) => {
+    setSavingTag(lead.id);
     setLeads(prev => new Map(prev).set(lead.id, { ...lead, ...changes }));
     const { error: err } = await supabase.from('hub_project_leads').update(changes).eq('id', lead.id);
-    setSavingReply(null);
+    setSavingTag(null);
     if (err) {
       setLeads(prev => new Map(prev).set(lead.id, lead));
       alert(`Couldn't save: ${err.message}`);
     }
   };
+  // A reply to the email sent from alex@smartgridwestern.com is what SmartGrid pays for
+  const setReply = (lead: WorkedLead, replied: boolean) =>
+    saveTag(lead, { email_reply_received: replied, email_reply_received_at: replied ? new Date().toISOString() : null });
+  const setGoal = (lead: WorkedLead, goal: WorkedLead['next_call_goal']) => saveTag(lead, { next_call_goal: goal });
+  // Fixes a meeting tagged by mistake (or one booked after the call)
+  const setMeeting = (lead: WorkedLead, booked: boolean) =>
+    saveTag(lead, { meeting_scheduled: booked, meeting_scheduled_at: booked ? new Date().toISOString() : null });
 
   const noteSaved = (callId: number, meta: CallEntry['meta']) =>
     setCalls(prev => prev.map(c => (c.id === callId ? { ...c, meta } : c)));
@@ -239,6 +245,11 @@ export default function SmartGridMyLeadsPage() {
             {rows.map(({ lead, history, myLast }) => {
               const o = OUTCOME[myLast.meta?.outcome || ''];
               const open = openId === lead.id;
+              // Only offer the meeting tag where someone actually picked up (or it's already tagged)
+              const canTagMeeting = lead.meeting_scheduled
+                || history.some(h => h.meta?.outcome !== 'voicemail' && h.meta?.outcome !== 'no_answer');
+              // The goal decides what the callback asks for next time, so only its owner can change it
+              const myCallback = lead.status === 'callback_pending' && lead.assigned_to === hubUser?.id;
               return (
                 <div key={lead.id} className="bg-white rounded-xl border border-gray-100 shadow-sm">
                   <button onClick={() => setOpenId(open ? null : lead.id)} className="w-full text-left px-4 py-3 space-y-1">
@@ -252,18 +263,18 @@ export default function SmartGridMyLeadsPage() {
                     <p className="text-xs text-gray-400">
                       Your last call {formatManilaDateTime(myLast.created_at)}
                       {lead.status === 'callback_pending' && lead.callback_date && (
-                        <span className="text-amber-700"> · Callback {formatShiftDay(lead.callback_date)}{lead.callback_time ? ` ${lead.callback_time.slice(0, 5)}` : ''}{lead.next_call_goal ? ` · ${GOAL[lead.next_call_goal]}` : ''}</span>
+                        <span className="text-amber-700"> · Callback {formatShiftDay(lead.callback_date)}{lead.callback_time ? ` ${lead.callback_time.slice(0, 5)}` : ''}{!myCallback && lead.next_call_goal ? ` · ${GOAL[lead.next_call_goal]}` : ''}</span>
                       )}
-                      {lead.meeting_scheduled && <span className="text-violet-700"> · Meeting booked</span>}
                       {lead.bill_received && <span className="text-sky-700"> · Bill received</span>}
                     </p>
                     {myLast.meta?.notes && !open && <p className="text-xs text-gray-600 truncate">{myLast.meta.notes}</p>}
                   </button>
-                  {lead.email && (
-                    <div className="px-4 pb-3 -mt-1">
+                  {(lead.email || canTagMeeting || myCallback) && (
+                    <div className="px-4 pb-3 -mt-1 flex flex-wrap gap-2">
+                      {lead.email && (
                       <button
                         onClick={() => setReply(lead, !lead.email_reply_received)}
-                        disabled={savingReply === lead.id}
+                        disabled={savingTag === lead.id}
                         className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-60 ${
                           lead.email_reply_received
                             ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
@@ -276,6 +287,38 @@ export default function SmartGridMyLeadsPage() {
                           ? `Replied to our email${lead.email_reply_received_at ? ` · ${formatManilaDateTime(lead.email_reply_received_at)}` : ''}`
                           : 'Mark: replied to our email'}
                       </button>
+                      )}
+                      {canTagMeeting && (
+                        <button
+                          onClick={() => setMeeting(lead, !lead.meeting_scheduled)}
+                          disabled={savingTag === lead.id}
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-60 ${
+                            lead.meeting_scheduled
+                              ? 'bg-violet-50 border-violet-200 text-violet-700'
+                              : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-700'
+                          }`}
+                          title="Tap if a meeting was booked with Chris or Dan. Tagged by mistake? Tap again to undo."
+                        >
+                          <i className={lead.meeting_scheduled ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'} />
+                          {lead.meeting_scheduled
+                            ? `Meeting booked${lead.meeting_scheduled_at ? ` · ${formatManilaDateTime(lead.meeting_scheduled_at)}` : ''}`
+                            : 'Mark: meeting booked'}
+                        </button>
+                      )}
+                      {myCallback && (
+                        <select
+                          value={lead.next_call_goal || ''}
+                          onChange={e => setGoal(lead, (e.target.value || null) as WorkedLead['next_call_goal'])}
+                          disabled={savingTag === lead.id}
+                          aria-label="Callback goal"
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-amber-200 bg-amber-50 text-amber-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                        >
+                          <option value="">Callback goal: none</option>
+                          {Object.entries(GOAL).map(([value, label]) => (
+                            <option key={value} value={value}>Callback goal: {label}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   )}
                   {open && (

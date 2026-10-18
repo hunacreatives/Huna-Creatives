@@ -333,6 +333,8 @@ export default function AdminProjectsPage() {
   // Collapsible detail sections (all closed by default)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [focusedSection, setFocusedSection] = useState<string | null>(null);
+  // Focused views (e.g. SmartGrid's Lead Tracker) hide the task list — don't carry one over to another project
+  useEffect(() => { setFocusedSection(null); }, [activeId]);
   // Collapsed task groups in workspace
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const toggleSection = (key: string) => setOpenSections(s => ({ ...s, [key]: !s[key] }));

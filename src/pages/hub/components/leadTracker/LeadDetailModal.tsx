@@ -46,6 +46,9 @@ export default function LeadDetailModal({ lead, callLog, callers, onClose, onCha
   const toggleReply = (checked: boolean) =>
     update({ email_reply_received: checked, email_reply_received_at: checked ? new Date().toISOString() : null });
 
+  const toggleMeeting = (checked: boolean) =>
+    update({ meeting_scheduled: checked, meeting_scheduled_at: checked ? new Date().toISOString() : null });
+
   const toggleBill = (checked: boolean) =>
     update({ bill_received: checked, bill_received_at: checked ? new Date().toISOString() : null });
 
@@ -91,11 +94,20 @@ export default function LeadDetailModal({ lead, callLog, callers, onClose, onCha
             {lead.status === 'callback_pending' && (
               <>
                 <Field label="Callback">{lead.callback_date || '–'}{lead.callback_time ? ` · ${lead.callback_time.slice(0, 5)}` : ''}</Field>
-                <Field label="Goal">{lead.next_call_goal ? GOAL_LABEL[lead.next_call_goal] : '–'}</Field>
+                <Field label="Goal">
+                  <select
+                    value={lead.next_call_goal || ''}
+                    onChange={e => update({ next_call_goal: (e.target.value || null) as TrackerLead['next_call_goal'] })}
+                    disabled={saving}
+                    className="w-full px-2 py-1 border border-gray-200 rounded-md text-sm"
+                  >
+                    <option value="">–</option>
+                    {Object.entries(GOAL_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </Field>
               </>
             )}
             <Field label="Follow-up email">{lead.follow_up_email_sent ? 'Sent' : '–'}</Field>
-            <Field label="Meeting booked">{lead.meeting_scheduled ? 'Yes' : '–'}</Field>
           </div>
 
           {lead.email && (
@@ -105,6 +117,12 @@ export default function LeadDetailModal({ lead, callLog, callers, onClose, onCha
               {lead.email_reply_received_at && <span className="text-[11px] text-emerald-700 ml-auto">{formatManilaDateTime(lead.email_reply_received_at)}</span>}
             </label>
           )}
+
+          <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg bg-violet-50 border border-violet-100">
+            <input type="checkbox" checked={lead.meeting_scheduled} disabled={saving} onChange={e => toggleMeeting(e.target.checked)} className="w-4 h-4 rounded" />
+            <span className="text-sm text-violet-800 font-medium">Meeting booked</span>
+            {lead.meeting_scheduled_at && <span className="text-[11px] text-violet-700 ml-auto">{formatManilaDateTime(lead.meeting_scheduled_at)}</span>}
+          </label>
 
           <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg bg-sky-50 border border-sky-100">
             <input type="checkbox" checked={lead.bill_received} disabled={saving} onChange={e => toggleBill(e.target.checked)} className="w-4 h-4 rounded" />
