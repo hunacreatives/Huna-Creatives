@@ -32,6 +32,8 @@ Deno.serve(async (req) => {
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: FROM_EMAIL,
+        // Only contact@ is a real mailbox; replies to the sender address would bounce.
+        reply_to: 'contact@hunacreatives.com',
         to: [to],
         ...(Array.isArray(cc) && cc.length > 0 ? { cc } : {}),
         subject: `Your ${service_type} questionnaire from Huna Creatives`,

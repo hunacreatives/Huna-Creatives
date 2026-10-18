@@ -24,6 +24,6 @@ export function receiptEmail(o: {
           + p('Tap the image to view it full size.', { small: true, muted: true })
         : '',
     ].join(''),
-    note: 'This email is not monitored. For concerns, email contact@hunacreatives.com.',
+    note: 'Questions? Just reply to this email.',
   });
 }

@@ -195,6 +195,8 @@ Deno.serve(async (req) => {
       signal: controller.signal,
       body: JSON.stringify({
         from: FROM_EMAIL,
+        // Only contact@ is a real mailbox; replies to the sender address would bounce.
+        reply_to: 'contact@hunacreatives.com',
         to: toList,
         ...(ccList.length > 0 ? { cc: ccList } : {}),
         bcc: ['contact@hunacreatives.com'],

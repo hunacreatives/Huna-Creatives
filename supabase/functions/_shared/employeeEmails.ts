@@ -5,7 +5,8 @@ import { esc, hunaEmail, iconTiles, label, p, tracker, type StageState } from '.
 export const PAYOUTS_URL = 'https://www.hunacreatives.com/hub/contractor/payouts';
 
 /** Employees can't reply to these addresses; HR answers on Slack. */
-export const EMPLOYEE_NOTE = 'This inbox isn’t monitored. Questions? Message HR on Slack.';
+/** Replies go to contact@ (see reply_to on each send); HR questions are quickest on Slack. */
+export const EMPLOYEE_NOTE = 'Questions? Message HR on Slack, or reply to this email.';
 
 export type PayslipStage = 'received' | 'approved' | 'paid';
 

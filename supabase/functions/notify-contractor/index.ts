@@ -99,6 +99,8 @@ async function sendNotification(payout_id: string, type: 'hr_approved' | 'disput
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: `Huna Creatives Payroll <${FROM_EMAIL}>`,
+        // Only contact@ is a real mailbox; replies to the sender address would bounce.
+        reply_to: 'contact@hunacreatives.com',
         to: contractor.email,
         subject: `Your payslip flag is resolved — ${periodLabel}`,
         html,

@@ -114,6 +114,8 @@ Deno.serve(async (req) => {
 
     const emailPayload = {
       from: `Huna Creatives HR <${FROM_EMAIL}>`,
+      // Only contact@ is a real mailbox; replies to the sender address would bounce.
+      reply_to: 'contact@hunacreatives.com',
       to: contractor.email,
       cc: 'contact@hunacreatives.com',
       subject: `Your ${title}`,

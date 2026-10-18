@@ -112,6 +112,8 @@ async function run(assignment_id: string) {
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: `Huna Creatives HR <${FROM_EMAIL}>`,
+      // Only contact@ is a real mailbox; replies to the sender address would bounce.
+      reply_to: 'contact@hunacreatives.com',
       to: contractor.email,
       subject: `Action Required: ${doc?.title} — Please Sign`,
       html,

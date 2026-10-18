@@ -104,6 +104,8 @@ async function sendNotification(payout_id: string, type: 'submitted' | 'dispute'
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: `Huna Creatives Payroll <${FROM_EMAIL}>`,
+      // Only contact@ is a real mailbox; replies to the sender address would bounce.
+      reply_to: 'contact@hunacreatives.com',
       to: NOTIFY_EMAILS,
       subject: `Payslip Submitted — ${contractor.full_name} | ${periodLabel}`,
       html,

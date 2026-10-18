@@ -17,6 +17,8 @@ async function sendOvertimeApprovedEmail(contractor_name: string, hours: number,
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: FROM_EMAIL,
+      // Only contact@ is a real mailbox; replies to the sender address would bounce.
+      reply_to: 'contact@hunacreatives.com',
       to: NOTIFY_EMAILS,
       subject: `Overtime Approved: ${contractor_name}`,
       html: `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;padding:32px;margin:0">

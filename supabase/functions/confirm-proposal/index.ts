@@ -56,6 +56,8 @@ serve(async (req) => {
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: FROM,
+        // Only contact@ is a real mailbox; replies to the sender address would bounce.
+        reply_to: 'contact@hunacreatives.com',
         to: ['contact@hunacreatives.com'],
         subject: `Proposal confirmed — ${proposalName}`,
         html: proposalConfirmedEmail(clientName, proposalName),

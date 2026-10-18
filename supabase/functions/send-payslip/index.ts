@@ -420,6 +420,8 @@ async function sendPayslip(payout_id: string) {
     },
     body: JSON.stringify({
       from: `Huna Creatives Payroll <${FROM_EMAIL}>`,
+      // Only contact@ is a real mailbox; replies to the sender address would bounce.
+      reply_to: 'contact@hunacreatives.com',
       to: contractor.email,
       subject: `Payment Receipt — ${periodLabel} | ${fmt(payout.final_payout)} | Huna Creatives`,
       html,

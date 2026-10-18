@@ -31,6 +31,6 @@ export function reminderEmail(o: {
       o.payUrl ? p('After paying, tap below to send us your receipt.') : '',
     ].join(''),
     buttons: o.payUrl ? [{ label: 'Submit proof of payment', url: o.payUrl }] : [],
-    note: 'This email is not monitored. For concerns, email contact@hunacreatives.com.',
+    note: 'Questions? Just reply to this email.',
   });
 }

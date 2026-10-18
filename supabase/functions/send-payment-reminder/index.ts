@@ -53,6 +53,8 @@ Deno.serve(async (req) => {
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: FROM_EMAIL,
+        // Only contact@ is a real mailbox; replies to the sender address would bounce.
+        reply_to: 'contact@hunacreatives.com',
         to: [to],
         subject: `Payment Reminder — ${project_name}`,
         html,

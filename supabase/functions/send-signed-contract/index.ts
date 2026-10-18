@@ -95,6 +95,8 @@ async function run(assignment_id: string) {
 
   const payload: any = {
     from: `Huna Creatives HR <${FROM_EMAIL}>`,
+    // Only contact@ is a real mailbox; replies to the sender address would bounce.
+    reply_to: 'contact@hunacreatives.com',
     to: contractor.email,
     subject: `Your signed copy — ${doc?.title}`,
     html: emailHtml,

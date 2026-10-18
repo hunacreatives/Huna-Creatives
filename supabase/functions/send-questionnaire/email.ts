@@ -13,6 +13,6 @@ export function questionnaireEmail(o: { clientName: string; serviceType: string;
       o.shared ? p('This link is shared with everyone cc’d. Once one person submits, it’s locked and the rest can only view the submitted answers.', { small: true, muted: true }) : '',
     ].join(''),
     buttons: [{ label: 'Fill out your questionnaire', url: o.formUrl }],
-    note: 'This email is not monitored. For concerns, email contact@hunacreatives.com.',
+    note: 'Questions? Just reply to this email.',
   });
 }
