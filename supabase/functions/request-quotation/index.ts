@@ -13,6 +13,7 @@
 // Deploy WITHOUT jwt verification so a bare click works:
 //   supabase functions deploy request-quotation --no-verify-jwt
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { quoteRequestedEmail } from './email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SLACK_BOT_TOKEN = Deno.env.get('SLACK_BOT_TOKEN') ?? '';
@@ -31,12 +32,6 @@ const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-function esc(s: string): string {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!
-  ));
-}
 
 type Outcome = 'ok' | 'already' | 'invalid' | 'error';
 function redirect(s: Outcome): Response {
@@ -113,12 +108,6 @@ Deno.serve(async (req) => {
       }] },
     ];
 
-    const row = (label: string, value: string) =>
-      `<tr>
-        <td style="padding:7px 0;font-size:13px;color:#8a8a8a;width:96px;vertical-align:top;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">${label}</td>
-        <td style="padding:7px 0;font-size:13px;color:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">${value}</td>
-      </tr>`;
-
     await Promise.all([
       ...ADMIN_SLACK_IDS.map((id) => slackDm(id, slackText, blocks).catch(() => {})),
       fetch('https://api.resend.com/emails', {
@@ -129,50 +118,10 @@ Deno.serve(async (req) => {
           to: [TEAM_EMAIL],
           reply_to: sub.email,
           subject: `Quotation requested - ${sub.name}${sub.service ? ` (${sub.service})` : ''}`,
-          html: `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f2f2f0;-webkit-text-size-adjust:100%">
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f2f2f0">
-    <tr><td align="center" style="padding:40px 16px">
-      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
-
-        <tr><td style="background:#111111;padding:26px 40px;border-bottom:3px solid #FF6B35">
-          <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" height="30" style="display:block;height:30px;width:auto;border:0;outline:0;text-decoration:none">
-        </td></tr>
-
-        <tr><td style="padding:36px 40px 28px">
-          <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#FF6B35;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">Formal quotation requested</p>
-          <h1 style="margin:0 0 18px;font-family:Georgia,'Times New Roman',serif;font-size:22px;font-weight:400;color:#1a1a1a">${esc(sub.name)} wants a quote</h1>
-          <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#4a4a4a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-            They clicked <strong>Request a Formal Quotation</strong> in the reply we sent. Draft one from their enquiry in the hub.
-          </p>
-
-          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-top:1px solid #ececec;border-bottom:1px solid #ececec;margin-bottom:20px">
-            ${row('Name', esc(sub.name))}
-            ${row('Email', `<a href="mailto:${esc(sub.email)}" style="color:#FF6B35;text-decoration:none">${esc(sub.email)}</a>`)}
-            ${sub.service ? row('Service', esc(sub.service)) : ''}
-            ${sub.subject ? row('Subject', esc(sub.subject)) : ''}
-            ${row('Enquiry sent', fmtDate(sub.created_at))}
-            ${row('Quote asked', fmtDate(now))}
-            ${row('Status', esc(sub.status ?? 'new'))}
-          </table>
-
-          <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#8a8a8a;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">Their message</p>
-          <div style="background:#f7f7f5;border-radius:6px;padding:16px 18px;font-size:14px;line-height:1.75;color:#2a2a2a;font-family:Georgia,'Times New Roman',serif;white-space:pre-wrap">${esc(sub.message ?? '')}</div>
-
-          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:24px"><tr><td>
-            <a href="${HUB}/hub/admin/contact" style="display:inline-block;background:#111111;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:14px 28px;border-radius:3px;text-decoration:none">Open the inbox &rarr;</a>
-          </td></tr></table>
-        </td></tr>
-
-        <tr><td style="background:#111111;padding:22px 40px">
-          <span style="font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">Huna Creatives</span>
-          <span style="font-size:11px;color:#555555;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif"> &middot; Cebu City, Philippines</span>
-        </td></tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body></html>`,
+          html: quoteRequestedEmail({
+            name: sub.name, email: sub.email, service: sub.service, subject: sub.subject,
+            message: sub.message, status: sub.status, enquirySent: fmtDate(sub.created_at), quoteAsked: fmtDate(now),
+          }),
         }),
       }).catch(() => {}),
     ]);

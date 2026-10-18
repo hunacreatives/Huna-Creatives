@@ -7,3 +7,6 @@ dist/
 .env
 /gallery-dl/
 .claude/worktrees/
+
+# Local email gallery (scripts/email-previews.ts)
+email-previews/

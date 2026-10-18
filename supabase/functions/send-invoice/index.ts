@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { requireOwner, adminClient, authErrorResponse } from '../_shared/requireCaller.ts';
-import { followTheWork } from '../_shared/followFooter.ts';
+import { invoiceEmail } from './email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives Billing <billing@hunacreatives.com>';
@@ -102,8 +102,6 @@ Deno.serve(async (req) => {
     // Only render "− Total paid" in the summary when the arithmetic is real.
     const paymentsDeducted = Math.abs(lineItemsTotal - totalPaid - amountDue) < 0.005;
     const isPaid = amountDue <= 0;
-    const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
-    const logoUrlDark = 'https://www.hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png';
     const fmtDate = (d: string | null | undefined) => d
       ? new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
       : '—';
@@ -162,208 +160,32 @@ Deno.serve(async (req) => {
       return at - bt;
     });
 
-    const paymentsRows = paymentsOrdered.map((p: any) => `
-      <tr>
-        <td style="padding:10px 16px;font-size:13px;color:#374151;border-top:1px solid #f3f4f6;">
-          ${new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-        </td>
-        <td style="padding:10px 16px;font-size:13px;color:#374151;border-top:1px solid #f3f4f6;">
-          ${p.notes ? p.notes : 'Payment received'}
-        </td>
-        <td style="padding:10px 16px;font-size:13px;color:#059669;font-weight:600;text-align:right;border-top:1px solid #f3f4f6;">
-          ${fmt(p.amount)}
-        </td>
-      </tr>`).join('');
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light dark">
-  <meta name="supported-color-schemes" content="light dark">
-  <style>
-    .logo-dark { display: none; }
-    @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
-    [data-ogsc] .logo-light { display: none !important; }
-    [data-ogsc] .logo-dark { display: block !important; }
-  </style>
-</head>
-<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
-
-          <!-- Header -->
-          <tr>
-            <td style="background:#111827;padding:28px 40px;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td valign="middle">
-                    <img src="${logoUrl}" alt="Huna Creatives" height="34" class="logo-light" style="display:block;" />
-                    <img src="${logoUrlDark}" alt="Huna Creatives" height="34" class="logo-dark" style="display:none;" />
-                  </td>
-                  <td align="right" valign="middle" style="text-align:right;">
-                    <p style="margin:0;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;">Invoice</p>
-                    <p style="margin:4px 0 0;color:#ffffff;font-size:16px;font-weight:700;">#${String(invoice_number).padStart(4, '0')}</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Meta row -->
-          <tr>
-            <td style="padding:28px 40px 0;border-bottom:1px solid #f3f4f6;">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;padding-bottom:12px;border-bottom:1px solid #f3f4f6;">
-                <div>
-                  <p style="margin:0 0 6px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">From</p>
-                  <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">Huna Creatives</p>
-                  <div style="margin-top:6px;font-size:12px;color:#6b7280;line-height:1.7;">billing@hunacreatives.com<br/>www.hunacreatives.com</div>
-                </div>
-                <div style="text-align:right;">
-                  <p style="margin:0 0 6px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Bill To</p>
-                  <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">${billedTo}</p>
-                  <div style="margin-top:6px;font-size:12px;color:#6b7280;line-height:1.7;">${to ? `${to}${bill_to_address ? '<br/>' : ''}` : ''}${bill_to_address ? bill_to_address.replace(/\n/g, '<br/>') : ''}</div>
-                </div>
-              </div>
-              <div style="margin-top:14px;padding:14px 16px;background:#f9fafb;border-radius:10px;margin-bottom:20px;">
-                <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#111827;">${project_name}</p>
-                ${service ? `<p style="margin:0;font-size:12px;color:#6b7280;">${service}</p>` : ''}
-                ${start_date ? `<p style="margin:4px 0 0;font-size:12px;color:#9ca3af;">Started ${new Date(start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>` : ''}
-              </div>
-            </td>
-          </tr>
-
-          <!-- Dates row -->
-          <tr>
-            <td style="padding:20px 40px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="width:50%;padding:0;">
-                    <p style="margin:0 0 4px;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Issue Date</p>
-                    <p style="margin:0;font-size:13px;font-weight:700;color:#111827;">${issueDateFmt}</p>
-                  </td>
-                  <td style="width:50%;padding:0;text-align:right;">
-                    <p style="margin:0 0 4px;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Due Date</p>
-                    <p style="margin:0;font-size:13px;font-weight:700;color:#111827;">${dueDateFmt}</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Line items -->
-          <tr>
-            <td style="padding:16px 40px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-                <thead>
-                  <tr>
-                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Description</th>
-                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:right;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${lineItems.map((i: any) => `<tr>
-                    <td style="padding:14px 16px;font-size:13px;color:#111827;font-weight:500;border-top:1px solid #f3f4f6;">${i.description}</td>
-                    <td style="padding:14px 16px;font-size:14px;font-weight:700;color:#111827;text-align:right;border-top:1px solid #f3f4f6;">${fmt(parseFloat(i.amount) || 0)}</td>
-                  </tr>`).join('')}
-                </tbody>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Payments received -->
-          ${showPayments && paymentsRows ? `
-          <tr>
-            <td style="padding:16px 40px 0;">
-              <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;padding-bottom:8px;">Payments Received</div>
-              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-                <thead>
-                  <tr>
-                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Date</th>
-                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:left;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Note</th>
-                    <th style="padding:10px 16px;font-size:11px;color:#6b7280;font-weight:600;text-align:right;text-transform:uppercase;letter-spacing:0.05em;background:#f9fafb;">Payment</th>
-                  </tr>
-                </thead>
-                <tbody>${paymentsRows}</tbody>
-              </table>
-            </td>
-          </tr>` : ''}
-
-          <!-- Balance summary -->
-          <tr>
-            <td style="padding:20px 40px 28px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:14px 18px;">
-                <tr>
-                  <td colspan="2" style="padding:0 0 8px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Invoice Summary</td>
-                </tr>
-                <tr>
-                  <td style="padding:7px 0;font-size:13px;color:#6b7280;">Subtotal</td>
-                  <td style="padding:7px 0;font-size:13px;color:#6b7280;text-align:right;white-space:nowrap;">${fmt(lineItemsTotal)}</td>
-                </tr>
-                ${showPayments && paymentsDeducted ? `<tr>
-                  <td style="padding:7px 0;font-size:13px;color:#6b7280;">Total paid so far</td>
-                  <td style="padding:7px 0;font-size:13px;color:#059669;font-weight:600;text-align:right;white-space:nowrap;">− ${fmt(totalPaid)}</td>
-                </tr>` : ''}
-                <tr>
-                  <td colspan="2" style="padding:4px 0 0;"><div style="border-top:2px solid #e5e7eb;"></div></td>
-                </tr>
-                <tr>
-                  <td style="padding:12px 0 0;font-size:15px;font-weight:700;color:#111827;">Amount due</td>
-                  <td style="padding:12px 0 0;font-size:18px;font-weight:800;color:${isPaid ? '#059669' : '#FF6B35'};text-align:right;white-space:nowrap;">${isPaid ? 'Paid in full' : fmt(amountDue)}</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          ${message ? `
-          <tr>
-            <td style="padding:0 40px 8px;">
-              <div style="background:#fffbf5;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;">
-                <p style="margin:0;font-size:13px;color:#92400e;">${message}</p>
-              </div>
-            </td>
-          </tr>` : ''}
-
-          ${notes ? `
-          <tr>
-            <td style="padding:0 40px 16px;">
-              <div style="background:#f9fafb;border-radius:10px;padding:14px 16px;">
-                <p style="margin:0;font-size:12px;color:#6b7280;font-style:italic;">${notes}</p>
-              </div>
-            </td>
-          </tr>` : ''}
-
-          <!-- Payment options -->
-          ${!isPaid ? `
-          <tr>
-            <td style="padding:0 40px 12px;">
-              <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:18px 18px 16px;text-align:center;">
-                <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#111827;">Pay securely online</p>
-                <p style="margin:0 0 14px;font-size:12px;color:#6b7280;">Tap below and scan the QR code with GCash, Maya, or your bank's app. Your payment is confirmed automatically.</p>
-                <a href="${payUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#111827;color:#ffffff;font-size:14px;font-weight:700;padding:12px 22px;border-radius:10px;text-decoration:none;">
-                  Pay Now →
-                </a>
-              </div>
-            </td>
-          </tr>` : ''}
-
-          <!-- Footer -->
-          <tr>
-            <td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:18px 40px;text-align:center;">
-              <p style="margin:0;font-size:11px;color:#9ca3af;">Questions? Email us at <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a> · © ${new Date().getFullYear()} Huna Creatives</p>
-              <p style="margin:8px 0 0;font-size:11px">${followTheWork('#9ca3af')}</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+    const html = invoiceEmail({
+      invoiceNo: String(invoice_number).padStart(4, '0'),
+      billedTo,
+      toLine: toList.join(', '),
+      billToAddress: bill_to_address,
+      projectName: project_name,
+      service,
+      startDate: start_date ? new Date(start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null,
+      issueDate: issueDateFmt,
+      dueDate: dueDateFmt,
+      lineItems,
+      payments: showPayments ? paymentsOrdered.map((p: any) => ({
+        date: new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        note: p.notes ? p.notes : 'Payment received',
+        amount: fmt(p.amount),
+      })) : [],
+      subtotal: fmt(lineItemsTotal),
+      totalPaid: fmt(totalPaid),
+      showPaidRow: showPayments && paymentsDeducted,
+      amountDue: fmt(amountDue),
+      isPaid,
+      message,
+      notes,
+      payUrl,
+      fmt,
+    });
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);

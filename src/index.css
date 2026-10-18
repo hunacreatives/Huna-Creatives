@@ -205,6 +205,30 @@
   pointer-events: none;
 }
 
+/* ── Reply email canvas (contact inbox) ──────────────────────────────────────
+   Mirrors renderLetter() in supabase/functions/_shared/emailLayout.ts, so what
+   you type is what the client receives. Also used read-only in the Sent tab. */
+.email-canvas { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #333232; text-align: center; word-break: break-word; }
+.email-canvas .ProseMirror { outline: none; min-height: 240px; }
+.email-canvas p { margin: 0 0 16px; }
+.email-canvas h2 { font-size: 17px; line-height: 1.35; font-weight: 700; color: #140f0b; margin: 32px 0 12px; padding-top: 28px; border-top: 1px solid #ebe1d6; }
+.email-canvas .ProseMirror > h2:first-child, .email-canvas.email-read > h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.email-canvas ul, .email-canvas ol { display: inline-block; margin: 0 0 16px; padding-left: 22px; text-align: left; }
+.email-canvas ul { list-style: disc; }
+.email-canvas ol { list-style: decimal; }
+.email-canvas li { margin: 0 0 6px; padding-left: 2px; }
+.email-canvas li > p { margin: 0; }
+.email-canvas a { color: #140f0b; text-decoration: underline; text-decoration-color: #ef6323; }
+.email-canvas strong { font-weight: 700; }
+.email-canvas hr { border: 0; border-top: 1px solid #ebe1d6; margin: 12px 0 28px; }
+.email-canvas hr.ProseMirror-selectednode { border-top-color: #ef6323; }
+.email-canvas.email-read > :last-child { margin-bottom: 0; }
+.email-canvas p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #b0b6b8;
+  pointer-events: none;
+}
+
 /* ── Comment editor (Tiptap) ─────────────────────────────────────────────── */
 .comment-editor .ProseMirror {
   outline: none;

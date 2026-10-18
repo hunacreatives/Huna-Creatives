@@ -7,6 +7,8 @@ import {
   computeQuoteTotals, formatQuoteCurrency,
   type QuoteCurrency, type QuoteLineItem, type ProposalStatus,
 } from '@/lib/quotation';
+import { bodyToHtml, emailBodyPlain } from '@/lib/emailBody';
+import ReplyComposer, { type ReplyPayload } from './ReplyComposer';
 
 type SubmissionStatus = 'new' | 'read' | 'replied' | 'archived';
 type ActiveTab = 'inbox' | 'sent' | 'quotations' | 'proposals';
@@ -74,220 +76,6 @@ const proposalStatusColors: Record<ProposalStatus, string> = {
 
 const statusOptions: SubmissionStatus[] = ['new', 'read', 'replied', 'archived'];
 
-function buildReplyTemplate(name: string, service: string | null) {
-  const serviceRef = service ? ` about ${service}` : '';
-  return `Hi ${name},
-
-Thank you for reaching out${serviceRef} — we'd love to help.
-
-Here's a quick overview of how we work:
-
-**Social Media Design — from ₱10,000 / month**
-- 8 deliverables per month (feed posts, carousels, or Stories sets)
-- On-brand templates so your feed stays consistent
-- Caption writing and hashtag research
-- Scheduling, publishing, and a monthly performance snapshot
-- 2 revision rounds per deliverable
-
-The best next step is a short call so we can tailor a package to your goals. You can also request a formal quotation using the button below.
-
-Looking forward to connecting!
-
-Warm regards,
-The Huna Creatives Team`;
-}
-
-// Inline **bold** for the reply preview.
-function renderInline(s: string): React.ReactNode {
-  return s.split(/(\*\*[^*]+\*\*)/g).map((p, i) => {
-    const m = p.match(/^\*\*([^*]+)\*\*$/);
-    return m ? <strong key={i}>{m[1]}</strong> : <span key={i}>{p}</span>;
-  });
-}
-
-// Mirrors renderRichBody() in the send-contact-reply edge function so the
-// preview matches the email the client receives.
-function renderRichText(text: string): React.ReactNode[] {
-  const lines = text.split('\n').map((l) => l.trim());
-  const blocks: React.ReactNode[] = [];
-  let bullets: string[] = [];
-  const flush = (key: string) => {
-    if (!bullets.length) return;
-    blocks.push(
-      <ul key={key} className="list-disc pl-5 my-2 space-y-1">
-        {bullets.map((b, i) => <li key={i}>{renderInline(b)}</li>)}
-      </ul>,
-    );
-    bullets = [];
-  };
-  lines.forEach((line, idx) => {
-    const bullet = line.match(/^[-*•]\s+(.*)$/);
-    if (bullet) { bullets.push(bullet[1]); return; }
-    flush(`ul-${idx}`);
-    if (line === '') { blocks.push(<div key={idx} className="h-2" />); return; }
-    const heading = line.match(/^\*\*(.+)\*\*$/);
-    if (heading) {
-      blocks.push(<p key={idx} className="font-bold text-gray-900 mt-2 mb-1">{heading[1]}</p>);
-      return;
-    }
-    blocks.push(<p key={idx} className="mb-2">{renderInline(line)}</p>);
-  });
-  flush('ul-end');
-  return blocks;
-}
-
-function ReplyPreview({ body, withQuote }: { body: string; withQuote: boolean }) {
-  return (
-    <div className="flex flex-col gap-1 min-h-0">
-      <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Email preview</label>
-      <div className="border border-gray-200 rounded-lg px-4 py-4 bg-white text-sm text-gray-700 leading-relaxed overflow-y-auto flex-1 min-h-[200px]"
-        style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
-        {body.trim() ? renderRichText(body) : <span className="text-gray-400 italic">Nothing to preview yet</span>}
-        <div className="mt-4 flex flex-col items-start gap-2">
-          <span className="w-64 text-center bg-gray-900 text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-2 rounded">
-            Schedule a Meeting →
-          </span>
-          {withQuote && (
-            <span className="w-64 text-center bg-[#FF6B35] text-white text-[10px] font-semibold uppercase tracking-wide px-3 py-2 rounded">
-              Request a Formal Quotation →
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface ComposeModalProps {
-  submission: ContactSubmission | null;
-  to: string; name: string; subject: string; body: string;
-  setTo: (v: string) => void; setName: (v: string) => void;
-  setSubject: (v: string) => void; setBody: (v: string) => void;
-  sending: boolean; sendResult: 'success' | 'error' | null;
-  onSend: () => void; onClose: () => void;
-}
-
-function ComposeModal(p: ComposeModalProps) {
-  const { submission } = p;
-  const fmt = (d: string) =>
-    new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const canSend = !!p.subject.trim() && !!p.body.trim() && (submission ? true : !!p.to.trim());
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:p-6" onClick={p.onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-      <div className="relative bg-white sm:rounded-2xl shadow-2xl w-full sm:max-w-5xl h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-8 w-8 rounded-full bg-[#FF6B35] flex items-center justify-center flex-shrink-0">
-              <i className="ri-mail-send-line text-white text-sm" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
-                {submission ? `Reply to ${submission.name}` : 'New message'}
-              </p>
-              <p className="text-[11px] text-gray-400 truncate">{submission ? submission.email : p.to || 'No recipient yet'}</p>
-            </div>
-          </div>
-          <button onClick={p.onClose} className="text-gray-300 hover:text-gray-500 cursor-pointer flex-shrink-0">
-            <i className="ri-close-line text-xl" />
-          </button>
-        </div>
-
-        {/* Two panes */}
-        <div className="flex-1 min-h-0 grid lg:grid-cols-2 overflow-hidden">
-
-          {/* Left — context + live preview */}
-          <div className="border-b lg:border-b-0 lg:border-r border-gray-100 p-6 overflow-y-auto bg-gray-50/60 flex flex-col gap-5">
-            {submission ? (
-              <div>
-                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide mb-2">Their message</p>
-                {submission.service && (
-                  <span className="inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full bg-orange-50 text-[#FF6B35] mb-3">{submission.service}</span>
-                )}
-                {!submission.service && submission.subject && (
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{submission.subject}</p>
-                )}
-                <div className="bg-white rounded-xl border border-gray-100 p-4 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {submission.message}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-3">{fmt(submission.created_at)}</p>
-                {submission.quote_requested_at && (
-                  <div className="flex items-start gap-2 bg-orange-50 border border-orange-100 rounded-xl p-3 mt-4">
-                    <i className="ri-price-tag-3-line text-[#FF6B35] mt-0.5" />
-                    <div>
-                      <p className="text-xs font-semibold text-[#FF6B35]">Formal quotation requested</p>
-                      <p className="text-[11px] text-gray-500">{fmt(submission.quote_requested_at)}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">To (email)</label>
-                  <input type="email" value={p.to} onChange={e => p.setTo(e.target.value)} placeholder="client@email.com"
-                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 bg-white" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Name</label>
-                  <input type="text" value={p.name} onChange={e => p.setName(e.target.value)} placeholder="Client name"
-                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 bg-white" />
-                </div>
-              </>
-            )}
-            <ReplyPreview body={p.body} withQuote={!!submission} />
-          </div>
-
-          {/* Right — editor */}
-          <div className="p-6 overflow-y-auto flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Subject</label>
-              <input type="text" value={p.subject} onChange={e => p.setSubject(e.target.value)} placeholder="Subject line"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300" />
-            </div>
-            <div className="flex flex-col gap-1 flex-1 min-h-0">
-              <label className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Message</label>
-              <textarea value={p.body} onChange={e => p.setBody(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-orange-300 leading-relaxed resize-none flex-1 min-h-[300px]" />
-              <p className="text-[11px] text-gray-400 mt-1">
-                <code className="bg-gray-100 px-1 rounded">- </code> for bullets, <code className="bg-gray-100 px-1 rounded">**text**</code> for bold.
-                {submission
-                  ? ' Schedule a Meeting and Request a Quotation buttons are added automatically.'
-                  : ' The Schedule a Meeting button is added automatically.'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-          {p.sendResult === 'error'
-            ? <p className="text-xs text-red-500">Failed to send. Please try again.</p>
-            : p.sendResult === 'success'
-              ? <p className="text-xs text-emerald-600">Sent!</p>
-              : <span />}
-          <div className="flex gap-2">
-            <button onClick={p.onClose}
-              className="px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
-              Cancel
-            </button>
-            <button onClick={p.onSend} disabled={p.sending || !canSend}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF6B35] hover:bg-[#e55a27] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-              {p.sending ? <><i className="ri-loader-4-line animate-spin" /> Sending…</>
-                : p.sendResult === 'success' ? <><i className="ri-check-line" /> Sent!</>
-                : <><i className="ri-send-plane-line" /> Send Email</>}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function ContactSubmissionsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<ActiveTab>('inbox');
@@ -303,12 +91,6 @@ export default function ContactSubmissionsPage() {
 
   // Compose (reply)
   const [composing, setComposing] = useState(false);
-  const [composeSubject, setComposeSubject] = useState('');
-  const [composeBody, setComposeBody] = useState('');
-  const [composeTo, setComposeTo] = useState('');
-  const [composeName, setComposeName] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sendResult, setSendResult] = useState<'success' | 'error' | null>(null);
 
   // Sent
   const [replies, setReplies] = useState<ContactReply[]>([]);
@@ -412,53 +194,26 @@ export default function ContactSubmissionsPage() {
   };
 
   const openCompose = (s: ContactSubmission) => {
-    const serviceRef = s.service ? ` — ${s.service}` : '';
-    setComposeTo(s.email);
-    setComposeName(s.name);
-    setComposeSubject(`Re: Your inquiry${serviceRef}`);
-    setComposeBody(buildReplyTemplate(s.name, s.service));
-    setSendResult(null);
+    setSelected(s);
     setComposing(true);
   };
 
   const openBlankCompose = () => {
     setSelected(null);
-    setComposeTo('');
-    setComposeName('');
-    setComposeSubject('');
-    setComposeBody(buildReplyTemplate('there', null));
-    setSendResult(null);
     setComposing(true);
   };
 
-  const sendReply = async () => {
-    const toEmail = selected?.email ?? composeTo;
-    if (!toEmail) return;
-    setSending(true);
-    setSendResult(null);
-    try {
-      const { error } = await supabase.functions.invoke('send-contact-reply', {
-        body: {
-          submission_id: selected?.id ?? null,
-          to_email: toEmail,
-          to_name: selected?.name ?? composeName,
-          subject: composeSubject,
-          body: composeBody,
-        },
-      });
-      if (error) throw error;
-      setSendResult('success');
-      fetchReplies();
-      if (selected) {
-        const updated = { ...selected, status: 'replied' as SubmissionStatus };
-        setSelected(updated);
-        setSubmissions(prev => prev.map(s => s.id === selected.id ? updated : s));
-      }
-      setTimeout(() => { setComposing(false); setSendResult(null); }, 1800);
-    } catch {
-      setSendResult('error');
-    } finally {
-      setSending(false);
+  // Throws on failure so the composer keeps the draft and shows the error.
+  const sendReply = async (payload: ReplyPayload) => {
+    const { error } = await supabase.functions.invoke('send-contact-reply', {
+      body: { submission_id: selected?.id ?? null, ...payload },
+    });
+    if (error) throw error;
+    fetchReplies();
+    if (selected) {
+      const updated = { ...selected, status: 'replied' as SubmissionStatus };
+      setSelected(updated);
+      setSubmissions(prev => prev.map(s => s.id === selected.id ? updated : s));
     }
   };
 
@@ -663,7 +418,7 @@ export default function ContactSubmissionsPage() {
                   </div>
                   <p className="text-xs text-gray-400 truncate mb-1">{r.to_email}</p>
                   <p className="text-xs font-medium text-gray-600 truncate">{r.subject}</p>
-                  <p className="text-xs text-gray-400 truncate mt-1">{r.body}</p>
+                  <p className="text-xs text-gray-400 truncate mt-1">{emailBodyPlain(r.body)}</p>
                 </button>
               ))}
             </div>
@@ -679,9 +434,9 @@ export default function ContactSubmissionsPage() {
                   </button>
                 </div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{selectedReply.subject}</p>
-                <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-3">
-                  {selectedReply.body}
-                </div>
+                {/* bodyToHtml escapes everything and only emits known tags */}
+                <div className="email-canvas email-read bg-gray-50 rounded-xl p-4 !text-[13px] mb-3 max-h-[60vh] overflow-y-auto"
+                  dangerouslySetInnerHTML={{ __html: bodyToHtml(selectedReply.body) }} />
                 <p className="text-[11px] text-gray-400">Sent {fmt(selectedReply.sent_at)}</p>
               </div>
             )}
@@ -875,13 +630,8 @@ export default function ContactSubmissionsPage() {
 
       {/* ── Compose / Reply Modal ── */}
       {composing && (
-        <ComposeModal
-          submission={selected}
-          to={composeTo} name={composeName} subject={composeSubject} body={composeBody}
-          setTo={setComposeTo} setName={setComposeName} setSubject={setComposeSubject} setBody={setComposeBody}
-          sending={sending} sendResult={sendResult}
-          onSend={sendReply} onClose={() => { setComposing(false); setSendResult(null); }}
-        />
+        <ReplyComposer key={selected?.id ?? 'new'} submission={selected}
+          onSend={sendReply} onClose={() => setComposing(false)} />
       )}
 
       {/* ── Send Quotation Modal ── */}

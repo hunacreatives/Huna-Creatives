@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { FRANCIS_SIG } from '../_shared/francisSig.ts';
-import { followTheWork } from '../_shared/followFooter.ts';
+import { signedCopyEmail, teamSignedEmail } from './email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -213,36 +213,11 @@ async function run(slug: string) {
   const pdfBytes = await generatePdf(buildContractHtml(contract), `${safeTitle} - Signed`);
 
   // ── Notify admin ──
-  const adminHtml = `<!DOCTYPE html><html><head>
-<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
-<style>
-  .logo-dark { display: none; }
-  @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
-  [data-ogsc] .logo-light { display: none !important; }
-  [data-ogsc] .logo-dark { display: block !important; }
-</style>
-</head><body style="margin:0;padding:0;background:#f0ede8;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
-<div style="max-width:520px;margin:40px auto;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-  <div style="background:#111111;padding:24px 36px">
-    <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna" height="24" class="logo-light" style="display:block;border:0">
-    <img src="https://hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png" alt="Huna" height="24" class="logo-dark" style="display:none;border:0">
-  </div>
-  <div style="height:3px;background:linear-gradient(90deg,#16a34a,#4ade80)"></div>
-  <div style="padding:32px 36px">
-    <p style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#16a34a;margin:0 0 8px">Contract Signed</p>
-    <h1 style="font-size:20px;font-weight:800;color:#111827;margin:0 0 20px">${contract.title}</h1>
-    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 18px;margin-bottom:24px">
-      <p style="font-size:13px;color:#374151;margin:0 0 6px"><strong>Client:</strong> ${clientName}</p>
-      <p style="font-size:13px;color:#374151;margin:0 0 6px"><strong>Signed as:</strong> ${contract.signer_name}</p>
-      <p style="font-size:13px;color:#374151;margin:0 0 6px"><strong>Date:</strong> ${signedAt}</p>
-      ${clientEmail ? `<p style="font-size:13px;color:#374151;margin:0"><strong>Email:</strong> ${clientEmail}</p>` : ''}
-    </div>
-    <a href="${contractUrl}" style="display:inline-block;padding:12px 28px;background:#111827;color:#fff;font-size:13px;font-weight:700;text-decoration:none;border-radius:6px">View Signed Contract →</a>
-  </div>
-  <div style="padding:16px 36px;background:#fafafa;border-top:1px solid #f3f4f6">
-    <p style="font-size:11px;color:#9ca3af;margin:0">© ${new Date().getFullYear()} Huna Creatives</p>
-  </div>
-</div></body></html>`;
+  const signed = {
+    title: contract.title ?? 'Contract', clientName, signerName: contract.signer_name ?? clientName,
+    signedAt, clientEmail, contractUrl,
+  };
+  const adminHtml = teamSignedEmail(signed);
 
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -253,50 +228,7 @@ async function run(slug: string) {
   if (!clientEmail) { console.log('No client email — skipping client notification'); return; }
 
   // ── Send signed copy to client ──
-  const clientHtml = `<!DOCTYPE html><html><head>
-<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
-<style>
-  .logo-dark { display: none; }
-  @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
-  [data-ogsc] .logo-light { display: none !important; }
-  [data-ogsc] .logo-dark { display: block !important; }
-</style>
-</head><body style="margin:0;padding:0;background:#f0ede8;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif">
-<div style="max-width:560px;margin:40px auto;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-  <div style="background:#111111;padding:28px 40px">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td>
-        <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" height="28" class="logo-light" style="display:block;border:0">
-        <img src="https://hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png" alt="Huna Creatives" height="28" class="logo-dark" style="display:none;border:0">
-      </td>
-      <td align="right"><span style="font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#FF6B35;border:1px solid rgba(255,107,53,0.35);padding:5px 10px">SIGNED</span></td>
-    </tr></table>
-  </div>
-  <div style="height:3px;background:linear-gradient(90deg,#D64F1E 0%,#ff9a72 100%)"></div>
-  <div style="padding:36px 40px 32px">
-    <p style="font-size:15px;font-weight:600;color:#111827;margin:0 0 16px">Hi ${firstName},</p>
-    <p style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 16px">
-      Thank you for signing your contract with Huna Creatives! We're excited to work with you.
-      ${pdfBytes ? 'Your signed copy is attached to this email as a PDF.' : 'You can view your signed contract using the button below.'}
-    </p>
-    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 18px;margin:0 0 24px">
-      <p style="font-size:14px;font-weight:700;color:#111827;margin:0 0 6px">${contract.title}</p>
-      <p style="font-size:12px;color:#6b7280;margin:0 0 4px">Signed by: <strong style="color:#374151">${contract.signer_name}</strong></p>
-      <p style="font-size:12px;color:#6b7280;margin:0">Date: <strong style="color:#374151">${signedAt}</strong></p>
-    </div>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px"><tr>
-      <td align="center">
-        <a href="${contractUrl}" style="display:inline-block;padding:12px 32px;background:#D64F1E;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:6px">View Signed Contract</a>
-      </td>
-    </tr></table>
-    <p style="font-size:13px;color:#374151;line-height:1.7;margin:0">If you have any questions, don't hesitate to reach out. We'll be in touch soon with next steps.</p>
-  </div>
-  <div style="padding:20px 40px;background:#fafafa;border-top:1px solid #f3f4f6">
-    <p style="font-size:11px;color:#9ca3af;margin:0 0 4px">Questions? <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af">contact@hunacreatives.com</a></p>
-    <p style="margin:8px 0 4px;font-size:11px">${followTheWork('#9ca3af')}</p>
-    <p style="font-size:11px;color:#d1d5db;margin:0">© ${new Date().getFullYear()} Huna Creatives · Cebu, Philippines</p>
-  </div>
-</div></body></html>`;
+  const clientHtml = signedCopyEmail({ ...signed, firstName, pdfAttached: !!pdfBytes });
 
   const clientPayload: any = {
     from: FROM_EMAIL,

@@ -1,4 +1,4 @@
-import { followTheWork } from '../_shared/followFooter.ts';
+import { questionnaireEmail } from './email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const FROM_EMAIL = 'Huna Creatives <hello@hunacreatives.com>';
@@ -21,62 +21,11 @@ Deno.serve(async (req) => {
     }
 
     const formUrl = `${BASE_URL}/q/${token}`;
-    const logoUrl = 'https://www.hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png';
-    const logoUrlDark = 'https://www.hunacreatives.com/images/547b59870e776a20eb28e4f20931787c.png';
 
-    const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
-<style>
-  .logo-dark { display: none; }
-  @media (prefers-color-scheme: dark) { .logo-light { display: none !important; } .logo-dark { display: block !important; } }
-  [data-ogsc] .logo-light { display: none !important; }
-  [data-ogsc] .logo-dark { display: block !important; }
-</style>
-</head>
-<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 16px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
-
-        <tr><td style="background:#111827;padding:24px 36px;">
-          <img src="${logoUrl}" alt="Huna Creatives" height="24" class="logo-light" style="display:block;" />
-          <img src="${logoUrlDark}" alt="Huna Creatives" height="24" class="logo-dark" style="display:none;" />
-        </td></tr>
-
-        <tr><td style="padding:32px 36px 24px;">
-          <h1 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#111827;">Hi ${client_name} 👋</h1>
-          <p style="margin:0 0 16px;font-size:14px;color:#6b7280;line-height:1.6;">
-            ${intro_message ? intro_message : `Thank you for reaching out to Huna Creatives! To help us give you the best proposal for your <strong>${service_type}</strong> project, we'd love to learn more about your needs.`}
-          </p>
-          <p style="margin:0 0 ${Array.isArray(cc) && cc.length > 0 ? '8px' : '24px'};font-size:14px;color:#6b7280;line-height:1.6;">
-            We've put together a short questionnaire (${question_count || 'a few'} questions) — it takes about 5 minutes to fill out.
-          </p>
-          ${Array.isArray(cc) && cc.length > 0 ? `<p style="margin:0 0 24px;font-size:13px;color:#9ca3af;line-height:1.6;">This link is shared with everyone cc'd — once one person submits, it's locked and the rest can only view the submitted answers.</p>` : ''}
-          <a href="${formUrl}" style="display:inline-block;background:#FF6B35;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:10px;text-decoration:none;">
-            Fill out your questionnaire →
-          </a>
-        </td></tr>
-
-        <tr><td style="padding:0 36px 32px;">
-          <div style="background:#f9fafb;border-radius:10px;padding:14px 16px;">
-            <p style="margin:0;font-size:12px;color:#9ca3af;">Or copy this link into your browser:</p>
-            <p style="margin:4px 0 0;font-size:11px;color:#6b7280;word-break:break-all;">${formUrl}</p>
-          </div>
-        </td></tr>
-
-        <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:16px 36px;text-align:center;">
-          <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
-          <p style="margin:8px 0 4px;font-size:11px">${followTheWork('#9ca3af')}</p>
-          <p style="margin:0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} Huna Creatives · hello@hunacreatives.com</p>
-        </td></tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+    const html = questionnaireEmail({
+      clientName: client_name, serviceType: service_type, introMessage: intro_message,
+      questionCount: question_count, formUrl, shared: Array.isArray(cc) && cc.length > 0,
+    });
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { followTheWork } from '../_shared/followFooter.ts';
+import { autoReply, teamLeadEmail, type LeadForEmail } from './email.ts';
 
 // Meta Lead Ads webhook (Page → "leadgen" field).
 // For every Instant Form lead: fetch the answers from the Graph API, save the
@@ -49,12 +49,6 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9₱+]/g, '');
 function pretty(v: string): string {
   const hit = OPTIONS.find((o) => norm(o) === norm(v));
   return hit ?? v.replace(/_/g, ' ').trim();
-}
-
-function esc(s: unknown): string {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!
-  ));
 }
 
 const json = (body: unknown, status = 200) =>
@@ -144,107 +138,6 @@ function manilaTime(iso: string): string {
   });
 }
 
-// ── Emails ──────────────────────────────────────────────────────────────────
-
-const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif";
-const SERIF = "Georgia,'Times New Roman',serif";
-
-function shell(title: string, rows: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="x-apple-disable-message-reformatting">
-  <title>${esc(title)}</title>
-  <style>
-    @media only screen and (max-width:600px){
-      .email-wrapper{padding:0!important}
-      .email-body{padding:32px 20px!important}
-      .email-header{padding:24px 20px!important}
-      .email-footer{padding:20px!important}
-    }
-  </style>
-</head>
-<body style="margin:0;padding:0;background:#f2f2f0;-webkit-text-size-adjust:100%">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#f2f2f0">
-    <tr><td align="center" class="email-wrapper" style="padding:40px 16px">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:560px;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)">
-        <tr><td class="email-header" style="background:#111111;padding:28px 40px;border-bottom:3px solid #FF6B35">
-          <img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" height="32"
-               style="display:block;height:32px;width:auto;border:0;outline:0;text-decoration:none">
-        </td></tr>
-        <tr><td class="email-body" style="padding:44px 40px 36px;background:#ffffff">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">${rows}</table>
-        </td></tr>
-        <tr><td class="email-footer" style="background:#111111;padding:24px 40px">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
-            <tr>
-              <td style="font-family:${SANS};font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</td>
-              <td align="right" style="font-family:${SANS};font-size:11px"><a href="mailto:contact@hunacreatives.com" style="color:#FF6B35;text-decoration:none">contact@hunacreatives.com</a></td>
-            </tr>
-            <tr><td style="font-family:${SANS};font-size:11px;color:#555555;padding-top:4px">Cebu City, Philippines</td><td align="right" style="padding-top:4px">${followTheWork()}</td></tr>
-          </table>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
-
-const para = (html: string) =>
-  `<tr><td style="padding:0 0 16px;font-size:15px;line-height:1.75;color:#2a2a2a;font-family:${SERIF}">${html}</td></tr>`;
-
-function summaryTable(rows: [string, string][]): string {
-  const trs = rows.filter(([, v]) => v).map(([k, v]) =>
-    `<tr><td style="padding:6px 16px 6px 0;color:#777777;width:130px;vertical-align:top">${esc(k)}</td><td style="padding:6px 0;color:#1a1a1a">${esc(v)}</td></tr>`).join('');
-  return `<tr><td style="padding:0 0 20px"><table cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:100%;background:#f7f7f5;border-radius:4px;padding:12px 18px;font-family:${SANS};font-size:13px;line-height:1.5">${trs}</table></td></tr>`;
-}
-
-function howWeReach(channel: string, phone: string): string {
-  switch (channel) {
-    case 'Phone call': return phone ? `call you at ${phone}` : 'call you';
-    case 'Viber': return phone ? `message you on Viber at ${phone}` : 'message you on Viber';
-    case 'Text / SMS': return phone ? `text you at ${phone}` : 'email you';
-    // A Page can't start a Messenger chat with a lead, so text them and invite them to message first.
-    case 'Messenger': return phone ? `text you at ${phone}` : 'email you';
-    case 'Email': return 'email you';
-    default: return 'get in touch';
-  }
-}
-
-function autoReply(l: Lead): { subject: string; html: string; text: string } {
-  const first = l.name.split(/\s+/)[0] || 'there';
-  const reach = howWeReach(l.channel, l.phone);
-  const subject = 'We received your website inquiry';
-  const rows = [
-    para(`Hi ${esc(first)},`),
-    para('Thanks for reaching out about a website. Here is what you sent us:'),
-    summaryTable([['Business', l.business], ['Budget', l.budget], ['Timeline', l.timeline]]),
-    para(`What happens next: we will ${esc(reach)} within one working day to ask a few questions about your business. Your fixed quote follows within 24 hours of that conversation. No hidden fees.`),
-    ...(l.channel === 'Messenger'
-      ? [para('Facebook only lets businesses reply on Messenger after you message them first. If you prefer Messenger, send us a quick hello at <a href="https://m.me/hunacreatives" style="color:#FF6B35">m.me/hunacreatives</a> and we will continue there.')]
-      : []),
-    para('While you wait, here is some of our recent work: <a href="https://hunacreatives.com/portfolio" style="color:#FF6B35">hunacreatives.com/portfolio</a>'),
-    para('We post new branding, social and web projects on <a href="https://www.instagram.com/hunacreatives/" style="color:#FF6B35">Instagram</a> and <a href="https://www.facebook.com/hunacreatives/" style="color:#FF6B35">Facebook</a> (@hunacreatives).'),
-    para('If anything is urgent, just reply to this email.'),
-    para('Huna Creatives<br><span style="color:#777777">Cebu, Philippines</span>'),
-  ].join('');
-  const text = [
-    `Hi ${first},`, '',
-    'Thanks for reaching out about a website. Here is what you sent us:',
-    `Business: ${l.business} · Budget: ${l.budget} · Timeline: ${l.timeline}`, '',
-    `What happens next: we will ${reach} within one working day to ask a few questions about your business. Your fixed quote follows within 24 hours of that conversation. No hidden fees.`, '',
-    ...(l.channel === 'Messenger' ? ['Facebook only lets businesses reply on Messenger after you message them first. If you prefer Messenger, send us a quick hello at m.me/hunacreatives and we will continue there.', ''] : []),
-    'While you wait, here is some of our recent work: hunacreatives.com/portfolio', '',
-    'We post new branding, social and web projects on Instagram and Facebook: instagram.com/hunacreatives and facebook.com/hunacreatives', '',
-    'If anything is urgent, just reply to this email.', '',
-    'Huna Creatives', 'Cebu, Philippines',
-  ].join('\n');
-  return { subject, html: shell(subject, rows), text };
-}
-
 // ── Lead parsing ────────────────────────────────────────────────────────────
 
 interface Lead {
@@ -280,6 +173,14 @@ function parseLead(leadgenId: string, raw: any, options: OptionMap): Lead {
     // Leads from Meta's Lead Ads Testing Tool carry dummy values.
     isTest: all.includes('test lead') || all.includes('dummy data'),
     answers,
+  };
+}
+
+function forEmail(l: Lead): LeadForEmail {
+  return {
+    name: l.name, email: l.email, phone: l.phone, business: l.business, website: l.website,
+    budget: l.budget, timeline: l.timeline, channel: l.channel, adName: l.adName,
+    submitted: manilaTime(l.createdTime), websiteLabel: labelsFor(l.formId).website,
   };
 }
 
@@ -364,7 +265,7 @@ async function processLead(leadgenId: string, pageId: string | null, sendAutoRep
   else if (undecoded(lead)) replyNote = 'Form answers could not be decoded — no auto-reply sent. Check Leads Center.';
   else {
     try {
-      const mail = autoReply(lead);
+      const mail = autoReply(forEmail(lead));
       await sendEmail({ from: FROM_EMAIL, to: [lead.email], reply_to: REPLY_TO, subject: mail.subject, html: mail.html, text: mail.text });
       await supabase.from('contact_submissions').update({ auto_reply_sent_at: new Date().toISOString() }).eq('id', submissionId);
     } catch (err) {
@@ -375,21 +276,9 @@ async function processLead(leadgenId: string, pageId: string | null, sendAutoRep
 
   // Team notification.
   const title = `${lead.isTest ? '[TEST] ' : ''}New Meta lead: ${lead.name}${lead.budget ? ` — ${lead.budget}` : ''}${lead.timeline ? `, ${lead.timeline}` : ''}`;
-  const rows = [
-    para(`<strong>${esc(lead.name)}</strong> wants to be reached by <strong>${esc(lead.channel || 'any channel')}</strong>. Reply within the hour if you can.`),
-    ...(lead.channel === 'Messenger'
-      ? [para('<span style="font-size:13px;color:#777777">You can\'t start a Messenger chat with a lead. Text or Viber their number (the auto-reply told them to expect a text, and invited them to message the Page first).</span>')]
-      : []),
-    summaryTable([
-      ['Business', lead.business], [labelsFor(lead.formId).website, lead.website], ['Budget', lead.budget],
-      ['Timeline', lead.timeline], ['Contact via', lead.channel], ['Phone', lead.phone], ['Email', lead.email],
-      ['Ad', lead.adName], ['Submitted', manilaTime(lead.createdTime)],
-    ]),
-    para(`<span style="font-size:13px;color:#777777">${esc(replyNote)} Saved to the Hub contact inbox.</span>`),
-  ].join('');
   await sendEmail({
     from: FROM_EMAIL, to: [NOTIFY_EMAIL], reply_to: validEmail ? lead.email : undefined,
-    subject: title, html: shell(title, rows), text: `${inboxMessage(lead)}\n\n${replyNote}`,
+    subject: title, html: teamLeadEmail(forEmail(lead), title, replyNote), text: `${inboxMessage(lead)}\n\n${replyNote}`,
   }).catch((e) => console.error('notify email failed', e));
 
   return { leadgenId, ok: true, submissionId, replyNote };

@@ -11,7 +11,7 @@
 // returns exactly one row -- so both anon policies can be dropped.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { followTheWork } from '../_shared/followFooter.ts';
+import { kickoffReceivedEmail } from './email.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -21,7 +21,6 @@ const supabase = createClient(
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 const FROM_EMAIL = 'Huna Creatives <contact@hunacreatives.com>';
 const TEAM_EMAIL = 'contact@hunacreatives.com';
-const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif";
 
 // A dead-end receipt on submit — no CTA, nothing for the client to do. It
 // just closes the loop (the on-page confirmation is gone once they close
@@ -39,34 +38,7 @@ async function sendReceipt(to: string, clientName: string) {
       bcc: [TEAM_EMAIL],
       reply_to: TEAM_EMAIL,
       subject: 'Kickoff details received',
-      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0ede8">
-<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f0ede8">
-  <tr><td align="center" style="padding:40px 16px">
-    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-      <tr><td style="background:#111111;padding:24px 40px;border-bottom:3px solid #FF6B35">
-        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
-          <td><img src="https://hunacreatives.com/images/fc04818c74ad69bdfb22b93a6a0c6a72.png" alt="Huna Creatives" height="26" style="display:block;height:26px;width:auto;border:0"></td>
-          <td align="right"><span style="font-family:${SANS};font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#FF6B35;border:1px solid rgba(255,107,53,0.35);padding:5px 10px">Received</span></td>
-        </tr></table>
-      </td></tr>
-      <tr><td style="padding:40px 40px 36px">
-        <h1 style="margin:0 0 14px;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:400;color:#1a1a1a">Thank you, ${first}.</h1>
-        <p style="margin:0 0 14px;font-size:14px;line-height:1.75;color:#4a4a4a;font-family:${SANS}">
-          We've got your kickoff details. Your project manager will be in touch shortly to get things moving.
-        </p>
-        <p style="margin:0;font-size:13px;line-height:1.7;color:#8a8a8a;font-family:${SANS}">
-          Left something out? Just reply to this email.
-        </p>
-      </td></tr>
-      <tr><td align="center" style="background:#111111;padding:22px 40px;font-family:${SANS}">
-        <span style="font-size:11px;color:#888888;letter-spacing:0.08em;text-transform:uppercase">Huna Creatives</span>
-        <span style="font-size:11px;color:#555555"> &middot; Cebu City, Philippines</span>
-        <div style="padding-top:10px">${followTheWork()}</div>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`,
+      html: kickoffReceivedEmail(first),
     }),
   }).catch((e) => console.error('kickoff receipt failed:', e));
 }
