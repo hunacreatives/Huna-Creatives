@@ -3,7 +3,10 @@ import { supabase } from '@/lib/supabase';
 import { LEAD_FIELDS, type CallLogEntry, type Caller, type TrackerLead } from './types';
 
 const PAGE = 1000; // PostgREST caps each response at 1,000 rows
-const SAFETY_REFRESH_MS = 2 * 60 * 1000;
+// Live updates keep the tracker current; the full reload (every lead + the whole
+// call log) is only a safety net, so it runs rarely and never in a hidden tab.
+const SAFETY_REFRESH_MS = 15 * 60 * 1000;
+const STALE_ON_RETURN_MS = 5 * 60 * 1000;
 
 async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
   const rows: T[] = [];
@@ -101,8 +104,12 @@ export function useLeadTrackerData(projectId: number) {
       })
       .subscribe(status => setLive(status === 'SUBSCRIBED'));
 
-    const interval = setInterval(load, SAFETY_REFRESH_MS);
-    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    let lastFull = Date.now();
+    const reload = () => { lastFull = Date.now(); load(); };
+    const interval = setInterval(() => { if (document.visibilityState === 'visible') reload(); }, SAFETY_REFRESH_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastFull > STALE_ON_RETURN_MS) reload();
+    };
     document.addEventListener('visibilitychange', onVisible);
 
     return () => {

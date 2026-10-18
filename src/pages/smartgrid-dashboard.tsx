@@ -7,7 +7,8 @@ import {
 
 const ENDPOINT = `${import.meta.env.VITE_PUBLIC_SUPABASE_URL}/functions/v1/smartgrid-client-dashboard`;
 const PW_KEY = 'smartgrid_dashboard_pw';
-const REFRESH_MS = 60000;
+// Every refresh is an edge-function call; 5 minutes is plenty for a client dashboard.
+const REFRESH_MS = 5 * 60 * 1000;
 
 const PERIODS: { value: TrackerPeriod; label: string }[] = [
   { value: 'shift', label: 'Day' },
@@ -135,8 +136,10 @@ export default function SmartGridDashboard() {
 
   useEffect(() => {
     if (!password || !data) return;
-    const t = setInterval(() => load(password), REFRESH_MS);
-    const onVisible = () => { if (document.visibilityState === 'visible') load(password); };
+    let last = Date.now();
+    const refresh = () => { last = Date.now(); load(password); };
+    const t = setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, REFRESH_MS);
+    const onVisible = () => { if (document.visibilityState === 'visible' && Date.now() - last > 60000) refresh(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
   }, [password, !!data, load]); // eslint-disable-line react-hooks/exhaustive-deps

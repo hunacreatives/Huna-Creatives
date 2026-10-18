@@ -133,7 +133,8 @@ export default function ContractorAttendancePage() {
 
   useEffect(() => {
     fetchToday();
-    const interval = setInterval(() => fetchToday(true), 60000);
+    // Poll only while the page is on screen.
+    const interval = setInterval(() => { if (document.visibilityState === 'visible') fetchToday(true); }, 60000);
     return () => clearInterval(interval);
   }, [fetchToday]);
 

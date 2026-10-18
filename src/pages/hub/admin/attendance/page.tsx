@@ -415,7 +415,8 @@ export default function AdminAttendancePage() {
     }
     if (isToday) {
       fetchLive();
-      const interval = setInterval(() => fetchLive(true), 60000);
+      // Poll only while the page is on screen.
+      const interval = setInterval(() => { if (document.visibilityState === 'visible') fetchLive(true); }, 60000);
       return () => clearInterval(interval);
     } else {
       fetchHistorical(selectedDate);
