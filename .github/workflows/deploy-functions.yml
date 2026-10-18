@@ -36,15 +36,21 @@ jobs:
           changed=$(echo "$files" | grep '^supabase/functions/' | sed 's|supabase/functions/||' \
             | cut -d'/' -f1 | grep -v '^_' || true)
 
-          # A changed shared file redeploys every function that imports it, directly
-          # or through another shared file (emailLayout.ts imports emailBody.ts).
-          for shared in $(echo "$files" | grep '^supabase/functions/_shared/' | xargs -r -n1 basename); do
-            via=$(grep -l "\./$shared" supabase/functions/_shared/*.ts 2>/dev/null | xargs -r -n1 basename)
-            for name in $shared $via; do
-              importers=$(grep -l "_shared/$name" supabase/functions/*/index.ts 2>/dev/null \
-                | xargs -r -n1 dirname | xargs -r -n1 basename)
-              changed="$changed $importers"
-            done
+          # A changed shared file redeploys every function that uses it: from any file
+          # in the function's folder (index.ts or email.ts), directly or through
+          # other shared files (email.ts -> emailLayout.ts -> emailBody.ts).
+          shared=$(echo "$files" | grep '^supabase/functions/_shared/' | xargs -r -n1 basename)
+          while :; do
+            more=$(for f in $shared; do grep -l "\./$f" supabase/functions/_shared/*.ts 2>/dev/null; done \
+              | xargs -r -n1 basename | sort -u)
+            next=$(echo $shared $more | tr ' ' '\n' | grep -v '^$' | sort -u)
+            [ "$next" = "$(echo $shared | tr ' ' '\n' | grep -v '^$' | sort -u)" ] && break
+            shared=$next
+          done
+          for name in $shared; do
+            importers=$(grep -l "_shared/$name" supabase/functions/[!_]*/*.ts 2>/dev/null \
+              | xargs -r -n1 dirname | xargs -r -n1 basename)
+            changed="$changed $importers"
           done
 
           changed=$(echo $changed | tr ' ' '\n' | grep -v '^$' | sort -u)

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { certificateEmail } from './email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -78,32 +79,6 @@ async function uploadPdfToDrive(filename: string, pdfBytes: Uint8Array): Promise
   return result.id;
 }
 
-function emailHtml(contractorFirstName: string, title: string): string {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <div style="background:#111827;padding:28px 36px;">
-      <p style="color:#FF6B35;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">Huna Creatives</p>
-      <h1 style="color:#fff;font-size:22px;font-weight:800;margin:0;">${title}</h1>
-      <p style="color:#9ca3af;font-size:13px;margin:6px 0 0;">Your requested document is attached to this email.</p>
-    </div>
-    <div style="padding:32px 36px;border-bottom:1px solid #f3f4f6;">
-      <p style="font-size:15px;color:#374151;margin:0 0 16px;">Hi <strong>${contractorFirstName}</strong>,</p>
-      <p style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 8px;">
-        Please find your <strong>${title}</strong> attached as a PDF. Let us know if you need anything else.
-      </p>
-    </div>
-    <div style="padding:24px 36px;background:#fafafa;">
-      <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">This email is not monitored. For concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
-      <p style="font-size:11px;color:#d1d5db;margin:0;">&copy; ${new Date().getFullYear()} Huna Creatives &middot; hr@hunacreatives.com</p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
@@ -142,7 +117,7 @@ Deno.serve(async (req) => {
       to: contractor.email,
       cc: 'contact@hunacreatives.com',
       subject: `Your ${title}`,
-      html: emailHtml(contractor.full_name.split(' ')[0], title),
+      html: certificateEmail(contractor.full_name.split(' ')[0], title),
       attachments: [{ filename: `${safeTitle}.pdf`, content: btoa(binary) }],
     };
 

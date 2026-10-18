@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { disputeResolvedEmail } from './email.ts';
 import { hasPush } from '../_shared/push.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
@@ -74,50 +75,8 @@ async function sendNotification(payout_id: string, type: 'hr_approved' | 'disput
   };
 
   if (type === 'hr_approved') {
-    const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <div style="background:#111827;padding:24px 32px;">
-      <p style="color:#FF6B35;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">Huna Creatives</p>
-      <h1 style="color:#fff;font-size:22px;font-weight:800;margin:0;">Payslip Approved</h1>
-      <p style="color:#6b7280;font-size:13px;margin:6px 0 0;">Payment is on its way</p>
-    </div>
-    <div style="padding:28px 32px;">
-      <p style="font-size:14px;color:#374151;margin:0 0 20px;">Hi <strong>${contractor.full_name}</strong>, your payslip for <strong>${periodLabel}</strong> has been approved by HR. Payment will be sent within 2 business days.</p>
-      <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:10px;overflow:hidden;">
-        <tr><td style="padding:14px 16px;border-bottom:1px solid #f3f4f6;">
-          <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Pay Period</p>
-          <p style="margin:4px 0 0;font-size:14px;font-weight:600;color:#111827;">${periodLabel}</p>
-        </td></tr>
-        <tr><td style="padding:14px 16px;">
-          <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Amount</p>
-          <p style="margin:4px 0 0;font-size:22px;font-weight:800;color:#FF6B35;">${fmt(payout.final_payout)}</p>
-        </td></tr>
-      </table>
-      <div style="margin-top:24px;text-align:center;">
-        <a href="${HUB_URL}" style="display:inline-block;background:#111827;color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;text-decoration:none;">View in Sentro Hub →</a>
-      </div>
-    </div>
-    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #f3f4f6;">
-      <p style="font-size:11px;color:#d1d5db;margin:0;text-align:center;">© ${new Date().getFullYear()} Huna Creatives · payroll@hunacreatives.com</p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: `Huna Creatives Payroll <${FROM_EMAIL}>`,
-        to: contractor.email,
-        subject: `Your payslip is approved — ${periodLabel} | Payment incoming`,
-        html,
-      }),
-    });
-
+    // Approval goes out on Slack / app push only; the "Payment sent" email follows
+    // with the payslip, so a second email here would repeat it.
     if (SLACK_BOT_TOKEN && contractor.slack_id && !(await hasPush(payout.contractor_id))) {
       try {
         const dm = await slackPost('conversations.open', { users: contractor.slack_id });
@@ -133,38 +92,7 @@ async function sendNotification(payout_id: string, type: 'hr_approved' | 'disput
   }
 
   if (type === 'dispute_resolved') {
-    const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <div style="background:#111827;padding:24px 32px;">
-      <p style="color:#FF6B35;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">Huna Creatives</p>
-      <h1 style="color:#fff;font-size:22px;font-weight:800;margin:0;">Dispute Resolved</h1>
-      <p style="color:#6b7280;font-size:13px;margin:6px 0 0;">HR has reviewed your flag</p>
-    </div>
-    <div style="padding:28px 32px;">
-      <p style="font-size:14px;color:#374151;margin:0 0 20px;">Hi <strong>${contractor.full_name}</strong>, your payslip dispute for <strong>${periodLabel}</strong> has been reviewed and resolved by HR. If you have further concerns, reach out on Slack.</p>
-      <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:10px;overflow:hidden;">
-        <tr><td style="padding:14px 16px;border-bottom:1px solid #f3f4f6;">
-          <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Pay Period</p>
-          <p style="margin:4px 0 0;font-size:14px;font-weight:600;color:#111827;">${periodLabel}</p>
-        </td></tr>
-        <tr><td style="padding:14px 16px;">
-          <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Amount</p>
-          <p style="margin:4px 0 0;font-size:22px;font-weight:800;color:#FF6B35;">${fmt(payout.final_payout)}</p>
-        </td></tr>
-      </table>
-      <div style="margin-top:24px;text-align:center;">
-        <a href="${HUB_URL}" style="display:inline-block;background:#111827;color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;text-decoration:none;">View in Sentro Hub →</a>
-      </div>
-    </div>
-    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #f3f4f6;">
-      <p style="font-size:11px;color:#d1d5db;margin:0;text-align:center;">© ${new Date().getFullYear()} Huna Creatives · payroll@hunacreatives.com</p>
-    </div>
-  </div>
-</body>
-</html>`;
+    const html = disputeResolvedEmail({ firstName: contractor.full_name.split(' ')[0], periodLabel, amount: fmt(payout.final_payout) });
 
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -172,7 +100,7 @@ async function sendNotification(payout_id: string, type: 'hr_approved' | 'disput
       body: JSON.stringify({
         from: `Huna Creatives Payroll <${FROM_EMAIL}>`,
         to: contractor.email,
-        subject: `Your payslip dispute has been resolved — ${periodLabel}`,
+        subject: `Your payslip flag is resolved — ${periodLabel}`,
         html,
       }),
     });

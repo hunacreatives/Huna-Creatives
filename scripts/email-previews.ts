@@ -5,7 +5,7 @@
 //
 // Images are copied next to the gallery so it opens straight from disk. When you
 // add an email, add a sample here too.
-import { copyFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { renderLetter, hunaEmail } from '../supabase/functions/_shared/emailLayout.ts';
@@ -25,6 +25,14 @@ import { questionnaireEmail } from '../supabase/functions/send-questionnaire/ema
 import { kickoffReceivedEmail } from '../supabase/functions/public-questionnaire/email.ts';
 import { applicantEmail } from '../supabase/functions/notify-applicant-status/email.ts';
 import type { QuoteRecord } from '../supabase/functions/_shared/quotationTemplate.ts';
+import { inviteEmail } from '../supabase/functions/_shared/employeeEmails.ts';
+import { payslipEmail } from '../supabase/functions/send-payslip/email.ts';
+import { teamPayslipEmail } from '../supabase/functions/notify-payslip-submitted/email.ts';
+import { disputeResolvedEmail } from '../supabase/functions/notify-contractor/email.ts';
+import { projectPayoutEmail } from '../supabase/functions/notify-contractor-payment/email.ts';
+import { signRequestEmail } from '../supabase/functions/notify-contract-assigned/email.ts';
+import { signedCopyEmail as employeeSignedCopy } from '../supabase/functions/send-signed-contract/email.ts';
+import { certificateEmail } from '../supabase/functions/send-hr-certificate/email.ts';
 
 const peso = (n: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(n);
 
@@ -77,7 +85,26 @@ const emails: Array<{ group: string; name: string; html: string }> = [
   { group: 'Clients', name: 'Applicant: shortlisted', html: applicantEmail('shortlisted', 'Ana Cruz', 'Graphic Designer', { date: '2026-10-24', time: '14:00', link: 'https://meet.google.com/abc-defg-hij' }).html },
   { group: 'Clients', name: 'Applicant: not moving forward', html: applicantEmail('archived', 'Ana Cruz', 'Graphic Designer').html },
 
+  // Employees
+  { group: 'Employees', name: 'Welcome invite', html: inviteEmail({ firstName: 'Ana', url: '#', kind: 'welcome' }) },
+  { group: 'Employees', name: 'Fresh invite link', html: inviteEmail({ firstName: 'Ana', url: '#', kind: 'fresh-link' }) },
+  { group: 'Employees', name: 'Password reset', html: inviteEmail({ firstName: 'Ana', url: '#', kind: 'reset' }) },
+  { group: 'Employees', name: 'Payment sent (payslip)', html: payslipEmail({
+    firstName: 'Ana', periodLabel: 'October 1–15, 2026', issuedLabel: 'Oct 17, 2026', payslipNo: 'INV-20261001-7F3A',
+    department: 'Design', contractType: 'Hourly', rateLabel: '₱180/hr', total: 18240, basePay: 15840,
+    basePayDesc: '88.00 hours × ₱180/hr', overtimePay: 1800, overtimeHours: 8, daysWorked: 11, hoursBilled: 88,
+    adjustments: [{ label: 'Internet allowance', amount: 1000, type: 'allowance' }, { label: 'Cash advance', amount: -400, type: 'deduction' }],
+    days: ['2026-10-01','2026-10-02','2026-10-05','2026-10-06','2026-10-07','2026-10-08','2026-10-09','2026-10-12','2026-10-13','2026-10-14','2026-10-15']
+      .map((date, i) => ({ date, hours: [8, 8, 7.5, 8, 8, 8, 6.5, 8, 8, 8, 8][i], overtime: [0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 3][i] })),
+    pdfAttached: true, hourly: true, fmt: peso }) },
+  { group: 'Employees', name: 'Payslip flag resolved', html: disputeResolvedEmail({ firstName: 'Ana', periodLabel: 'October 1–15, 2026', amount: peso(18240) }) },
+  { group: 'Employees', name: 'Project payout', html: projectPayoutEmail({ name: 'Ana', projectName: 'Kei Coffee House rebrand', clientName: 'Kei Concepts', amount: peso(6000), date: 'October 17, 2026', totalCut: 15000, totalPaid: 9000, isFullyPaid: false, receiptUrl: '#', fmt: peso }) },
+  { group: 'Employees', name: 'Document to sign', html: signRequestEmail({ firstName: 'Ana', title: 'Employment Agreement 2026', url: '#' }) },
+  { group: 'Employees', name: 'Signed copy', html: employeeSignedCopy({ firstName: 'Ana', title: 'Employment Agreement 2026', signedName: 'Ana Cruz', date: 'October 17, 2026', pdfAttached: true }) },
+  { group: 'Employees', name: 'HR certificate', html: certificateEmail('Ana', 'Certificate of Employment') },
+
   // Team only
+  { group: 'Team', name: 'Payslip submitted', html: teamPayslipEmail({ name: 'Ana Cruz', department: 'Design', periodLabel: 'October 1–15, 2026', amount: peso(18240), reviewUrl: '#' }) },
   { group: 'Team', name: 'New inquiry', html: inquiryTeamEmail({ name: 'Tobey Emm', email: 'tobey@example.com', service: 'Website Design', budget: '₱100K – ₱150K', sourceLine: 'google → /services', message: 'Hello, I saw a website you made, Asana Ormoc.' }) },
   { group: 'Team', name: 'New Meta lead', html: teamLeadEmail(lead, 'New Meta lead: Tobey Emm', 'Auto-reply sent.') },
   { group: 'Team', name: 'Quotation requested', html: quoteRequestedEmail({ name: 'Tobey Emm', email: 'tobey@example.com', service: 'Website Design', message: 'Hello, I saw a website you made.', enquirySent: 'Oct 18, 7:35 AM (Manila)', quoteAsked: 'Oct 18, 9:10 AM (Manila)' }) },
@@ -93,7 +120,7 @@ mkdirSync(join(out, 'images', 'email'), { recursive: true });
 
 // Images the emails load from hunacreatives.com, copied locally so the gallery works offline.
 const images = join(root, 'public', 'images');
-for (const f of readdirSync(join(images, 'email'))) copyFileSync(join(images, 'email', f), join(out, 'images', 'email', f));
+cpSync(join(images, 'email'), join(out, 'images', 'email'), { recursive: true });
 for (const f of ['547b59870e776a20eb28e4f20931787c.png', 'qr-gcash.jpg', 'qr-bdo.jpg', 'qr-gotyme.jpg']) {
   try { copyFileSync(join(images, f), join(out, 'images', f)); } catch { /* optional */ }
 }
@@ -116,7 +143,7 @@ writeFileSync(join(out, 'index.html'), `<!doctype html><html><head><meta charset
   iframe{width:100%;height:900px;border:0;border-radius:12px;background:#f1f0ef}
 </style></head><body>
 <h1>Huna emails</h1><p>${emails.length} emails, rendered with sample data.</p>
-${['Clients', 'Team'].map((g) => `<h2>${g === 'Team' ? 'Team only' : 'Clients, leads and applicants'}</h2><div class="grid">${emails.filter((e) => e.group === g).map(card).join('')}</div>`).join('')}
+${['Clients', 'Employees', 'Team'].map((g) => `<h2>${g === 'Team' ? 'Team only' : g === 'Employees' ? 'Employees' : 'Clients, leads and applicants'}</h2><div class="grid">${emails.filter((e) => e.group === g).map(card).join('')}</div>`).join('')}
 </body></html>`);
 
 console.log(`${emails.length} emails → ${join(out, 'index.html')}`);

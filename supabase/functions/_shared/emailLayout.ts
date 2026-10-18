@@ -30,6 +30,9 @@ export const PAGE = '#f4eee7';
 export const PANEL = '#f8f2eb';
 export const MUTED = '#8a7a6c';
 export const RULE = '#ebe1d6';
+// Chart colours (validated for colour-blind separation on white): orange, teal, red.
+export const TEAL = '#00799a';
+export const CHART = { base: ORANGE, extra: TEAL, add: RED };
 
 // Inline styles for body content, so functions that build their own copy match.
 const HEADING = `font-family:${SANS};font-size:17px;line-height:1.35;font-weight:700;color:${BLACK}`;
@@ -156,6 +159,112 @@ export function steps(items: Array<[string, string]>): string {
   return `<table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:4px auto 12px;text-align:left">${items.map(([t, d], i) =>
     `<tr><td width="28" valign="top" style="padding:0 14px 18px 0"><div style="width:26px;height:26px;border-radius:50%;background:${ORANGE};color:#ffffff;font-family:${SANS};font-size:13px;font-weight:700;line-height:26px;text-align:center">${i + 1}</div></td>
       <td valign="top" style="padding:2px 0 18px;font-family:${SANS}"><p style="margin:0 0 3px;font-size:15px;font-weight:700;color:${BLACK}">${t}</p><p style="margin:0;font-size:14px;line-height:1.6;color:${GREY}">${d}</p></td></tr>`).join('')}</table>`;
+}
+
+// ── Infographic blocks ──────────────────────────────────────────────────────
+// Table-based so they hold up in Gmail, Apple Mail and Outlook. Colour never
+// carries meaning alone: every mark has a text label next to it.
+
+/** A row of 2–4 figures, e.g. days worked / hours / overtime. Values are HTML. */
+export function statTiles(tiles: Array<{ label: string; value: string; sub?: string }>): string {
+  // The panel colour sits on the cells themselves, so every tile in the row is the
+  // same height whatever it holds; spacer cells make the gaps.
+  const w = Math.floor((100 - (tiles.length - 1) * 2) / tiles.length);
+  const cells = tiles.map((t) =>
+    `<td width="${w}%" align="center" valign="middle" bgcolor="${PANEL}" style="background:${PANEL};border-radius:10px;padding:16px 8px;text-align:center;font-family:${SANS}">
+        <p style="margin:0 0 4px;font-size:12px;line-height:1.3;color:${MUTED}">${esc(t.label)}</p>
+        <p style="margin:0;font-family:${SERIF};font-size:24px;line-height:1.15;font-weight:700;color:${BLACK}">${t.value}</p>
+        ${t.sub ? `<p style="margin:3px 0 0;font-size:12px;color:${MUTED}">${esc(t.sub)}</p>` : ''}
+      </td>`).join('<td width="2%" style="font-size:0;line-height:0">&nbsp;</td>');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px"><tr>${cells}</tr></table>`;
+}
+
+export type StageState = 'done' | 'current' | 'todo';
+
+/** A status tracker, e.g. Submitted → HR review → Paid. */
+export function tracker(stages: Array<{ label: string; state: StageState; sub?: string }>): string {
+  const w = Math.floor(100 / stages.length);
+  const line = (on: boolean, show: boolean) =>
+    `<td width="50%" style="padding:0"><div style="height:2px;line-height:2px;font-size:0;background:${show ? (on ? ORANGE : RULE) : 'transparent'}">&nbsp;</div></td>`;
+  const dot = (st: StageState, n: number) => st === 'done'
+    ? `<div style="width:28px;height:28px;border-radius:50%;background:${ORANGE};color:#ffffff;font-family:${SANS};font-size:14px;font-weight:700;line-height:28px;text-align:center">&#10003;</div>`
+    : st === 'current'
+      ? `<div style="width:24px;height:24px;border-radius:50%;border:2px solid ${ORANGE};background:#ffffff;color:${ORANGE};font-family:${SANS};font-size:12px;font-weight:700;line-height:24px;text-align:center">${n}</div>`
+      : `<div style="width:24px;height:24px;border-radius:50%;border:2px solid ${RULE};background:#ffffff;color:${MUTED};font-family:${SANS};font-size:12px;font-weight:700;line-height:24px;text-align:center">${n}</div>`;
+  const cells = stages.map((st, i) => {
+    const prevDone = i > 0 && stages[i - 1].state === 'done';
+    return `<td width="${w}%" valign="top" align="center" style="padding:0;text-align:center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+        ${line(prevDone, i > 0)}
+        <td width="28" align="center" style="padding:0">${dot(st.state, i + 1)}</td>
+        ${line(st.state === 'done', i < stages.length - 1)}
+      </tr></table>
+      <p style="margin:8px 4px 0;font-family:${SANS};font-size:13px;line-height:1.3;font-weight:${st.state === 'todo' ? 400 : 700};color:${st.state === 'todo' ? MUTED : BLACK}">${esc(st.label)}</p>
+      ${st.sub ? `<p style="margin:2px 4px 0;font-family:${SANS};font-size:12px;line-height:1.3;color:${MUTED}">${esc(st.sub)}</p>` : ''}
+    </td>`;
+  }).join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 24px"><tr>${cells}</tr></table>`;
+}
+
+/** One stacked bar showing what a total is made of, with a labelled legend under it. */
+export function breakdownBar(parts: Array<{ label: string; amount: number; display: string; color: string; note?: string }>): string {
+  const shown = parts.filter((x) => x.amount > 0);
+  const total = shown.reduce((t, x) => t + x.amount, 0) || 1;
+  const bar = shown.map((x, i) => {
+    const r = shown.length === 1 ? '6px' : i === 0 ? '6px 0 0 6px' : i === shown.length - 1 ? '0 6px 6px 0' : '0';
+    return `<td width="${Math.max((x.amount / total) * 100, 1).toFixed(1)}%" style="padding:0 ${i === shown.length - 1 ? 0 : 2}px 0 0"><div style="height:14px;line-height:14px;font-size:0;background:${x.color};border-radius:${r}">&nbsp;</div></td>`;
+  }).join('');
+  const legend = parts.map((x) =>
+    `<tr><td width="14" valign="top" style="padding:7px 10px 7px 0"><div style="width:12px;height:12px;border-radius:3px;background:${x.color};font-size:0;line-height:0">&nbsp;</div></td>
+      <td valign="top" style="padding:5px 0;text-align:left;font-family:${SANS};font-size:14px;line-height:1.4;color:${GREY}">${esc(x.label)}${x.note ? `<br><span style="font-size:12px;color:${MUTED}">${esc(x.note)}</span>` : ''}</td>
+      <td valign="top" align="right" style="padding:5px 0;text-align:right;white-space:nowrap;font-family:${SANS};font-size:14px;line-height:1.4;font-weight:600;color:${BLACK}">${x.display}</td></tr>`).join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px"><tr>${bar}</tr></table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px">${legend}</table>`;
+}
+
+/** Vertical bars, e.g. hours per day. `extra` stacks on top in teal (overtime). */
+export function columnChart(cols: Array<{ top: string; bottom: string; value: number; extra?: number; label: string }>, o: { max: number; height?: number; legend?: [string, string] }): string {
+  const h = o.height ?? 96;
+  const px = (v: number) => Math.max(Math.round((v / (o.max || 1)) * h), v > 0 ? 3 : 0);
+  const cells = cols.map((c) => {
+    const base = px(c.value);
+    const extra = c.extra ? px(c.extra) : 0;
+    return `<td valign="bottom" align="center" style="padding:0 2px;vertical-align:bottom;text-align:center">
+      <p style="margin:0 0 3px;font-family:${SANS};font-size:10px;line-height:1;color:${MUTED}">${esc(c.label)}</p>
+      ${extra ? `<div style="height:${extra}px;line-height:${extra}px;font-size:0;background:${TEAL};border-radius:3px 3px 0 0;margin:0 auto 2px;max-width:22px">&nbsp;</div>` : ''}
+      <div style="height:${base}px;line-height:${base}px;font-size:0;background:${ORANGE};border-radius:${extra ? '0' : '3px 3px 0 0'};margin:0 auto;max-width:22px">&nbsp;</div></td>`;
+  }).join('');
+  const axis = cols.map((c) =>
+    `<td align="center" valign="top" style="padding:6px 0 0;border-top:1px solid ${RULE};text-align:center;font-family:${SANS};font-size:10px;line-height:1.25;color:${MUTED}">${c.top}<br><strong style="color:${GREY};font-weight:600">${c.bottom}</strong></td>`).join('');
+  const legend = o.legend
+    ? `<p style="margin:10px 0 0;font-family:${SANS};font-size:12px;color:${MUTED}"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${ORANGE};vertical-align:middle"></span>&nbsp;${esc(o.legend[0])}&nbsp;&nbsp;&nbsp;<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${TEAL};vertical-align:middle"></span>&nbsp;${esc(o.legend[1])}</p>`
+    : '';
+  return `<div style="margin:0 0 20px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout:fixed"><tr style="height:${h + 16}px">${cells}</tr><tr>${axis}</tr></table>${legend}</div>`;
+}
+
+/** A filled bar for progress, e.g. 60% of the fee received. */
+export function progressBar(pct: number, caption: string): string {
+  const p = Math.min(Math.max(Math.round(pct), 0), 100);
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px"><tr>
+      ${p > 0 ? `<td width="${p}%" style="padding:0"><div style="height:10px;line-height:10px;font-size:0;background:${ORANGE};border-radius:${p === 100 ? '5px' : '5px 0 0 5px'}">&nbsp;</div></td>` : ''}
+      ${p < 100 ? `<td width="${100 - p}%" style="padding:0"><div style="height:10px;line-height:10px;font-size:0;background:${RULE};border-radius:${p === 0 ? '5px' : '0 5px 5px 0'}">&nbsp;</div></td>` : ''}
+    </tr></table>
+    <p style="margin:0 0 20px;font-family:${SANS};font-size:13px;color:${MUTED}">${caption}</p>`;
+}
+
+/** A 2-column grid of icon tiles. Icons are files in public/images/email/icons/. */
+export function iconTiles(items: Array<{ icon: string; title: string; text: string }>): string {
+  const rows: string[] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    rows.push(`<tr>${items.slice(i, i + 2).map((it, j) =>
+      `<td width="50%" valign="top" style="padding:0 ${j === 0 ? 5 : 0}px 10px ${j === 1 ? 5 : 0}px">
+        <div style="background:${PANEL};border-radius:10px;padding:16px 12px;text-align:center;font-family:${SANS}">
+          <img src="${IMG}/email/icons/${it.icon}.png" width="44" height="44" alt="" style="display:block;margin:0 auto 8px;width:44px;height:44px;border:0">
+          <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:${BLACK}">${esc(it.title)}</p>
+          <p style="margin:0;font-size:13px;line-height:1.45;color:${MUTED}">${esc(it.text)}</p>
+        </div></td>`).join('')}</tr>`);
+  }
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px">${rows.join('')}</table>`;
 }
 
 /** Footer note for emails only the Huna team receives. */

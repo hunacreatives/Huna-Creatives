@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { signedCopyEmail } from './email.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -87,48 +88,10 @@ async function run(assignment_id: string) {
 
   const contractLink = doc?.is_generated ? null : doc?.file_url;
 
-  const emailHtml = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-
-    <div style="background:#111827;padding:28px 36px;">
-      <p style="color:#FF6B35;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">Huna Creatives</p>
-      <h1 style="color:#fff;font-size:24px;font-weight:800;margin:0;">Contract Signed ✓</h1>
-      <p style="color:#9ca3af;font-size:13px;margin:6px 0 0;">Your signed copy is attached to this email.</p>
-    </div>
-
-    <div style="padding:32px 36px;border-bottom:1px solid #f3f4f6;">
-      <p style="font-size:15px;color:#374151;margin:0 0 20px;">Hi <strong>${contractor.full_name.split(' ')[0]}</strong>,</p>
-      <p style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 16px;">
-        This email confirms that you have successfully signed the following document:
-      </p>
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:18px 20px;margin-bottom:20px;">
-        <p style="font-size:15px;font-weight:700;color:#111827;margin:0 0 6px;">${doc?.title}</p>
-        <p style="font-size:13px;color:#6b7280;margin:0;">Signed as: <strong style="color:#374151;">${assignment.signed_name}</strong></p>
-        <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Date: <strong style="color:#374151;">${dateLabel}</strong></p>
-      </div>
-      <p style="font-size:13px;color:#6b7280;line-height:1.7;margin:0;">
-        ${pdfAttachment
-          ? 'Your signed copy is attached as a PDF.'
-          : contractLink
-            ? `You can view the original document <a href="${contractLink}" style="color:#FF6B35;">here</a>.`
-            : 'Please keep this email for your records.'}
-      </p>
-    </div>
-
-    <div style="padding:24px 36px;background:#fafafa;">
-      <p style="font-size:12px;color:#9ca3af;margin:0 0 4px;line-height:1.6;">
-        Questions about this agreement? Reach out to HR on Slack.
-      </p>
-      <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
-      <p style="font-size:11px;color:#d1d5db;margin:0;">© ${new Date().getFullYear()} Huna Creatives · hr@hunacreatives.com</p>
-    </div>
-
-  </div>
-</body>
-</html>`;
+  const emailHtml = signedCopyEmail({
+    firstName: contractor.full_name.split(' ')[0], title: doc?.title ?? 'Document', signedName: assignment.signed_name,
+    date: dateLabel, pdfAttached: !!pdfAttachment, contractLink,
+  });
 
   const payload: any = {
     from: `Huna Creatives HR <${FROM_EMAIL}>`,

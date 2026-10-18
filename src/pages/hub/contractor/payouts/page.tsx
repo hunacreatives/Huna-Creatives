@@ -85,13 +85,10 @@ function generatePayslipHTML(opts: {
 <body>
 
   <!-- Letterhead -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:3px solid #FF6B35;margin-bottom:28px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:1px solid #e5e7eb;margin-bottom:28px;">
     <div style="display:flex;align-items:center;gap:14px;">
       <img src="${logoUrl}" alt="Huna Creatives" style="height:44px;width:auto;object-fit:contain;" />
-      <div>
-        <div style="font-size:18px;font-weight:800;color:#111827;letter-spacing:-0.3px;">Huna Creatives</div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:1px;">Cebu, Philippines · hunacreatives.com</div>
-      </div>
+      <div style="font-size:11px;color:#9ca3af;">Cebu, Philippines · hunacreatives.com</div>
     </div>
     <div style="text-align:right;">
       <div style="font-size:22px;font-weight:800;color:#FF6B35;letter-spacing:3px;">PAYSLIP</div>
@@ -101,7 +98,7 @@ function generatePayslipHTML(opts: {
   </div>
 
   <!-- Certification statement -->
-  <div style="background:#f9fafb;border-left:3px solid #FF6B35;padding:14px 16px;border-radius:0 8px 8px 0;margin-bottom:28px;">
+  <div style="background:#f9fafb;padding:14px 16px;border-radius:8px;margin-bottom:28px;">
     <p style="font-size:12px;color:#374151;line-height:1.7;">
       <strong>To Whom It May Concern:</strong><br>
       This is to certify that <strong>${name}</strong>${department ? `, assigned to the <strong>${department}</strong> department,` : ''} is an active independent contractor of <strong>Huna Creatives</strong>, a creative agency based in Cebu, Philippines. This document serves as an official record of compensation rendered for the pay period indicated below, and may be used for financial, banking, or institutional purposes.
@@ -207,7 +204,7 @@ function generatePayslipHTML(opts: {
   <!-- Signature block -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-bottom:32px;margin-top:16px;">
     <div>
-      <img src="${FRANCIS_SIG}" alt="Signature" style="height:44px;width:auto;max-width:170px;object-fit:contain;display:block;margin-bottom:4px;" />
+      <img src="${FRANCIS_SIG}" alt="Signature" style="height:64px;width:auto;max-width:240px;object-fit:contain;display:block;margin-bottom:4px;" />
       <div style="border-top:1.5px solid #374151;padding-top:8px;">
         <div style="font-size:12px;font-weight:700;color:#111827;">Francis Fiel Roble</div>
         <div style="font-size:11px;color:#6b7280;">Owner, Huna Creatives</div>
@@ -215,7 +212,7 @@ function generatePayslipHTML(opts: {
       </div>
     </div>
     <div>
-      <div style="border-top:1.5px solid #d1d5db;padding-top:8px;margin-top:48px;">
+      <div style="border-top:1.5px solid #d1d5db;padding-top:8px;margin-top:68px;">
         <div style="font-size:12px;font-weight:700;color:#111827;">${name}</div>
         <div style="font-size:11px;color:#6b7280;">Independent Contractor</div>
         <div style="font-size:11px;color:#6b7280;">Date: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>

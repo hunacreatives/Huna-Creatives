@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { signRequestEmail } from './email.ts';
 import { hasPush } from '../_shared/push.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
@@ -104,36 +105,7 @@ async function run(assignment_id: string) {
   if (skipEmail) {
     console.log('[notify-contract-assigned] skipping email — contractor status is invited');
   } else {
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <div style="background:#111827;padding:24px 32px;">
-      <p style="color:#FF6B35;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">Huna Creatives</p>
-      <h1 style="color:#fff;font-size:22px;font-weight:800;margin:0;">Document Awaiting Signature</h1>
-      <p style="color:#6b7280;font-size:13px;margin:6px 0 0;">Action required — please sign at your earliest convenience</p>
-    </div>
-    <div style="padding:28px 32px;">
-      <p style="font-size:14px;color:#374151;margin:0 0 20px;">Hi <strong>${firstName}</strong>,</p>
-      <p style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 20px;">
-        A document has been sent to you for signature. Click the button below, <strong>sign in with your Huna hub account</strong>, and you'll be taken straight to the document under <strong>Documents → To Sign</strong>.
-      </p>
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-        <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Document</p>
-        <p style="margin:6px 0 0;font-size:15px;font-weight:700;color:#111827;">${doc?.title}</p>
-      </div>
-      <div style="text-align:center;">
-        <a href="${HUB_URL}" style="display:inline-block;background:#FF6B35;color:#fff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;text-decoration:none;">Sign Document →</a>
-      </div>
-    </div>
-    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #f3f4f6;">
-      <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;text-align:center;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
-      <p style="font-size:11px;color:#d1d5db;margin:0;text-align:center;">© ${new Date().getFullYear()} Huna Creatives · hr@hunacreatives.com</p>
-    </div>
-  </div>
-</body>
-</html>`;
+  const html = signRequestEmail({ firstName, title: doc?.title ?? 'Document', url: HUB_URL });
 
   const emailResult = await fetch('https://api.resend.com/emails', {
     method: 'POST',

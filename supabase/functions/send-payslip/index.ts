@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { payslipEmail } from './email.ts';
 import { hasPush } from '../_shared/push.ts';
 import { FRANCIS_SIG } from '../_shared/francisSig.ts';
 
@@ -118,13 +119,10 @@ function generatePayslipHTML(opts: {
 <body>
 
   <!-- Letterhead -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:3px solid #FF6B35;margin-bottom:28px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:1px solid #e5e7eb;margin-bottom:28px;">
     <div style="display:flex;align-items:center;gap:14px;">
       <img src="${logoUrl}" alt="Huna Creatives" style="height:44px;width:auto;object-fit:contain;" />
-      <div>
-        <div style="font-size:18px;font-weight:800;color:#111827;letter-spacing:-0.3px;">Huna Creatives</div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:1px;">Cebu, Philippines · hunacreatives.com</div>
-      </div>
+      <div style="font-size:11px;color:#9ca3af;">Cebu, Philippines · hunacreatives.com</div>
     </div>
     <div style="text-align:right;">
       <div style="font-size:22px;font-weight:800;color:#FF6B35;letter-spacing:3px;">PAYSLIP</div>
@@ -134,7 +132,7 @@ function generatePayslipHTML(opts: {
   </div>
 
   <!-- Certification statement -->
-  <div style="background:#f9fafb;border-left:3px solid #FF6B35;padding:14px 16px;border-radius:0 8px 8px 0;margin-bottom:28px;">
+  <div style="background:#f9fafb;padding:14px 16px;border-radius:8px;margin-bottom:28px;">
     <p style="font-size:12px;color:#374151;line-height:1.7;">
       <strong>To Whom It May Concern:</strong><br>
       This is to certify that <strong>${name}</strong>${department ? `, assigned to the <strong>${department}</strong> department,` : ''} is an active independent contractor of <strong>Huna Creatives</strong>, a creative agency based in Cebu, Philippines. This document serves as an official record of compensation rendered for the pay period indicated below, and may be used for financial, banking, or institutional purposes.
@@ -240,7 +238,7 @@ function generatePayslipHTML(opts: {
   <!-- Signature block -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-bottom:32px;margin-top:16px;">
     <div>
-      <img src="${FRANCIS_SIG}" alt="Signature" style="height:44px;width:auto;max-width:170px;object-fit:contain;display:block;margin-bottom:4px;" />
+      <img src="${FRANCIS_SIG}" alt="Signature" style="height:64px;width:auto;max-width:240px;object-fit:contain;display:block;margin-bottom:4px;" />
       <div style="border-top:1.5px solid #374151;padding-top:8px;">
         <div style="font-size:12px;font-weight:700;color:#111827;">Francis Fiel Roble</div>
         <div style="font-size:11px;color:#6b7280;">Owner, Huna Creatives</div>
@@ -248,7 +246,7 @@ function generatePayslipHTML(opts: {
       </div>
     </div>
     <div>
-      <div style="border-top:1.5px solid #d1d5db;padding-top:8px;margin-top:48px;">
+      <div style="border-top:1.5px solid #d1d5db;padding-top:8px;margin-top:68px;">
         <div style="font-size:12px;font-weight:700;color:#111827;">${name}</div>
         <div style="font-size:11px;color:#6b7280;">Independent Contractor</div>
         <div style="font-size:11px;color:#6b7280;">Date: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
@@ -343,29 +341,6 @@ async function sendPayslip(payout_id: string) {
     ? `Semi-monthly fixed rate (${periodLabel})`
     : `${totalHours.toFixed(2)} hours × ${rateLabel}`;
 
-  const adjRows = adjustments.map((a: any) => `
-    <tr>
-      <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-        <p style="margin:0;font-size:13px;color:#374151;">${a.label}</p>
-        <p style="margin:2px 0 0;font-size:11px;color:#9ca3af;text-transform:capitalize;">${a.type || 'adjustment'}</p>
-      </td>
-      <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-size:13px;font-weight:600;color:${a.amount >= 0 ? '#059669' : '#ef4444'};">
-        ${a.amount > 0 ? '+' : ''}${fmt(a.amount)}
-      </td>
-    </tr>`).join('');
-
-  // Day-by-day attendance, shown inline in the receipt email (not just the attached PDF).
-  const dailyRows = (dailyHours || []).map((d: any) => {
-    const dayName = fmtDateShort(d.date);
-    const checkIn = d.first_on ? fmtTimePH(d.first_on) : null;
-    const ot = (d.overtime_hours || 0) > 0 ? ` <span style="color:#7c3aed;font-size:11px;">+${Number(d.overtime_hours).toFixed(2)}h OT</span>` : '';
-    const checkInLabel = checkIn ? `<span style="font-size:10px;color:#d1d5db;margin-left:6px;">· in ${checkIn}</span>` : '';
-    return `<tr>
-      <td style="padding:7px 0;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280;">${dayName}${checkInLabel}</td>
-      <td style="padding:7px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-size:12px;color:#374151;font-weight:500;">${(d.hours_capped || 0).toFixed(2)}h${ot}</td>
-    </tr>`;
-  }).join('');
-
   // Attach the official payslip document (same template as the payouts page's
   // "Download Payslip" button) rendered to PDF via PDFShift. A PDF failure must
   // not block the payment receipt — it degrades to sending without attachment.
@@ -414,126 +389,27 @@ async function sendPayslip(payout_id: string) {
   }
   const payslipAttached = attachments.length > 0;
 
-  const otRow = otPay > 0 ? `
-    <tr>
-      <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-        <p style="margin:0;font-size:13px;color:#374151;">Overtime Pay</p>
-        <p style="margin:2px 0 0;font-size:11px;color:#9ca3af;">${totalOT.toFixed(2)} hours overtime</p>
-      </td>
-      <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-size:13px;font-weight:600;color:#7c3aed;">
-        ${fmt(otPay)}
-      </td>
-    </tr>` : '';
-
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-
-    <div style="background:#111827;padding:28px 36px;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <td style="vertical-align:top;">
-            <p style="color:#FF6B35;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 6px;">Huna Creatives</p>
-            <h1 style="color:#fff;font-size:26px;font-weight:800;margin:0;letter-spacing:-0.5px;">Payment Receipt</h1>
-            <p style="color:#6b7280;font-size:13px;margin:6px 0 0;">Pay Period: <span style="color:#d1d5db;font-weight:600;">${periodLabel}</span></p>
-          </td>
-          <td style="vertical-align:top;text-align:right;white-space:nowrap;padding-left:16px;">
-            <p style="color:#6b7280;font-size:11px;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.05em;">Invoice No.</p>
-            <p style="color:#fff;font-size:13px;font-weight:700;margin:0;">${invoiceNo}</p>
-            <p style="color:#6b7280;font-size:11px;margin:8px 0 2px;">Issued</p>
-            <p style="color:#d1d5db;font-size:12px;margin:0;">${issuedLabel}</p>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <div style="background:#ecfdf5;padding:12px 36px;border-bottom:1px solid #d1fae5;">
-      <table style="border-collapse:collapse;"><tr>
-        <td style="vertical-align:middle;padding-right:10px;"><span style="display:inline-block;width:8px;height:8px;background:#10b981;border-radius:50%;"></span></td>
-        <td style="vertical-align:middle;"><p style="margin:0;font-size:13px;color:#065f46;font-weight:600;">Payment sent — ${payslipAttached ? 'your official payslip is attached to this email as a PDF.' : 'this is your official payslip for the period above.'}</p></td>
-      </tr></table>
-    </div>
-
-    <div style="padding:28px 36px;border-bottom:1px solid #f3f4f6;">
-      <p style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px;">Issued To</p>
-      <p style="font-size:20px;font-weight:700;color:#111827;margin:0 0 4px;">${contractor.full_name}</p>
-      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;">${contractor.department || 'Huna Creatives'}</p>
-      <p style="font-size:13px;color:#6b7280;margin:0;">${contractType} · ${rateLabel}</p>
-    </div>
-
-    <div style="padding:24px 36px;background:#fafafa;border-bottom:1px solid #f3f4f6;">
-      <p style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 16px;">Attendance Summary</p>
-      <table style="border-collapse:collapse;margin-bottom:${dailyRows ? '16px' : '0'};"><tr>
-        <td style="vertical-align:top;padding-right:32px;">
-          <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">Days Worked</p>
-          <p style="font-size:22px;font-weight:800;color:#111827;margin:0;">${daysWorked}</p>
-          <p style="font-size:11px;color:#9ca3af;margin:2px 0 0;">days</p>
-        </td>
-        <td style="vertical-align:top;padding-right:32px;">
-          <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">Hours Billed</p>
-          <p style="font-size:22px;font-weight:800;color:#111827;margin:0;">${totalHours.toFixed(2)}</p>
-          <p style="font-size:11px;color:#9ca3af;margin:2px 0 0;">hours</p>
-        </td>
-        ${totalOT > 0 ? `<td style="vertical-align:top;">
-          <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">Overtime</p>
-          <p style="font-size:22px;font-weight:800;color:#7c3aed;margin:0;">+${totalOT.toFixed(2)}</p>
-          <p style="font-size:11px;color:#9ca3af;margin:2px 0 0;">hours</p>
-        </td>` : ''}
-      </tr></table>
-      ${dailyRows ? `<table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <td style="padding-bottom:6px;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Date</td>
-          <td style="padding-bottom:6px;text-align:right;font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.06em;">Hours</td>
-        </tr>
-        ${dailyRows}
-      </table>` : ''}
-    </div>
-
-    <div style="padding:28px 36px;border-bottom:1px solid #f3f4f6;">
-      <p style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 16px;">Earnings Breakdown</p>
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-            <p style="margin:0;font-size:13px;color:#374151;">Base Pay</p>
-            <p style="margin:2px 0 0;font-size:11px;color:#9ca3af;">${basePayDesc}</p>
-          </td>
-          <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;text-align:right;font-size:13px;font-weight:600;color:#111827;">${fmt(basePay)}</td>
-        </tr>
-        ${otRow}
-        ${adjRows}
-        <tr>
-          <td style="padding:16px 0 4px;" colspan="2">
-            <div style="background:#111827;border-radius:10px;padding:16px 20px;">
-              <table style="width:100%;border-collapse:collapse;"><tr>
-                <td style="vertical-align:middle;">
-                  <p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">Total Payout</p>
-                  <p style="margin:4px 0 0;font-size:11px;color:#6b7280;">${periodLabel}</p>
-                </td>
-                <td style="vertical-align:middle;text-align:right;">
-                  <p style="margin:0;font-size:24px;font-weight:800;color:#FF6B35;">${fmt(payout.final_payout)}</p>
-                </td>
-              </tr></table>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <div style="padding:24px 36px;">
-      <p style="font-size:12px;color:#9ca3af;margin:0 0 8px;line-height:1.6;">
-        This is an automatically generated payslip for the pay period <strong style="color:#6b7280;">${periodLabel}</strong>.
-        ${payslipAttached ? 'Your official payslip PDF is attached — the same document available on your Payouts page.' : ''}
-        Please keep this for your records. If you notice any discrepancies, reach out to HR on Slack immediately.
-      </p>
-      <p style="font-size:11px;color:#9ca3af;margin:0 0 4px;">This email is not monitored. Do not reply directly — for concerns, email <a href="mailto:contact@hunacreatives.com" style="color:#9ca3af;">contact@hunacreatives.com</a></p>
-      <p style="font-size:11px;color:#d1d5db;margin:0;">© ${new Date().getFullYear()} Huna Creatives · payroll@hunacreatives.com</p>
-    </div>
-
-  </div>
-</body>
-</html>`;
+  const html = payslipEmail({
+    firstName: contractor.full_name.split(' ')[0],
+    periodLabel,
+    issuedLabel,
+    payslipNo: invoiceNo,
+    department: contractor.department,
+    contractType,
+    rateLabel,
+    hourly: !isFixed,
+    total: payout.final_payout,
+    basePay,
+    basePayDesc,
+    overtimePay: otPay,
+    overtimeHours: totalOT,
+    adjustments,
+    daysWorked,
+    hoursBilled: totalHours,
+    days: (dailyHours || []).map((d: any) => ({ date: d.date, hours: d.hours_capped || 0, overtime: d.overtime_hours || 0 })),
+    pdfAttached: payslipAttached,
+    fmt: (n: number) => fmt(n),
+  });
 
   console.log('Calling Resend API...');
   const resendRes = await fetch('https://api.resend.com/emails', {
