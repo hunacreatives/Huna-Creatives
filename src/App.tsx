@@ -11,7 +11,7 @@ import { DemoProvider } from "./contexts/DemoContext";
 import RouteErrorBoundary from "./components/feature/RouteErrorBoundary";
 
 // Pages that use a light/white background
-const LIGHT_BG_ROUTES = ['/about', '/hub', '/privacy', '/terms', '/q'];
+const LIGHT_BG_ROUTES = ['/about', '/hub', '/privacy', '/terms', '/q', '/demo'];
 const DARK_HUB_ROUTES = ['/hub/login'];
 // Routes where navigation should feel instant (no fade animation)
 const NO_TRANSITION_ROUTES = ['/hub'];

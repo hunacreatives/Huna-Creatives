@@ -3,6 +3,7 @@ Allow: /
 
 # Block crawling of non-content URLs
 Disallow: /careers/apply
+Disallow: /demo/
 Disallow: /?*
 
 # Sitemap

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 export default function ScrollToTop() {
   const [visible, setVisible] = useState(false);
+  // Client demos bring their own chrome
+  const isDemo = useLocation().pathname.startsWith('/demo/');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -14,6 +17,8 @@ export default function ScrollToTop() {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (isDemo) return null;
 
   return (
     <button

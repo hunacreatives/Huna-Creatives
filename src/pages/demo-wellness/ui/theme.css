@@ -1,0 +1,119 @@
+/* Salt & Stillness demo. Everything is scoped under .ssw so nothing leaks into
+   the Huna site. Glass only on floating layers; lists, tables and forms sit on
+   near-solid white. Orange is for glows only; teal carries actions. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap');
+
+.ssw {
+  --ink: #243037;
+  --ink-2: #4c5a61;
+  --ink-3: #7b878c;
+  --line: rgba(36, 48, 55, 0.10);
+  --line-2: rgba(36, 48, 55, 0.16);
+  --teal: #075056;
+  --teal-2: #0a6a71;
+  --teal-soft: rgba(7, 80, 86, 0.08);
+  --orange: #ef6323;
+  --sand: #f6f1ea;
+  --sand-2: #efe6da;
+  --paper: rgba(255, 255, 255, 0.9);
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --shadow: 0 1px 2px rgba(36, 48, 55, 0.04), 0 8px 24px rgba(36, 48, 55, 0.06);
+  --shadow-lg: 0 24px 60px rgba(36, 48, 55, 0.18);
+  --ok: #2f7a4f;
+  --warn: #9a6a12;
+  --bad: #b3372b;
+
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--sand);
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+}
+.ssw *, .ssw *::before, .ssw *::after { box-sizing: border-box; }
+/* Grid children may shrink below their content (stops tables/charts pushing the page wide on phones).
+   Zero specificity, so an explicit min-w-[…] class still wins. */
+:where(.ssw .grid) > * { min-width: 0; }
+.ssw .serif { font-family: Fraunces, Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.01em; }
+.ssw .num { font-variant-numeric: tabular-nums; }
+/* :where() keeps these at zero specificity so Tailwind classes (text-white, text-[13px]) still win. */
+:where(.ssw a) { color: inherit; text-decoration: none; }
+:where(.ssw button, .ssw input, .ssw select, .ssw textarea) { font-family: inherit; color: inherit; }
+.ssw :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 8px; }
+
+/* Surfaces */
+.ssw .glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+}
+.ssw .glass-strong {
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+}
+.ssw .paper { background: var(--paper); border: 1px solid var(--line); box-shadow: var(--shadow); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ssw .glass, .ssw .glass-strong { background: rgba(255, 255, 255, 0.94); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ssw .glass, .ssw .glass-strong { background: rgba(255, 255, 255, 0.96); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* Background glows */
+.ssw .orbs { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.ssw .orb { position: absolute; border-radius: 9999px; filter: blur(70px); opacity: 0.55; }
+.ssw .orb-1 { width: 520px; height: 520px; left: -140px; top: -120px; background: radial-gradient(circle, rgba(239, 99, 35, 0.45), transparent 65%); animation: ssw-drift-a 26s ease-in-out infinite; }
+.ssw .orb-2 { width: 620px; height: 620px; right: -200px; top: 10%; background: radial-gradient(circle, rgba(7, 80, 86, 0.30), transparent 65%); animation: ssw-drift-b 32s ease-in-out infinite; }
+.ssw .orb-3 { width: 480px; height: 480px; left: 25%; bottom: -220px; background: radial-gradient(circle, rgba(94, 170, 190, 0.35), transparent 65%); animation: ssw-drift-c 28s ease-in-out infinite; }
+.ssw .orbs.dim .orb { opacity: 0.28; animation: none; }
+@keyframes ssw-drift-a { 50% { transform: translate(80px, 60px) scale(1.08); } }
+@keyframes ssw-drift-b { 50% { transform: translate(-90px, 40px) scale(0.94); } }
+@keyframes ssw-drift-c { 50% { transform: translate(60px, -70px) scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .ssw .orb { animation: none !important; } }
+
+/* Sheet / drawer */
+.ssw .scrim { position: fixed; inset: 0; background: rgba(20, 28, 32, 0.32); z-index: 72; animation: ssw-fade 0.2s ease both; }
+.ssw .sheet { position: fixed; z-index: 73; display: flex; flex-direction: column; }
+@media (min-width: 768px) {
+  .ssw .sheet { top: 12px; right: 12px; bottom: 12px; width: min(480px, calc(100vw - 24px)); border-radius: 24px; animation: ssw-slide-l 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .ssw .sheet.wide { width: min(640px, calc(100vw - 24px)); }
+}
+@media (max-width: 767px) {
+  .ssw .sheet { left: 0; right: 0; bottom: 0; max-height: 92dvh; border-radius: 24px 24px 0 0; animation: ssw-slide-u 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+}
+@keyframes ssw-fade { from { opacity: 0; } }
+@keyframes ssw-slide-l { from { transform: translateX(24px); opacity: 0; } }
+@keyframes ssw-slide-u { from { transform: translateY(40px); opacity: 0; } }
+@keyframes ssw-rise { from { transform: translateY(8px); opacity: 0; } }
+.ssw .rise { animation: ssw-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Scrollbars inside rails */
+.ssw .no-bar { scrollbar-width: none; }
+.ssw .no-bar::-webkit-scrollbar { display: none; }
+
+/* Tables */
+.ssw table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ssw table.tbl th { text-align: left; font-weight: 500; color: var(--ink-3); font-size: 12.5px; padding: 10px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.ssw table.tbl td { padding: 0 16px; height: 48px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.ssw table.tbl tr:last-child td { border-bottom: 0; }
+.ssw table.tbl tbody tr { transition: background 0.12s; }
+.ssw table.tbl tbody tr.clickable { cursor: pointer; }
+.ssw table.tbl tbody tr.clickable:hover { background: rgba(7, 80, 86, 0.035); }
+.ssw table.tbl .r { text-align: right; }
+
+/* Inputs */
+.ssw .input {
+  width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; font-size: 15px;
+  background: #fff; border: 1px solid var(--line-2); color: var(--ink); transition: border 0.15s, box-shadow 0.15s;
+}
+.ssw textarea.input { height: auto; padding: 12px 14px; line-height: 1.5; }
+.ssw .input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(7, 80, 86, 0.12); }
+.ssw .input::placeholder { color: var(--ink-3); }

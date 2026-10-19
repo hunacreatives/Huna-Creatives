@@ -6,7 +6,7 @@ const PIXEL_ID = '1586194019912243';
 const CONSENT_KEY = 'huna_cookie_consent';
 export const CONSENT_EVENT = 'huna-cookie-consent';
 
-const PRIVATE_PATHS = [/^\/hub(\/|$)/, /^\/smartgrid-dashboard/, /^\/p\//, /^\/pay\//, /^\/c\//, /^\/q\//, /^\/status\//];
+const PRIVATE_PATHS = [/^\/hub(\/|$)/, /^\/smartgrid-dashboard/, /^\/p\//, /^\/pay\//, /^\/c\//, /^\/q\//, /^\/status\//, /^\/demo\//];
 
 export const isPrivatePath = (path: string) => PRIVATE_PATHS.some(r => r.test(path));
 
