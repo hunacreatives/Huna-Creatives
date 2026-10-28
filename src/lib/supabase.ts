@@ -124,9 +124,16 @@ const realClient = createClient(supabaseUrl, supabaseAnonKey, {
 // backstop: while the demo flag is set, every `.from()` query resolves to
 // empty and every mutation / rpc / edge-function call is a no-op. Real users
 // never have this flag, so production is unaffected.
+//
+// Only applies under /hub, where the demo lives. The flag stays in
+// localStorage until the visitor clicks "Exit the demo", so without the path
+// check a prospect who tried the demo then got a blank About team, and their
+// contact form / quote / proposal submissions silently went nowhere.
 export function isDemoMode(): boolean {
   try {
-    return typeof window !== 'undefined' && window.localStorage.getItem('hub_demo') === '1';
+    return typeof window !== 'undefined'
+      && window.location.pathname.startsWith('/hub')
+      && window.localStorage.getItem('hub_demo') === '1';
   } catch {
     return false;
   }
