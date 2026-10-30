@@ -9,7 +9,10 @@ precacheAndRoute(self.__WB_MANIFEST ?? []);
 
 // Serve all navigations from the precached app shell — the installed app
 // opens instantly instead of refetching index.html over the network.
-registerRoute(new NavigationRoute(createHandlerBoundToURL('app.html')));
+// Client proposal links (/p/*) always go to the network: a returning visitor
+// on an older cached build doesn't have routes for proposals added since, and
+// fell through to "This proposal is not available".
+registerRoute(new NavigationRoute(createHandlerBoundToURL('app.html'), { denylist: [/^\/p\//] }));
 
 // Deliberately NO skipWaiting: an updated SW waits until every tab from the
 // old build closes before activating. Activating mid-session deleted the old
