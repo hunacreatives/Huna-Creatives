@@ -67,6 +67,7 @@ const PublicProposalPage = lazy(() => import('../pages/p/page'));
 const ProposalCapuCoffee = lazy(() => import('../pages/p/capu-coffee/page'));
 const ProposalCapuCoffeeApprove = lazy(() => import('../pages/p/capu-coffee/approve/page'));
 const ProposalDobo = lazy(() => import('../pages/p/dobo/page'));
+const ProposalAyaStudio = lazy(() => import('../pages/p/aya-studio/page'));
 const PublicQuestionnaire = lazy(() => import('../pages/q/page'));
 const ClientStatusPage = lazy(() => import('../pages/status/page'));
 const PublicPaymentPage = lazy(() => import('../pages/pay/page'));
@@ -217,6 +218,8 @@ const routes: RouteObject[] = [
   { path: '/p/capu-coffee/approve', element: <ProposalCapuCoffeeApprove /> },
   { path: '/p/dobo', element: <ProposalDobo /> },
   { path: '/p/dobo-preview', element: <ProposalDobo /> },
+  { path: '/p/aya-studio', element: <ProposalAyaStudio /> },
+  { path: '/p/aya-studio-preview', element: <ProposalAyaStudio /> },
   { path: '/p/:slug', element: <PublicProposalPage /> },
   { path: '/q/:token', element: <PublicQuestionnaire /> },
   { path: '/pay/:token', element: <PublicPaymentPage /> },

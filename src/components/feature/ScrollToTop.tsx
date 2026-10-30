@@ -3,8 +3,9 @@ import { useLocation } from 'react-router-dom';
 
 export default function ScrollToTop() {
   const [visible, setVisible] = useState(false);
-  // Client demos bring their own chrome
-  const isDemo = useLocation().pathname.startsWith('/demo/');
+  // Client demos and the AYA proposal's scroll story bring their own chrome
+  const { pathname } = useLocation();
+  const isDemo = pathname.startsWith('/demo/') || pathname.startsWith('/p/aya-studio');
 
   useEffect(() => {
     const handleScroll = () => {
