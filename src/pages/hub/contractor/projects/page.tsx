@@ -190,13 +190,18 @@ export default function ContractorProjectsPage() {
       metaPatch = { meta: Object.keys(rest).length ? rest : null };
     }
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus, ...(metaPatch as any) } : t));
-    const { error: updateErr } = await supabase.from('hub_project_tasks').update({ status: newStatus, completed_at: newStatus === 'done' ? new Date().toISOString() : null, updated_at: new Date().toISOString(), ...metaPatch }).eq('id', task.id);
+    // The database sets the completed date, the blocked reason and both activity logs
+    const { error: updateErr } = await supabase.rpc('hub_set_task_status', {
+      p_task_id: task.id,
+      p_status: newStatus,
+      p_blocked_reason: newStatus === 'blocked' ? (metaPatch as any).meta?.blocked_reason ?? '' : null,
+    });
     if (updateErr) {
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: task.status, meta: currentMeta } as any : t));
       console.error('Failed to update task status:', updateErr);
       return;
     }
-    await logActivity('task_status_changed', task.title, task.id, { from: task.status, to: newStatus });
+    refreshWorkspaceActivity();
     const updaterName = hubUser?.full_name ?? 'Team';
     supabase.functions.invoke('notify-task-updated', {
       body: {

@@ -54,16 +54,17 @@ Deno.serve(async (req) => {
       ...((task?.assignee_ids as string[]) ?? []),
     ];
 
-    // Fetch all admins/owners
-    const { data: admins } = await supabase
-      .from('hub_users')
-      .select('id, slack_id')
-      .in('role', ['admin', 'owner']);
+    // Watchers: assignees, commenters and anyone who changed its status. Admins
+    // hear about a task by watching it, not about every task in every project.
+    const { data: watchers } = await supabase
+      .from('hub_project_task_watchers')
+      .select('user_id')
+      .eq('task_id', task_id);
 
-    const adminIds: string[] = (admins ?? []).map((a: any) => a.id);
+    const watcherIds: string[] = (watchers ?? []).map((w: any) => w.user_id);
 
-    // Deduplicate: assignees + admins, exclude updater
-    const toNotifyIds = [...new Set([...assigneeIds, ...adminIds])].filter(
+    // Deduplicate: assignees + watchers, exclude updater
+    const toNotifyIds = [...new Set([...assigneeIds, ...watcherIds])].filter(
       (id) => id !== updated_by_id
     );
 

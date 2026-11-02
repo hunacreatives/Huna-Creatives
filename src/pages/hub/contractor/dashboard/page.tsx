@@ -639,15 +639,25 @@ export default function ContractorDashboard() {
     if (isDemo) { setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t)); return; }
     const prevStatus = task.status;
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus, completed_at: newStatus === 'done' ? new Date().toISOString() : t.completed_at } : t));
-    const { error } = await supabase.from('hub_project_tasks').update({
-      status: newStatus,
-      completed_at: newStatus === 'done' ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', task.id);
+    // Same path as the projects page: logs the change and clears a blocked reason
+    const { error } = await supabase.rpc('hub_set_task_status', { p_task_id: task.id, p_status: newStatus, p_blocked_reason: null });
     if (error) {
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: prevStatus } : t));
       console.error('Failed to update task status:', error);
+      return;
     }
+    const updaterName = user?.full_name ?? 'Team';
+    supabase.functions.invoke('notify-task-updated', {
+      body: {
+        task_id: task.id,
+        project_id: task.project_id,
+        task_title: task.title,
+        project_name: getProjectName(task.project_id) || 'General',
+        updated_by_id: user?.id,
+        updated_by_name: updaterName,
+        change_description: `${updaterName} marked "${task.title}" as ${newStatus.replace('_', ' ')}`,
+      },
+    }).catch(console.error);
   };
 
   const openTaskInMyWork = (task: ProjectTask) => {

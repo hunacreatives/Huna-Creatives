@@ -45,6 +45,8 @@ Deno.serve(async (req) => {
       .select('id, title, due_date, assigned_to, assignee_ids, project_id, hub_projects(project_name)')
       .in('due_date', [today, tomorrow])
       .not('status', 'eq', 'done')
+      .not('archived', 'is', true)
+      .is('deleted_at', null)
       .or('assigned_to.not.is.null,assignee_ids.not.is.null');
 
     if (error) {
