@@ -7,6 +7,7 @@ import { useHubAuth as useAuth } from '@/hooks/useHubAuth';
 import { useDemo } from '@/contexts/DemoContext';
 import { FULL_MONTHS, getPeriods, fmtCurrency as fmt, getNextPayrollCutoff, localToday } from '@/lib/formatUtils';
 import { logAudit } from '@/lib/audit';
+import { NOTICE_DECISIONS } from '@/lib/noticeToExplain';
 import { getSetting, setSetting } from '@/lib/settings';
 import { DEMO_PAYOUTS, DEMO_CONTRACTORS } from '@/lib/demoData';
 import { computeFixedAccrual, computeSplitFixedAccrual, deriveHoursPerDay, isAutoPayrollUser, isScheduledWorkday, mergeLiveAttendanceIntoDailyHours, standardMonthlyHours } from '@/lib/payrollUtils';
@@ -208,6 +209,16 @@ export default function AdminPayrollPage() {
   const [disputesMap, setDisputesMap] = useState<Record<string, any>>({});
   // Notes input per dispute (dispute_id → note text)
   const [disputeNotesMap, setDisputeNotesMap] = useState<Record<string, string>>({});
+
+  // Notices to explain for the period: contractor_id → notices (oldest first)
+  const [noticesMap, setNoticesMap] = useState<Record<string, any[]>>({});
+  const [noticeRow, setNoticeRow] = useState<PayRow | null>(null);
+  const [noticeDates, setNoticeDates] = useState<Record<string, number>>({});
+  const [noticeDetails, setNoticeDetails] = useState('');
+  const [noticeReplyBy, setNoticeReplyBy] = useState('');
+  const [noticeSaving, setNoticeSaving] = useState(false);
+  // Decision being drafted per notice (notice_id → decision + note)
+  const [decisionDrafts, setDecisionDrafts] = useState<Record<string, { decision: string; note: string }>>({});
 
   // Bank details lookup modal
   const [bankInfoContractor, setBankInfoContractor] = useState<Contractor | null>(null);
@@ -544,6 +555,16 @@ export default function AdminPayrollPage() {
     } else {
       setDisputesMap({});
     }
+
+    const { data: notices } = await supabase
+      .from('hub_notices_to_explain')
+      .select('*')
+      .eq('period_start', selectedPeriod.start)
+      .order('created_at', { ascending: true });
+    if (mySeq !== workflowSeqRef.current) return;
+    const nm: Record<string, any[]> = {};
+    for (const n of notices || []) (nm[n.contractor_id] ??= []).push(n);
+    setNoticesMap(nm);
   };
 
   const refreshPayrollPage = async () => {
@@ -916,6 +937,156 @@ export default function AdminPayrollPage() {
       </div>
     </div>
   );
+
+  // --- Notice to explain ---
+  // Scheduled workdays so far this period, plus any day with logged hours, so
+  // HR can tick both absences (no hours) and days logged but not worked.
+  const noticeCandidateDays = (r: PayRow) => {
+    const logged: Record<string, number> = {};
+    for (const d of r.dailyBreakdown) if (!d.leave) logged[d.date] = d.billed;
+    // A period's end is its last working day; weekend shifts after it still belong to it.
+    const [py, pm, pd] = selectedPeriod.start.split('-').map(Number);
+    const calendarEnd = pd >= 16 ? `${selectedPeriod.start.slice(0, 8)}${String(new Date(py, pm, 0).getDate()).padStart(2, '0')}` : selectedPeriod.end;
+    const last = calendarEnd < todayStr ? calendarEnd : todayStr;
+    const days: { date: string; hours: number }[] = [];
+    const cur = new Date(`${selectedPeriod.start}T12:00:00`);
+    while (true) {
+      const date = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+      if (date > last) break;
+      if (date in logged || isScheduledWorkday(date, r.contractor.work_days)) days.push({ date, hours: logged[date] ?? 0 });
+      cur.setDate(cur.getDate() + 1);
+    }
+    return days;
+  };
+
+  const openNotice = (r: PayRow) => {
+    const due = new Date(`${todayStr}T12:00:00`);
+    due.setDate(due.getDate() + 5);
+    setNoticeRow(r);
+    setNoticeDates({});
+    setNoticeDetails('');
+    setNoticeReplyBy(`${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`);
+  };
+
+  const sendNotice = async () => {
+    if (!noticeRow || isDemo) return;
+    const incidents = Object.entries(noticeDates)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, hours]) => ({ date, hours }));
+    if (incidents.length === 0 || !noticeDetails.trim() || !noticeReplyBy) return;
+    setNoticeSaving(true);
+    const { data, error } = await supabase.from('hub_notices_to_explain').insert({
+      contractor_id: noticeRow.contractor.id,
+      period_start: selectedPeriod.start,
+      period_end: selectedPeriod.end,
+      incidents,
+      details: noticeDetails.trim(),
+      reply_by: noticeReplyBy,
+      issued_by: hubUser?.id ?? null,
+    }).select('id').single();
+    setNoticeSaving(false);
+    if (error || !data) {
+      alert('Failed to send the notice: ' + (error?.message ?? 'unknown error'));
+      return;
+    }
+    supabase.functions.invoke('notify-notice-to-explain', { body: { notice_id: data.id, event: 'sent' } }).catch(console.error);
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'create', entity_type: 'notice_to_explain', entity_id: data.id, description: `Sent a notice to explain to ${noticeRow.contractor.full_name} — ${incidents.map(i => formatDayLabel(i.date)).join(', ')}` });
+    setNoticeRow(null);
+    await fetchWorkflow();
+  };
+
+  const decideNotice = async (notice: any, name: string) => {
+    const draft = decisionDrafts[notice.id];
+    if (!draft?.decision || isDemo) return;
+    if (!window.confirm(`Send this decision to ${name}?\n\n${NOTICE_DECISIONS[draft.decision]}\n\nIt is emailed as the written decision.`)) return;
+    const { error } = await supabase.from('hub_notices_to_explain').update({
+      status: 'decided',
+      decision: draft.decision,
+      decision_note: draft.note.trim() || null,
+      decided_at: new Date().toISOString(),
+      decided_by: hubUser?.id ?? null,
+    }).eq('id', notice.id);
+    if (error) {
+      alert('Failed to record the decision: ' + error.message);
+      return;
+    }
+    supabase.functions.invoke('notify-notice-to-explain', { body: { notice_id: notice.id, event: 'decided' } }).catch(console.error);
+    logAudit({ actor_id: hubUser?.id, actor_name: hubUser?.full_name, action: 'update', entity_type: 'notice_to_explain', entity_id: notice.id, description: `Notice to explain decision for ${name}: ${NOTICE_DECISIONS[draft.decision]}` });
+    setDecisionDrafts(prev => { const n = { ...prev }; delete n[notice.id]; return n; });
+    await fetchWorkflow();
+  };
+
+  const renderNoticeBanner = (notice: any, name: string) => {
+    const firstName = name.split(' ')[0];
+    const dates = (notice.incidents ?? []).map((i: { date: string; hours: number }) =>
+      `${formatDayLabel(i.date)} (${i.hours > 0 ? `${formatHoursMinutes(i.hours)} logged` : 'no hours'})`).join(' · ');
+    if (notice.status === 'decided') {
+      return (
+        <div className="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl flex items-start gap-2.5">
+          <i className="ri-file-text-line text-gray-400 text-sm mt-0.5 flex-shrink-0"></i>
+          <div className="flex-1 min-w-0 text-xs">
+            <p className="text-gray-600"><span className="font-semibold">Notice to explain · {NOTICE_DECISIONS[notice.decision] ?? notice.decision}</span> · {dates}</p>
+            {notice.decision_note && <p className="text-gray-500 mt-0.5 whitespace-pre-wrap">{notice.decision_note}</p>}
+          </div>
+        </div>
+      );
+    }
+    const overdue = notice.status === 'open' && notice.reply_by < todayStr;
+    const canDecide = notice.status === 'answered' || overdue;
+    const draft = decisionDrafts[notice.id] ?? { decision: '', note: '' };
+    const setDraft = (patch: Partial<{ decision: string; note: string }>) =>
+      setDecisionDrafts(prev => ({ ...prev, [notice.id]: { ...draft, ...patch } }));
+    return (
+      <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl space-y-2.5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start gap-2.5">
+          <i className="ri-file-warning-line text-amber-600 text-sm mt-0.5 flex-shrink-0"></i>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-amber-800">
+              Notice to explain · {notice.status === 'answered'
+                ? `${firstName} replied`
+                : overdue ? `no reply, was due ${formatDayLabel(notice.reply_by)}` : `reply due ${formatDayLabel(notice.reply_by)}`}
+            </p>
+            <p className="text-xs text-amber-700 mt-0.5">{dates}</p>
+            <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{notice.details}</p>
+          </div>
+        </div>
+        {notice.response && (
+          <div className="ml-6 px-2.5 py-2 bg-white border border-amber-100 rounded-lg">
+            <p className="text-[11px] font-semibold text-gray-500 mb-0.5">{firstName}'s reply · {new Date(notice.responded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+            <p className="text-xs text-gray-700 whitespace-pre-wrap">{notice.response}</p>
+          </div>
+        )}
+        {canDecide && (
+          <div className="ml-6 space-y-2">
+            <select
+              value={draft.decision}
+              onChange={e => setDraft({ decision: e.target.value })}
+              className="w-full text-xs border border-amber-200 rounded-lg px-2.5 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-amber-300 cursor-pointer"
+            >
+              <option value="">Decision…</option>
+              {Object.entries(NOTICE_DECISIONS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <textarea
+              rows={2}
+              placeholder={`Note to ${firstName} (optional), e.g. suspension dates or what happens next`}
+              value={draft.note}
+              onChange={e => setDraft({ note: e.target.value })}
+              className="w-full text-xs border border-amber-200 rounded-lg px-2.5 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-amber-300 placeholder-gray-300 resize-y"
+            />
+            <div className="flex justify-end">
+              <button
+                onClick={() => decideNotice(notice, name)}
+                disabled={!draft.decision}
+                className="text-xs px-3 py-1.5 bg-[#111827] text-white rounded-lg hover:bg-gray-700 cursor-pointer disabled:opacity-40 whitespace-nowrap"
+              >
+                Send decision
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (isDemo) {
@@ -1793,6 +1964,9 @@ export default function AdminPayrollPage() {
                     <button onClick={() => setBankInfoContractor(c)} title="View bank details" className="text-gray-300 hover:text-[#FF6B35] cursor-pointer flex-shrink-0">
                       <i className="ri-bank-line text-sm"></i>
                     </button>
+                    <button onClick={() => openNotice(r)} title="Notice to explain" className="text-gray-300 hover:text-amber-600 cursor-pointer flex-shrink-0">
+                      <i className="ri-file-warning-line text-sm"></i>
+                    </button>
                     <button onClick={() => openEditRow(r)} className="text-gray-300 hover:text-[#FF6B35] cursor-pointer flex-shrink-0">
                       <i className="ri-edit-line text-sm"></i>
                     </button>
@@ -1843,6 +2017,10 @@ export default function AdminPayrollPage() {
                   {dispute && (
                     <div className="mb-3">{renderDisputeBanner(dispute, p)}</div>
                   )}
+
+                  {(noticesMap[c.id] ?? []).map(n => (
+                    <div key={n.id} className="mb-3">{renderNoticeBanner(n, c.full_name)}</div>
+                  ))}
 
                   {/* Action row */}
                   <div className="flex items-center justify-between pt-3 border-t border-gray-50">
@@ -2074,6 +2252,13 @@ export default function AdminPayrollPage() {
                               <i className="ri-bank-line text-sm"></i>
                             </button>
                             <button
+                              onClick={() => openNotice(r)}
+                              title="Notice to explain"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer flex-shrink-0"
+                            >
+                              <i className="ri-file-warning-line text-sm"></i>
+                            </button>
+                            <button
                               onClick={() => openEditRow(r)}
                               title="Edit payroll"
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#FF6B35] hover:bg-orange-50 transition-colors cursor-pointer flex-shrink-0"
@@ -2149,6 +2334,13 @@ export default function AdminPayrollPage() {
                           </td>
                         </tr>
                       )}
+                      {(noticesMap[c.id] ?? []).map(n => (
+                        <tr key={n.id} className="bg-amber-50/20">
+                          <td colSpan={5} className="px-5 pb-3 pt-1">
+                            <div className="pl-11 pr-2 max-w-2xl">{renderNoticeBanner(n, c.full_name)}</div>
+                          </td>
+                        </tr>
+                      ))}
                       {expandedRows.has(c.id) && (
                         <tr className="bg-gray-50/40">
                           <td colSpan={5} className="px-5 pb-4 pt-1">
@@ -2486,6 +2678,94 @@ export default function AdminPayrollPage() {
           </div>
         );
       })()}
+      {/* Notice to explain — attached to this period; it never holds the payout */}
+      {noticeRow && (() => {
+        const r = noticeRow;
+        const firstName = r.contractor.full_name.split(' ')[0];
+        const candidates = noticeCandidateDays(r);
+        const checked = Object.keys(noticeDates).length;
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-4" onClick={() => setNoticeRow(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[82vh] lg:max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#111827]">Notice to explain</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{r.contractor.full_name} · {selectedPeriod.label}</p>
+                </div>
+                <button onClick={() => setNoticeRow(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><i className="ri-close-line text-lg"></i></button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dates in question</p>
+                  {candidates.length === 0 ? (
+                    <p className="text-xs text-gray-400">No workdays in this period yet.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {candidates.map(d => {
+                        const on = d.date in noticeDates;
+                        return (
+                          <label key={d.date} className={`flex items-center gap-2.5 text-xs px-2.5 py-1.5 rounded-md cursor-pointer ${on ? 'bg-amber-50' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={() => setNoticeDates(prev => {
+                                const n = { ...prev };
+                                if (on) delete n[d.date]; else n[d.date] = d.hours;
+                                return n;
+                              })}
+                              className="accent-amber-600"
+                            />
+                            <span className="font-medium text-gray-600 flex-1">{formatDayLabel(d.date)}</span>
+                            <span className={`tabular-nums ${d.hours > 0 ? 'text-gray-700' : 'text-gray-400'}`}>{d.hours > 0 ? `${formatHoursMinutes(d.hours)} logged` : 'No hours'}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">What happened</label>
+                  <textarea
+                    rows={4}
+                    value={noticeDetails}
+                    onChange={e => setNoticeDetails(e.target.value)}
+                    placeholder="e.g. Absent without notice for the full shift. Hours were logged on the attendance tracker for this shift, but no work, messages or deliverables were recorded."
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300 placeholder-gray-300 resize-y"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Reply by</label>
+                  <input
+                    type="date"
+                    value={noticeReplyBy}
+                    onChange={e => setNoticeReplyBy(e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-300"
+                  />
+                  <p className="text-[11px] text-gray-400">At least 5 calendar days from today. {firstName} replies in Sentro and can ask for a meeting.</p>
+                </div>
+              </div>
+
+              <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+                <p className="text-[11px] text-gray-400">{firstName} gets this by email, Slack and in Sentro. It doesn't hold pay: approve the hours actually worked as usual.</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setNoticeRow(null)} className="flex-1 py-2.5 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 cursor-pointer">Cancel</button>
+                  <button
+                    onClick={sendNotice}
+                    disabled={noticeSaving || checked === 0 || !noticeDetails.trim() || !noticeReplyBy}
+                    className="flex-1 py-2.5 text-sm bg-[#111827] text-white rounded-lg hover:bg-gray-700 disabled:opacity-40 cursor-pointer"
+                  >
+                    {noticeSaving ? 'Sending...' : `Send notice${checked > 0 ? ` (${checked} ${checked === 1 ? 'day' : 'days'})` : ''}`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Bank Details Modal — read-only lookup, independent of payout status */}
       {bankInfoContractor && (() => {
         const c = bankInfoContractor;

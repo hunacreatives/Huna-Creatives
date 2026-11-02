@@ -168,6 +168,28 @@ export default function NotificationBell() {
         });
       }
 
+      // Notices to explain the employee has answered, waiting on a decision
+      const { data: answeredNotices } = await supabase
+        .from('hub_notices_to_explain')
+        .select('id, responded_at, response, hub_users!contractor_id(full_name)')
+        .gte('responded_at', since)
+        .eq('status', 'answered')
+        .order('responded_at', { ascending: false })
+        .limit(5);
+
+      for (const n of answeredNotices || []) {
+        const name = (n as any).hub_users?.full_name?.split(' ')[0] ?? 'Someone';
+        items.push({
+          id: `notice-${n.id}`,
+          icon: 'ri-file-warning-line',
+          iconBg: 'bg-amber-50',
+          iconColor: 'text-amber-600',
+          title: `${name} replied to a notice to explain`,
+          body: ((n.response as string) ?? '').slice(0, 80),
+          time: new Date(n.responded_at as string),
+        });
+      }
+
       // Pending overtime requests
       const { data: otReqs } = await supabase
         .from('hub_overtime_requests')
@@ -405,6 +427,7 @@ export default function NotificationBell() {
       task_comment:          { icon: 'ri-chat-3-line',            iconBg: 'bg-indigo-50',  iconColor: 'text-indigo-500' },
       task_mention:          { icon: 'ri-at-line',                iconBg: 'bg-violet-50',  iconColor: 'text-violet-500' },
       task_due:              { icon: 'ri-alarm-line',             iconBg: 'bg-amber-50',   iconColor: 'text-amber-500' },
+      task_due_reminder:     { icon: 'ri-alarm-line',             iconBg: 'bg-amber-50',   iconColor: 'text-amber-500' },
       overtime_approved:     { icon: 'ri-timer-flash-line',       iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
       overtime_rejected:     { icon: 'ri-timer-flash-line',       iconBg: 'bg-rose-50',    iconColor: 'text-rose-500' },
       credential_approved:   { icon: 'ri-key-line',               iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
@@ -417,6 +440,7 @@ export default function NotificationBell() {
       payroll_approved:      { icon: 'ri-money-dollar-circle-line',iconBg: 'bg-emerald-50',iconColor: 'text-emerald-500' },
       announcement:          { icon: 'ri-megaphone-line',          iconBg: 'bg-orange-50',  iconColor: 'text-orange-500' },
       attendance:            { icon: 'ri-time-line',               iconBg: 'bg-sky-50',     iconColor: 'text-sky-600' },
+      notice_to_explain:     { icon: 'ri-file-warning-line',       iconBg: 'bg-amber-50',   iconColor: 'text-amber-600' },
       default:               { icon: 'ri-notification-3-line',    iconBg: 'bg-gray-50',    iconColor: 'text-gray-400' },
     };
 

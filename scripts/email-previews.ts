@@ -29,6 +29,7 @@ import { inviteEmail } from '../supabase/functions/_shared/employeeEmails.ts';
 import { payslipEmail } from '../supabase/functions/send-payslip/email.ts';
 import { teamPayslipEmail } from '../supabase/functions/notify-payslip-submitted/email.ts';
 import { disputeResolvedEmail } from '../supabase/functions/notify-contractor/email.ts';
+import { noticeDecidedEmail, noticeSentEmail } from '../supabase/functions/notify-notice-to-explain/email.ts';
 import { projectPayoutEmail } from '../supabase/functions/notify-contractor-payment/email.ts';
 import { signRequestEmail } from '../supabase/functions/notify-contract-assigned/email.ts';
 import { signedCopyEmail as employeeSignedCopy } from '../supabase/functions/send-signed-contract/email.ts';
@@ -98,6 +99,8 @@ const emails: Array<{ group: string; name: string; html: string }> = [
       .map((date, i) => ({ date, hours: [8, 8, 7.5, 8, 8, 8, 6.5, 8, 8, 8, 8][i], overtime: [0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 3][i] })),
     pdfAttached: true, hourly: true, fmt: peso }) },
   { group: 'Employees', name: 'Payslip flag resolved', html: disputeResolvedEmail({ firstName: 'Ana', periodLabel: 'October 1–15, 2026', amount: peso(18240) }) },
+  { group: 'Employees', name: 'Notice to explain', html: noticeSentEmail({ firstName: 'Ana', periodLabel: 'October 16–31, 2026', incidents: [{ date: '2026-10-23', hours: 8 }, { date: '2026-10-30', hours: 0 }], details: 'Absent without notice for the full shift. Hours were logged on the attendance tracker for Oct 23, but no work, messages or deliverables were recorded.', replyBy: '2026-11-05' }) },
+  { group: 'Employees', name: 'Notice to explain decision', html: noticeDecidedEmail({ firstName: 'Ana', periodLabel: 'October 16–31, 2026', incidents: [{ date: '2026-10-23', hours: 8 }, { date: '2026-10-30', hours: 0 }], decision: 'final_warning', note: 'Hours for Oct 23 were removed from this payslip. Another absence without notice may lead to dismissal.', replied: true }) },
   { group: 'Employees', name: 'Project payout', html: projectPayoutEmail({ name: 'Ana', projectName: 'Kei Coffee House rebrand', clientName: 'Kei Concepts', amount: peso(6000), date: 'October 17, 2026', totalCut: 15000, totalPaid: 9000, isFullyPaid: false, receiptUrl: '#', fmt: peso }) },
   { group: 'Employees', name: 'Document to sign', html: signRequestEmail({ firstName: 'Ana', title: 'Employment Agreement 2026', url: '#' }) },
   { group: 'Employees', name: 'Signed copy', html: employeeSignedCopy({ firstName: 'Ana', title: 'Employment Agreement 2026', signedName: 'Ana Cruz', date: 'October 17, 2026', pdfAttached: true }) },

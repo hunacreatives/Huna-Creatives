@@ -7,6 +7,7 @@ import { getPeriods, fmtTime, fmtDate, fmtPHP, localToday } from '@/lib/formatUt
 import { computeFixedAccrual, computeSplitFixedAccrual, deriveHoursPerDay, mergeLiveAttendanceIntoDailyHours, standardMonthlyHours } from '@/lib/payrollUtils';
 import { FRANCIS_SIG } from '@/pages/hub/admin/documents/contractAssets';
 import { getSetting } from '@/lib/settings';
+import { NOTICE_DECISIONS } from '@/lib/noticeToExplain';
 
 interface DayRow {
   date: string;
@@ -290,6 +291,10 @@ export default function ContractorPayoutsPage() {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSaving, setDisputeSaving] = useState(false);
   const [existingDispute, setExistingDispute] = useState<any>(null);
+  // Notices to explain for this period, plus any still waiting on a reply
+  const [notices, setNotices] = useState<any[]>([]);
+  const [noticeReplies, setNoticeReplies] = useState<Record<string, string>>({});
+  const [noticeSending, setNoticeSending] = useState<string | null>(null);
 
   const fetchDays = async () => {
     if (isDemo) {
@@ -347,6 +352,7 @@ export default function ContractorPayoutsPage() {
         setExistingPayout(null);
       }
       setExistingDispute(null);
+      setNotices([]);
       setLoading(false);
       return;
     }
@@ -400,6 +406,14 @@ export default function ContractorPayoutsPage() {
       } else {
         setExistingDispute(null);
       }
+
+      const { data: noticeRows } = await supabase
+        .from('hub_notices_to_explain')
+        .select('id, period_start, period_end, incidents, details, reply_by, status, response, responded_at, decision, decision_note, decided_at')
+        .eq('contractor_id', hubUser.id)
+        .or(`period_start.eq.${selectedPeriod.start},status.eq.open`)
+        .order('created_at', { ascending: true });
+      setNotices(noticeRows ?? []);
     } catch (error) {
       console.error('Employee payouts load failed:', error);
       setLoadError('Unable to load payout details right now.');
@@ -407,6 +421,7 @@ export default function ContractorPayoutsPage() {
       setRateHistory([]);
       setExistingPayout(null);
       setExistingDispute(null);
+      setNotices([]);
     } finally {
       setLoading(false);
     }
@@ -614,6 +629,22 @@ export default function ContractorPayoutsPage() {
     await fetchDays();
   };
 
+  const replyToNotice = async (noticeId: string) => {
+    const text = noticeReplies[noticeId]?.trim();
+    if (!text || isDemo) return;
+    if (!window.confirm('Send your explanation to HR? You can only send it once.')) return;
+    setNoticeSending(noticeId);
+    const { error } = await supabase.rpc('reply_to_notice_to_explain', { p_notice_id: noticeId, p_response: text });
+    setNoticeSending(null);
+    if (error) {
+      window.alert(`Failed to send your reply: ${error.message}`);
+      return;
+    }
+    supabase.functions.invoke('notify-notice-to-explain', { body: { notice_id: noticeId, event: 'reply' } }).catch(console.error);
+    setNoticeReplies(prev => { const n = { ...prev }; delete n[noticeId]; return n; });
+    await fetchDays();
+  };
+
   const handleDownload = () => {
     if (!activePeriod) return;
     const html = generatePayslipHTML({
@@ -692,6 +723,63 @@ export default function ContractorPayoutsPage() {
           </div>
         ) : (
           <>
+            {/* Notices to explain — open ones from any period stay on top until answered */}
+            {notices.map(n => {
+              const dates = (n.incidents ?? []).map((i: { date: string }) => fmtDate(i.date)).join(' · ');
+              const fmtLong = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric' });
+              if (n.status === 'decided') {
+                return (
+                  <div key={n.id} className="rounded-xl px-4 py-3 border bg-gray-50 border-gray-100">
+                    <div className="flex items-center gap-2 mb-1">
+                      <i className="ri-file-text-line text-sm text-gray-400"></i>
+                      <p className="text-xs font-semibold text-gray-700">Notice to explain · {NOTICE_DECISIONS[n.decision] ?? n.decision}</p>
+                    </div>
+                    <p className="text-xs text-gray-500 ml-5">{dates}</p>
+                    {n.decision_note && <p className="text-xs text-gray-600 ml-5 mt-1 whitespace-pre-wrap"><strong>HR: </strong>{n.decision_note}</p>}
+                  </div>
+                );
+              }
+              return (
+                <div key={n.id} className="rounded-xl px-4 py-3.5 border bg-amber-50 border-amber-100 space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <i className="ri-file-warning-line text-base text-amber-600 mt-px"></i>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-amber-900">Notice to explain</p>
+                      <p className="text-xs text-amber-700 mt-0.5">{dates}</p>
+                      <p className="text-xs text-gray-700 mt-1.5 whitespace-pre-wrap">{n.details}</p>
+                    </div>
+                  </div>
+                  {n.status === 'answered' ? (
+                    <div className="ml-6 px-3 py-2 bg-white border border-amber-100 rounded-lg">
+                      <p className="text-[11px] font-semibold text-gray-500 mb-0.5">Your reply · sent to HR</p>
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap">{n.response}</p>
+                    </div>
+                  ) : (
+                    <div className="ml-6 space-y-2">
+                      <p className="text-xs text-amber-800">Please explain in writing by <strong>{fmtLong(n.reply_by)}</strong>. You can also ask HR for a meeting. This doesn't hold your pay.</p>
+                      <textarea
+                        rows={4}
+                        value={noticeReplies[n.id] ?? ''}
+                        onChange={e => setNoticeReplies(prev => ({ ...prev, [n.id]: e.target.value }))}
+                        placeholder="Your explanation"
+                        maxLength={3000}
+                        className="w-full px-3 py-2 text-sm border border-amber-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-200 resize-y"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => replyToNotice(n.id)}
+                          disabled={noticeSending === n.id || !noticeReplies[n.id]?.trim()}
+                          className="text-sm px-4 py-2 bg-[#111827] text-white rounded-lg hover:bg-gray-700 disabled:opacity-40 cursor-pointer"
+                        >
+                          {noticeSending === n.id ? 'Sending...' : 'Send explanation'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
             {/* Payslip preview card */}
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
