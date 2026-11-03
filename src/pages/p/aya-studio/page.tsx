@@ -104,7 +104,7 @@ const OPTIONAL: Item[] = [
   {
     key: 'mats',
     title: 'Mat selection',
-    price: 5_000,
+    price: 10_000,
     summary: 'Members pick their mat or spot in the room when they book.',
     requires: 'booking',
     includes: [
