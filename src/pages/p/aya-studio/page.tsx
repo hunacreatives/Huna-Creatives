@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
 import JourneyStory from './JourneyStory';
+import AddOns from './AddOns';
 
 // Bespoke proposal for AYA Studio — a movement studio opening in Makati in
 // March–April 2027. Brand Foundation is the core; website, booking (with
@@ -100,7 +101,33 @@ const OPTIONAL: Item[] = [
       'Audiences around the studio and your first pre-launch campaigns',
     ],
   },
+  {
+    key: 'mats',
+    title: 'Mat selection',
+    price: 5_000,
+    summary: 'Members pick their mat or spot in the room when they book.',
+    requires: 'booking',
+    includes: [
+      'Set up each room\'s layout once in the admin',
+      'Members choose their spot when booking, and taken spots are shown',
+      'Class rosters show who is on which mat',
+    ],
+  },
+  {
+    key: 'progress',
+    title: 'Client profiles and progress tracking',
+    price: 10_000,
+    summary: 'Log each client\'s measurements and assessments and see how they change.',
+    requires: 'booking',
+    includes: [
+      'BMI, weight and fitness assessments: flexibility, mobility, strength and posture',
+      'Dated records, so you can see each client\'s progress over time',
+      'Instructor notes, observations and recommendations',
+      'Visible to your staff only, with the client\'s consent collected at sign-up',
+    ],
+  },
 ];
+const NEEDS: Record<string, string> = { website: 'the website', booking: 'booking' };
 const COMPLETE = CORE_TOTAL + OPTIONAL.reduce((sum, i) => sum + i.price, 0);
 
 const RETAINER = {
@@ -311,11 +338,19 @@ export default function AyaStudioProposal() {
 
   const toggle = (key: string) => setPicked(prev => {
     const next = { ...prev, [key]: !prev[key] };
-    // Booking lives on the website: adding it adds the site, dropping the site drops it.
-    for (const item of OPTIONAL) {
-      if (item.requires && next[item.key] && !next[item.requires]) {
-        if (key === item.key) next[item.requires] = true;
-        else next[item.key] = false;
+    // Items build on each other (mats → booking → website): adding one adds what
+    // it needs, dropping one drops everything that needs it.
+    if (next[key]) {
+      for (let need = OPTIONAL.find(i => i.key === key)?.requires; need; need = OPTIONAL.find(i => i.key === need)?.requires) {
+        next[need] = true;
+      }
+    } else {
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const item of OPTIONAL) {
+          if (item.requires && next[item.key] && !next[item.requires]) { next[item.key] = false; changed = true; }
+        }
       }
     }
     return next;
@@ -424,7 +459,7 @@ export default function AyaStudioProposal() {
               Ask a question
             </a>
           </div>
-          <p className="mt-6 text-[12px] text-gray-400">For AYA Studio, Makati · October 2026</p>
+          <p className="mt-6 text-[12px] text-gray-400">For AYA Studio, Makati · October 2026, updated November 2026</p>
         </motion.div>
         <motion.div className="relative" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.15 }}>
           <div className="rounded-[28px] overflow-hidden aspect-[4/5] sm:aspect-[5/5] lg:aspect-[4/5]">
@@ -553,6 +588,8 @@ export default function AyaStudioProposal() {
         </div>
       </section>
 
+      <AddOns />
+
       {/* Pricing */}
       <section id="pricing" className="max-w-4xl mx-auto px-6 sm:px-8 py-24 scroll-mt-8">
         <Eyebrow>Pricing</Eyebrow>
@@ -610,7 +647,7 @@ export default function AyaStudioProposal() {
                     <p className="font-semibold text-[16px]">{item.title}</p>
                     <p className="text-[13.5px] text-gray-500 mt-0.5">
                       {item.summary}
-                      {item.requires && <span className="text-gray-400"> Needs the website.</span>}
+                      {item.requires && <span className="text-gray-400"> Needs {NEEDS[item.requires]}.</span>}
                     </p>
                     <ul className={`mt-3 space-y-1.5 ${on ? '' : 'opacity-50'}`}>
                       {item.includes.map(line => (
