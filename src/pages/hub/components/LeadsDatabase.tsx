@@ -10,6 +10,7 @@ import CallLogTab from './leadTracker/CallLogTab';
 import CallbacksTab from './leadTracker/CallbacksTab';
 import AllLeadsTab from './leadTracker/AllLeadsTab';
 import PipelineCard from './leadTracker/PipelineCard';
+import ListsCard from './leadTracker/ListsCard';
 import LeadDetailModal from './leadTracker/LeadDetailModal';
 import type { TrackerLead } from './leadTracker/types';
 
@@ -21,7 +22,7 @@ interface Props {
 type Tab = 'log' | 'callbacks' | 'leads';
 
 export default function LeadsDatabase({ projectId, isAdmin }: Props) {
-  const { leads, callLog, callers, loading, error, lastUpdated, live, reload, patchLead, patchCall, releaseCaller } = useLeadTrackerData(projectId);
+  const { leads, callLog, callers, lists, moveList, setListPaused, loading, error, lastUpdated, live, reload, patchLead, patchCall, releaseCaller } = useLeadTrackerData(projectId);
   const [period, setPeriod] = useState<TrackerPeriod>('shift');
   const [day, setDay] = useState(latestShiftDay);
   const [tab, setTab] = useState<Tab>('log');
@@ -56,7 +57,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   // The report is always for one shift: the one being viewed, or the latest one
   const reportDay = period === 'shift' ? day : latestShiftDay();
   const copyTeamsReport = async () => {
-    const ok = await copyReport(buildTeamsReport({ callLog, leads, callers, day: reportDay }));
+    const ok = await copyReport(buildTeamsReport({ callLog, leads, callers, lists, day: reportDay }));
     setCopyState(ok ? 'copied' : 'failed');
     setTimeout(() => setCopyState('idle'), 4000);
   };
@@ -140,15 +141,17 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
         </div>
         {tab === 'log' && <CallLogTab callLog={callLog} leads={leads} callers={callers} range={range} onOpenLead={onOpenLead} />}
         {tab === 'callbacks' && <CallbacksTab leads={leads} callers={callers} onOpenLead={onOpenLead} />}
-        {tab === 'leads' && <AllLeadsTab leads={leads} callers={callers} onOpenLead={onOpenLead} />}
+        {tab === 'leads' && <AllLeadsTab leads={leads} callers={callers} lists={lists} onOpenLead={onOpenLead} />}
       </div>
+
+      <ListsCard lists={lists} leads={leads} onMove={moveList} onPause={setListPaused} />
 
       <PipelineCard p={pipe} />
 
       <CommissionsReport projectId={projectId} />
 
       {openLead && (
-        <LeadDetailModal lead={openLead} callLog={callLog} callers={callers} onClose={() => setOpenLeadId(null)} onChanged={patchLead} onCallChanged={patchCall} />
+        <LeadDetailModal lead={openLead} lists={lists} callLog={callLog} callers={callers} onClose={() => setOpenLeadId(null)} onChanged={patchLead} onCallChanged={patchCall} />
       )}
     </div>
   );

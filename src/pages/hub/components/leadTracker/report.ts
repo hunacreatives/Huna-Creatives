@@ -1,11 +1,12 @@
 import { formatShiftDay, inRange, latestShiftDay, periodRange, shiftDayOf, shiftEndsAt, weekStart } from '@/lib/smartgridShift';
-import { pct, periodStats, type Totals } from './metrics';
-import type { CallLogEntry, Caller, TrackerLead } from './types';
+import { listPipeline, pct, periodStats, type Totals } from './metrics';
+import type { CallLogEntry, Caller, LeadList, TrackerLead } from './types';
 
 interface Input {
   callLog: CallLogEntry[];
   leads: TrackerLead[];
   callers: Caller[];
+  lists: LeadList[];
   day: string;
 }
 
@@ -34,7 +35,7 @@ function textTable(head: string[], rows: string[][]) {
 }
 
 // One report per shift, copied as HTML (tables survive a paste into Teams) with a plain-text fallback
-export function buildTeamsReport({ callLog, leads, callers, day }: Input) {
+export function buildTeamsReport({ callLog, leads, callers, lists, day }: Input) {
   const shift = periodStats(callLog, leads, callers, periodRange('shift', day));
   const week = periodStats(callLog, leads, callers, { start: weekStart(day), end: day, label: '' });
   const names = new Map(callers.map(c => [c.id, c.name]));
@@ -65,10 +66,11 @@ export function buildTeamsReport({ callLog, leads, callers, day }: Input) {
     return wins.length ? [`${l.account_name}: ${wins.join(' + ')} (${names.get(l.last_caller_id || '') || 'caller'})`] : [];
   });
 
-  const contacted = leads.filter(l => l.last_worked_at).length;
-  const emailsOnFile = leads.filter(l => l.email).length;
-  const callbacksScheduled = leads.filter(l => l.status === 'callback_pending').length;
-  const progressLine = `${contacted.toLocaleString()} of ${leads.length.toLocaleString()} hotels contacted (${pct(contacted, leads.length)}) · ${emailsOnFile} emails on file · ${callbacksScheduled} callbacks scheduled`;
+  const live = leads.filter(l => !l.retired_at);
+  const emailsOnFile = live.filter(l => l.last_worked_at && l.email).length;
+  const callbacksScheduled = live.filter(l => l.status === 'callback_pending').length;
+  const byList = listPipeline(lists, leads).filter(r => r.total > 0).map(r => `${r.list.name} ${r.called.toLocaleString()} of ${r.total.toLocaleString()}`).join(' · ');
+  const progressLine = `${byList} called · ${emailsOnFile} emails on file · ${callbacksScheduled} callbacks scheduled`;
 
   const text = [
     title,

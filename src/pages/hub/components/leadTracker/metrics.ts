@@ -1,5 +1,5 @@
 import { inRange, shiftDayOf, type PeriodRange } from '@/lib/smartgridShift';
-import type { CallLogEntry, Caller, TrackerLead } from './types';
+import type { CallLogEntry, Caller, LeadList, TrackerLead } from './types';
 
 const CONVERSATION = new Set(['interested', 'not_interested', 'callback']);
 
@@ -124,6 +124,22 @@ export function shiftQueues(callLog: CallLogEntry[], leads: TrackerLead[], calle
       callbacksDue: dueCallbacks.length,
       lastCall: calledRows[0]?.calledAt ?? null,
       rows: [...dueCallbacks, ...waiting, ...calledRows],
+    };
+  });
+}
+
+// Progress per calling list, in calling order
+export function listPipeline(lists: LeadList[], leads: TrackerLead[]) {
+  return [...lists].sort((a, b) => a.sort_order - b.sort_order).map(list => {
+    const mine = leads.filter(l => l.list_id === list.id);
+    const live = mine.filter(l => !l.retired_at);
+    return {
+      list,
+      total: live.length,
+      held: mine.length - live.length,
+      called: live.filter(l => l.last_worked_at).length,
+      remaining: live.filter(l => ['new', 'queued', 'calling'].includes(l.status)).length,
+      results: live.filter(l => l.meeting_scheduled || l.bill_received).length,
     };
   });
 }

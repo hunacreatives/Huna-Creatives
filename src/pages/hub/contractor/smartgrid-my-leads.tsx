@@ -54,7 +54,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'no_contact', label: 'Voicemail / no answer' },
 ];
 
-// History of every hotel this caller has logged a call on. Unlike My Queue,
+// History of every lead this caller has logged a call on. Unlike My Queue,
 // opening this page never claims leads. Notes can be fixed here once the batch
 // the call came from is finished.
 export default function SmartGridMyLeadsPage() {
@@ -207,7 +207,7 @@ export default function SmartGridMyLeadsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">My Leads</h1>
-              <p className="text-sm text-gray-500 mt-1">Every hotel you've called, newest first</p>
+              <p className="text-sm text-gray-500 mt-1">Every lead you've called, newest first</p>
             </div>
             <div className="flex gap-2">
               <button onClick={() => navigate('/hub/contractor/smartgrid-leads')} className="px-3 py-2 text-sm font-medium rounded-lg bg-sky-500 text-white hover:bg-sky-600">
@@ -222,7 +222,7 @@ export default function SmartGridMyLeadsPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search hotel, contact, email or phone…"
+            placeholder="Search business, contact, email or phone…"
             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/30"
           />
           <div className="flex flex-wrap gap-2">
@@ -239,7 +239,7 @@ export default function SmartGridMyLeadsPage() {
           {!loading && !error && rows.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-8">{search || filter !== 'all' ? 'Nothing matches.' : "You haven't logged any calls yet."}</p>
           )}
-          {!loading && rows.length > 0 && <p className="text-xs text-gray-500">{rows.length} hotels</p>}
+          {!loading && rows.length > 0 && <p className="text-xs text-gray-500">{rows.length} leads</p>}
 
           <div className="space-y-2">
             {rows.map(({ lead, history, myLast }) => {

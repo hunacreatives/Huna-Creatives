@@ -4,7 +4,7 @@ export interface TrackerLead {
   primary_contact: string | null;
   phone: string | null;
   email: string | null;
-  status: 'new' | 'calling' | 'complete' | 'attempted' | 'callback_pending' | string;
+  status: 'new' | 'queued' | 'calling' | 'complete' | 'attempted' | 'callback_pending' | string;
   outcome: string | null;
   assigned_to: string | null;
   locked_by: string | null;
@@ -26,6 +26,32 @@ export interface TrackerLead {
   number_of_rooms: number | null;
   retired_at: string | null;
   retired_reason: string | null;
+  list_id: number | null;
+  physical_city: string | null;
+  website: string | null;
+  utility_likely: string | null;
+  utility_confirmed: string | null;
+  approx_monthly_bill: string | null;
+  owns_building: string | null;
+  phone_check: boolean;
+}
+
+export interface LeadList {
+  id: number;
+  key: string;
+  name: string;
+  sort_order: number;
+  paused: boolean;
+  ask_for: string | null;
+  questions: string[];
+  good_fit: string | null;
+}
+
+export interface ListProgress {
+  list_id: number;
+  total: number;
+  called: number;
+  remaining: number;
 }
 
 export interface CallLogEntry {
@@ -54,7 +80,8 @@ export const LEAD_FIELDS =
   'id, account_name, primary_contact, phone, email, status, outcome, assigned_to, locked_by, locked_at, attempts_count, ' +
   'callback_date, callback_time, next_call_goal, last_worked_at, last_caller_id, meeting_scheduled, meeting_scheduled_at, ' +
   'bill_received, bill_received_at, follow_up_email_sent, email_reply_received, email_reply_received_at, call_notes, ' +
-  'number_of_rooms, retired_at, retired_reason';
+  'number_of_rooms, retired_at, retired_reason, list_id, physical_city, website, utility_likely, utility_confirmed, ' +
+  'approx_monthly_bill, owns_building, phone_check';
 
 export const OUTCOME_LABEL: Record<string, string> = {
   interested: 'Interested',
@@ -75,6 +102,8 @@ export const GOAL_LABEL: Record<string, string> = {
 export function leadStatusLabel(lead: TrackerLead): { label: string; tone: string } {
   if (lead.retired_at) return { label: 'Retired', tone: 'bg-stone-200 text-stone-600' };
   switch (lead.status) {
+    case 'queued':
+      return { label: 'Not called', tone: 'bg-gray-100 text-gray-600' };
     case 'new':
       return lead.last_worked_at
         ? { label: 'Retry later', tone: 'bg-gray-100 text-gray-600' }

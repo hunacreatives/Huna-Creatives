@@ -54,7 +54,7 @@ export default function CallLogTab({ callLog, leads, callers, range, onOpenLead 
               <tr className="border-b border-gray-100 text-xs text-gray-500">
                 <th className="text-left font-medium px-4 py-2.5 whitespace-nowrap">Time</th>
                 <th className="text-left font-medium px-3 py-2.5">Caller</th>
-                <th className="text-left font-medium px-3 py-2.5">Hotel</th>
+                <th className="text-left font-medium px-3 py-2.5">Account</th>
                 <th className="text-left font-medium px-3 py-2.5">Outcome</th>
                 <th className="text-left font-medium px-4 py-2.5">Email</th>
               </tr>

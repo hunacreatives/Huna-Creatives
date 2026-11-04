@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { LEAD_FIELDS, type CallLogEntry, type Caller, type TrackerLead } from './types';
+import { LEAD_FIELDS, type CallLogEntry, type Caller, type LeadList, type TrackerLead } from './types';
 
 const PAGE = 1000; // PostgREST caps each response at 1,000 rows
 // Live updates keep the tracker current; the full reload (every lead + the whole
@@ -22,6 +22,7 @@ export function useLeadTrackerData(projectId: number) {
   const [leads, setLeads] = useState<TrackerLead[]>([]);
   const [callLog, setCallLog] = useState<CallLogEntry[]>([]);
   const [callers, setCallers] = useState<Caller[]>([]);
+  const [lists, setLists] = useState<LeadList[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -32,7 +33,7 @@ export function useLeadTrackerData(projectId: number) {
   const load = useCallback(async () => {
     const seq = ++loadSeq.current;
     try {
-      const [leadRows, logRows, callerRes] = await Promise.all([
+      const [leadRows, logRows, callerRes, listRes] = await Promise.all([
         fetchAll<TrackerLead>((from, to) =>
           supabase.from('hub_project_leads').select(LEAD_FIELDS).eq('project_id', projectId)
             .order('id', { ascending: true }).range(from, to) as any),
@@ -42,8 +43,11 @@ export function useLeadTrackerData(projectId: number) {
             .order('id', { ascending: true }).range(from, to) as any),
         supabase.from('hub_project_contractors').select('contractor_id, hub_users(id, full_name)')
           .eq('project_id', projectId).eq('project_role', 'Cold Caller'),
+        supabase.from('hub_project_lead_lists').select('id, key, name, sort_order, paused, ask_for, questions, good_fit')
+          .eq('project_id', projectId).order('sort_order', { ascending: true }),
       ]);
       if (callerRes.error) throw callerRes.error;
+      if (listRes.error) throw listRes.error;
       if (seq !== loadSeq.current) return;
 
       const seen = new Set<string>();
@@ -57,6 +61,7 @@ export function useLeadTrackerData(projectId: number) {
       }
       callerList.sort((a, b) => a.name.localeCompare(b.name));
 
+      setLists((listRes.data || []) as LeadList[]);
       setLeads(leadRows);
       setCallLog(logRows);
       setCallers(callerList);
@@ -136,6 +141,28 @@ export function useLeadTrackerData(projectId: number) {
     return (cb.data?.length || 0) + (rest.data?.length || 0);
   }, [projectId, load]);
 
+  // Swap with the neighbouring list. The queue reads this order each time it refills.
+  const moveList = useCallback(async (id: number, direction: -1 | 1) => {
+    const ordered = [...lists].sort((a, b) => a.sort_order - b.sort_order);
+    const i = ordered.findIndex(l => l.id === id);
+    const other = ordered[i + direction];
+    if (i < 0 || !other) return;
+    const mine = ordered[i];
+    setLists(prev => prev.map(l => (l.id === mine.id ? { ...l, sort_order: other.sort_order } : l.id === other.id ? { ...l, sort_order: mine.sort_order } : l)));
+    const results = await Promise.all([
+      supabase.from('hub_project_lead_lists').update({ sort_order: other.sort_order }).eq('id', mine.id),
+      supabase.from('hub_project_lead_lists').update({ sort_order: mine.sort_order }).eq('id', other.id),
+    ]);
+    const failed = results.find(r => r.error);
+    if (failed?.error) { alert(`Couldn't change the order: ${failed.error.message}`); await load(); }
+  }, [lists, load]);
+
+  const setListPaused = useCallback(async (id: number, paused: boolean) => {
+    setLists(prev => prev.map(l => (l.id === id ? { ...l, paused } : l)));
+    const { error: err } = await supabase.from('hub_project_lead_lists').update({ paused }).eq('id', id);
+    if (err) { alert(`Couldn't save: ${err.message}`); await load(); }
+  }, [load]);
+
   const patchLead = useCallback((id: string, changes: Partial<TrackerLead>) => {
     setLeads(prev => prev.map(l => (l.id === id ? { ...l, ...changes } : l)));
   }, []);
@@ -144,5 +171,5 @@ export function useLeadTrackerData(projectId: number) {
     setCallLog(prev => prev.map(e => (e.id === id ? { ...e, meta } : e)));
   }, []);
 
-  return { leads, callLog, callers, loading, error, lastUpdated, live, reload: load, patchLead, patchCall, releaseCaller };
+  return { leads, callLog, callers, lists, moveList, setListPaused, loading, error, lastUpdated, live, reload: load, patchLead, patchCall, releaseCaller };
 }

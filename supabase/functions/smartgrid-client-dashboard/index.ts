@@ -69,10 +69,10 @@ Deno.serve(async (req) => {
     if (projErr || !projects?.length) throw new Error("SmartGrid Western project not found");
     const projectId = projects[0].id;
 
-    const [leads, activity, callerRes, incentives] = await Promise.all([
+    const [leads, activity, callerRes, incentives, listRes] = await Promise.all([
       fetchAll((from, to) =>
         supabase.from("hub_project_leads")
-          .select("id, account_name, primary_contact, phone, email, status, attempts_count, callback_date, callback_time, next_call_goal, meeting_scheduled, meeting_scheduled_at, bill_received, bill_received_at, email_reply_received, email_reply_received_at, last_worked_at, last_caller_id, call_notes")
+          .select("id, account_name, primary_contact, phone, email, status, attempts_count, callback_date, callback_time, next_call_goal, list_id, meeting_scheduled, meeting_scheduled_at, bill_received, bill_received_at, email_reply_received, email_reply_received_at, last_worked_at, last_caller_id, call_notes")
           .eq("project_id", projectId).is("retired_at", null).order("id").range(from, to)),
       fetchAll((from, to) =>
         supabase.from("hub_project_activity")
@@ -86,8 +86,12 @@ Deno.serve(async (req) => {
           .select("id, lead_id, milestone, amount, created_at, paid, paid_at")
           // Billable results only; old 'email' rows (address captured) were never billable
           .eq("project_id", projectId).in("milestone", ["reply", "meeting", "bill"]).order("id").range(from, to)),
+      supabase.from("hub_project_lead_lists")
+        .select("id, name").eq("project_id", projectId).order("sort_order"),
     ]);
     if (callerRes.error) throw callerRes.error;
+    if (listRes.error) throw listRes.error;
+    const listName = new Map((listRes.data || []).map((l: any) => [l.id, l.name as string]));
 
     const callers = ((callerRes.data || []) as any[])
       .map((r) => r.hub_users).filter(Boolean)
@@ -110,6 +114,7 @@ Deno.serve(async (req) => {
         paidAt: c.paid_at,
       })),
       callers,
+      industries: (listRes.data || []).map((l: any) => l.name as string),
       calls: activity
         .filter((a) => a.user_id && a.meta?.outcome && a.meta.outcome !== "skip")
         .map((a) => ({
@@ -124,6 +129,7 @@ Deno.serve(async (req) => {
       leads: leads.map((l) => ({
         id: l.id,
         account: l.account_name,
+        industry: listName.get(l.list_id) || null,
         contact: l.primary_contact,
         phone: l.phone,
         email: l.email,

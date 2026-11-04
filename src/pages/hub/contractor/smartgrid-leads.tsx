@@ -6,6 +6,8 @@ import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/lib/supabase';
 import ContractorLayout from '@/pages/hub/components/ContractorLayout';
 import { addDays, currentShiftDay } from '@/lib/smartgridShift';
+import { CallerListBanner, CallGuide } from '@/pages/hub/components/leadTracker/CallerListBanner';
+import type { LeadList, ListProgress } from '@/pages/hub/components/leadTracker/types';
 
 interface Lead {
   id: string;
@@ -30,6 +32,19 @@ interface Lead {
   last_caller_id: string | null;
   locked_at?: string | null;
   next_call_goal?: 'email' | 'meeting' | 'bill' | null;
+  list_id?: number | null;
+  primary_contact_title?: string | null;
+  physical_city?: string | null;
+  county?: string | null;
+  website?: string | null;
+  utility_likely?: string | null;
+  utility_confirmed?: string | null;
+  approx_monthly_bill?: string | null;
+  owns_building?: string | null;
+  number_of_rooms?: number | null;
+  capacity_cuft?: number | null;
+  phone_check?: boolean;
+  notes?: string | null;
 }
 
 interface ActivityLog {
@@ -52,6 +67,9 @@ interface FormState {
   followUpEmailSent: boolean;
   meetingScheduled: boolean;
   nextCallGoal?: 'email' | 'meeting' | 'bill';
+  utilityConfirmed?: string;
+  monthlyBill?: string;
+  ownsBuilding?: string;
 }
 
 export default function SmartGridLeadsPage() {
@@ -78,8 +96,28 @@ export default function SmartGridLeadsPage() {
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [callHistory, setCallHistory] = useState<ActivityLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [lists, setLists] = useState<LeadList[]>([]);
+  const [listProgress, setListProgress] = useState<ListProgress[]>([]);
 
   const currentLead = queue[currentLeadIndex];
+  // The batch's list, even while a callback from an earlier list is on screen
+  const nowCallingListId = queue[queue.length - 1]?.list_id;
+  const currentLeadList = lists.find(l => l.id === currentLead?.list_id);
+
+  const refreshLists = async (pId: number) => {
+    const [listRes, progressRes] = await Promise.all([
+      supabase.from('hub_project_lead_lists')
+        .select('id, key, name, sort_order, paused, ask_for, questions, good_fit')
+        .eq('project_id', pId)
+        .order('sort_order', { ascending: true }),
+      supabase.rpc('hub_lead_list_progress', { p_project_id: pId }),
+    ]);
+    if (listRes.error) throw listRes.error;
+    const nextLists = (listRes.data || []) as LeadList[];
+    setLists(nextLists);
+    if (!progressRes.error) setListProgress((progressRes.data || []) as ListProgress[]);
+    return nextLists;
+  };
 
   // This caller's own numbers for the current shift (a shift day starts at noon Manila = 04:00 UTC)
   const refreshTonight = async (pId: number, userId: string) => {
@@ -188,6 +226,7 @@ export default function SmartGridLeadsPage() {
           .order('id', { ascending: true });
         if (mineErr) throw mineErr;
         if (mine && mine.length > 0) {
+          await refreshLists(pId);
           setQueue(mine as Lead[]);
           setCurrentLeadIndex(0);
           return;
@@ -252,33 +291,41 @@ export default function SmartGridLeadsPage() {
 
       const callbacksLocked = await claimLeads((dueCallbacks || []) as Lead[], userId);
 
-      const fetchCandidates = async (assignedOnly: boolean) => {
+      const fetchCandidates = async (listId: number, assignedOnly: boolean) => {
         let q = supabase
           .from('hub_project_leads')
           .select('*')
           .eq('project_id', pId)
-          .in('status', ['new', 'calling'])
+          .eq('list_id', listId)
+          .in('status', ['new', 'queued', 'calling'])
           .is('locked_by', null)
           .is('retired_at', null)
           .or(`last_worked_at.is.null,last_worked_at.lt.${twentyFourHoursAgo}`);
         q = assignedOnly ? q.eq('assigned_to', userId) : q.is('assigned_to', null);
         const { data, error } = await q
-          .order('last_worked_at', { ascending: true, nullsFirst: true })
           .order('attempts_count', { ascending: true })
+          .order('queue_rank', { ascending: true, nullsFirst: false })
+          .order('last_worked_at', { ascending: true, nullsFirst: true })
           .order('id', { ascending: true })
-          .limit(40);
+          .limit(200);
         if (error) throw error;
         // Skip leads this caller has already tried 3+ times
-        return ((data || []) as Lead[]).filter(lead => ((lead.caller_attempts || {})[userId] || 0) < 3);
+        return ((data || []) as Lead[]).filter(lead => ((lead.caller_attempts || {})[userId] || 0) < 3).slice(0, 40);
       };
 
       // Pre-assigned leads first, otherwise the unassigned pool. If another caller
       // claimed some of the same rows first, fetch again for the next ones.
-      let newLeads: Lead[] = await claimLeads(await fetchCandidates(true), userId);
-      for (let attempt = 0; newLeads.length === 0 && attempt < 3; attempt++) {
-        const candidates = await fetchCandidates(false);
-        if (candidates.length === 0) break;
-        newLeads = await claimLeads(candidates, userId);
+      // Lists run in order: the batch comes from the first one with leads to call now.
+      const currentLists = await refreshLists(pId);
+      let newLeads: Lead[] = [];
+      for (const list of currentLists.filter(l => !l.paused)) {
+        newLeads = await claimLeads(await fetchCandidates(list.id, true), userId);
+        for (let attempt = 0; newLeads.length === 0 && attempt < 3; attempt++) {
+          const candidates = await fetchCandidates(list.id, false);
+          if (candidates.length === 0) break;
+          newLeads = await claimLeads(candidates, userId);
+        }
+        if (newLeads.length > 0) break;
       }
 
       if (newLeads.length === 0 && callbacksLocked.length === 0) {
@@ -307,6 +354,9 @@ export default function SmartGridLeadsPage() {
       followUpEmailSent: false,
       meetingScheduled: false,
       nextCallGoal: undefined,
+      utilityConfirmed: '',
+      monthlyBill: '',
+      ownsBuilding: '',
     });
   };
 
@@ -446,6 +496,10 @@ export default function SmartGridLeadsPage() {
         updates.next_call_goal = formState.nextCallGoal;
       }
 
+      if (formState.utilityConfirmed?.trim()) updates.utility_confirmed = formState.utilityConfirmed.trim();
+      if (formState.monthlyBill?.trim()) updates.approx_monthly_bill = formState.monthlyBill.trim();
+      if (formState.ownsBuilding) updates.owns_building = formState.ownsBuilding;
+
       const { data: savedRows, error } = await supabase
         .from('hub_project_leads')
         .update(updates)
@@ -494,6 +548,7 @@ export default function SmartGridLeadsPage() {
 
       refreshTonight(projectId, hubUser.id);
       refreshOwed(projectId, hubUser.id);
+      refreshLists(projectId).catch(() => {});
 
       // Move to next lead or show completion
       if (currentLeadIndex < queue.length - 1) {
@@ -620,6 +675,10 @@ export default function SmartGridLeadsPage() {
           </button>
         </div>
 
+        <div className="max-w-2xl mx-auto mb-4">
+          <CallerListBanner lists={lists} progress={listProgress} listId={nowCallingListId} />
+        </div>
+
         {/* Follow-ups owed */}
         {owed.length > 0 && (
           <div className="max-w-2xl mx-auto mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
@@ -686,7 +745,28 @@ export default function SmartGridLeadsPage() {
 
               {/* Account info */}
               <div className="space-y-4">
-                <h2 className="text-2xl font-bold text-gray-800">{currentLead.account_name}</h2>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    {currentLeadList && (
+                      <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[11px] font-semibold">{currentLeadList.name}</span>
+                    )}
+                    {currentLead.number_of_rooms != null && (
+                      <span className="text-xs text-gray-500">{currentLead.number_of_rooms.toLocaleString()} rooms</span>
+                    )}
+                    {currentLead.capacity_cuft != null && (
+                      <span className="text-xs text-gray-500">{(currentLead.capacity_cuft / 1000000).toFixed(1)}M cu ft</span>
+                    )}
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-800">{currentLead.account_name}</h2>
+                  {(currentLead.physical_city || currentLead.county) && (
+                    <p className="text-sm text-gray-500 mt-0.5">{[currentLead.physical_city, currentLead.county].filter(Boolean).join(' · ')}</p>
+                  )}
+                </div>
+                {currentLead.phone_check && (
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    This number came from a directory. Confirm it's the right place when they pick up.
+                  </p>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {currentLead.phone && (
                     <div>
@@ -711,10 +791,31 @@ export default function SmartGridLeadsPage() {
                     <div>
                       <p className="text-xs text-gray-500 font-medium">Contact</p>
                       <p className="text-sm text-gray-800">{currentLead.primary_contact}</p>
+                      {currentLead.primary_contact_title && <p className="text-xs text-gray-500">{currentLead.primary_contact_title}</p>}
+                    </div>
+                  )}
+                  {currentLead.utility_likely && (
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium">Likely utility</p>
+                      <p className="text-sm text-gray-800">{currentLead.utility_likely}</p>
+                    </div>
+                  )}
+                  {currentLead.website && (
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500 font-medium">Website</p>
+                      <a href={currentLead.website.startsWith('http') ? currentLead.website : `https://${currentLead.website}`} target="_blank" rel="noreferrer" className="block text-sm text-sky-700 hover:underline truncate">
+                        {currentLead.website.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '')}
+                      </a>
                     </div>
                   )}
                 </div>
               </div>
+
+              {currentLead.notes && (
+                <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">{currentLead.notes}</p>
+              )}
+
+              <CallGuide list={currentLeadList} />
 
               <div className="border-t border-gray-100"></div>
 
@@ -875,6 +976,42 @@ export default function SmartGridLeadsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* What the caller learned about the site */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Utility confirmed</label>
+                    <input
+                      type="text"
+                      value={formState.utilityConfirmed || ''}
+                      onChange={e => setFormState(s => ({ ...s, utilityConfirmed: e.target.value }))}
+                      placeholder={currentLead.utility_confirmed || 'e.g. PG&E'}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Approx. monthly bill</label>
+                    <input
+                      type="text"
+                      value={formState.monthlyBill || ''}
+                      onChange={e => setFormState(s => ({ ...s, monthlyBill: e.target.value }))}
+                      placeholder={currentLead.approx_monthly_bill || 'e.g. $15,000'}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Owns the building?</label>
+                    <select
+                      value={formState.ownsBuilding || currentLead.owns_building || ''}
+                      onChange={e => setFormState(s => ({ ...s, ownsBuilding: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    >
+                      <option value="">Not sure</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No, leases">No, leases</option>
+                    </select>
+                  </div>
+                </div>
 
                 {/* Notes */}
                 <div>

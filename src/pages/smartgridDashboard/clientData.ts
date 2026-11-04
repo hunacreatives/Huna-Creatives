@@ -13,6 +13,7 @@ export interface ClientCall {
 export interface ClientLead {
   id: string;
   account: string;
+  industry: string | null;
   contact: string | null;
   phone: string | null;
   email: string | null;
@@ -67,6 +68,7 @@ export interface ClientPayload {
   generatedAt: string;
   incentives: ClientIncentive[];
   callers: { id: string; name: string }[];
+  industries?: string[];
   calls: ClientCall[];
   leads: ClientLead[];
 }

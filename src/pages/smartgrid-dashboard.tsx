@@ -155,6 +155,10 @@ export default function SmartGridDashboard() {
     [data],
   );
   const progress = useMemo(() => (data ? listProgress(data) : null), [data]);
+  const industryProgress = useMemo(() => (data?.industries || []).map(name => {
+    const mine = data!.leads.filter(l => l.industry === name);
+    return { name, total: mine.length, contacted: mine.filter(l => l.status !== 'Not called yet').length };
+  }).filter(i => i.total > 0), [data]);
   // Every contact with an email on file, with when/who captured it (if a caller did)
   const emailContacts = useMemo(() => {
     if (!data) return [];
@@ -332,6 +336,21 @@ export default function SmartGridDashboard() {
                 <span key={s} className="text-gray-600">{s}: <b className="text-gray-900">{(progress.counts[s] || 0).toLocaleString()}</b></span>
               ))}
             </div>
+            {industryProgress.length > 1 && (
+              <div className="pt-2 mt-1 border-t border-gray-100 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+                {industryProgress.map(i => (
+                  <div key={i.name}>
+                    <div className="flex items-baseline justify-between gap-2 text-sm">
+                      <span className="font-medium text-gray-800">{i.name}</span>
+                      <span className="text-xs text-gray-500 whitespace-nowrap">{i.contacted.toLocaleString()} of {i.total.toLocaleString()} contacted</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-full bg-emerald-500" style={{ width: `${i.total ? (i.contacted / i.total) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -553,6 +572,7 @@ export default function SmartGridDashboard() {
                   <thead>
                     <tr className="bg-gray-50 text-gray-600 text-xs">
                       <th className="text-left px-4 py-2 font-semibold">Business</th>
+                      <th className="text-left px-3 py-2 font-semibold">Industry</th>
                       <th className="text-left px-3 py-2 font-semibold">Contact</th>
                       <th className="text-left px-3 py-2 font-semibold">Phone</th>
                       <th className="text-left px-3 py-2 font-semibold">Email</th>
@@ -564,6 +584,7 @@ export default function SmartGridDashboard() {
                     {contacts.slice(current * CONTACT_PAGE, current * CONTACT_PAGE + CONTACT_PAGE).map(l => (
                       <tr key={l.id} className="border-t border-gray-50">
                         <td className="px-4 py-2 font-medium text-gray-900">{l.account}</td>
+                        <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{l.industry || '–'}</td>
                         <td className="px-3 py-2 text-gray-700">{l.contact || '–'}</td>
                         <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{l.phone || '–'}</td>
                         <td className="px-3 py-2 text-sky-700 whitespace-nowrap">{l.email || '–'}</td>

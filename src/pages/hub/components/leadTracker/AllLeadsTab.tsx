@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { ROOM_SIZES, leadStatusLabel, roomSize, type Caller, type RoomSize, type TrackerLead } from './types';
+import { ROOM_SIZES, leadStatusLabel, roomSize, type Caller, type LeadList, type RoomSize, type TrackerLead } from './types';
 import RoomsBadge from './RoomsBadge';
 
 interface Props {
   leads: TrackerLead[];
   callers: Caller[];
+  lists: LeadList[];
   onOpenLead: (lead: TrackerLead) => void;
 }
 
@@ -12,21 +13,24 @@ type StatusFilter = 'all' | 'Not called' | 'In a queue' | 'Retry later' | 'Callb
 const STATUS_OPTIONS: StatusFilter[] = ['all', 'Not called', 'In a queue', 'Retry later', 'Callback', 'Complete', 'Out of attempts', 'Retired'];
 const PAGE = 50;
 
-export default function AllLeadsTab({ leads, callers, onOpenLead }: Props) {
+export default function AllLeadsTab({ leads, callers, lists, onOpenLead }: Props) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('all');
+  const [listId, setListId] = useState('all');
   const [callerId, setCallerId] = useState('all');
   const [followUp, setFollowUp] = useState<'all' | 'not_sent' | 'sent'>('all');
   const [size, setSize] = useState<'all' | RoomSize>('all');
   const [sort, setSort] = useState<'name' | 'rooms'>('name');
   const [page, setPage] = useState(0);
   const names = useMemo(() => new Map(callers.map(c => [c.id, c.name])), [callers]);
+  const listNames = useMemo(() => new Map(lists.map(l => [l.id, l.name])), [lists]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return leads
       // Retired leads only show when asked for
       .filter(l => (status === 'all' ? !l.retired_at : leadStatusLabel(l).label === status))
+      .filter(l => listId === 'all' || String(l.list_id) === listId)
       .filter(l => callerId === 'all' || l.assigned_to === callerId || l.locked_by === callerId || l.last_caller_id === callerId)
       .filter(l => followUp === 'all' || (!!l.email && (followUp === 'sent' ? l.follow_up_email_sent : !l.follow_up_email_sent)))
       .filter(l => size === 'all' || roomSize(l.number_of_rooms)?.value === size)
@@ -34,7 +38,7 @@ export default function AllLeadsTab({ leads, callers, onOpenLead }: Props) {
         || l.phone?.includes(q) || l.primary_contact?.toLowerCase().includes(q))
       .sort((a, b) => (sort === 'rooms' ? (b.number_of_rooms ?? -1) - (a.number_of_rooms ?? -1) : 0)
         || a.account_name.localeCompare(b.account_name));
-  }, [leads, search, status, callerId, followUp, size, sort]);
+  }, [leads, search, status, listId, callerId, followUp, size, sort]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const current = Math.min(page, pages - 1);
@@ -50,6 +54,10 @@ export default function AllLeadsTab({ leads, callers, onOpenLead }: Props) {
         />
         <select value={status} onChange={e => { setStatus(e.target.value as StatusFilter); setPage(0); }} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white">
           {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s === 'all' ? 'All statuses' : s}</option>)}
+        </select>
+        <select value={listId} onChange={e => { setListId(e.target.value); setPage(0); }} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white">
+          <option value="all">All industries</option>
+          {[...lists].sort((a, b) => a.sort_order - b.sort_order).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
         <select value={callerId} onChange={e => { setCallerId(e.target.value); setPage(0); }} className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white">
           <option value="all">Any caller</option>
@@ -76,6 +84,7 @@ export default function AllLeadsTab({ leads, callers, onOpenLead }: Props) {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100 text-gray-600">
               <th className="text-left px-4 py-2.5 font-semibold">Account</th>
+              <th className="text-left px-3 py-2.5 font-semibold">Industry</th>
               <th className="text-left px-3 py-2.5 font-semibold">Rooms</th>
               <th className="text-left px-3 py-2.5 font-semibold">Contact</th>
               <th className="text-left px-3 py-2.5 font-semibold">Phone</th>
@@ -92,6 +101,7 @@ export default function AllLeadsTab({ leads, callers, onOpenLead }: Props) {
               return (
                 <tr key={l.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer" onClick={() => onOpenLead(l)}>
                   <td className="px-4 py-2 font-medium text-gray-800">{l.account_name}</td>
+                  <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{(l.list_id && listNames.get(l.list_id)) || '–'}</td>
                   <td className="px-3 py-2">{l.number_of_rooms == null ? <span className="text-gray-300">–</span> : <RoomsBadge rooms={l.number_of_rooms} />}</td>
                   <td className="px-3 py-2 text-gray-600">{l.primary_contact || '–'}</td>
                   <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{l.phone || '–'}</td>

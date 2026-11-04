@@ -36,7 +36,7 @@ export default function PipelineCard({ p }: { p: Pipeline }) {
         ))}
       </div>
       {p.retired > 0 && (
-        <p className="text-[11px] text-gray-400">{p.retired.toLocaleString()} retired leads (under 30 rooms) aren't counted. Filter All leads by "Retired" to see them.</p>
+        <p className="text-[11px] text-gray-400">{p.retired.toLocaleString()} retired or held-back leads aren't counted. Filter All leads by "Retired" to see them.</p>
       )}
     </div>
   );

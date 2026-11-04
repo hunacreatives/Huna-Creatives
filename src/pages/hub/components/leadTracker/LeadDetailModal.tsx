@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { formatManilaDateTime } from '@/lib/smartgridShift';
-import { GOAL_LABEL, OUTCOME_LABEL, leadStatusLabel, type CallLogEntry, type Caller, type TrackerLead } from './types';
+import { GOAL_LABEL, OUTCOME_LABEL, leadStatusLabel, type CallLogEntry, type Caller, type LeadList, type TrackerLead } from './types';
 import RoomsBadge from './RoomsBadge';
 import CallNote from './CallNote';
 
 interface Props {
   lead: TrackerLead;
+  lists: LeadList[];
   callLog: CallLogEntry[];
   callers: Caller[];
   onClose: () => void;
@@ -21,7 +22,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
   </div>
 );
 
-export default function LeadDetailModal({ lead, callLog, callers, onClose, onChanged, onCallChanged }: Props) {
+export default function LeadDetailModal({ lead, lists, callLog, callers, onClose, onChanged, onCallChanged }: Props) {
   const [assignedTo, setAssignedTo] = useState(lead.assigned_to || '');
   const [saving, setSaving] = useState(false);
   const names = useMemo(() => new Map(callers.map(c => [c.id, c.name])), [callers]);
@@ -86,9 +87,14 @@ export default function LeadDetailModal({ lead, callLog, callers, onClose, onCha
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Industry">{lists.find(l => l.id === lead.list_id)?.name || '–'}</Field>
+            <Field label="City">{lead.physical_city || '–'}</Field>
             <Field label="Contact">{lead.primary_contact || '–'}</Field>
             <Field label="Phone">{lead.phone || '–'}</Field>
             <div className="col-span-2"><Field label="Email">{lead.email || '–'}</Field></div>
+            <Field label="Utility">{lead.utility_confirmed || lead.utility_likely || '–'}{lead.utility_confirmed ? ' (confirmed)' : ''}</Field>
+            <Field label="Monthly bill">{lead.approx_monthly_bill || '–'}</Field>
+            <Field label="Owns building">{lead.owns_building || '–'}</Field>
             <Field label="Attempts">{lead.attempts_count}</Field>
             <Field label="Last worked by">{lead.last_caller_id ? names.get(lead.last_caller_id) || '–' : '–'}</Field>
             {lead.status === 'callback_pending' && (
