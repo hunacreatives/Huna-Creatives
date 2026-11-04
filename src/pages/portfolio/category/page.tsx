@@ -497,6 +497,21 @@ const EmailMarketingLayout = ({ category }) => {
 /* ── Web Design dedicated layout ──────────────────────────────────────────── */
 const webDesignSites = [
   {
+    id: 'rsvp-studio',
+    name: 'The RSVP Studio',
+    url: 'https://thersvpstudio.com',
+    displayUrl: 'thersvpstudio.com',
+    category: 'Web Design & Development',
+    description:
+      'Our own event website platform. Couples and hosts build a wedding, birthday or christening website with RSVPs built in \u2014 free to make yourself, or designed for you from \u20b13,000 \u2014 with guest lists, email confirmations and online payments behind it.',
+    tags: ['Web Design', 'Web App', 'Events', 'Payments', 'Sub-brand'],
+    year: '2026',
+    accentColor: '#2f5bd3',
+    accentBg: 'rgba(47,91,211,0.1)',
+    image: '/images/rsvp-studio-home.webp',
+    comingSoon: false,
+  },
+  {
     id: 'hulma-cebu',
     name: 'Hulma Cebu',
     url: 'https://hulmacebu.com',

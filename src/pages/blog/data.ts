@@ -1,4 +1,5 @@
 import { comparisonArticles } from './comparisons';
+import { rsvpStudioLaunchArticles } from './rsvpStudioLaunch';
 
 export interface BlogArticle {
   slug: string;
@@ -2048,7 +2049,7 @@ const caseStudiesAndGuides: BlogArticle[] = [
   },
 ];
 
-export const blogArticles: BlogArticle[] = [...comparisonArticles, ...caseStudiesAndGuides];
+export const blogArticles: BlogArticle[] = [...comparisonArticles, ...rsvpStudioLaunchArticles, ...caseStudiesAndGuides];
 
 export const getBlogArticle = (slug: string): BlogArticle | undefined =>
   blogArticles.find((a) => a.slug === slug);
