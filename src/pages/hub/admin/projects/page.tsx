@@ -64,6 +64,7 @@ interface Project {
   monthly_deliverables?: number | null;
   client_status_token?: string | null;
   archived_at?: string | null;
+  client_id?: number | null;
   hub_project_payments: { id: number; amount: number; paid_at: string; notes: string | null; receipt_url: string | null }[];
   hub_project_costs: { id: number; label: string; amount: number; date: string }[];
   hub_payment_reminders: PaymentReminder[];
@@ -186,7 +187,7 @@ export default function AdminProjectsPage() {
   const [deliveredThisMonth, setDeliveredThisMonth] = useState<Record<number, number>>({});
   const [myTasks, setMyTasks] = useState<{ id: number; title: string; status: string; priority: string; due_date: string | null; project_id: number; project_name: string; client_name: string }[]>([]);
   const [myTaskCompleting, setMyTaskCompleting] = useState<number | null>(null);
-  const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; platform: string | null; status: string; notes: string | null; contract_value: number | null; contract_currency: string | null; assignments: { id: number; contractor_id: string; role: string | null; hub_users: { id: string; full_name: string; avatar_url: string | null; department: string | null } | null }[] }[]>([]);
+  const [intlClients, setIntlClients] = useState<{ id: number; client_name: string; is_internal: boolean; platform: string | null; status: string; notes: string | null; contract_value: number | null; contract_currency: string | null; assignments: { id: number; contractor_id: string; role: string | null; hub_users: { id: string; full_name: string; avatar_url: string | null; department: string | null } | null }[] }[]>([]);
   const [activeClientId, setActiveClientId] = useState<number | null>(null);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -818,7 +819,7 @@ export default function AdminProjectsPage() {
         .order('created_at', { ascending: false }),
       supabase.from('hub_users').select('id, full_name, avatar_url, project_percentage, department')
         .eq('status', 'active').order('full_name'),
-      supabase.from('hub_clients').select('id, client_name, platform, status, notes, contract_value, contract_currency, hub_client_assignments(id, contractor_id, role, hub_users(id, full_name, avatar_url, department))').order('client_name'),
+      supabase.from('hub_clients').select('id, client_name, is_internal, platform, status, notes, contract_value, contract_currency, hub_client_assignments(id, contractor_id, role, hub_users(id, full_name, avatar_url, department))').order('client_name'),
     ]);
     setProjects((pRes.data as Project[]) ?? []);
 
@@ -866,7 +867,7 @@ export default function AdminProjectsPage() {
 
     setContractors((cRes.data as Contractor[]) ?? []);
     setIntlClients((clientRes.data ?? []).map((c: any) => ({
-      id: c.id, client_name: c.client_name, platform: c.platform, status: c.status,
+      id: c.id, client_name: c.client_name, is_internal: !!c.is_internal, platform: c.platform, status: c.status,
       notes: c.notes, contract_value: c.contract_value, contract_currency: c.contract_currency,
       assignments: (Array.isArray(c.hub_client_assignments) ? c.hub_client_assignments : []).map((a: any) => ({
         id: a.id, contractor_id: a.contractor_id, role: a.role,
@@ -1151,14 +1152,19 @@ export default function AdminProjectsPage() {
   const openClientWorkspace = async (client: typeof intlClients[0]) => {
     setOpeningWorkspace(true);
     try {
-      // Check if a retainer project already exists for this client
-      const project = projects.find(p =>
-        p.project_type === 'retainer' && (
-          p.client_name.toLowerCase() === client.client_name.toLowerCase() ||
-          p.project_name.toLowerCase() === client.client_name.toLowerCase()
-        )
-      );
+      // Check if a retainer project already exists for this client: linked by
+      // id first, then by name for rows that predate client_id.
+      const project = projects.find(p => p.project_type === 'retainer' && p.client_id === client.id)
+        ?? projects.find(p =>
+          p.project_type === 'retainer' && (
+            p.client_name.toLowerCase() === client.client_name.toLowerCase() ||
+            p.project_name.toLowerCase() === client.client_name.toLowerCase()
+          )
+        );
       if (!project) {
+        // Creating a workspace is a real write — it used to happen on a plain
+        // click, which left empty "<name> · Marketing" retainers behind.
+        if (!window.confirm(`Create a retainer workspace for ${client.client_name}?`)) return;
         const { data, error } = await supabase.from('hub_projects').insert({
           project_type: 'retainer',
           client_name: client.client_name,
@@ -3274,7 +3280,14 @@ export default function AdminProjectsPage() {
                     ...retainerProjects.map(p => p.client_name.toLowerCase()),
                     ...retainerProjects.map(p => p.project_name.toLowerCase()),
                   ]);
-                  const extraIntl = intlClients.filter(c => !retainerNames.has(c.client_name.toLowerCase()));
+                  // hub_clients also holds one-off and internal clients (every
+                  // project has a client since stage 0). Only list contract
+                  // clients that don't have a retainer workspace yet.
+                  const extraIntl = intlClients.filter(c =>
+                    !c.is_internal &&
+                    (c.contract_value ?? 0) > 0 &&
+                    !projects.some(p => p.project_type === 'retainer' && p.client_id === c.id) &&
+                    !retainerNames.has(c.client_name.toLowerCase()));
                   const visibleRetainers = [...retainerProjects]
                     .filter(p => statusFilter === 'archived'
                       ? isArchivedProject(p)
