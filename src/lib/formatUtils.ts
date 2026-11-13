@@ -114,8 +114,10 @@ export function getNextPayrollCutoff(): { date: string; label: string; daysAway:
 
   const todayUtc = new Date(Date.UTC(year, month - 1, day));
 
-  const lastWorkingDay = (y: number, m1: number) => {
-    const d = new Date(Date.UTC(y, m1, 0));
+  // A cutoff on a Saturday or Sunday is due the Friday before — same rule as
+  // the Slack cutoff reminder (slack-payroll-reminder).
+  const workingDayOnOrBefore = (y: number, m1: number, day: number) => {
+    const d = new Date(Date.UTC(y, m1 - 1, day));
     const dow = d.getUTCDay();
     if (dow === 6) d.setUTCDate(d.getUTCDate() - 1);
     if (dow === 0) d.setUTCDate(d.getUTCDate() - 2);
@@ -127,8 +129,8 @@ export function getNextPayrollCutoff(): { date: string; label: string; daysAway:
     const base = new Date(Date.UTC(year, month - 1 + offset, 1));
     const y = base.getUTCFullYear();
     const m = base.getUTCMonth() + 1;
-    candidates.push(new Date(Date.UTC(y, m - 1, 15)));
-    candidates.push(lastWorkingDay(y, m));
+    candidates.push(workingDayOnOrBefore(y, m, 15));
+    candidates.push(workingDayOnOrBefore(y, m, new Date(Date.UTC(y, m, 0)).getUTCDate()));
   }
 
   for (const cutoff of candidates.sort((a, b) => a.getTime() - b.getTime())) {
