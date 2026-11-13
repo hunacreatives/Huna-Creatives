@@ -213,8 +213,14 @@ Deno.serve(async (req) => {
         const punchDate = new Date(punchMs).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
         const punchHour = parseInt(new Date(punchMs).toLocaleString('en-US', { timeZone: 'Asia/Manila', hour: '2-digit', hour12: false }));
         const shiftStartHour = hubUser?.shift_start ? parseInt(hubUser.shift_start.split(':')[0]) : null;
-        // Overnight shift: starts at/after 8 PM, and punch-in is before noon → previous day
-        if (shiftStartHour !== null && shiftStartHour >= 20 && punchHour < 12) {
+        // Overnight shift (scheduled 8 PM–4 AM start, i.e. US-hours staff): a
+        // punch-in before noon belongs to the previous day's shift. Midnight
+        // starts must be included — when US daylight saving ends, an 11 PM
+        // start becomes 12 AM, and dating it by the calendar day pushes every
+        // shift a day late (Mon shift shows as Tue) and makes a 23:59 punch
+        // collide with the previous 00:00 shift on the same date.
+        const overnight = shiftStartHour !== null && (shiftStartHour >= 20 || shiftStartHour <= 4);
+        if (overnight && punchHour < 12) {
           const prev = new Date(punchMs - 24 * 60 * 60 * 1000);
           return prev.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
         }

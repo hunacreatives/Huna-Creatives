@@ -29,24 +29,35 @@ function getPHTParts(date = new Date()) {
   };
 }
 
+// A cutoff on a Saturday or Sunday is announced on the Friday before, so the
+// team gets the reminder on a day they're actually working.
+function workingDayOnOrBefore(year: number, month1: number, day: number): number {
+  const d = new Date(Date.UTC(year, month1 - 1, day));
+  const dow = d.getUTCDay();
+  if (dow === 6) d.setUTCDate(d.getUTCDate() - 1);
+  if (dow === 0) d.setUTCDate(d.getUTCDate() - 2);
+  return d.getUTCDate();
+}
+
 function lastWorkingDayOfMonth(year: number, month1: number): number {
-  const lastDay = new Date(Date.UTC(year, month1, 0));
-  const dow = lastDay.getUTCDay();
-  if (dow === 6) lastDay.setUTCDate(lastDay.getUTCDate() - 1);
-  if (dow === 0) lastDay.setUTCDate(lastDay.getUTCDate() - 2);
-  return lastDay.getUTCDate();
+  return workingDayOnOrBefore(year, month1, new Date(Date.UTC(year, month1, 0)).getUTCDate());
+}
+
+function midMonthCutoffDay(year: number, month1: number): number {
+  return workingDayOnOrBefore(year, month1, 15);
 }
 
 function isTodayCutoff(): boolean {
   const { year, month, day } = getPHTParts();
-  return day === 15 || day === lastWorkingDayOfMonth(year, month);
+  return day === midMonthCutoffDay(year, month) || day === lastWorkingDayOfMonth(year, month);
 }
 
 function getCutoffLabel(): string {
-  const { day } = getPHTParts();
+  const { year, month, day } = getPHTParts();
+  if (day === lastWorkingDayOfMonth(year, month)) return 'Today is the last working day of the month';
   return day === 15
     ? 'Today is the 15th payroll cutoff'
-    : 'Today is the last working day of the month';
+    : 'The 15th falls on a weekend, so today is the payroll cutoff';
 }
 
 function getPHTDateString(): string {
