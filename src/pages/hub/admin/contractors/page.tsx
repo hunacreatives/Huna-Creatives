@@ -143,7 +143,7 @@ export default function ContractorsPage() {
   const [filtered, setFiltered] = useState<HubUser[]>([]);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'list' | 'org'>('list');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active');
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -217,9 +217,18 @@ export default function ContractorsPage() {
 
   const handleDelete = async (c: HubUser) => {
     setActionLoading(true);
-    await supabase.from('hub_users').delete().eq('id', c.id);
+    const { error } = await supabase.from('hub_users').delete().eq('id', c.id);
     setActionLoading(false);
     setConfirm(null);
+    if (error) {
+      // Calls, leads, tasks and other records point at this person, so the
+      // database refuses the delete to keep that history. Deactivate instead.
+      showToast(error.code === '23503'
+        ? `${c.full_name} has work history in the hub, so they can't be removed. Deactivate them instead.`
+        : `Couldn't remove ${c.full_name}: ${error.message}`, 'error');
+      return;
+    }
+    showToast(`${c.full_name} removed`, 'success');
     fetchContractors();
   };
 
