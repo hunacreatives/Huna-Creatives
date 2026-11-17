@@ -1,6 +1,9 @@
-// SmartGrid callers work 11 PM–3 AM Manila, so one shift spans two calendar
-// dates. A shift belongs to the Manila date it started on: anything before noon
-// counts toward the previous day (same rule slack-attendance uses).
+// SmartGrid callers work midnight–4 AM Manila (US Pacific morning; it was
+// 11 PM–3 AM before US daylight saving ended). Anything before noon counts toward
+// the previous Manila date, so shift D is the night of D (same rule
+// slack-attendance uses).
+
+export const SHIFT_HOURS = '12 AM – 4 AM';
 
 export type TrackerPeriod = 'shift' | 'week' | 'month' | 'all';
 
@@ -12,14 +15,14 @@ export const shiftDayOf = (ts: string | number | Date) =>
 
 export const currentShiftDay = () => shiftDayOf(Date.now());
 
-// The most recent shift that has already started (shifts start 11 PM Manila).
-// Between noon and 11 PM this is still last night's shift, so reports and the
-// tracker don't default to a shift nobody has worked yet.
+// The most recent shift that has already started (shifts start at midnight Manila).
+// Until midnight this is still last night's shift, so reports and the tracker
+// don't default to a shift nobody has worked yet.
 export const latestShiftDay = () =>
-  new Date(Date.now() - 23 * 60 * 60 * 1000).toLocaleDateString('en-CA', { timeZone: MANILA });
+  new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { timeZone: MANILA });
 
-// Shift D runs 11 PM on D to 3 AM on D+1, Manila (UTC+8, no DST)
-export const shiftEndsAt = (day: string) => new Date(`${addDays(day, 1)}T03:00:00+08:00`).getTime();
+// Shift D runs midnight to 4 AM on D+1, Manila (UTC+8, no DST)
+export const shiftEndsAt = (day: string) => new Date(`${addDays(day, 1)}T04:00:00+08:00`).getTime();
 
 export const addDays = (day: string, n: number) => {
   const d = new Date(`${day}T00:00:00Z`);
@@ -42,7 +45,7 @@ export interface PeriodRange {
 
 export function periodRange(period: TrackerPeriod, day: string): PeriodRange {
   if (period === 'shift') {
-    return { start: day, end: day, label: `Shift · ${fmtDay(day, { weekday: 'short', month: 'short', day: 'numeric' })}, 11 PM – 3 AM` };
+    return { start: day, end: day, label: `Shift · ${fmtDay(day, { weekday: 'short', month: 'short', day: 'numeric' })} night, ${SHIFT_HOURS}` };
   }
   if (period === 'week') {
     const start = weekStart(day);

@@ -29,7 +29,7 @@ export default function LeadsDatabase({ projectId, isAdmin }: Props) {
   const [openLeadId, setOpenLeadId] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
-  // Follow the latest shift (a new one starts at 11 PM Manila) until the admin picks another date
+  // Follow the latest shift (a new one starts at midnight Manila) until the admin picks another date
   const followingCurrent = useRef(true);
   useEffect(() => {
     const t = setInterval(() => {

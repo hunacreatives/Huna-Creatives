@@ -1,4 +1,4 @@
-import { formatShiftDay, inRange, latestShiftDay, periodRange, shiftDayOf, shiftEndsAt, weekStart } from '@/lib/smartgridShift';
+import { SHIFT_HOURS, formatShiftDay, inRange, latestShiftDay, periodRange, shiftDayOf, shiftEndsAt, weekStart } from '@/lib/smartgridShift';
 import { listPipeline, pct, periodStats, type Totals } from './metrics';
 import type { CallLogEntry, Caller, LeadList, TrackerLead } from './types';
 
@@ -45,7 +45,7 @@ export function buildTeamsReport({ callLog, leads, callers, lists, day }: Input)
   const usDay = new Date(`${day}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short' });
 
   const title = `SmartGrid Western: Daily Calling Report${inProgress ? ` (so far, as of ${asOf} Manila)` : ''}`;
-  const header = `Shift: ${formatShiftDay(day)} · 11 PM – 3 AM Manila (${usDay} morning, US Pacific)`;
+  const header = `Shift: ${formatShiftDay(day)} night · ${SHIFT_HOURS} Manila (${usDay} morning, US Pacific)`;
 
   const resultHead = ['Caller', 'Calls', 'Conversations', 'Successful (emails)', 'Success rate', 'Callbacks', 'Meetings', 'Bills'];
   const resultRow = (name: string, s: Omit<Totals, 'lastCall'>) =>
